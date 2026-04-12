@@ -1,77 +1,91 @@
-# Mapsplice
+# mapsplice
 
-`mapsplice` is a small CLI for splicing one roadmap into another without
-hand-renumbering phases, steps, tasks, or dependency references.
+*Splice one roadmap into another without spending your afternoon renumbering
+phases, steps, and task dependencies by hand.*
 
-By default the rewritten roadmap is written to standard output. Pass
-`--in-place` or `-i` to rewrite the target file instead.
+`mapsplice` is a small Rust CLI for teams who keep their plans in Markdown and
+would rather automate the fiddly bits. It parses a constrained roadmap format,
+applies structural edits, renumbers the affected items, and rewrites matching
+dependency references on the way out.
 
-## Commands
+______________________________________________________________________
 
-```text
-mapsplice append <target> <file-to-append>
-mapsplice insert <target> <anchor> <file-to-insert>
-mapsplice insert --after <target> <anchor> <file-to-insert>
-mapsplice delete <target> <anchor>
-mapsplice replace <target> <anchor> <file-to-replace-with>
-```
+## Why mapsplice?
 
-Anchors determine the structural level of the operation:
+- **Make roadmap edits mechanical**: Insert, replace, or delete sections
+  without manually renumbering the rest of the document.
+- **Keep dependency prose in sync**: References such as `Requires 8.2.3.` get
+  rewritten when the target item moves.
+- **Stay review-friendly**: The default mode writes the rewritten roadmap to
+  standard output, so you can inspect or diff it before replacing the source
+  file.
 
-- `8` targets a phase.
-- `8.2` targets a step.
-- `8.2.3` targets a task.
+______________________________________________________________________
 
-`append` is phase-only in the current release. It appends one or more phases to
-the end of the target roadmap.
+## Quick start
 
-## Supported roadmap grammar
-
-`mapsplice` intentionally supports a constrained roadmap format rather than
-arbitrary Markdown surgery:
-
-- Optional preamble content may appear before the first numbered phase.
-- Phases are level-2 headings such as `## 8. Phase title`.
-- Steps are level-3 headings such as `### 8.2. Step title`.
-- Tasks are Markdown list items whose first paragraph starts with a task number
-  such as `- [ ] 8.2.3. Task title`.
-- Task bodies may contain extra paragraphs or nested bullet lists.
-
-The tool renumbers every affected phase, step, and task after each operation.
-Dependency prose inside text nodes is rewritten when it matches a renumbered
-roadmap identifier. For example, `Requires 9.1.2.` becomes `Requires 10.1.2.`
-when the referenced task moves.
-
-Fragments supplied to `insert` or `replace` must contain one or more sibling
-items at the same structural level as the target anchor. A task fragment cannot
-be inserted at phase level, and a phase fragment cannot replace a task.
-
-## Configuration
-
-The CLI uses `ortho-config` for command parsing and optional per-subcommand
-configuration discovery.
-
-The initial release keeps required file paths and anchors on the command line.
-Optional command flags can still come from configuration. For example, the
-`insert --after` switch can be configured with either of the following:
-
-```toml
-[cmds.insert]
-after = true
-```
+### Installation
 
 ```bash
-MAPSPLICE_CMDS_INSERT_AFTER=true
+cargo install --path .
 ```
 
-## Development
-
-Run the standard quality gates before committing:
+### Basic usage
 
 ```bash
-make check-fmt
-make lint
-make test
-make markdownlint
-make nixie
+cat > target.md <<'EOF'
+## 1. Phase one
+
+### 1.1. Step one
+
+- [ ] 1.1.1. First task.
+EOF
+
+cat > fragment.md <<'EOF'
+## 9. Inserted phase
+
+### 9.1. Added step
+
+- [ ] 9.1.1. Added task. Requires 9.1.1.
+EOF
+
+mapsplice append target.md fragment.md > updated.md
 ```
+
+Use `-i` or `--in-place` when you want to rewrite the target file instead of
+printing the result.
+
+______________________________________________________________________
+
+## Features
+
+- Parse roadmap phases from level-2 headings, steps from level-3 headings, and
+  tasks from numbered Markdown list items.
+- Support `append`, `insert`, `delete`, and `replace` operations.
+- Enforce strict level matching so a task fragment cannot be inserted where a
+  phase belongs.
+- Renumber downstream phases, steps, and tasks after every structural edit.
+- Rewrite matching dependency references found in roadmap text nodes.
+
+______________________________________________________________________
+
+## Learn more
+
+- [Users' Guide](docs/users-guide.md) — command semantics, worked examples, and
+  roadmap format rules
+- [Implementation plan](docs/execplans/initial-tool.md) — design decisions and
+  architecture notes
+- [Contributing guide](AGENTS.md) — repository workflow and quality gates
+
+______________________________________________________________________
+
+## Licence
+
+ISC — see [LICENSE](LICENSE) for details.
+
+______________________________________________________________________
+
+## Contributing
+
+Contributions are welcome. Please read [AGENTS.md](AGENTS.md) before opening a
+pull request so the repository's gate and commit workflow stays intact.
