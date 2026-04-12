@@ -1,8 +1,27 @@
-//! `Mapsplice` application entry point.
+//! `mapsplice` binary entry point.
 
-// TODO: Remove this stub and implement actual application functionality.
-/// Application entry point.
-#[expect(clippy::print_stdout, reason = "CLI output is the intended behaviour")]
-fn main() {
-    println!("Hello from Mapsplice!");
+use std::process::ExitCode;
+
+/// Run the CLI and report failures.
+#[expect(
+    clippy::print_stdout,
+    reason = "roadmap output is the intended CLI behaviour"
+)]
+#[expect(
+    clippy::print_stderr,
+    reason = "diagnostics belong on stderr for the CLI"
+)]
+fn main() -> ExitCode {
+    match mapsplice::run_from_args(std::env::args_os()) {
+        Ok(outcome) => {
+            if let Some(stdout) = outcome.stdout {
+                println!("{stdout}");
+            }
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }

@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -26,10 +26,10 @@ task list items with prose such as `Requires 9.1.2.` inside task bodies.
 
 ## Repository orientation
 
-The repository is currently a stub. `src/main.rs` only prints a placeholder.
-There is no existing CLI structure, no `docs/execplans/` directory, and no
-project-specific user guide yet. The shared reference material already in the
-repository is the main source of truth for the implementation:
+The repository is currently a stub. `src/main.rs` only prints a placeholder,
+there is no library crate yet, and there is no project-specific user guide. The
+shared reference material already in the repository is the main source of truth
+for the implementation:
 
 - `docs/ortho-config-users-guide.md` explains how `OrthoConfig` composes
   configuration, handles subcommands, and supports selected-subcommand merges.
@@ -97,7 +97,7 @@ implementation.
   modules.
 - Use capability-oriented filesystem paths through `cap_std` and `camino`
   rather than `std::fs` and `std::path`.
-- Do not begin implementation until this draft is explicitly approved.
+- Keep this ExecPlan current while implementation is in flight.
 
 ## Tolerances (exception triggers)
 
@@ -291,17 +291,22 @@ clarity constraints. A likely layout is:
 ```plaintext
 src/main.rs
 src/cli.rs
-src/config.rs
 src/error.rs
+src/fs.rs
 src/lib.rs
 src/roadmap/mod.rs
 src/roadmap/model.rs
-src/roadmap/parse.rs
-src/roadmap/ops.rs
+src/roadmap/parse/mod.rs
+src/roadmap/parse/document.rs
+src/roadmap/parse/fragment.rs
+src/roadmap/ops/mod.rs
+src/roadmap/ops/rewrite.rs
 src/roadmap/render.rs
+tests/roadmap_unit.rs
 tests/behaviour_cli.rs
+tests/steps/mod.rs
 tests/steps/cli_steps.rs
-tests/features/*.feature
+tests/features/mapsplice.feature
 ```
 
 The exact file split can change during implementation, but the core rule is
@@ -343,23 +348,68 @@ and rewrites the target only when `--in-place` is supplied.
   `markdown` crate docs, and the Wireframe roadmap example.
 - [x] 2026-04-12 00:00Z: Drafted the initial ExecPlan at
   `docs/execplans/initial-tool.md`.
-- [ ] Await approval or requested revisions before implementation.
-- [ ] Implement the roadmap parser, mutation engine, CLI, tests, and
+- [x] 2026-04-12 19:55Z: Received approval to proceed with implementation.
+- [x] 2026-04-12 19:55Z: Re-read the Rust, testing, and `ortho-config`
+  reference guides before touching the code.
+- [x] 2026-04-12 19:55Z: Confirmed the approved parsing strategy still holds:
+  `markdown` provides `to_mdast()` but no documented Markdown writer API for
+  the required round-trip behaviour.
+- [x] 2026-04-12 20:10Z: Scaffolded the crate, added the typed roadmap model,
+  parser, renderer, splice engine, capability-oriented filesystem helpers, and
+  the first working CLI boundary.
+- [x] 2026-04-12 20:15Z: Completed manual smoke checks for `append` and
+  `insert` against temporary roadmap files, confirming renumbering and
+  dependency rewrites on the happy path.
+- [x] 2026-04-12 20:35Z: Added `rstest` unit coverage for anchor parsing,
+  fragment classification, append/insert/delete/replace semantics, in-place
+  rewrites, and level mismatch rejection.
+- [x] 2026-04-12 20:35Z: Added `rstest-bdd` feature coverage that drives the
+  compiled binary through stdout mode, in-place mode, replace, delete,
+  insert-after, and mismatch failure scenarios.
+- [x] 2026-04-12 20:40Z: Replaced the README stub with real user-facing
+  command, grammar, and configuration documentation.
+- [x] 2026-04-12 21:05Z: Split the parser into `parse::document` and
+  `parse::fragment`, and split the mutation engine into `ops` plus
+  `ops::rewrite`, to satisfy the repository's file-size and complexity rules
+  without weakening validation.
+- [x] 2026-04-12 21:15Z: Replayed the full gate stack on the final tree:
+  `make fmt`, `make check-fmt`, `make lint`, `make test`, `make markdownlint`,
+  and `make nixie` all passed.
+- [x] Implement the roadmap parser, mutation engine, CLI, tests, and
   documentation.
-- [ ] Run code and documentation gates, then commit the approved work.
+- [x] Run code and documentation gates, then commit the approved work.
 
 ## Surprises & Discoveries
 
 - The repository is effectively empty apart from shared documentation and a
   stub `main.rs`, so the implementation will create the project structure from
   scratch.
-- `docs/execplans/` did not exist and had to be created for this plan.
 - The `markdown` crate documentation explicitly advertises parsing and mdast
   access, but not a full Markdown writer API suitable for guaranteed
   round-tripping.
 - The sample Wireframe roadmap expresses dependencies as ordinary prose inside
   task bodies, for example `Requires 9.1.2.`, which means dependency rewrites
   must traverse parsed text content rather than rely on a dedicated field.
+- The `ortho-config` guide now documents two useful patterns for this CLI:
+  per-subcommand merges via `load_and_merge_subcommand_for`, and global-plus-
+  selected-subcommand merging via `load_globals_and_merge_selected_subcommand`.
+- The `grepai` project index returned no useful hits for this tiny crate, so
+  local exploration is falling back to `leta` plus targeted file reads.
+- `ortho-config` subcommand merging returns an `Arc<OrthoError>` and is a good
+  fit for subcommand-scoped optional settings, but the global `--in-place` flag
+  is cleaner as a plain clap-global process option than as a forced top-level
+  merge.
+- Fragment numbering can collide with target numbering during dependency
+  rewrites. A naïve `old_id -> new_id` map is therefore ambiguous when both
+  documents define the same anchor text.
+- `rstest-bdd` scenario bodies accept unit `Result` returns, but fallible
+  fixtures need an explicit helper to unwrap `Result<Fixture, Error>` into a
+  borrowed fixture value without propagating `&mut Error` references.
+- The repository's Whitaker policy is materially stricter than plain Clippy:
+  it rejects oversized modules, branch-heavy conditions, clustered control-flow
+  bumps, and assertion-heavy tests that return `Result`, so the final shape had
+  to be refactored around those maintainability rules instead of merely
+  compiling.
 
 ## Decision Log
 
@@ -381,10 +431,47 @@ and rewrites the target only when `--in-place` is supplied.
   Rationale: the repository instructions and the execplans skill both require a
   draft-first workflow for non-trivial work.
 
+- Decision: introduce `src/lib.rs` alongside a thin `src/main.rs`.
+  Rationale: the library crate gives the roadmap engine a stable home for unit
+  tests and future doctests, while the binary remains a narrow CLI/reporting
+  boundary.
+
+- Decision: use an `OrthoConfig`-derived global CLI struct that holds
+  per-command optional settings, while keeping the process-wide `--in-place`
+  flag as a clap-global option at the binary edge. Rationale: this preserves
+  the user's requested CLI surface, keeps required positional values CLI-only,
+  and avoids forcing top-level config merging into the wrong `ortho-config`
+  abstraction.
+
+- Decision: resolve dependency rewrites by looking up source-local renumbered
+  anchors first, then falling back to a unique cross-source mapping when the
+  anchor text is only defined once across target and fragment. Rationale: this
+  handles internal dependencies in inserted fragments and downstream rewrites
+  in the original target without collapsing colliding fragment and target
+  identifiers into one ambiguous map.
+
+- Decision: keep the behavioural harness on compile-time binary discovery via
+  `env!("CARGO_BIN_EXE_mapsplice")`. Rationale: `nextest` does not provide the
+  same runtime environment lookup the first fixture draft expected, while Cargo
+  reliably embeds the binary path for integration tests at compile time.
+
+- Decision: split both parsing and mutation into nested submodules instead of
+  keeping one file per concern. Rationale: Whitaker's module-size and
+  complexity lints are part of the repository contract, so the maintainable
+  design is `parse::{document,fragment}` plus `ops::rewrite`, not a pair of
+  near-400-line files.
+
 ## Outcomes & Retrospective
 
-No implementation has started yet. The current outcome is a draft plan that
-captures the likely module split, the parsing and rendering strategy, the
-configuration approach with `ortho-config`, and the expected unit and
-behaviour-test coverage. The next step is user review and approval, followed by
-implementation strictly within the constraints and tolerances recorded above.
+The implementation is complete and the repository gates are green. The final
+shape is a small library-backed CLI with a capability-oriented filesystem
+boundary, typed roadmap identifiers, mdast-driven parsing into a roadmap
+intermediate representation, deterministic rendering of the supported roadmap
+grammar, source-aware renumbering plus dependency rewrites, `rstest` unit
+coverage, and `rstest-bdd` binary-level behavioural coverage.
+
+The most important retrospective lesson is that the repository's
+maintainability rules changed the architecture in useful ways. The final
+submodule split kept the parser and rewrite logic readable, and the stricter
+lint rules pushed the tests towards clearer fixture naming and explicit
+test-style assertions instead of opaque fallible test bodies.
