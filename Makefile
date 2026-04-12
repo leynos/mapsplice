@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
+.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie typecheck
 
 
 TARGET ?= mapsplice
@@ -9,10 +9,11 @@ RUST_FLAGS ?=
 RUST_FLAGS := -D warnings $(RUST_FLAGS)
 RUSTDOC_FLAGS ?=
 RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
-CARGO_FLAGS ?= --all-targets --all-features
+CARGO_FLAGS ?= --workspace --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
-TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run --no-tests pass,test)
+DOC_TEST_TARGETS := $(shell $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | jq -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
@@ -26,7 +27,7 @@ clean: ## Remove build artifacts
 
 test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-ifneq ($(TEST_CMD),test)
+ifeq ($(DOC_TEST_TARGETS),true)
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
 endif
 
@@ -36,15 +37,13 @@ target/%/$(TARGET): ## Build binary in debug or release mode
 lint: ## Run Clippy with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
 	$(CARGO) clippy $(CLIPPY_FLAGS)
-	@command -v whitaker >/dev/null 2>&1 && \
-		RUSTFLAGS="$(RUST_FLAGS)" whitaker --all -- $(CARGO_FLAGS) || \
-		{ echo "whitaker not found on PATH; skipping whitaker lint. Install whitaker to run this check."; }
+	RUSTFLAGS="$(RUST_FLAGS)" whitaker --all -- $(CARGO_FLAGS)
 
 typecheck: ## Type-check without building
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
 
 fmt: ## Format Rust and Markdown sources
-	$(CARGO) +nightly fmt --all
+	$(CARGO) fmt --all
 	mdformat-all
 
 check-fmt: ## Verify formatting

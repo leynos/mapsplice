@@ -1,2 +1,10 @@
 target/
 **/*.rs.bk
+.grepai/
+*:Zone.Identifier
+.agents/mcp/context_pack/packs/
+*.swp
+*.swo
+*.swn
+*~
+*.un~
