@@ -1,9 +1,11 @@
 # Mapsplice users' guide
 
+This guide is for `mapsplice` users who need to edit roadmap-shaped Markdown
+documents and understand the tool's supported grammar and constraints.
 `mapsplice` edits roadmap-shaped Markdown documents by applying one structural
-change at a time, then renumbering the affected roadmap items for you. It is
-deliberately narrow: the tool understands a specific roadmap grammar and will
-reject documents that drift outside it.
+change at a time, then renumbering the affected roadmap items for the
+maintainer. It is deliberately narrow: the tool understands a specific roadmap
+grammar and will reject documents that drift outside it.
 
 ## Installation
 
@@ -13,7 +15,7 @@ Install `mapsplice` from the repository root:
 cargo install --path .
 ```
 
-For one-off local runs during development, you can also use:
+For one-off local runs during development, use:
 
 ```bash
 cargo run -- <subcommand> ...
@@ -154,7 +156,7 @@ The default mode writes the updated roadmap to standard output:
 mapsplice replace docs/roadmap.md 8 replacement.md > rewritten.md
 ```
 
-Use in-place mode when you want the target rewritten directly:
+Use in-place mode when the target should be rewritten directly:
 
 ```bash
 mapsplice --in-place delete docs/roadmap.md 8
@@ -182,8 +184,8 @@ Or through the corresponding environment variable:
 MAPSPLICE_CMDS_INSERT_AFTER=true
 ```
 
-This is most useful when you have a local default editing style and want to
-keep the command line shorter.
+This is most useful when a local default editing style is preferred and the
+command line should stay short.
 
 ## Validation rules and failure cases
 
@@ -198,14 +200,7 @@ keep the command line shorter.
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.
 
-## Development gates
+## Contributing
 
-If you are working on the tool itself, the standard repository gates are:
-
-```bash
-make check-fmt
-make lint
-make test
-make markdownlint
-make nixie
-```
+Maintainer workflows and repository gates are documented in the
+[contributing guide](contributing.md).

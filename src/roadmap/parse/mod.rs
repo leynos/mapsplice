@@ -102,6 +102,11 @@ pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskE
 }
 
 fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
+    if item.checked.is_none() {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "roadmap task lists must be unordered checklist items".to_owned(),
+        });
+    }
     let first = item
         .children
         .first()

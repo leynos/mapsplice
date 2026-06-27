@@ -15,24 +15,45 @@ use super::{
     fragment_level,
     model::{PhaseSection, StepSection},
 };
-use crate::{
-    cli::CommandKind,
-    error::{MapspliceError, Result},
-};
+use crate::error::{MapspliceError, Result};
 
-/// Apply a CLI command to the parsed roadmap.
+/// Library-level roadmap mutation request.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RoadmapOperation {
+    /// Append one or more phases to the end of the roadmap.
+    Append,
+    /// Insert sibling items before or after the anchor.
+    Insert {
+        /// Anchor to insert around.
+        anchor: RoadmapAnchor,
+        /// Insert after the anchor when true.
+        after: bool,
+    },
+    /// Delete the addressed item.
+    Delete {
+        /// Anchor to delete.
+        anchor: RoadmapAnchor,
+    },
+    /// Replace the addressed item with fragment content.
+    Replace {
+        /// Anchor to replace.
+        anchor: RoadmapAnchor,
+    },
+}
+
+/// Apply a roadmap operation to the parsed roadmap.
 pub fn apply_command(
     roadmap: &mut RoadmapDocument,
-    command: &CommandKind,
+    operation: RoadmapOperation,
     fragment: Option<&RoadmapFragment>,
 ) -> Result<()> {
-    match command {
-        CommandKind::Append { .. } => append_fragment(roadmap, fragment)?,
-        CommandKind::Insert { anchor, after, .. } => {
-            insert_fragment(roadmap, *anchor, *after, fragment)?;
+    match operation {
+        RoadmapOperation::Append => append_fragment(roadmap, fragment)?,
+        RoadmapOperation::Insert { anchor, after } => {
+            insert_fragment(roadmap, anchor, after, fragment)?;
         }
-        CommandKind::Delete { anchor } => delete_anchor(roadmap, *anchor)?,
-        CommandKind::Replace { anchor, .. } => replace_anchor(roadmap, *anchor, fragment)?,
+        RoadmapOperation::Delete { anchor } => delete_anchor(roadmap, anchor)?,
+        RoadmapOperation::Replace { anchor } => replace_anchor(roadmap, anchor, fragment)?,
     }
 
     let plan = renumber_document(roadmap)?;
@@ -46,8 +67,7 @@ fn append_fragment(
 ) -> Result<()> {
     let fragment_document = required_fragment("append", fragment)?;
     let RoadmapFragment::Phase(phases) = fragment_document else {
-        return Err(MapspliceError::LevelMismatch {
-            anchor: RoadmapAnchor::Phase(PhaseNumber(1)),
+        return Err(MapspliceError::AppendLevelMismatch {
             expected: RoadmapItemLevel::Phase,
             found: fragment_level(fragment_document),
         });

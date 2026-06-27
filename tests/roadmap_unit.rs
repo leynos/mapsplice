@@ -1,9 +1,7 @@
 //! `rstest` coverage for roadmap parsing and splice semantics.
 
-use std::error::Error;
+mod support;
 
-use camino::Utf8PathBuf;
-use cap_std::{ambient_authority, fs_utf8::Dir};
 use mapsplice::{
     MapspliceError,
     RoadmapItemLevel,
@@ -13,94 +11,18 @@ use mapsplice::{
     parse_roadmap_text,
     run_from_args,
 };
-use rstest::{fixture, rstest};
-use tempfile::TempDir;
-
-type TestResult<T = ()> = Result<T, Box<dyn Error>>;
-
-const TARGET_TWO_PHASES: &str = concat!(
-    "# Example\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [ ] 1.1.1. First task.\n\n",
-    "## 2. Phase two\n\n",
-    "### 2.1. Step two\n\n",
-    "- [ ] 2.1.1. Second task. Requires 2.1.1.\n",
-);
-
-const TARGET_TWO_TASKS: &str = concat!(
-    "# Example\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [ ] 1.1.1. First task.\n",
-    "- [ ] 1.1.2. Second task. Depends on 1.1.1 and 1.1.2.\n",
-);
-
-const TARGET_THREE_PHASES: &str = concat!(
-    "# Example\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [ ] 1.1.1. First task.\n\n",
-    "## 2. Phase two\n\n",
-    "### 2.1. Step two\n\n",
-    "- [ ] 2.1.1. Middle task.\n\n",
-    "## 3. Phase three\n\n",
-    "### 3.1. Step three\n\n",
-    "- [ ] 3.1.1. Final task. Requires 3.1.1.\n",
-);
-
-const PHASE_FRAGMENT: &str = concat!(
-    "## 9. Inserted phase\n\n",
-    "### 9.1. Added step\n\n",
-    "- [ ] 9.1.1. Added task. Requires 9.1.1.\n",
-);
-
-const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
-
-const REPLACEMENT_FRAGMENT: &str = concat!(
-    "## 7. Replacement phase A\n\n",
-    "### 7.1. Step A\n\n",
-    "- [ ] 7.1.1. Replacement task A.\n\n",
-    "## 8. Replacement phase B\n\n",
-    "### 8.1. Step B\n\n",
-    "- [ ] 8.1.1. Replacement task B. Requires 8.1.1.\n",
-);
-
-#[derive(Debug)]
-struct Workspace {
-    _tempdir: TempDir,
-    dir: Dir,
-    target: Utf8PathBuf,
-    fragment: Utf8PathBuf,
-}
-
-impl Workspace {
-    fn write_target(&self, contents: &str) -> TestResult {
-        self.dir.write("target.md", contents)?;
-        Ok(())
-    }
-
-    fn write_fragment(&self, contents: &str) -> TestResult {
-        self.dir.write("fragment.md", contents)?;
-        Ok(())
-    }
-
-    fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
-}
-
-#[fixture]
-fn workspace() -> TestResult<Workspace> {
-    let tempdir = tempfile::tempdir()?;
-    let root = Utf8PathBuf::from_path_buf(tempdir.path().to_path_buf())
-        .map_err(|path| format!("temporary directory is not valid UTF-8: {}", path.display()))?;
-    let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
-    Ok(Workspace {
-        _tempdir: tempdir,
-        dir,
-        target: root.join("target.md"),
-        fragment: root.join("fragment.md"),
-    })
-}
+use rstest::rstest;
+use support::{
+    PHASE_FRAGMENT,
+    REPLACEMENT_FRAGMENT,
+    TARGET_THREE_PHASES,
+    TARGET_TWO_PHASES,
+    TARGET_TWO_TASKS,
+    TASK_FRAGMENT,
+    TestResult,
+    Workspace,
+    workspace,
+};
 
 #[rstest]
 #[case("8", "8")]
@@ -114,6 +36,11 @@ fn parse_anchor_accepts_supported_forms(#[case] raw: &str, #[case] expected: &st
 #[rstest]
 #[case("8.")]
 #[case("8.2.")]
+#[case("0")]
+#[case("01")]
+#[case("8.02")]
+#[case("8.2.0")]
+#[case("8.2.3.0")]
 #[case("a.b")]
 #[case("8.2.3.4")]
 fn parse_anchor_rejects_invalid_forms(#[case] raw: &str) {
@@ -343,4 +270,17 @@ fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) {
     .expect_err("mismatched fragment level must fail");
 
     assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
+}
+
+#[rstest]
+fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    test_workspace
+        .write_target(TARGET_TWO_PHASES)
+        .expect("target should be written");
+
+    let error = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "99"])
+        .expect_err("missing anchor must fail");
+
+    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
 }

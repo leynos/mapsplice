@@ -48,3 +48,9 @@ Feature: Mapsplice roadmap editing
     When I try to insert the mismatched fragment before phase 2
     Then the command fails
     And stderr mentions the phase versus task mismatch
+
+  Scenario: Missing anchor returns a clear failure
+    Given the target roadmap with two phases
+    When I try to delete missing phase 99
+    Then the command fails
+    And stderr mentions that anchor 99 was not found

@@ -1,12 +1,11 @@
 //! `mapsplice` binary entry point.
 
-use std::process::ExitCode;
+use std::{
+    io::{self, Write},
+    process::ExitCode,
+};
 
 /// Run the CLI and report failures.
-#[expect(
-    clippy::print_stdout,
-    reason = "roadmap output is the intended CLI behaviour"
-)]
 #[expect(
     clippy::print_stderr,
     reason = "diagnostics belong on stderr for the CLI"
@@ -14,8 +13,11 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     match mapsplice::run_from_args(std::env::args_os()) {
         Ok(outcome) => {
-            if let Some(stdout) = outcome.stdout {
-                println!("{stdout}");
+            if let Some(stdout) = outcome.stdout
+                && let Err(error) = io::stdout().write_all(stdout.as_bytes())
+            {
+                eprintln!("{error}");
+                return ExitCode::FAILURE;
             }
             ExitCode::SUCCESS
         }

@@ -52,9 +52,7 @@ impl DocumentParser {
             Node::Heading(heading) if heading.depth == 2 || heading.depth == 3 => {
                 self.handle_non_roadmap_heading(heading)
             }
-            Node::List(list) if self.current_step.is_some() && looks_like_task_list(&list) => {
-                self.append_task_list(&list)
-            }
+            Node::List(list) if looks_like_task_list(&list) => self.append_task_list(&list),
             other => {
                 self.push_non_structural_node(other);
                 Ok(())

@@ -15,6 +15,6 @@ pub use anchor::{
     parse_anchor,
 };
 pub use model::{RoadmapDocument, RoadmapFragment, fragment_level};
-pub use ops::apply_command;
+pub use ops::{RoadmapOperation, apply_command};
 pub use parse::{parse_fragment, parse_roadmap};
 pub use render::render_roadmap;

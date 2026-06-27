@@ -116,26 +116,19 @@ enum Commands {
 impl Commands {
     fn into_request(self, global: GlobalOptions) -> Result<CliRequest> {
         match self {
-            Self::Append(args) => args.into_request(global),
+            Self::Append(args) => Ok(args.into_request(global)),
             Self::Insert(args) => args.into_request(global),
-            Self::Delete(args) => args.into_request(global),
-            Self::Replace(args) => args.into_request(global),
+            Self::Delete(args) => Ok(args.into_request(global)),
+            Self::Replace(args) => Ok(args.into_request(global)),
         }
     }
 }
 
 #[derive(Debug, Args)]
 struct AppendArgs {
-    #[command(flatten)]
-    config: AppendConfig,
     target: Utf8PathBuf,
     fragment: Utf8PathBuf,
 }
-
-#[derive(Clone, Debug, Default, Parser, Serialize, Deserialize, OrthoConfig)]
-#[command(name = "append")]
-#[ortho_config(prefix = "MAPSPLICE_")]
-struct AppendConfig {}
 
 #[derive(Debug, Args)]
 struct InsertArgs {
@@ -157,30 +150,16 @@ struct InsertConfig {
 
 #[derive(Debug, Args)]
 struct DeleteArgs {
-    #[command(flatten)]
-    config: DeleteConfig,
     target: Utf8PathBuf,
     anchor: RoadmapAnchor,
 }
 
-#[derive(Clone, Debug, Default, Parser, Serialize, Deserialize, OrthoConfig)]
-#[command(name = "delete")]
-#[ortho_config(prefix = "MAPSPLICE_")]
-struct DeleteConfig {}
-
 #[derive(Debug, Args)]
 struct ReplaceArgs {
-    #[command(flatten)]
-    config: ReplaceConfig,
     target: Utf8PathBuf,
     anchor: RoadmapAnchor,
     fragment: Utf8PathBuf,
 }
-
-#[derive(Clone, Debug, Default, Parser, Serialize, Deserialize, OrthoConfig)]
-#[command(name = "replace")]
-#[ortho_config(prefix = "MAPSPLICE_")]
-struct ReplaceConfig {}
 
 impl GlobalCli {
     const fn resolve(self) -> GlobalOptions {
@@ -191,29 +170,20 @@ impl GlobalCli {
 }
 
 impl AppendArgs {
-    fn into_request(self, global: GlobalOptions) -> Result<CliRequest> {
-        let _merged = load_and_merge_subcommand_for(&self.config).map_err(|error| {
-            MapspliceError::Configuration {
-                message: error.to_string(),
-            }
-        })?;
-        Ok(CliRequest {
+    fn into_request(self, global: GlobalOptions) -> CliRequest {
+        CliRequest {
             global,
             target: self.target,
             command: CommandKind::Append {
                 fragment: self.fragment,
             },
-        })
+        }
     }
 }
 
 impl InsertArgs {
     fn into_request(self, global: GlobalOptions) -> Result<CliRequest> {
-        let merged = load_and_merge_subcommand_for(&self.config).map_err(|error| {
-            MapspliceError::Configuration {
-                message: error.to_string(),
-            }
-        })?;
+        let merged = load_merged_config(&self.config)?;
         Ok(CliRequest {
             global,
             target: self.target,
@@ -227,36 +197,35 @@ impl InsertArgs {
 }
 
 impl DeleteArgs {
-    fn into_request(self, global: GlobalOptions) -> Result<CliRequest> {
-        let _merged = load_and_merge_subcommand_for(&self.config).map_err(|error| {
-            MapspliceError::Configuration {
-                message: error.to_string(),
-            }
-        })?;
-        Ok(CliRequest {
+    fn into_request(self, global: GlobalOptions) -> CliRequest {
+        CliRequest {
             global,
             target: self.target,
             command: CommandKind::Delete {
                 anchor: self.anchor,
             },
-        })
+        }
     }
 }
 
 impl ReplaceArgs {
-    fn into_request(self, global: GlobalOptions) -> Result<CliRequest> {
-        let _merged = load_and_merge_subcommand_for(&self.config).map_err(|error| {
-            MapspliceError::Configuration {
-                message: error.to_string(),
-            }
-        })?;
-        Ok(CliRequest {
+    fn into_request(self, global: GlobalOptions) -> CliRequest {
+        CliRequest {
             global,
             target: self.target,
             command: CommandKind::Replace {
                 anchor: self.anchor,
                 fragment: self.fragment,
             },
-        })
+        }
     }
+}
+
+fn load_merged_config<C>(config: &C) -> Result<C>
+where
+    C: CommandFactory + Default + OrthoConfig + Serialize,
+{
+    load_and_merge_subcommand_for(config).map_err(|error| MapspliceError::Configuration {
+        message: error.to_string(),
+    })
 }

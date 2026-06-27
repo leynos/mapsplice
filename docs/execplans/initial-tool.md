@@ -1,9 +1,8 @@
 # Plan mapsplice roadmap splicing CLI
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -39,11 +38,12 @@ for the implementation:
   that any new user-facing documentation must follow.
 
 The external references that shape the plan are also important. The `markdown`
-crate documentation shows a parser plus mdast node types, but does not document
-a supported Markdown writer API in the same way it documents `to_mdast()`. The
-sample Wireframe roadmap shows a consistent grammar: document preamble, phase
-headings at level 2, step headings at level 3, and numbered task list items
-that may contain dependency prose inside the task body.
+crate documentation shows a parser plus mdast (Markdown abstract syntax tree)
+node types, but does not document a supported Markdown writer API in the same
+way it documents `to_mdast()`. The sample Wireframe roadmap shows a consistent
+grammar: document preamble, phase headings at level 2, step headings at level
+3, and numbered task list items that may contain dependency prose inside the
+task body.
 
 ## Scope and grammar assumptions
 

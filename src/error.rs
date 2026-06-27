@@ -36,6 +36,15 @@ pub enum MapspliceError {
         found: RoadmapItemLevel,
     },
 
+    /// An append command received a fragment at the wrong structural level.
+    #[error("cannot append {found} content; append expects {expected} content")]
+    AppendLevelMismatch {
+        /// Expected fragment level.
+        expected: RoadmapItemLevel,
+        /// Level found in the fragment.
+        found: RoadmapItemLevel,
+    },
+
     /// A command expected fragment input but none was provided.
     #[error("command `{command}` requires a fragment file")]
     MissingFragment {

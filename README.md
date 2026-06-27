@@ -17,8 +17,8 @@ ______________________________________________________________________
 - **Keep dependency prose in sync**: References such as `Requires 8.2.3.` get
   rewritten when the target item moves.
 - **Stay review-friendly**: The default mode writes the rewritten roadmap to
-  standard output, so you can inspect or diff it before replacing the source
-  file.
+  standard output, so changes can be inspected or diffed before replacing the
+  source file.
 
 ______________________________________________________________________
 
@@ -52,8 +52,37 @@ EOF
 mapsplice append target.md fragment.md > updated.md
 ```
 
-Use `-i` or `--in-place` when you want to rewrite the target file instead of
-printing the result.
+Use `-i` or `--in-place` to rewrite the target file instead of printing the
+result.
+
+______________________________________________________________________
+
+## Local build prerequisites
+
+Local builds use the pinned nightly toolchain in
+[`rust-toolchain.toml`](rust-toolchain.toml) and the build configuration in
+[`.cargo/config.toml`](.cargo/config.toml). The repository requires
+`codegen-backend = "cranelift"` plus the configured Rust flags, including
+`-Zthreads=8` and `link-arg=-fuse-ld=mold`, during builds.
+
+Provision the core local tooling with:
+
+```bash
+rustup toolchain install nightly-2026-03-26 --component rustfmt --component clippy
+rustup default nightly-2026-03-26
+```
+
+Install `clang` and `mold` through a system package manager when they are not
+already present:
+
+```bash
+sudo apt install clang mold
+brew install llvm mold
+```
+
+For platforms without a packaged `mold`, use the published binaries at
+<https://github.com/rui314/mold/releases>. The full maintainer workflow lives in
+[docs/contributing.md](docs/contributing.md).
 
 ______________________________________________________________________
 
@@ -75,7 +104,9 @@ ______________________________________________________________________
   roadmap format rules
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and
   architecture notes
-- [Contributing guide](AGENTS.md) — repository workflow and quality gates
+- [Contributing guide](docs/contributing.md) — local prerequisites and quality
+  gates
+- [Agent instructions](AGENTS.md) — repository workflow and coding standards
 
 ______________________________________________________________________
 

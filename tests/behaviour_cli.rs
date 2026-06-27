@@ -1,6 +1,7 @@
 //! Behavioural coverage for the `mapsplice` binary.
 
 mod steps;
+mod support;
 
 use rstest_bdd_macros::scenario;
 use steps::{CliFixture, cli_state};
@@ -64,6 +65,15 @@ fn in_place_mode(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>
     name = "Level mismatch returns a clear failure"
 )]
 fn level_mismatch(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Missing anchor returns a clear failure"
+)]
+fn missing_anchor(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
     let _ = cli_state?;
     Ok(())
 }

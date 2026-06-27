@@ -68,25 +68,45 @@ fn rewrite_nodes(nodes: &mut [Node], source: SourceId, plan: &RenumberPlan) {
 }
 
 fn rewrite_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+    if let Node::Text(text) = node {
+        text.value = rewrite_text_value(&text.value, source, plan);
+        return;
+    }
+
+    rewrite_container_node(node, source, plan);
+}
+
+fn rewrite_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
     match node {
-        Node::Text(text) => text.value = rewrite_text_value(&text.value, source, plan),
         Node::Root(root) => rewrite_nodes(&mut root.children, source, plan),
         Node::Paragraph(paragraph) => rewrite_nodes(&mut paragraph.children, source, plan),
         Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, plan),
         Node::Blockquote(blockquote) => rewrite_nodes(&mut blockquote.children, source, plan),
         Node::List(list) => rewrite_nodes(&mut list.children, source, plan),
         Node::ListItem(item) => rewrite_nodes(&mut item.children, source, plan),
-        Node::Emphasis(emphasis) => rewrite_nodes(&mut emphasis.children, source, plan),
-        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan),
-        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan),
-        Node::Link(link) => rewrite_nodes(&mut link.children, source, plan),
-        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, plan),
         Node::Table(table) => rewrite_nodes(&mut table.children, source, plan),
         Node::TableRow(row) => rewrite_nodes(&mut row.children, source, plan),
         Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, plan),
         Node::FootnoteDefinition(definition) => {
             rewrite_nodes(&mut definition.children, source, plan);
         }
+        _ => rewrite_inline_container_node(node, source, plan),
+    }
+}
+
+fn rewrite_inline_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+    match node {
+        Node::Emphasis(emphasis) => rewrite_nodes(&mut emphasis.children, source, plan),
+        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan),
+        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan),
+        Node::Link(link) => rewrite_nodes(&mut link.children, source, plan),
+        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, plan),
+        _ => rewrite_mdx_container_node(node, source, plan),
+    }
+}
+
+fn rewrite_mdx_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+    match node {
         Node::MdxJsxFlowElement(element) => rewrite_nodes(&mut element.children, source, plan),
         Node::MdxJsxTextElement(element) => rewrite_nodes(&mut element.children, source, plan),
         _ => {}
@@ -133,12 +153,19 @@ fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)>
 
     while let Some(byte) = bytes.get(start) {
         if is_anchor_start(bytes, start, *byte) {
-            return Some((start, consume_anchor(bytes, start)));
+            let end = consume_anchor(bytes, start);
+            if is_anchor_end(bytes, end) {
+                return Some((start, end));
+            }
         }
         start += 1;
     }
 
     None
+}
+
+fn is_anchor_end(bytes: &[u8], end: usize) -> bool {
+    !bytes.get(end).is_some_and(u8::is_ascii_alphanumeric)
 }
 
 fn is_anchor_start(bytes: &[u8], start: usize, byte: u8) -> bool {

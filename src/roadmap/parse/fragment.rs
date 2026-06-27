@@ -1,10 +1,11 @@
 //! Fragment-level roadmap parsing.
 
-use markdown::mdast::{Heading, List, Node, Root};
+use markdown::mdast::{List, Node, Root};
 
 use super::{
     document::parse_document_root,
     is_phase_heading,
+    is_step_heading,
     looks_like_task_list,
     parse_root,
     parse_step_heading,
@@ -13,9 +14,9 @@ use super::{
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
-        RoadmapDocument,
         RoadmapFragment,
-        model::{PhaseSection, SourceId, StepSection},
+        StepNumber,
+        model::{ItemIdentity, SourceId, StepSection, TaskEntry},
     },
 };
 
@@ -38,12 +39,12 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
         return parse_phase_fragment(root);
     }
 
-    if let Some(heading) = step_fragment_heading(first) {
-        return parse_step_fragment(markdown, heading);
+    if is_step_fragment_start(first) {
+        return parse_step_fragment_root(root);
     }
 
-    if let Some(list) = task_fragment_list(first) {
-        return parse_task_fragment(markdown, list);
+    if is_task_fragment_start(first) {
+        return parse_task_fragment_root(root);
     }
 
     Err(MapspliceError::InvalidRoadmap {
@@ -57,26 +58,11 @@ fn is_phase_fragment_start(node: &Node) -> bool {
 }
 
 fn is_step_fragment_start(node: &Node) -> bool {
-    matches!(node, Node::Heading(heading) if heading.depth == 3)
-        && matches!(node, Node::Heading(heading) if parse_step_heading(heading).is_ok())
+    matches!(node, Node::Heading(heading) if heading.depth == 3 && parse_step_heading(heading).is_ok())
 }
 
 fn is_task_fragment_start(node: &Node) -> bool {
     matches!(node, Node::List(list) if looks_like_task_list(list))
-}
-
-fn step_fragment_heading(node: &Node) -> Option<&Heading> {
-    match node {
-        Node::Heading(heading) if is_step_fragment_start(node) => Some(heading),
-        _ => None,
-    }
-}
-
-fn task_fragment_list(node: &Node) -> Option<&List> {
-    match node {
-        Node::List(list) if is_task_fragment_start(node) => Some(list),
-        _ => None,
-    }
 }
 
 fn parse_phase_fragment(root: Root) -> Result<RoadmapFragment> {
@@ -89,77 +75,120 @@ fn parse_phase_fragment(root: Root) -> Result<RoadmapFragment> {
     Ok(RoadmapFragment::Phase(document.phases))
 }
 
-fn parse_step_fragment(markdown: &str, heading: &Heading) -> Result<RoadmapFragment> {
-    let step = parse_step_heading(heading)?.0;
-    let wrapped = format!("## {}. Placeholder\n\n{markdown}", step.phase);
-    let document = parse_wrapped_fragment(&wrapped)?;
-    let phase = take_wrapped_phase(document, "wrapped step fragment did not produce a phase")?;
-    if step_fragment_has_only_steps(&phase) {
-        Ok(RoadmapFragment::Step(phase.steps))
-    } else {
-        Err(MapspliceError::InvalidRoadmap {
-            message: "step fragments must contain only steps".to_owned(),
-        })
-    }
-}
+fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
+    let mut steps = Vec::new();
+    let mut current_step = None;
 
-fn parse_task_fragment(markdown: &str, list: &List) -> Result<RoadmapFragment> {
-    let first_task = parse_task_list(list, SourceId::Fragment)?
-        .into_iter()
-        .next()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "task fragment list is empty".to_owned(),
-        })?;
-    let step_number = first_task.number.step;
-    let wrapped = format!(
-        "## {}. Placeholder\n\n### {}. Placeholder\n\n{markdown}",
-        step_number.phase, step_number
-    );
-    let document = parse_wrapped_fragment(&wrapped)?;
-    let phase = take_wrapped_phase(document, "wrapped task fragment did not produce a phase")?;
-    if !step_fragment_has_only_steps(&phase) {
+    for node in root.children {
+        match node {
+            Node::Heading(heading) if is_step_heading(&heading) => {
+                if let Some(step) = current_step.take() {
+                    steps.push(step);
+                }
+                let (number, title) = parse_step_heading(&heading)?;
+                current_step = Some(StepSection {
+                    identity: ItemIdentity {
+                        source: SourceId::Fragment,
+                        anchor: number.into(),
+                    },
+                    number,
+                    title,
+                    body: Vec::new(),
+                    tasks: Vec::new(),
+                    trailing: Vec::new(),
+                });
+            }
+            Node::Heading(heading) if heading.depth == 2 || heading.depth == 3 => {
+                return Err(MapspliceError::InvalidRoadmap {
+                    message: "step fragments must contain only step sections".to_owned(),
+                });
+            }
+            Node::List(list) if looks_like_task_list(&list) => {
+                append_step_fragment_tasks(&mut current_step, &list)?;
+            }
+            other => push_step_fragment_body(&mut current_step, other)?,
+        }
+    }
+
+    if let Some(step) = current_step {
+        steps.push(step);
+    }
+
+    if steps.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
-            message: "task fragments must contain only tasks".to_owned(),
+            message: "step fragments must contain only step sections".to_owned(),
         });
     }
-    let step = phase
-        .steps
-        .into_iter()
-        .next()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "wrapped task fragment did not produce a step".to_owned(),
-        })?;
-    if step_has_only_tasks(&step) {
-        Ok(RoadmapFragment::Task(step.tasks))
-    } else {
-        Err(MapspliceError::InvalidRoadmap {
-            message: "task fragments must contain only tasks".to_owned(),
-        })
+
+    Ok(RoadmapFragment::Step(steps))
+}
+
+fn parse_task_fragment_root(root: Root) -> Result<RoadmapFragment> {
+    if root.children.len() != 1 {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "task fragments must contain only a single task list".to_owned(),
+        });
     }
+
+    let Some(Node::List(list)) = root.children.into_iter().next() else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "task fragments must contain only a single task list".to_owned(),
+        });
+    };
+    let tasks = parse_task_list(&list, SourceId::Fragment)?;
+    if tasks.is_empty() {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "task fragment list is empty".to_owned(),
+        });
+    }
+    Ok(RoadmapFragment::Task(tasks))
 }
 
-fn parse_wrapped_fragment(markdown: &str) -> Result<RoadmapDocument> {
-    let wrapped_root = parse_root(markdown)?;
-    parse_document_root(wrapped_root, SourceId::Fragment)
-}
-
-fn take_wrapped_phase(
-    document: RoadmapDocument,
-    missing_message: &'static str,
-) -> Result<PhaseSection> {
-    document
-        .phases
-        .into_iter()
-        .next()
+fn append_step_fragment_tasks(step: &mut Option<StepSection>, list: &List) -> Result<()> {
+    let current = step
+        .as_mut()
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: missing_message.to_owned(),
-        })
+            message: "task list appeared without a current step".to_owned(),
+        })?;
+    if !current.trailing.is_empty() {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: format!(
+                "task list for step `{}` cannot appear after trailing step content",
+                current.number
+            ),
+        });
+    }
+
+    let mut tasks = parse_task_list(list, SourceId::Fragment)?;
+    validate_task_numbers(current.number, &tasks)?;
+    current.tasks.append(&mut tasks);
+    Ok(())
 }
 
-const fn step_fragment_has_only_steps(phase: &PhaseSection) -> bool {
-    phase.body.is_empty() && phase.trailing.is_empty()
+fn push_step_fragment_body(step: &mut Option<StepSection>, node: Node) -> Result<()> {
+    let current = step
+        .as_mut()
+        .ok_or_else(|| MapspliceError::InvalidRoadmap {
+            message: "step fragments must contain only step sections".to_owned(),
+        })?;
+    if current.tasks.is_empty() {
+        current.body.push(node);
+    } else {
+        current.trailing.push(node);
+    }
+    Ok(())
 }
 
-const fn step_has_only_tasks(step: &StepSection) -> bool {
-    step.body.is_empty() && step.trailing.is_empty()
+fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
+    for task in tasks {
+        if task.number.step != step_number {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: format!(
+                    "task `{}` does not belong to step `{}`",
+                    task.number, step_number
+                ),
+            });
+        }
+    }
+    Ok(())
 }

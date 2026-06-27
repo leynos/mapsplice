@@ -53,8 +53,7 @@ plan in `docs/execplans/initial-tool.md`):
 - The default output is **standard output**; `--in-place` / `-i` rewrites the
   target file instead.
 - **Level matching is strict**: a fragment must match the structural level of
-  its
-  anchor, or the operation fails with a typed error.
+  its anchor, or the operation fails with a typed error.
 - The CLI is composed through `ortho-config`; filesystem access is
   capability-oriented (`cap_std`, `camino`).
 - Tests are written with `rstest` (unit) and `rstest-bdd` (behavioural); modules

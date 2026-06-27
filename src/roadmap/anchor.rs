@@ -147,12 +147,7 @@ pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
 
     let numbers = parts
         .iter()
-        .map(|part| {
-            part.parse::<u32>()
-                .map_err(|_| MapspliceError::InvalidAnchor {
-                    anchor: value.to_owned(),
-                })
-        })
+        .map(|part| parse_canonical_positive_integer(part, value))
         .collect::<Result<Vec<_>>>()?;
 
     match numbers.as_slice() {
@@ -165,4 +160,18 @@ pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
             anchor: value.to_owned(),
         }),
     }
+}
+
+fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
+    let number = part
+        .parse::<u32>()
+        .map_err(|_| MapspliceError::InvalidAnchor {
+            anchor: anchor.to_owned(),
+        })?;
+    if number == 0 || part != number.to_string() {
+        return Err(MapspliceError::InvalidAnchor {
+            anchor: anchor.to_owned(),
+        });
+    }
+    Ok(number)
 }

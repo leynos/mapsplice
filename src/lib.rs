@@ -9,7 +9,7 @@ use camino::Utf8PathBuf;
 use cli::{CliRequest, parse_cli_request};
 pub use error::{MapspliceError, Result};
 use fs::{read_utf8, rewrite_utf8};
-use roadmap::{apply_command, parse_fragment, parse_roadmap, render_roadmap};
+use roadmap::{RoadmapOperation, apply_command, parse_fragment, parse_roadmap, render_roadmap};
 
 /// Execute `mapsplice` using command-line arguments.
 ///
@@ -38,7 +38,11 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    apply_command(&mut roadmap, &request.command, fragment.as_ref())?;
+    apply_command(
+        &mut roadmap,
+        operation_from_command(&request.command),
+        fragment.as_ref(),
+    )?;
 
     let rendered = render_roadmap(&roadmap)?;
     if request.global.in_place {
@@ -56,6 +60,18 @@ fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment
             parse_fragment(&fragment_text).map(Some)
         }
         None => Ok(None),
+    }
+}
+
+const fn operation_from_command(command: &cli::CommandKind) -> RoadmapOperation {
+    match command {
+        CommandKind::Append { .. } => RoadmapOperation::Append,
+        CommandKind::Insert { anchor, after, .. } => RoadmapOperation::Insert {
+            anchor: *anchor,
+            after: *after,
+        },
+        CommandKind::Delete { anchor } => RoadmapOperation::Delete { anchor: *anchor },
+        CommandKind::Replace { anchor, .. } => RoadmapOperation::Replace { anchor: *anchor },
     }
 }
 

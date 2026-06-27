@@ -13,6 +13,7 @@ CARGO_FLAGS ?= --workspace --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run --no-tests pass,test)
+CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep -q -- '--workspace' && echo yes),--workspace,--all)
 DOC_TEST_TARGETS := $(shell $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | jq -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
@@ -43,11 +44,11 @@ typecheck: ## Type-check without building
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
 
 fmt: ## Format Rust and Markdown sources
-	$(CARGO) fmt --all
+	$(CARGO) fmt $(CARGO_FMT_WORKSPACE_FLAG)
 	mdformat-all
 
 check-fmt: ## Verify formatting
-	$(CARGO) fmt --all -- --check
+	$(CARGO) fmt $(CARGO_FMT_WORKSPACE_FLAG) -- --check
 
 markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'

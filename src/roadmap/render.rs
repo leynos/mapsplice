@@ -55,7 +55,7 @@ fn render_task(task: &super::model::TaskEntry) -> Result<String> {
         render_inline(&task.summary)?
     )];
     for block in render_blocks(&task.body, 4)? {
-        parts.push(indent_block(&block, 4));
+        parts.push(block);
     }
     Ok(parts.join("\n\n"))
 }
@@ -176,7 +176,7 @@ fn render_inline(nodes: &[Node]) -> Result<String> {
 
 fn render_inline_node(node: &Node) -> Result<String> {
     match node {
-        Node::Text(text) => Ok(text.value.clone()),
+        Node::Text(text) => Ok(escape_markdown(&text.value)),
         Node::Emphasis(emphasis) => Ok(format!("*{}*", render_inline(&emphasis.children)?)),
         Node::Strong(strong) => Ok(format!("**{}**", render_inline(&strong.children)?)),
         Node::Delete(delete) => Ok(format!("~~{}~~", render_inline(&delete.children)?)),
@@ -200,6 +200,38 @@ fn render_inline_node(node: &Node) -> Result<String> {
             ),
         }),
     }
+}
+
+fn escape_markdown(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        if is_markdown_metacharacter(character) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+const fn is_markdown_metacharacter(character: char) -> bool {
+    matches!(
+        character,
+        '*' | '_'
+            | '`'
+            | '['
+            | ']'
+            | '('
+            | ')'
+            | '~'
+            | '>'
+            | '#'
+            | '+'
+            | '-'
+            | '='
+            | '|'
+            | '{'
+            | '}'
+    )
 }
 
 fn indent_block(block: &str, spaces: usize) -> String {
