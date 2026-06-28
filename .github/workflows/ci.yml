@@ -38,6 +38,11 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
+      - name: Install Mermaid validators
+        run: |
+          python -m pip install --user nixie-cli==1.1.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          cargo binstall --no-confirm merman-cli
       - name: Mermaid diagrams
         run: make nixie
       - name: Cache Whitaker installation
