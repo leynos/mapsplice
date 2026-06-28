@@ -13,7 +13,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
-      WHITAKER_INSTALLER_REV: f768c2e53c47df13658af1168a67851d388750bf
+      WHITAKER_INSTALLER_VERSION: '0.2.5'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - name: Setup Rust
@@ -43,14 +43,11 @@ jobs:
             ~/.local/bin/whitaker
             ~/.dylint_drivers
             ~/.local/share/whitaker
-          key: whitaker-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_REV }}
+          key: whitaker-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_VERSION }}
       - name: Install Whitaker
         run: |
           if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
-            cargo install --locked \
-              --git https://github.com/leynos/whitaker \
-              --rev "${WHITAKER_INSTALLER_REV}" \
-              whitaker-installer
+            cargo binstall --no-confirm whitaker-installer@${{ env.WHITAKER_INSTALLER_VERSION }}
           fi
           whitaker-installer --cranelift
       - name: Lint
