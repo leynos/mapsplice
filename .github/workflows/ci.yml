@@ -13,7 +13,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
-      WHITAKER_INSTALLER_VERSION: '0.2.1'
+      WHITAKER_INSTALLER_REV: f768c2e53c47df13658af1168a67851d388750bf
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - name: Setup Rust
@@ -34,19 +34,23 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
-      - name: Cache Whitaker installer
+      - name: Cache Whitaker installation
+        id: cache-whitaker
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: |
             ~/.cargo/bin/whitaker-installer
-            ~/.cache/cargo-binstall
-          key: whitaker-installer-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_VERSION }}
+            ~/.local/bin/whitaker
+            ~/.dylint_drivers
+            ~/.local/share/whitaker
+          key: whitaker-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_REV }}
       - name: Install Whitaker
         run: |
-          if command -v whitaker-installer >/dev/null 2>&1; then
-            echo "whitaker-installer already present; skipping cargo binstall"
-          else
-            cargo binstall --no-confirm whitaker-installer@${{ env.WHITAKER_INSTALLER_VERSION }}
+          if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+            cargo install --locked \
+              --git https://github.com/leynos/whitaker \
+              --rev "${WHITAKER_INSTALLER_REV}" \
+              whitaker-installer
           fi
           whitaker-installer --cranelift
       - name: Lint
