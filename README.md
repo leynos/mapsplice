@@ -68,7 +68,10 @@ Local builds use the pinned nightly toolchain in
 Provision the core local tooling with:
 
 ```bash
-rustup toolchain install nightly-2026-03-26 --component rustfmt --component clippy
+rustup toolchain install nightly-2026-03-26 \
+  --component rustfmt \
+  --component clippy \
+  --component rustc-codegen-cranelift-preview
 rustup default nightly-2026-03-26
 ```
 

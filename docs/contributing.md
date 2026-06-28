@@ -18,7 +18,10 @@ the configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold`.
 Provision a matching local environment with:
 
 ```bash
-rustup toolchain install nightly-2026-03-26 --component rustfmt --component clippy
+rustup toolchain install nightly-2026-03-26 \
+  --component rustfmt \
+  --component clippy \
+  --component rustc-codegen-cranelift-preview
 rustup default nightly-2026-03-26
 ```
 

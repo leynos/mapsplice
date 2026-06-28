@@ -88,7 +88,8 @@ Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
 [`../.cargo/config.toml`](../.cargo/config.toml). The repository requires
 Cranelift code generation through `codegen-backend = "cranelift"`, `clang`, and
-`mold` via `link-arg=-fuse-ld=mold`.
+`mold` via `link-arg=-fuse-ld=mold`. The pinned toolchain must include
+`rustc-codegen-cranelift-preview`.
 
 Run these gates before committing Rust changes:
 
