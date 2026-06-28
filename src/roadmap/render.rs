@@ -6,6 +6,7 @@ use super::RoadmapDocument;
 use crate::error::{MapspliceError, Result};
 
 /// Render a parsed roadmap back to Markdown.
+#[tracing::instrument(skip_all, fields(phases = roadmap.phases.len()))]
 pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     let mut blocks = Vec::new();
     blocks.extend(render_blocks(&roadmap.preamble, 0)?);
@@ -35,6 +36,7 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     Ok(blocks.join("\n\n"))
 }
 
+/// Render a list of roadmap tasks as Markdown checklist lines.
 fn render_tasks(tasks: &[&super::model::TaskEntry]) -> Result<String> {
     tasks
         .iter()
@@ -43,6 +45,7 @@ fn render_tasks(tasks: &[&super::model::TaskEntry]) -> Result<String> {
         .map(|lines| lines.join("\n"))
 }
 
+/// Render one roadmap task and any nested body blocks.
 fn render_task(task: &super::model::TaskEntry) -> Result<String> {
     let checkbox = match task.checked {
         Some(true) => "[x] ",
@@ -60,6 +63,7 @@ fn render_task(task: &super::model::TaskEntry) -> Result<String> {
     Ok(parts.join("\n\n"))
 }
 
+/// Render block nodes with the requested indentation.
 fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
     nodes
         .iter()
@@ -67,6 +71,7 @@ fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
         .collect()
 }
 
+/// Render one supported Markdown block node.
 fn render_block(node: &Node, indent: usize) -> Result<String> {
     match node {
         Node::Paragraph(paragraph) => {
@@ -114,6 +119,7 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
     }
 }
 
+/// Render an ordered or unordered Markdown list.
 fn render_list(list: &List, indent: usize) -> Result<String> {
     let mut rendered = Vec::new();
     for (index, node) in list.children.iter().enumerate() {
@@ -132,6 +138,7 @@ fn render_list(list: &List, indent: usize) -> Result<String> {
     Ok(rendered.join("\n"))
 }
 
+/// Render one list item with the given marker state.
 fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32) -> Result<String> {
     let prefix = if ordered {
         format!("{ordinal}. ")
@@ -166,6 +173,7 @@ fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32)
     Ok(indent_block(&lines.join("\n\n"), indent))
 }
 
+/// Render inline Markdown nodes into a single string.
 fn render_inline(nodes: &[Node]) -> Result<String> {
     nodes
         .iter()
@@ -174,6 +182,7 @@ fn render_inline(nodes: &[Node]) -> Result<String> {
         .map(|parts| parts.concat())
 }
 
+/// Render one supported inline Markdown node.
 fn render_inline_node(node: &Node) -> Result<String> {
     match node {
         Node::Text(text) => Ok(escape_markdown(&text.value)),
@@ -202,6 +211,7 @@ fn render_inline_node(node: &Node) -> Result<String> {
     }
 }
 
+/// Escape Markdown metacharacters in plain text.
 fn escape_markdown(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for character in value.chars() {
@@ -213,6 +223,7 @@ fn escape_markdown(value: &str) -> String {
     escaped
 }
 
+/// Return whether a character should be escaped in plain text output.
 const fn is_markdown_metacharacter(character: char) -> bool {
     matches!(
         character,
@@ -234,6 +245,7 @@ const fn is_markdown_metacharacter(character: char) -> bool {
     )
 }
 
+/// Indent every non-empty line in a rendered block.
 fn indent_block(block: &str, spaces: usize) -> String {
     if spaces == 0 {
         return block.to_owned();
@@ -252,12 +264,14 @@ fn indent_block(block: &str, spaces: usize) -> String {
         .join("\n")
 }
 
+/// Convert a zero-based list index into a renderable ordinal offset.
 fn list_offset(index: usize) -> Result<u32> {
     u32::try_from(index).map_err(|_| MapspliceError::InvalidRoadmap {
         message: "list item count exceeds supported numbering range".to_owned(),
     })
 }
 
+/// Return a stable mdast node name for renderer diagnostics.
 const fn node_name(node: &Node) -> &'static str {
     match node {
         Node::Root(_) => "root",

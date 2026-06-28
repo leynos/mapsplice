@@ -4,6 +4,9 @@ This guide is for maintainers and contributors working on `mapsplice` itself.
 It covers the local build prerequisites and repository gates needed to match
 Continuous Integration (CI).
 
+For architecture, public API, observability, and verification guidance, see the
+[developers' guide](developers-guide.md).
+
 ## Local build prerequisites
 
 The repository uses the pinned nightly toolchain in

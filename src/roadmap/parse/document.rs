@@ -20,6 +20,7 @@ use crate::{
     },
 };
 
+/// Parse an mdast root into a roadmap document for the given source.
 pub(crate) fn parse_document_root(root: Root, source: SourceId) -> Result<RoadmapDocument> {
     let mut parser = DocumentParser::new(source);
     for node in root.children {
@@ -36,6 +37,7 @@ struct DocumentParser {
 }
 
 impl DocumentParser {
+    /// Create a parser for one source document.
     const fn new(source: SourceId) -> Self {
         Self {
             document: RoadmapDocument::new(),
@@ -45,6 +47,7 @@ impl DocumentParser {
         }
     }
 
+    /// Route one top-level Markdown node into roadmap structure or body text.
     fn parse_node(&mut self, node: Node) -> Result<()> {
         match node {
             Node::Heading(heading) if is_phase_heading(&heading) => self.begin_phase(&heading),
@@ -60,6 +63,7 @@ impl DocumentParser {
         }
     }
 
+    /// Start a new phase, flushing any previous phase state.
     fn begin_phase(&mut self, heading: &Heading) -> Result<()> {
         self.flush_step()?;
         if let Some(phase) = self.current_phase.take() {
@@ -72,14 +76,15 @@ impl DocumentParser {
                 anchor: RoadmapAnchor::Phase(number),
             },
             number,
-            title,
-            body: Vec::new(),
+            title: title.into(),
+            body: Vec::new().into(),
             steps: Vec::new(),
-            trailing: Vec::new(),
+            trailing: Vec::new().into(),
         });
         Ok(())
     }
 
+    /// Start a new step inside the current phase.
     fn begin_step(&mut self, heading: &Heading) -> Result<()> {
         let phase = self
             .current_phase
@@ -103,14 +108,15 @@ impl DocumentParser {
                 anchor: RoadmapAnchor::Step(number),
             },
             number,
-            title,
-            body: Vec::new(),
+            title: title.into(),
+            body: Vec::new().into(),
             tasks: Vec::new(),
-            trailing: Vec::new(),
+            trailing: Vec::new().into(),
         });
         Ok(())
     }
 
+    /// Reject unsupported headings once roadmap parsing has started.
     fn handle_non_roadmap_heading(&mut self, heading: Heading) -> Result<()> {
         if self.current_phase.is_none() {
             self.document.preamble.push(Node::Heading(heading));
@@ -125,6 +131,7 @@ impl DocumentParser {
         })
     }
 
+    /// Append a validated checklist task list to the current step.
     fn append_task_list(&mut self, list: &List) -> Result<()> {
         let step = self
             .current_step
@@ -147,6 +154,7 @@ impl DocumentParser {
         Ok(())
     }
 
+    /// Move the current step into its parent phase.
     fn flush_step(&mut self) -> Result<()> {
         if let Some(step) = self.current_step.take() {
             let phase =
@@ -160,6 +168,7 @@ impl DocumentParser {
         Ok(())
     }
 
+    /// Preserve non-structural Markdown in the nearest roadmap body.
     fn push_non_structural_node(&mut self, node: Node) {
         if let Some(step) = self.current_step.as_mut() {
             if step.tasks.is_empty() {
@@ -178,6 +187,7 @@ impl DocumentParser {
         }
     }
 
+    /// Finish parsing and return a validated roadmap document.
     fn finish(mut self) -> Result<RoadmapDocument> {
         self.flush_step()?;
         if let Some(phase) = self.current_phase.take() {
@@ -194,6 +204,7 @@ impl DocumentParser {
     }
 }
 
+/// Ensure parsed task numbers belong to their containing step.
 fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
     for task in tasks {
         if task.number.step != step_number {

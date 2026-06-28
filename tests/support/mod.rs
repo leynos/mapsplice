@@ -1,15 +1,25 @@
 //! Shared fixtures for integration and behavioural tests.
 
-use std::error::Error;
+#![allow(
+    dead_code,
+    reason = "integration test crates include different subsets of shared fixtures"
+)]
+
+use std::{
+    env,
+    error::Error,
+    ffi::OsString,
+    sync::{Mutex, MutexGuard},
+};
 
 use camino::Utf8PathBuf;
 use cap_std::{ambient_authority, fs_utf8::Dir};
 use rstest::fixture;
 use tempfile::TempDir;
 
-pub(crate) type TestResult<T = ()> = Result<T, Box<dyn Error>>;
+pub type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
-pub(crate) const TARGET_TWO_PHASES: &str = concat!(
+pub const TARGET_TWO_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -19,7 +29,7 @@ pub(crate) const TARGET_TWO_PHASES: &str = concat!(
     "- [ ] 2.1.1. Second task. Requires 2.1.1.\n",
 );
 
-pub(crate) const TARGET_TWO_TASKS: &str = concat!(
+pub const TARGET_TWO_TASKS: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -27,7 +37,7 @@ pub(crate) const TARGET_TWO_TASKS: &str = concat!(
     "- [ ] 1.1.2. Second task. Depends on 1.1.1 and 1.1.2.\n",
 );
 
-pub(crate) const TARGET_THREE_PHASES: &str = concat!(
+pub const TARGET_THREE_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -40,15 +50,15 @@ pub(crate) const TARGET_THREE_PHASES: &str = concat!(
     "- [ ] 3.1.1. Final task. Requires 3.1.1.\n",
 );
 
-pub(crate) const PHASE_FRAGMENT: &str = concat!(
+pub const PHASE_FRAGMENT: &str = concat!(
     "## 9. Inserted phase\n\n",
     "### 9.1. Added step\n\n",
     "- [ ] 9.1.1. Added task. Requires 9.1.1.\n",
 );
 
-pub(crate) const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
+pub const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
 
-pub(crate) const REPLACEMENT_FRAGMENT: &str = concat!(
+pub const REPLACEMENT_FRAGMENT: &str = concat!(
     "## 7. Replacement phase A\n\n",
     "### 7.1. Step A\n\n",
     "- [ ] 7.1.1. Replacement task A.\n\n",
@@ -57,31 +67,78 @@ pub(crate) const REPLACEMENT_FRAGMENT: &str = concat!(
     "- [ ] 8.1.1. Replacement task B. Requires 8.1.1.\n",
 );
 
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
 #[derive(Debug)]
-pub(crate) struct Workspace {
+pub struct Workspace {
     _tempdir: TempDir,
-    pub(crate) dir: Dir,
-    pub(crate) target: Utf8PathBuf,
-    pub(crate) fragment: Utf8PathBuf,
+    pub dir: Dir,
+    pub target: Utf8PathBuf,
+    pub fragment: Utf8PathBuf,
 }
 
 impl Workspace {
-    pub(crate) fn write_target(&self, contents: &str) -> TestResult {
+    pub fn write_target(&self, contents: &str) -> TestResult {
         self.dir.write("target.md", contents)?;
         Ok(())
     }
 
-    pub(crate) fn write_fragment(&self, contents: &str) -> TestResult {
+    pub fn write_fragment(&self, contents: &str) -> TestResult {
         self.dir.write("fragment.md", contents)?;
         Ok(())
     }
 
-    pub(crate) fn read_target(&self) -> TestResult<String> {
-        Ok(self.dir.read_to_string("target.md")?)
+    pub fn write_xdg_config(&self, contents: &str) -> TestResult<Utf8PathBuf> {
+        self.dir.create_dir_all("mapsplice")?;
+        self.dir.write("mapsplice/config.toml", contents)?;
+        let parent = self
+            .target
+            .parent()
+            .ok_or_else(|| "target path should have a parent".to_owned())?;
+        Ok(parent.to_path_buf())
+    }
+
+    pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
+}
+
+pub struct EnvVarGuard {
+    _lock: MutexGuard<'static, ()>,
+    key: &'static str,
+    previous: Option<OsString>,
+}
+
+impl EnvVarGuard {
+    pub fn set(key: &'static str, value: impl AsRef<str>) -> TestResult<Self> {
+        let lock = ENV_LOCK.lock()?;
+        let previous = env::var_os(key);
+        // SAFETY: tests mutate process environment only while holding ENV_LOCK,
+        // and the guard restores the previous value before releasing it.
+        unsafe {
+            env::set_var(key, value.as_ref());
+        }
+        Ok(Self {
+            _lock: lock,
+            key,
+            previous,
+        })
     }
 }
 
-pub(crate) fn create_workspace() -> TestResult<Workspace> {
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        // SAFETY: EnvVarGuard owns ENV_LOCK for its full lifetime, serializing
+        // environment mutation and restoration in tests.
+        unsafe {
+            if let Some(previous) = &self.previous {
+                env::set_var(self.key, previous);
+            } else {
+                env::remove_var(self.key);
+            }
+        }
+    }
+}
+
+pub fn create_workspace() -> TestResult<Workspace> {
     let tempdir = tempfile::tempdir()?;
     let root = Utf8PathBuf::from_path_buf(tempdir.path().to_path_buf())
         .map_err(|path| format!("temporary directory is not valid UTF-8: {}", path.display()))?;
@@ -95,7 +152,7 @@ pub(crate) fn create_workspace() -> TestResult<Workspace> {
 }
 
 #[fixture]
-pub(crate) fn workspace() -> TestResult<Workspace> {
+pub fn workspace() -> TestResult<Workspace> {
     let workspace = create_workspace()?;
     Ok(workspace)
 }

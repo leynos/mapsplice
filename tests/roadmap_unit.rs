@@ -13,6 +13,7 @@ use mapsplice::{
 };
 use rstest::rstest;
 use support::{
+    EnvVarGuard,
     PHASE_FRAGMENT,
     REPLACEMENT_FRAGMENT,
     TARGET_THREE_PHASES,
@@ -90,6 +91,7 @@ fn parse_roadmap_keeps_preamble_and_structure() {
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -129,6 +131,7 @@ fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspac
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_before_phase_renumbers_later_phases_and_dependencies(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -162,6 +165,7 @@ fn insert_before_phase_renumbers_later_phases_and_dependencies(workspace: TestRe
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_after_task_renumbers_later_tasks_within_the_step(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -187,6 +191,7 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(workspace: TestResult
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -201,6 +206,7 @@ fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -226,6 +232,7 @@ fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) {
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn in_place_mode_rewrites_target_and_emits_no_stdout(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -251,6 +258,7 @@ fn in_place_mode_rewrites_target_and_emits_no_stdout(workspace: TestResult<Works
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -273,6 +281,7 @@ fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) {
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
 fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) {
     let test_workspace = workspace.expect("workspace fixture should initialize");
     test_workspace
@@ -283,4 +292,134 @@ fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) {
         .expect_err("missing anchor must fail");
 
     assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_after_can_default_from_environment(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    let _after = EnvVarGuard::set("MAPSPLICE_CMDS_INSERT_AFTER", "true")
+        .expect("environment guard should install");
+    test_workspace
+        .write_target(TARGET_TWO_TASKS)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(TASK_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "insert",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("insert command should succeed with environment default");
+
+    let stdout = outcome.stdout.unwrap_or_default();
+    assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_after_can_default_from_config_file(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    let xdg_home = test_workspace
+        .write_xdg_config("[cmds.insert]\nafter = true\n")
+        .expect("config should be written");
+    let _config =
+        EnvVarGuard::set("XDG_CONFIG_HOME", xdg_home.as_str()).expect("xdg guard should install");
+    test_workspace
+        .write_target(TARGET_TWO_TASKS)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(TASK_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "insert",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("insert command should succeed with config default");
+
+    let stdout = outcome.stdout.unwrap_or_default();
+    assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn in_place_can_default_from_environment(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    let _in_place =
+        EnvVarGuard::set("MAPSPLICE_IN_PLACE", "true").expect("environment guard should install");
+    test_workspace
+        .write_target(TARGET_TWO_PHASES)
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
+        .expect("delete command should succeed with in-place environment default");
+
+    assert_eq!(outcome.stdout, None);
+    assert!(
+        test_workspace
+            .read_target()
+            .expect("target should still be readable")
+            .contains("## 1. Phase two")
+    );
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn in_place_can_default_from_config_file(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    let xdg_home = test_workspace
+        .write_xdg_config("in_place = true\n")
+        .expect("config should be written");
+    let _config =
+        EnvVarGuard::set("XDG_CONFIG_HOME", xdg_home.as_str()).expect("xdg guard should install");
+    test_workspace
+        .write_target(TARGET_TWO_PHASES)
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
+        .expect("delete command should succeed with in-place config default");
+
+    assert_eq!(outcome.stdout, None);
+    assert!(
+        test_workspace
+            .read_target()
+            .expect("target should still be readable")
+            .contains("## 1. Phase two")
+    );
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn invalid_insert_config_surfaces_configuration_error(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    let xdg_home = test_workspace
+        .write_xdg_config("[cmds.insert]\nafter = \"later\"\n")
+        .expect("config should be written");
+    let _config =
+        EnvVarGuard::set("XDG_CONFIG_HOME", xdg_home.as_str()).expect("xdg guard should install");
+    test_workspace
+        .write_target(TARGET_TWO_TASKS)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(TASK_FRAGMENT)
+        .expect("fragment should be written");
+
+    let error = run_from_args([
+        "mapsplice",
+        "insert",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect_err("invalid config should fail");
+
+    assert!(matches!(error, MapspliceError::Configuration { .. }));
 }

@@ -27,19 +27,23 @@ use crate::error::{MapspliceError, Result};
 ///
 /// Returns an error when the Markdown cannot be parsed or when the document
 /// does not match the supported roadmap structure.
+#[tracing::instrument(skip_all, fields(bytes = markdown.len()))]
 pub fn parse_roadmap(markdown: &str) -> Result<RoadmapDocument> {
     let root = parse_root(markdown)?;
     document::parse_document_root(root, SourceId::Target)
 }
 
+/// Return whether a heading is a supported phase heading.
 pub(super) fn is_phase_heading(heading: &Heading) -> bool {
     heading.depth == 2 && parse_phase_heading(heading).is_ok()
 }
 
+/// Return whether a heading is a supported step heading.
 pub(super) fn is_step_heading(heading: &Heading) -> bool {
     heading.depth == 3 && parse_step_heading(heading).is_ok()
 }
 
+/// Parse a phase heading into its number and title nodes.
 pub(super) fn parse_phase_heading(heading: &Heading) -> Result<(PhaseNumber, Vec<Node>)> {
     let (anchor, title) = strip_heading_prefix(&heading.children, RoadmapItemLevel::Phase)?;
     match anchor {
@@ -50,6 +54,7 @@ pub(super) fn parse_phase_heading(heading: &Heading) -> Result<(PhaseNumber, Vec
     }
 }
 
+/// Parse a step heading into its number and title nodes.
 pub(super) fn parse_step_heading(heading: &Heading) -> Result<(StepNumber, Vec<Node>)> {
     let (anchor, title) = strip_heading_prefix(&heading.children, RoadmapItemLevel::Step)?;
     match anchor {
@@ -60,6 +65,7 @@ pub(super) fn parse_step_heading(heading: &Heading) -> Result<(StepNumber, Vec<N
     }
 }
 
+/// Split a roadmap number prefix from heading inline nodes.
 fn strip_heading_prefix(
     children: &[Node],
     level: RoadmapItemLevel,
@@ -83,6 +89,7 @@ fn strip_heading_prefix(
     Ok((anchor, title))
 }
 
+/// Parse an unordered checklist into roadmap task entries.
 pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskEntry>> {
     if list.ordered {
         return Err(MapspliceError::InvalidRoadmap {
@@ -101,6 +108,7 @@ pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskE
         .collect()
 }
 
+/// Parse one checklist list item into a task entry.
 fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
     if item.checked.is_none() {
         return Err(MapspliceError::InvalidRoadmap {
@@ -126,11 +134,18 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
         },
         number,
         checked: item.checked,
-        summary,
-        body: item.children.iter().skip(1).cloned().collect(),
+        summary: summary.into(),
+        body: item
+            .children
+            .iter()
+            .skip(1)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into(),
     })
 }
 
+/// Parse the numbered prefix and summary from a task paragraph.
 fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)> {
     let Node::Text(Text { value, .. }) =
         paragraph
@@ -157,6 +172,7 @@ fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)
     Ok((number, summary))
 }
 
+/// Split and validate a numbered roadmap prefix from plain text.
 fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(RoadmapAnchor, String)> {
     let (digits, remainder) =
         value
@@ -173,6 +189,7 @@ fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(Roadma
     Ok((anchor, remainder.to_owned()))
 }
 
+/// Return whether a list begins with a roadmap task number.
 pub(super) fn looks_like_task_list(list: &List) -> bool {
     let Some(Node::ListItem(item)) = list.children.first() else {
         return false;
@@ -186,6 +203,7 @@ pub(super) fn looks_like_task_list(list: &List) -> bool {
     split_numbered_prefix(&text.value, RoadmapItemLevel::Task).is_ok()
 }
 
+/// Parse Markdown into an mdast root node.
 pub(super) fn parse_root(markdown: &str) -> Result<Root> {
     match to_mdast(markdown, &ParseOptions::gfm()).map_err(|error| MapspliceError::Markdown {
         message: error.to_string(),

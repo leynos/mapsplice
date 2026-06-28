@@ -11,9 +11,11 @@ use super::super::{
 };
 use crate::{
     error::{MapspliceError, Result},
+    observability,
     roadmap::parse_anchor,
 };
 
+/// Renumber every roadmap item and return the old-to-new mapping.
 pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<RenumberPlan> {
     let mut plan = RenumberPlan::default();
 
@@ -42,79 +44,168 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
     Ok(plan)
 }
 
+/// Rewrite anchor-like text references using a completed renumbering plan.
 pub(super) fn rewrite_dependencies(roadmap: &mut RoadmapDocument, plan: &RenumberPlan) {
-    rewrite_nodes(&mut roadmap.preamble, SourceId::Target, plan);
+    let mut rewrite_count = 0;
+    rewrite_nodes(
+        &mut roadmap.preamble,
+        SourceId::Target,
+        plan,
+        &mut rewrite_count,
+    );
 
     for phase in &mut roadmap.phases {
-        rewrite_nodes(&mut phase.title, phase.identity.source, plan);
-        rewrite_nodes(&mut phase.body, phase.identity.source, plan);
-        rewrite_nodes(&mut phase.trailing, phase.identity.source, plan);
+        rewrite_nodes(
+            &mut phase.title,
+            phase.identity.source,
+            plan,
+            &mut rewrite_count,
+        );
+        rewrite_nodes(
+            &mut phase.body,
+            phase.identity.source,
+            plan,
+            &mut rewrite_count,
+        );
+        rewrite_nodes(
+            &mut phase.trailing,
+            phase.identity.source,
+            plan,
+            &mut rewrite_count,
+        );
         for step in &mut phase.steps {
-            rewrite_nodes(&mut step.title, step.identity.source, plan);
-            rewrite_nodes(&mut step.body, step.identity.source, plan);
-            rewrite_nodes(&mut step.trailing, step.identity.source, plan);
+            rewrite_nodes(
+                &mut step.title,
+                step.identity.source,
+                plan,
+                &mut rewrite_count,
+            );
+            rewrite_nodes(
+                &mut step.body,
+                step.identity.source,
+                plan,
+                &mut rewrite_count,
+            );
+            rewrite_nodes(
+                &mut step.trailing,
+                step.identity.source,
+                plan,
+                &mut rewrite_count,
+            );
             for task in &mut step.tasks {
-                rewrite_nodes(&mut task.summary, task.identity.source, plan);
-                rewrite_nodes(&mut task.body, task.identity.source, plan);
+                rewrite_nodes(
+                    &mut task.summary,
+                    task.identity.source,
+                    plan,
+                    &mut rewrite_count,
+                );
+                rewrite_nodes(
+                    &mut task.body,
+                    task.identity.source,
+                    plan,
+                    &mut rewrite_count,
+                );
             }
         }
     }
+    observability::record_dependency_rewrites(rewrite_count);
 }
 
-fn rewrite_nodes(nodes: &mut [Node], source: SourceId, plan: &RenumberPlan) {
+/// Rewrite every eligible text node in a node slice.
+fn rewrite_nodes(
+    nodes: &mut [Node],
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) {
     for node in nodes {
-        rewrite_node(node, source, plan);
+        rewrite_node(node, source, plan, rewrite_count);
     }
 }
 
-fn rewrite_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+/// Rewrite one Markdown node, recursing into child-bearing nodes.
+fn rewrite_node(node: &mut Node, source: SourceId, plan: &RenumberPlan, rewrite_count: &mut u64) {
     if let Node::Text(text) = node {
-        text.value = rewrite_text_value(&text.value, source, plan);
+        let (rewritten, count) = rewrite_text_value(&text.value, source, plan);
+        text.value = rewritten;
+        *rewrite_count += count;
         return;
     }
 
-    rewrite_container_node(node, source, plan);
+    rewrite_container_node(node, source, plan, rewrite_count);
 }
 
-fn rewrite_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+/// Rewrite block-level container children.
+fn rewrite_container_node(
+    node: &mut Node,
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) {
     match node {
-        Node::Root(root) => rewrite_nodes(&mut root.children, source, plan),
-        Node::Paragraph(paragraph) => rewrite_nodes(&mut paragraph.children, source, plan),
-        Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, plan),
-        Node::Blockquote(blockquote) => rewrite_nodes(&mut blockquote.children, source, plan),
-        Node::List(list) => rewrite_nodes(&mut list.children, source, plan),
-        Node::ListItem(item) => rewrite_nodes(&mut item.children, source, plan),
-        Node::Table(table) => rewrite_nodes(&mut table.children, source, plan),
-        Node::TableRow(row) => rewrite_nodes(&mut row.children, source, plan),
-        Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, plan),
-        Node::FootnoteDefinition(definition) => {
-            rewrite_nodes(&mut definition.children, source, plan);
+        Node::Root(root) => rewrite_nodes(&mut root.children, source, plan, rewrite_count),
+        Node::Paragraph(paragraph) => {
+            rewrite_nodes(&mut paragraph.children, source, plan, rewrite_count);
         }
-        _ => rewrite_inline_container_node(node, source, plan),
+        Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, plan, rewrite_count),
+        Node::Blockquote(blockquote) => {
+            rewrite_nodes(&mut blockquote.children, source, plan, rewrite_count);
+        }
+        Node::List(list) => rewrite_nodes(&mut list.children, source, plan, rewrite_count),
+        Node::ListItem(item) => rewrite_nodes(&mut item.children, source, plan, rewrite_count),
+        Node::Table(table) => rewrite_nodes(&mut table.children, source, plan, rewrite_count),
+        Node::TableRow(row) => rewrite_nodes(&mut row.children, source, plan, rewrite_count),
+        Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, plan, rewrite_count),
+        Node::FootnoteDefinition(definition) => {
+            rewrite_nodes(&mut definition.children, source, plan, rewrite_count);
+        }
+        _ => rewrite_inline_container_node(node, source, plan, rewrite_count),
     }
 }
 
-fn rewrite_inline_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+/// Rewrite inline container children.
+fn rewrite_inline_container_node(
+    node: &mut Node,
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) {
     match node {
-        Node::Emphasis(emphasis) => rewrite_nodes(&mut emphasis.children, source, plan),
-        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan),
-        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan),
-        Node::Link(link) => rewrite_nodes(&mut link.children, source, plan),
-        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, plan),
-        _ => rewrite_mdx_container_node(node, source, plan),
+        Node::Emphasis(emphasis) => {
+            rewrite_nodes(&mut emphasis.children, source, plan, rewrite_count);
+        }
+        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan, rewrite_count),
+        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan, rewrite_count),
+        Node::Link(link) => rewrite_nodes(&mut link.children, source, plan, rewrite_count),
+        Node::LinkReference(link) => {
+            rewrite_nodes(&mut link.children, source, plan, rewrite_count);
+        }
+        _ => rewrite_mdx_container_node(node, source, plan, rewrite_count),
     }
 }
 
-fn rewrite_mdx_container_node(node: &mut Node, source: SourceId, plan: &RenumberPlan) {
+/// Rewrite MDX container children.
+fn rewrite_mdx_container_node(
+    node: &mut Node,
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) {
     match node {
-        Node::MdxJsxFlowElement(element) => rewrite_nodes(&mut element.children, source, plan),
-        Node::MdxJsxTextElement(element) => rewrite_nodes(&mut element.children, source, plan),
+        Node::MdxJsxFlowElement(element) => {
+            rewrite_nodes(&mut element.children, source, plan, rewrite_count);
+        }
+        Node::MdxJsxTextElement(element) => {
+            rewrite_nodes(&mut element.children, source, plan, rewrite_count);
+        }
         _ => {}
     }
 }
 
-fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> String {
+/// Rewrite anchor candidates within a text value and return the rewrite count.
+fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> (String, u64) {
     let mut result = String::with_capacity(value.len());
+    let mut rewrite_count = 0;
     let mut index = 0;
 
     while index < value.len() {
@@ -139,14 +230,21 @@ fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> Str
         let replacement = plan
             .resolve(source, anchor)
             .or_else(|| plan.resolve_unique(anchor))
-            .map_or_else(|| candidate.to_owned(), |mapped| mapped.to_string());
+            .map_or_else(
+                || candidate.to_owned(),
+                |mapped| {
+                    rewrite_count += 1;
+                    mapped.to_string()
+                },
+            );
         result.push_str(&replacement);
         index = end;
     }
 
-    result
+    (result, rewrite_count)
 }
 
+/// Find the next anchor-shaped token with leading and trailing boundaries.
 fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)> {
     let bytes = value.as_bytes();
     let mut start = start_at;
@@ -164,10 +262,12 @@ fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)>
     None
 }
 
+/// Return whether an anchor candidate ends before another alphanumeric byte.
 fn is_anchor_end(bytes: &[u8], end: usize) -> bool {
     !bytes.get(end).is_some_and(u8::is_ascii_alphanumeric)
 }
 
+/// Return whether a byte can start an anchor candidate.
 fn is_anchor_start(bytes: &[u8], start: usize, byte: u8) -> bool {
     byte.is_ascii_digit()
         && !bytes
@@ -175,6 +275,7 @@ fn is_anchor_start(bytes: &[u8], start: usize, byte: u8) -> bool {
             .is_some_and(u8::is_ascii_alphanumeric)
 }
 
+/// Consume a dotted numeric anchor candidate from its starting byte.
 fn consume_anchor(bytes: &[u8], start: usize) -> usize {
     let mut end = consume_digits(bytes, start);
     while has_dot_digit(bytes, end) {
@@ -183,6 +284,7 @@ fn consume_anchor(bytes: &[u8], start: usize) -> usize {
     end
 }
 
+/// Consume consecutive ASCII digits.
 fn consume_digits(bytes: &[u8], start: usize) -> usize {
     let mut end = start;
     while bytes.get(end).is_some_and(u8::is_ascii_digit) {
@@ -191,6 +293,7 @@ fn consume_digits(bytes: &[u8], start: usize) -> usize {
     end
 }
 
+/// Return whether a dot is followed by another digit segment.
 fn has_dot_digit(bytes: &[u8], dot_index: usize) -> bool {
     matches!(
         (bytes.get(dot_index), bytes.get(dot_index + 1)),
@@ -198,6 +301,7 @@ fn has_dot_digit(bytes: &[u8], dot_index: usize) -> bool {
     )
 }
 
+/// Convert a collection index into a supported roadmap number.
 fn to_number(value: usize, label: &str) -> Result<u32> {
     u32::try_from(value).map_err(|_| MapspliceError::InvalidRoadmap {
         message: format!("{label} count exceeds supported numbering range"),

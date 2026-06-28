@@ -15,6 +15,7 @@ use crate::error::{MapspliceError, Result};
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Read a UTF-8 file through a capability directory.
+#[tracing::instrument(skip_all, fields(path = %path))]
 pub fn read_utf8(path: &Utf8Path) -> Result<String> {
     let cap = open_parent_dir(path)?;
     cap.dir
@@ -27,6 +28,7 @@ pub fn read_utf8(path: &Utf8Path) -> Result<String> {
 }
 
 /// Rewrite a UTF-8 file through a temporary sibling file and rename.
+#[tracing::instrument(skip_all, fields(path = %path, bytes = contents.len()))]
 pub fn rewrite_utf8(path: &Utf8Path, contents: &str) -> Result<()> {
     let cap = open_parent_dir(path)?;
     let temp_name = temp_file_name(&cap.file_name)?;
@@ -64,6 +66,7 @@ struct FileCap {
     absolute: Utf8PathBuf,
 }
 
+/// Open the parent directory for a file path and retain display metadata.
 fn open_parent_dir(path: &Utf8Path) -> Result<FileCap> {
     let absolute = absolutize(path)?;
     let parent = absolute.parent().ok_or_else(|| {
@@ -95,6 +98,7 @@ fn open_parent_dir(path: &Utf8Path) -> Result<FileCap> {
     })
 }
 
+/// Convert a possibly relative UTF-8 path into an absolute UTF-8 path.
 fn absolutize(path: &Utf8Path) -> Result<Utf8PathBuf> {
     if path.is_absolute() {
         return Ok(path.to_path_buf());
@@ -121,6 +125,7 @@ fn absolutize(path: &Utf8Path) -> Result<Utf8PathBuf> {
     Ok(utf8_current_dir.join(path))
 }
 
+/// Build a per-call temporary sibling filename for an atomic rewrite.
 fn temp_file_name(file_name: &str) -> Result<String> {
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -138,6 +143,7 @@ fn temp_file_name(file_name: &str) -> Result<String> {
     ))
 }
 
+/// Construct an I/O error for invalid path shape before filesystem access.
 fn path_shape_error(
     action: &'static str,
     path: &Utf8Path,

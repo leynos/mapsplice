@@ -41,7 +41,35 @@ pub enum RoadmapOperation {
     },
 }
 
+impl RoadmapOperation {
+    /// Return the stable operation name used in logs and diagnostics.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Append => "append",
+            Self::Insert { .. } => "insert",
+            Self::Delete { .. } => "delete",
+            Self::Replace { .. } => "replace",
+        }
+    }
+
+    /// Return the operation anchor, when the operation addresses one.
+    #[must_use]
+    pub const fn anchor(self) -> Option<RoadmapAnchor> {
+        match self {
+            Self::Append => None,
+            Self::Insert { anchor, .. } | Self::Delete { anchor } | Self::Replace { anchor } => {
+                Some(anchor)
+            }
+        }
+    }
+}
+
 /// Apply a roadmap operation to the parsed roadmap.
+#[tracing::instrument(
+    skip_all,
+    fields(operation = operation.name(), anchor = operation.anchor().map(|anchor| anchor.to_string()).as_deref().unwrap_or(""))
+)]
 pub fn apply_command(
     roadmap: &mut RoadmapDocument,
     operation: RoadmapOperation,
@@ -61,6 +89,7 @@ pub fn apply_command(
     Ok(())
 }
 
+/// Append a phase-level fragment to the roadmap.
 fn append_fragment(
     roadmap: &mut RoadmapDocument,
     fragment: Option<&RoadmapFragment>,
@@ -76,6 +105,7 @@ fn append_fragment(
     Ok(())
 }
 
+/// Insert a fragment before or after an existing anchor.
 fn insert_fragment(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
@@ -107,6 +137,7 @@ fn insert_fragment(
     Ok(())
 }
 
+/// Insert phase sections around the target phase.
 fn insert_phases(
     roadmap: &mut RoadmapDocument,
     target: PhaseNumber,
@@ -125,6 +156,7 @@ fn insert_phases(
     Ok(())
 }
 
+/// Insert step sections around the target step.
 fn insert_steps(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -137,6 +169,7 @@ fn insert_steps(
     Ok(())
 }
 
+/// Insert task entries around the target task.
 fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
@@ -149,10 +182,12 @@ fn insert_tasks(
     Ok(())
 }
 
+/// Return the splice index for before-or-after insertion.
 const fn insertion_index(index: usize, after: bool) -> usize {
     if after { index + 1 } else { index }
 }
 
+/// Delete the roadmap item addressed by the anchor.
 fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result<()> {
     match anchor {
         RoadmapAnchor::Phase(target) => {
@@ -175,6 +210,7 @@ fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result
     Ok(())
 }
 
+/// Replace the addressed roadmap item with sibling fragment items.
 fn replace_anchor(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
@@ -212,6 +248,7 @@ fn replace_anchor(
     Ok(())
 }
 
+/// Return the fragment required by a fragment-consuming command.
 fn required_fragment<'a>(
     command: &'static str,
     fragment: Option<&'a RoadmapFragment>,
@@ -219,6 +256,7 @@ fn required_fragment<'a>(
     fragment.ok_or(MapspliceError::MissingFragment { command })
 }
 
+/// Ensure a fragment level matches the target anchor level.
 fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Result<()> {
     let expected = anchor.level();
     if expected == found {
@@ -232,6 +270,7 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
     }
 }
 
+/// Locate the mutable parent phase and index for a step anchor.
 fn find_step_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -251,6 +290,7 @@ fn find_step_parent_mut(
         })
 }
 
+/// Locate the mutable parent step and index for a task anchor.
 fn find_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,

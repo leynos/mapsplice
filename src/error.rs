@@ -96,3 +96,23 @@ pub enum MapspliceError {
         source: std::io::Error,
     },
 }
+
+impl MapspliceError {
+    /// Return a stable diagnostic class for logs and metrics.
+    #[must_use]
+    pub const fn class(&self) -> &'static str {
+        match self {
+            Self::InvalidAnchor { .. } => "invalid_anchor",
+            Self::InvalidRoadmap { .. } => "invalid_roadmap",
+            Self::LevelMismatch { .. } => "level_mismatch",
+            Self::AppendLevelMismatch { .. } => "append_level_mismatch",
+            Self::MissingFragment { .. } => "missing_fragment",
+            Self::UnexpectedFragment { .. } => "unexpected_fragment",
+            Self::AnchorNotFound { .. } => "anchor_not_found",
+            Self::Markdown { .. } => "markdown",
+            Self::Clap(_) => "cli",
+            Self::Configuration { .. } => "configuration",
+            Self::Io { .. } => "io",
+        }
+    }
+}

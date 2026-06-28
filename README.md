@@ -102,6 +102,8 @@ ______________________________________________________________________
 
 - [Users' Guide](docs/users-guide.md) — command semantics, worked examples, and
   roadmap format rules
+- [Developers' Guide](docs/developers-guide.md) — APIs, architecture,
+  observability, and verification layers
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and
   architecture notes
 - [Contributing guide](docs/contributing.md) — local prerequisites and quality

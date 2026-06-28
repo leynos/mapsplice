@@ -378,6 +378,10 @@ and rewrites the target only when `--in-place` is supplied.
 - [x] Implement the roadmap parser, mutation engine, CLI, tests, and
   documentation.
 - [x] Run code and documentation gates, then commit the approved work.
+- [x] 2026-06-28 00:00Z: Addressed review-gate follow-up by adding
+  `ortho-config` env/file merge tests, property tests, trybuild/API coverage,
+  CLI help snapshots, structured tracing, process-local counters, and
+  `docs/developers-guide.md`.
 
 ## Surprises & Discoveries
 
@@ -410,6 +414,11 @@ and rewrites the target only when `--in-place` is supplied.
   bumps, and assertion-heavy tests that return `Result`, so the final shape had
   to be refactored around those maintainability rules instead of merely
   compiling.
+- Review gating treats configuration, compile-time API compatibility, property
+  coverage, and observability as part of the initial tool contract rather than
+  later hardening. The test matrix now includes env/file config defaults,
+  generated anchors and dependency rewrites, trybuild API checks, and focused
+  CLI help snapshots.
 
 ## Decision Log
 
@@ -461,6 +470,16 @@ and rewrites the target only when `--in-place` is supplied.
   design is `parse::{document,fragment}` plus `ops::rewrite`, not a pair of
   near-400-line files.
 
+- Decision: keep parser nodes in the domain behind a dedicated `MarkdownNodes`
+  value object for the initial implementation. Rationale: a full Markdown
+  abstraction would be larger than the current scope, while raw `Vec<Node>`
+  fields make parse/render adapter concerns too visible in the roadmap model.
+
+- Decision: add process-local observability counters rather than a metrics
+  backend. Rationale: the CLI needs stable failure and rewrite counts for tests
+  and embeddings, but adding a registry or exporter would be premature for the
+  first release.
+
 ## Outcomes & Retrospective
 
 The implementation is complete and the repository gates are green. The final
@@ -475,3 +494,9 @@ maintainability rules changed the architecture in useful ways. The final
 submodule split kept the parser and rewrite logic readable, and the stricter
 lint rules pushed the tests towards clearer fixture naming and explicit
 test-style assertions instead of opaque fallible test bodies.
+
+The review-hardening pass expanded the quality envelope beyond example-based
+tests. Configuration defaults now have direct env/file coverage, generated
+properties exercise anchor and rewrite invariants, compile-time tests pin the
+public API, and structured spans plus counters make CLI failures inspectable
+without changing stdout semantics.

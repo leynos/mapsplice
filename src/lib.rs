@@ -3,6 +3,7 @@
 mod cli;
 mod error;
 mod fs;
+mod observability;
 mod roadmap;
 
 use camino::Utf8PathBuf;
@@ -23,7 +24,7 @@ where
     T: Into<std::ffi::OsString> + Clone,
 {
     let request = parse_cli_request(args)?;
-    run_request(request)
+    run_request(request).inspect_err(|error| observability::record_failure(error.class()))
 }
 
 /// Execute a parsed request.
@@ -34,19 +35,27 @@ where
 /// document is invalid, when the splice operation is not valid for the
 /// addressed anchor, or when in-place rewriting fails.
 pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
+    let operation = operation_from_command(&request.command);
+    let operation_name = operation.name();
+    let anchor = operation.anchor().map(|anchor| anchor.to_string());
+    let span = tracing::info_span!(
+        "run_request",
+        operation = operation_name,
+        anchor = anchor.as_deref().unwrap_or(""),
+        target = %request.target,
+        in_place = request.global.in_place
+    );
+    let _span_guard = span.enter();
     let target_text = read_utf8(&request.target)?;
     let mut roadmap = parse_roadmap(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    apply_command(
-        &mut roadmap,
-        operation_from_command(&request.command),
-        fragment.as_ref(),
-    )?;
+    apply_command(&mut roadmap, operation, fragment.as_ref())?;
 
     let rendered = render_roadmap(&roadmap)?;
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
+        observability::record_in_place_rewrite();
         Ok(RunOutcome::in_place(request.target))
     } else {
         Ok(RunOutcome::stdout(rendered))
@@ -56,6 +65,7 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
 fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment>> {
     match request.command.fragment_path() {
         Some(path) => {
+            tracing::debug!(path = %path, "loading roadmap fragment");
             let fragment_text = read_utf8(path)?;
             parse_fragment(&fragment_text).map(Some)
         }
@@ -101,6 +111,7 @@ impl RunOutcome {
 }
 
 pub use cli::{CommandKind, GlobalOptions};
+pub use observability::{MetricsSnapshot, metrics_snapshot};
 pub use roadmap::{
     RoadmapAnchor,
     RoadmapDocument,

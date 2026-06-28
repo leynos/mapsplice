@@ -1,6 +1,9 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    ops::{Deref, DerefMut},
+};
 
 use markdown::mdast::Node;
 
@@ -10,7 +13,7 @@ use super::{RoadmapAnchor, RoadmapItemLevel, StepNumber, TaskNumber};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RoadmapDocument {
     /// Preamble blocks before the first phase.
-    pub preamble: Vec<Node>,
+    pub preamble: MarkdownNodes,
     /// Ordered phase sections.
     pub phases: Vec<PhaseSection>,
 }
@@ -34,13 +37,13 @@ pub struct PhaseSection {
     /// Current rendered phase number.
     pub number: super::PhaseNumber,
     /// Title nodes after the numeric prefix.
-    pub title: Vec<Node>,
+    pub title: MarkdownNodes,
     /// Blocks between the phase heading and first step.
-    pub body: Vec<Node>,
+    pub body: MarkdownNodes,
     /// Ordered steps within the phase.
     pub steps: Vec<StepSection>,
     /// Blocks after the last step.
-    pub trailing: Vec<Node>,
+    pub trailing: MarkdownNodes,
 }
 
 /// A step section headed by `### <n>.<m>.`.
@@ -51,13 +54,13 @@ pub struct StepSection {
     /// Current rendered step number.
     pub number: StepNumber,
     /// Title nodes after the numeric prefix.
-    pub title: Vec<Node>,
+    pub title: MarkdownNodes,
     /// Blocks between the step heading and first task list.
-    pub body: Vec<Node>,
+    pub body: MarkdownNodes,
     /// Ordered tasks within the step.
     pub tasks: Vec<TaskEntry>,
     /// Blocks after the last task.
-    pub trailing: Vec<Node>,
+    pub trailing: MarkdownNodes,
 }
 
 /// A numbered task list item.
@@ -70,9 +73,15 @@ pub struct TaskEntry {
     /// Checkbox state, when present.
     pub checked: Option<bool>,
     /// First paragraph content after the numeric prefix.
-    pub summary: Vec<Node>,
+    pub summary: MarkdownNodes,
     /// Additional blocks nested beneath the task.
-    pub body: Vec<Node>,
+    pub body: MarkdownNodes,
+}
+
+/// Roadmap-owned Markdown nodes kept behind the parse/render boundary.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct MarkdownNodes {
+    nodes: Vec<Node>,
 }
 
 /// Where a parsed item came from.
@@ -105,10 +114,45 @@ impl RoadmapDocument {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            preamble: Vec::new(),
+            preamble: MarkdownNodes::new(),
             phases: Vec::new(),
         }
     }
+}
+
+impl MarkdownNodes {
+    /// Create an empty roadmap Markdown node collection.
+    #[must_use]
+    pub const fn new() -> Self { Self { nodes: Vec::new() } }
+
+    /// Push one parsed Markdown node.
+    pub fn push(&mut self, node: Node) { self.nodes.push(node); }
+
+    /// Return the contained nodes as a slice for parse/render adapters.
+    #[must_use]
+    pub fn as_slice(&self) -> &[Node] { &self.nodes }
+
+    /// Return the contained nodes as a mutable slice for parse/render adapters.
+    #[must_use]
+    pub fn as_mut_slice(&mut self) -> &mut [Node] { &mut self.nodes }
+}
+
+impl From<Vec<Node>> for MarkdownNodes {
+    fn from(nodes: Vec<Node>) -> Self { Self { nodes } }
+}
+
+impl From<MarkdownNodes> for Vec<Node> {
+    fn from(nodes: MarkdownNodes) -> Self { nodes.nodes }
+}
+
+impl Deref for MarkdownNodes {
+    type Target = [Node];
+
+    fn deref(&self) -> &Self::Target { self.as_slice() }
+}
+
+impl DerefMut for MarkdownNodes {
+    fn deref_mut(&mut self) -> &mut Self::Target { self.as_mut_slice() }
 }
 
 impl Default for RoadmapDocument {
