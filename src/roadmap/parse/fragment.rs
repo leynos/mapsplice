@@ -104,7 +104,7 @@ fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
                     trailing: Vec::new().into(),
                 });
             }
-            Node::Heading(heading) if heading.depth == 2 || heading.depth == 3 => {
+            Node::Heading(_) => {
                 return Err(MapspliceError::InvalidRoadmap {
                     message: "step fragments must contain only step sections".to_owned(),
                 });
@@ -125,6 +125,7 @@ fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
             message: "step fragments must contain only step sections".to_owned(),
         });
     }
+    validate_step_siblings(&steps)?;
 
     Ok(RoadmapFragment::Step(steps))
 }
@@ -148,6 +149,7 @@ fn parse_task_fragment_root(root: Root) -> Result<RoadmapFragment> {
             message: "task fragment list is empty".to_owned(),
         });
     }
+    validate_task_siblings(&tasks)?;
     Ok(RoadmapFragment::Task(tasks))
 }
 
@@ -191,12 +193,44 @@ fn push_step_fragment_body(step: &mut Option<StepSection>, node: Node) -> Result
 /// Ensure task fragment numbers belong to the active step.
 fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
     for task in tasks {
-        if task.number.step != step_number {
+        if task.number.step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: format!(
                     "task `{}` does not belong to step `{}`",
                     task.number, step_number
                 ),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Ensure step fragments contain siblings from the same phase.
+fn validate_step_siblings(steps: &[StepSection]) -> Result<()> {
+    let Some(first) = steps.first() else {
+        return Ok(());
+    };
+    let phase = first.number.phase();
+    for step in steps {
+        if step.number.phase() != phase {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "step fragments must contain steps from one phase".to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Ensure task fragments contain siblings from the same step.
+fn validate_task_siblings(tasks: &[TaskEntry]) -> Result<()> {
+    let Some(first) = tasks.first() else {
+        return Ok(());
+    };
+    let step_number = first.number.step_number();
+    for task in tasks {
+        if task.number.step_number() != step_number {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "task fragments must contain tasks from one step".to_owned(),
             });
         }
     }

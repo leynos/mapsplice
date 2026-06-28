@@ -232,14 +232,14 @@ fn stdout_contains_replacements(cli_state: &mut CliFixture) -> TestResult {
 
 #[then("stdout is empty")]
 fn stdout_is_empty(cli_state: &mut CliFixture) -> TestResult {
-    assert!(state_mut(cli_state)?.stdout.trim().is_empty());
+    assert!(state_mut(cli_state)?.stdout.is_empty());
     Ok(())
 }
 
 #[then("the target file now starts with phase 1 titled Phase two")]
 fn target_rewritten_in_place(cli_state: &mut CliFixture) -> TestResult {
     let rewritten = state_mut(cli_state)?.read_target()?;
-    assert!(rewritten.contains("## 1. Phase two"));
+    assert!(rewritten.starts_with("# Example\n\n## 1. Phase two"));
     Ok(())
 }
 

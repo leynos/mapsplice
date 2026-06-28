@@ -187,7 +187,34 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(workspace: TestResult
 
     let stdout = outcome.stdout.unwrap_or_default();
     assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
-    assert!(stdout.contains("- [ ] 1.1.3. Second task. Depends on 1.1.1 and 1.1.3."));
+    assert!(stdout.contains("- [ ] 1.1.3. Second task. Depends on 1.1.1 and 1.1.2."));
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace.expect("workspace fixture should initialize");
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task. Requires 99.1.1.\n",
+        ))
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let error = run_from_args([
+        "mapsplice",
+        "append",
+        test_workspace.target.as_str(),
+        test_workspace.fragment.as_str(),
+    ])
+    .expect_err("dangling dependency references must fail");
+
+    assert!(matches!(error, MapspliceError::DanglingDependency { .. }));
 }
 
 #[rstest]

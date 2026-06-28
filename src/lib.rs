@@ -7,7 +7,6 @@ mod observability;
 mod roadmap;
 
 use camino::Utf8PathBuf;
-use cli::{CliRequest, parse_cli_request};
 pub use error::{MapspliceError, Result};
 use fs::{read_utf8, rewrite_utf8};
 use roadmap::{RoadmapOperation, apply_command, parse_fragment, parse_roadmap, render_roadmap};
@@ -110,7 +109,7 @@ impl RunOutcome {
     }
 }
 
-pub use cli::{CommandKind, GlobalOptions};
+pub use cli::{CliRequest, CommandKind, GlobalOptions, parse_cli_request};
 pub use observability::{MetricsSnapshot, metrics_snapshot};
 pub use roadmap::{
     RoadmapAnchor,

@@ -52,9 +52,7 @@ impl DocumentParser {
         match node {
             Node::Heading(heading) if is_phase_heading(&heading) => self.begin_phase(&heading),
             Node::Heading(heading) if is_step_heading(&heading) => self.begin_step(&heading),
-            Node::Heading(heading) if heading.depth == 2 || heading.depth == 3 => {
-                self.handle_non_roadmap_heading(heading)
-            }
+            Node::Heading(heading) => self.handle_non_roadmap_heading(heading),
             Node::List(list) if looks_like_task_list(&list) => self.append_task_list(&list),
             other => {
                 self.push_non_structural_node(other);
@@ -93,7 +91,7 @@ impl DocumentParser {
                 message: "step heading appeared before the first phase heading".to_owned(),
             })?;
         let (number, title) = parse_step_heading(heading)?;
-        if number.phase != phase.number {
+        if number.phase() != phase.number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: format!(
                     "step heading `{number}` does not belong to phase `{}`",
@@ -207,7 +205,7 @@ impl DocumentParser {
 /// Ensure parsed task numbers belong to their containing step.
 fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
     for task in tasks {
-        if task.number.step != step_number {
+        if task.number.step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: format!(
                     "task `{}` does not belong to step `{}`",

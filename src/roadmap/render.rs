@@ -1,6 +1,10 @@
 //! Deterministic renderer for the supported roadmap subset.
 
+#[path = "render_table.rs"]
+mod table;
+
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
+use table::render_table;
 
 use super::RoadmapDocument;
 use crate::error::{MapspliceError, Result};
@@ -103,12 +107,10 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
             )
         }),
         Node::Code(Code { value, lang, .. }) => {
-            let fence = lang
-                .as_ref()
-                .map_or_else(|| "```".to_owned(), |language| format!("```{language}"));
-            Ok(indent_block(&format!("{fence}\n{value}\n```"), indent))
+            Ok(render_code_block(value, lang.as_deref(), indent))
         }
         Node::Html(html) => Ok(indent_block(&html.value, indent)),
+        Node::Table(table) => render_table(table, indent),
         Node::ThematicBreak(_) => Ok(indent_block("---", indent)),
         other => Err(MapspliceError::InvalidRoadmap {
             message: format!(
@@ -117,6 +119,33 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
             ),
         }),
     }
+}
+
+/// Render a fenced code block using a fence longer than its contents.
+fn render_code_block(value: &str, lang: Option<&str>, indent: usize) -> String {
+    let fence = safe_code_fence(value);
+    let opener = lang.map_or_else(|| fence.clone(), |language| format!("{fence}{language}"));
+    indent_block(&format!("{opener}\n{value}\n{fence}"), indent)
+}
+
+/// Choose a code fence that cannot be closed by the code contents.
+fn safe_code_fence(value: &str) -> String {
+    "`".repeat(longest_backtick_run(value).saturating_add(1).max(3))
+}
+
+/// Return the longest contiguous backtick run in a string.
+fn longest_backtick_run(value: &str) -> usize {
+    let mut longest = 0;
+    let mut current = 0;
+    for character in value.chars() {
+        if character == '`' {
+            current += 1;
+            longest = longest.max(current);
+        } else {
+            current = 0;
+        }
+    }
+    longest
 }
 
 /// Render an ordered or unordered Markdown list.

@@ -32,6 +32,9 @@ fn emit_outcome(outcome: RunOutcome) -> ExitCode {
 )]
 fn write_stdout(stdout: &str) -> ExitCode {
     if let Err(error) = io::stdout().write_all(stdout.as_bytes()) {
+        if error.kind() == io::ErrorKind::BrokenPipe {
+            return ExitCode::SUCCESS;
+        }
         tracing::error!(error = %error, error_class = "stdout", "failed to write CLI output");
         eprintln!("{error}");
         return ExitCode::FAILURE;

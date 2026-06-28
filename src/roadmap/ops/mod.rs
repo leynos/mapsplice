@@ -85,7 +85,7 @@ pub fn apply_command(
     }
 
     let plan = renumber_document(roadmap)?;
-    rewrite_dependencies(roadmap, &plan);
+    rewrite_dependencies(roadmap, &plan)?;
     Ok(())
 }
 

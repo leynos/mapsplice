@@ -20,7 +20,7 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
     let mut plan = RenumberPlan::default();
 
     for (phase_index, phase) in roadmap.phases.iter_mut().enumerate() {
-        let new_phase = PhaseNumber(to_number(phase_index + 1, "phase")?);
+        let new_phase = PhaseNumber::new(to_number(phase_index + 1, "phase")?)?;
         plan.insert(
             phase.identity.source,
             phase.identity.anchor,
@@ -29,12 +29,12 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
         phase.number = new_phase;
 
         for (step_index, step) in phase.steps.iter_mut().enumerate() {
-            let new_step = StepNumber::new(new_phase, to_number(step_index + 1, "step")?);
+            let new_step = StepNumber::new(new_phase, to_number(step_index + 1, "step")?)?;
             plan.insert(step.identity.source, step.identity.anchor, new_step.into());
             step.number = new_step;
 
             for (task_index, task) in step.tasks.iter_mut().enumerate() {
-                let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?);
+                let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
                 plan.insert(task.identity.source, task.identity.anchor, new_task.into());
                 task.number = new_task;
             }
@@ -45,14 +45,17 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
 }
 
 /// Rewrite anchor-like text references using a completed renumbering plan.
-pub(super) fn rewrite_dependencies(roadmap: &mut RoadmapDocument, plan: &RenumberPlan) {
+pub(super) fn rewrite_dependencies(
+    roadmap: &mut RoadmapDocument,
+    plan: &RenumberPlan,
+) -> Result<()> {
     let mut rewrite_count = 0;
     rewrite_nodes(
         &mut roadmap.preamble,
         SourceId::Target,
         plan,
         &mut rewrite_count,
-    );
+    )?;
 
     for phase in &mut roadmap.phases {
         rewrite_nodes(
@@ -60,55 +63,56 @@ pub(super) fn rewrite_dependencies(roadmap: &mut RoadmapDocument, plan: &Renumbe
             phase.identity.source,
             plan,
             &mut rewrite_count,
-        );
+        )?;
         rewrite_nodes(
             &mut phase.body,
             phase.identity.source,
             plan,
             &mut rewrite_count,
-        );
+        )?;
         rewrite_nodes(
             &mut phase.trailing,
             phase.identity.source,
             plan,
             &mut rewrite_count,
-        );
+        )?;
         for step in &mut phase.steps {
             rewrite_nodes(
                 &mut step.title,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
-            );
+            )?;
             rewrite_nodes(
                 &mut step.body,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
-            );
+            )?;
             rewrite_nodes(
                 &mut step.trailing,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
-            );
+            )?;
             for task in &mut step.tasks {
                 rewrite_nodes(
                     &mut task.summary,
                     task.identity.source,
                     plan,
                     &mut rewrite_count,
-                );
+                )?;
                 rewrite_nodes(
                     &mut task.body,
                     task.identity.source,
                     plan,
                     &mut rewrite_count,
-                );
+                )?;
             }
         }
     }
     observability::record_dependency_rewrites(rewrite_count);
+    Ok(())
 }
 
 /// Rewrite every eligible text node in a node slice.
@@ -117,22 +121,28 @@ fn rewrite_nodes(
     source: SourceId,
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
-) {
+) -> Result<()> {
     for node in nodes {
-        rewrite_node(node, source, plan, rewrite_count);
+        rewrite_node(node, source, plan, rewrite_count)?;
     }
+    Ok(())
 }
 
 /// Rewrite one Markdown node, recursing into child-bearing nodes.
-fn rewrite_node(node: &mut Node, source: SourceId, plan: &RenumberPlan, rewrite_count: &mut u64) {
+fn rewrite_node(
+    node: &mut Node,
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) -> Result<()> {
     if let Node::Text(text) = node {
-        let (rewritten, count) = rewrite_text_value(&text.value, source, plan);
+        let (rewritten, count) = rewrite_text_value(&text.value, source, plan)?;
         text.value = rewritten;
         *rewrite_count += count;
-        return;
+        return Ok(());
     }
 
-    rewrite_container_node(node, source, plan, rewrite_count);
+    rewrite_container_node(node, source, plan, rewrite_count)
 }
 
 /// Rewrite block-level container children.
@@ -141,15 +151,15 @@ fn rewrite_container_node(
     source: SourceId,
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
-) {
+) -> Result<()> {
     match node {
         Node::Root(root) => rewrite_nodes(&mut root.children, source, plan, rewrite_count),
         Node::Paragraph(paragraph) => {
-            rewrite_nodes(&mut paragraph.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut paragraph.children, source, plan, rewrite_count)
         }
         Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, plan, rewrite_count),
         Node::Blockquote(blockquote) => {
-            rewrite_nodes(&mut blockquote.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut blockquote.children, source, plan, rewrite_count)
         }
         Node::List(list) => rewrite_nodes(&mut list.children, source, plan, rewrite_count),
         Node::ListItem(item) => rewrite_nodes(&mut item.children, source, plan, rewrite_count),
@@ -157,7 +167,7 @@ fn rewrite_container_node(
         Node::TableRow(row) => rewrite_nodes(&mut row.children, source, plan, rewrite_count),
         Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, plan, rewrite_count),
         Node::FootnoteDefinition(definition) => {
-            rewrite_nodes(&mut definition.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut definition.children, source, plan, rewrite_count)
         }
         _ => rewrite_inline_container_node(node, source, plan, rewrite_count),
     }
@@ -169,17 +179,15 @@ fn rewrite_inline_container_node(
     source: SourceId,
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
-) {
+) -> Result<()> {
     match node {
         Node::Emphasis(emphasis) => {
-            rewrite_nodes(&mut emphasis.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut emphasis.children, source, plan, rewrite_count)
         }
         Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan, rewrite_count),
         Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan, rewrite_count),
         Node::Link(link) => rewrite_nodes(&mut link.children, source, plan, rewrite_count),
-        Node::LinkReference(link) => {
-            rewrite_nodes(&mut link.children, source, plan, rewrite_count);
-        }
+        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, plan, rewrite_count),
         _ => rewrite_mdx_container_node(node, source, plan, rewrite_count),
     }
 }
@@ -190,20 +198,20 @@ fn rewrite_mdx_container_node(
     source: SourceId,
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
-) {
+) -> Result<()> {
     match node {
         Node::MdxJsxFlowElement(element) => {
-            rewrite_nodes(&mut element.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut element.children, source, plan, rewrite_count)
         }
         Node::MdxJsxTextElement(element) => {
-            rewrite_nodes(&mut element.children, source, plan, rewrite_count);
+            rewrite_nodes(&mut element.children, source, plan, rewrite_count)
         }
-        _ => {}
+        _ => Ok(()),
     }
 }
 
 /// Rewrite anchor candidates within a text value and return the rewrite count.
-fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> (String, u64) {
+fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> Result<(String, u64)> {
     let mut result = String::with_capacity(value.len());
     let mut rewrite_count = 0;
     let mut index = 0;
@@ -222,26 +230,65 @@ fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> (St
             index = end;
             continue;
         };
+        if !is_dependency_anchor(value, start) {
+            result.push_str(candidate);
+            index = end;
+            continue;
+        }
         let Ok(anchor) = parse_anchor(candidate) else {
             result.push_str(candidate);
             index = end;
             continue;
         };
-        let replacement = plan
+        let mapped = plan
             .resolve(source, anchor)
             .or_else(|| plan.resolve_unique(anchor))
-            .map_or_else(
-                || candidate.to_owned(),
-                |mapped| {
-                    rewrite_count += 1;
-                    mapped.to_string()
-                },
-            );
-        result.push_str(&replacement);
+            .ok_or(MapspliceError::DanglingDependency { anchor })?;
+        rewrite_count += 1;
+        result.push_str(&mapped.to_string());
         index = end;
     }
 
-    (result, rewrite_count)
+    Ok((result, rewrite_count))
+}
+
+/// Return whether the candidate appears in a supported dependency clause.
+fn is_dependency_anchor(value: &str, start: usize) -> bool {
+    ["Requires", "Blocks"].into_iter().any(|keyword| {
+        latest_keyword_before(value, start, keyword).is_some_and(|position| {
+            is_keyword_boundary(value, position, keyword.len())
+                && has_dependency_clause_separator(value, position + keyword.len(), start)
+        })
+    })
+}
+
+/// Find the latest dependency keyword before an anchor candidate.
+fn latest_keyword_before(value: &str, start: usize, keyword: &str) -> Option<usize> {
+    value
+        .get(..start)?
+        .rmatch_indices(keyword)
+        .next()
+        .map(|(position, _)| position)
+}
+
+/// Return whether a dependency keyword is bounded as a word.
+fn is_keyword_boundary(value: &str, position: usize, length: usize) -> bool {
+    let bytes = value.as_bytes();
+    !bytes
+        .get(position.wrapping_sub(1))
+        .is_some_and(u8::is_ascii_alphanumeric)
+        && !bytes
+            .get(position + length)
+            .is_some_and(u8::is_ascii_alphanumeric)
+}
+
+/// Return whether text between keyword and anchor still looks like a clause.
+fn has_dependency_clause_separator(value: &str, after_keyword: usize, anchor_start: usize) -> bool {
+    value
+        .get(after_keyword..anchor_start)
+        .is_some_and(|between| {
+            !between.contains('\n') && (between.contains(':') || between.starts_with(' '))
+        })
 }
 
 /// Find the next anchor-shaped token with leading and trailing boundaries.

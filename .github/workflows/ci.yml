@@ -16,6 +16,8 @@ jobs:
       WHITAKER_INSTALLER_VERSION: '0.2.5'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@7da7c6d89033d13cbb1c64803d108ddca97e69c2
       - name: Install mold linker
@@ -27,6 +29,8 @@ jobs:
             && sudo apt-get install --yes --no-install-recommends clang mold
       - name: Format
         run: make check-fmt
+      - name: Typecheck
+        run: make typecheck
       - name: Markdown lint
         uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd
         with:
@@ -34,6 +38,8 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
+      - name: Mermaid diagrams
+        run: make nixie
       - name: Cache Whitaker installation
         id: cache-whitaker
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306

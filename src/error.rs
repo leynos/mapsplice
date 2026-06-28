@@ -66,6 +66,13 @@ pub enum MapspliceError {
         anchor: RoadmapAnchor,
     },
 
+    /// A dependency clause references an anchor that no longer exists.
+    #[error("dependency anchor `{anchor}` was not found in the target roadmap")]
+    DanglingDependency {
+        /// Missing dependency anchor.
+        anchor: RoadmapAnchor,
+    },
+
     /// Markdown parsing failed.
     #[error("failed to parse markdown: {message}")]
     Markdown {
@@ -109,6 +116,7 @@ impl MapspliceError {
             Self::MissingFragment { .. } => "missing_fragment",
             Self::UnexpectedFragment { .. } => "unexpected_fragment",
             Self::AnchorNotFound { .. } => "anchor_not_found",
+            Self::DanglingDependency { .. } => "dangling_dependency",
             Self::Markdown { .. } => "markdown",
             Self::Clap(_) => "cli",
             Self::Configuration { .. } => "configuration",
