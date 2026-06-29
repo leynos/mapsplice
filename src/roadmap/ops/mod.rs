@@ -1,5 +1,6 @@
 //! Splice operations and anchor-aware mutation helpers.
 
+mod dependency_text;
 mod rewrite;
 
 use rewrite::{renumber_document, rewrite_dependencies};
@@ -11,9 +12,10 @@ use super::{
     RoadmapFragment,
     RoadmapItemLevel,
     StepNumber,
+    SubTaskNumber,
     TaskNumber,
     fragment_level,
-    model::{PhaseSection, StepSection},
+    model::{PhaseSection, StepSection, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -230,6 +232,10 @@ fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result
             let (step, task_index) = find_task_parent_mut(roadmap, target)?;
             step.tasks.remove(task_index);
         }
+        RoadmapAnchor::SubTask(target) => {
+            let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+            task.sub_tasks.remove(sub_task_index);
+        }
     }
     Ok(())
 }
@@ -328,6 +334,29 @@ fn find_task_parent_mut(
                 .map(|task_index| (step, task_index))
         }) {
             return Ok((step, task_index));
+        }
+    }
+
+    Err(MapspliceError::AnchorNotFound {
+        anchor: target.into(),
+    })
+}
+
+/// Locate the mutable parent task and index for a sub-task anchor.
+fn find_sub_task_parent_mut(
+    roadmap: &mut RoadmapDocument,
+    target: SubTaskNumber,
+) -> Result<(&mut TaskEntry, usize)> {
+    for phase in &mut roadmap.phases {
+        for step in &mut phase.steps {
+            if let Some((task, sub_task_index)) = step.tasks.iter_mut().find_map(|task| {
+                task.sub_tasks
+                    .iter()
+                    .position(|sub_task| sub_task.number == target)
+                    .map(|sub_task_index| (task, sub_task_index))
+            }) {
+                return Ok((task, sub_task_index));
+            }
         }
     }
 

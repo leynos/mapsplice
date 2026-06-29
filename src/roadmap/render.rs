@@ -6,7 +6,10 @@ mod table;
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
 use table::render_table;
 
-use super::RoadmapDocument;
+use super::{
+    RoadmapDocument,
+    model::{SubTaskEntry, TaskEntry},
+};
 use crate::error::{MapspliceError, Result};
 
 /// Render a parsed roadmap back to Markdown.
@@ -41,7 +44,7 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
 }
 
 /// Render a list of roadmap tasks as Markdown checklist lines.
-fn render_tasks(tasks: &[&super::model::TaskEntry]) -> Result<String> {
+fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
     tasks
         .iter()
         .map(|task| render_task(task))
@@ -50,7 +53,7 @@ fn render_tasks(tasks: &[&super::model::TaskEntry]) -> Result<String> {
 }
 
 /// Render one roadmap task and any nested body blocks.
-fn render_task(task: &super::model::TaskEntry) -> Result<String> {
+fn render_task(task: &TaskEntry) -> Result<String> {
     let checkbox = match task.checked {
         Some(true) => "[x] ",
         Some(false) => "[ ] ",
@@ -62,6 +65,36 @@ fn render_task(task: &super::model::TaskEntry) -> Result<String> {
         render_inline(task.summary.nodes())?
     )];
     for block in render_blocks(task.body.nodes(), 4)? {
+        parts.push(block);
+    }
+    if !task.sub_tasks.is_empty() {
+        parts.push(indent_block(&render_sub_tasks(&task.sub_tasks)?, 4));
+    }
+    Ok(parts.join("\n\n"))
+}
+
+/// Render ordered sub-tasks as a nested checklist.
+fn render_sub_tasks(sub_tasks: &[SubTaskEntry]) -> Result<String> {
+    sub_tasks
+        .iter()
+        .map(render_sub_task)
+        .collect::<Result<Vec<_>>>()
+        .map(|lines| lines.join("\n"))
+}
+
+/// Render one sub-task and any nested body blocks.
+fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
+    let checkbox = match sub_task.checked {
+        Some(true) => "[x] ",
+        Some(false) => "[ ] ",
+        None => "",
+    };
+    let mut parts = vec![format!(
+        "- {checkbox}{}. {}",
+        sub_task.number,
+        render_inline(sub_task.summary.nodes())?
+    )];
+    for block in render_blocks(sub_task.body.nodes(), 4)? {
         parts.push(block);
     }
     Ok(parts.join("\n\n"))

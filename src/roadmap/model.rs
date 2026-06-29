@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use markdown::mdast::Node;
 
-use super::{RoadmapAnchor, RoadmapItemLevel, StepNumber, TaskNumber};
+use super::{RoadmapAnchor, RoadmapItemLevel, StepNumber, SubTaskNumber, TaskNumber};
 
 /// A parsed roadmap document.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -72,6 +72,23 @@ pub struct TaskEntry {
     /// First paragraph content after the numeric prefix.
     pub summary: MarkdownNodes,
     /// Additional blocks nested beneath the task.
+    pub body: MarkdownNodes,
+    /// Ordered fourth-level sub-tasks nested beneath this task.
+    pub sub_tasks: Vec<SubTaskEntry>,
+}
+
+/// A numbered sub-task list item.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SubTaskEntry {
+    /// Original identity for renumber tracking.
+    pub identity: ItemIdentity,
+    /// Current rendered sub-task number.
+    pub number: SubTaskNumber,
+    /// Checkbox state, when present.
+    pub checked: Option<bool>,
+    /// First paragraph content after the numeric prefix.
+    pub summary: MarkdownNodes,
+    /// Additional blocks nested beneath the sub-task.
     pub body: MarkdownNodes,
 }
 

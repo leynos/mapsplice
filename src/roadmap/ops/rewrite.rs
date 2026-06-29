@@ -2,17 +2,18 @@
 
 use markdown::mdast::Node;
 
-use super::super::{
-    PhaseNumber,
-    RoadmapDocument,
-    StepNumber,
-    TaskNumber,
-    model::{RenumberPlan, SourceId},
+use super::{
+    super::{
+        PhaseNumber,
+        RoadmapDocument,
+        StepNumber,
+        SubTaskNumber,
+        TaskNumber,
+        model::{RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
+    },
+    dependency_text::rewrite_text_value,
 };
-use crate::{
-    error::{MapspliceError, Result},
-    roadmap::parse_anchor,
-};
+use crate::error::{MapspliceError, Result};
 
 /// Renumber every roadmap item and return the old-to-new mapping.
 pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<RenumberPlan> {
@@ -36,11 +37,31 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
                 let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
                 plan.insert(task.identity.source, task.identity.anchor, new_task.into());
                 task.number = new_task;
+                renumber_sub_tasks(task, new_task, &mut plan)?;
             }
         }
     }
 
     Ok(plan)
+}
+
+/// Renumber ordered sub-tasks beneath one task.
+fn renumber_sub_tasks(
+    task: &mut TaskEntry,
+    new_task: TaskNumber,
+    plan: &mut RenumberPlan,
+) -> Result<()> {
+    for (sub_task_index, sub_task) in task.sub_tasks.iter_mut().enumerate() {
+        let new_sub_task =
+            SubTaskNumber::new(new_task, to_number(sub_task_index + 1, "sub-task")?)?;
+        plan.insert(
+            sub_task.identity.source,
+            sub_task.identity.anchor,
+            new_sub_task.into(),
+        );
+        sub_task.number = new_sub_task;
+    }
+    Ok(())
 }
 
 /// Rewrite anchor-like text references using a completed renumbering plan.
@@ -95,22 +116,55 @@ pub(super) fn rewrite_dependencies(
                 &mut rewrite_count,
             )?;
             for task in &mut step.tasks {
-                rewrite_nodes(
-                    task.summary.nodes_mut(),
-                    task.identity.source,
-                    plan,
-                    &mut rewrite_count,
-                )?;
-                rewrite_nodes(
-                    task.body.nodes_mut(),
-                    task.identity.source,
-                    plan,
-                    &mut rewrite_count,
-                )?;
+                rewrite_task_entry(task, plan, &mut rewrite_count)?;
             }
         }
     }
     Ok(rewrite_count)
+}
+
+/// Rewrite dependencies inside one task and its ordered sub-tasks.
+fn rewrite_task_entry(
+    task: &mut TaskEntry,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) -> Result<()> {
+    rewrite_nodes(
+        task.summary.nodes_mut(),
+        task.identity.source,
+        plan,
+        rewrite_count,
+    )?;
+    rewrite_nodes(
+        task.body.nodes_mut(),
+        task.identity.source,
+        plan,
+        rewrite_count,
+    )?;
+    for sub_task in &mut task.sub_tasks {
+        rewrite_sub_task_entry(sub_task, plan, rewrite_count)?;
+    }
+    Ok(())
+}
+
+/// Rewrite dependencies inside one sub-task.
+fn rewrite_sub_task_entry(
+    sub_task: &mut SubTaskEntry,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) -> Result<()> {
+    rewrite_nodes(
+        sub_task.summary.nodes_mut(),
+        sub_task.identity.source,
+        plan,
+        rewrite_count,
+    )?;
+    rewrite_nodes(
+        sub_task.body.nodes_mut(),
+        sub_task.identity.source,
+        plan,
+        rewrite_count,
+    )
 }
 
 /// Rewrite every eligible text node in a node slice.
@@ -206,161 +260,6 @@ fn rewrite_mdx_container_node(
         }
         _ => Ok(()),
     }
-}
-
-/// Rewrite anchor candidates within a text value and return the rewrite count.
-fn rewrite_text_value(value: &str, source: SourceId, plan: &RenumberPlan) -> Result<(String, u64)> {
-    let mut result = String::with_capacity(value.len());
-    let mut rewrite_count = 0;
-    let mut index = 0;
-
-    while index < value.len() {
-        let Some((start, end)) = next_anchor_candidate(value, index) else {
-            if let Some(tail) = value.get(index..) {
-                result.push_str(tail);
-            }
-            break;
-        };
-        if let Some(prefix) = value.get(index..start) {
-            result.push_str(prefix);
-        }
-        let Some(candidate) = value.get(start..end) else {
-            index = end;
-            continue;
-        };
-        if !is_dependency_anchor(value, start) {
-            result.push_str(candidate);
-            index = end;
-            continue;
-        }
-        let Ok(anchor) = parse_anchor(candidate) else {
-            result.push_str(candidate);
-            index = end;
-            continue;
-        };
-        let mapped = plan
-            .resolve(source, anchor)
-            .or_else(|| plan.resolve_unique(anchor))
-            .ok_or(MapspliceError::DanglingDependency { anchor })?;
-        rewrite_count += 1;
-        result.push_str(&mapped.to_string());
-        index = end;
-    }
-
-    Ok((result, rewrite_count))
-}
-
-/// Return whether the candidate appears in a supported dependency clause.
-fn is_dependency_anchor(value: &str, start: usize) -> bool {
-    ["Requires", "Blocks"].into_iter().any(|keyword| {
-        latest_keyword_before(value, start, keyword).is_some_and(|position| {
-            is_keyword_boundary(value, position, keyword.len())
-                && has_dependency_clause_separator(value, position + keyword.len(), start)
-        })
-    })
-}
-
-/// Find the latest dependency keyword before an anchor candidate.
-fn latest_keyword_before(value: &str, start: usize, keyword: &str) -> Option<usize> {
-    value
-        .get(..start)?
-        .rmatch_indices(keyword)
-        .next()
-        .map(|(position, _)| position)
-}
-
-/// Return whether a dependency keyword is bounded as a word.
-fn is_keyword_boundary(value: &str, position: usize, length: usize) -> bool {
-    let bytes = value.as_bytes();
-    !bytes
-        .get(position.wrapping_sub(1))
-        .is_some_and(u8::is_ascii_alphanumeric)
-        && !bytes
-            .get(position + length)
-            .is_some_and(u8::is_ascii_alphanumeric)
-}
-
-/// Return whether text between keyword and anchor still looks like a clause.
-fn has_dependency_clause_separator(value: &str, after_keyword: usize, anchor_start: usize) -> bool {
-    value
-        .get(after_keyword..anchor_start)
-        .is_some_and(|between| {
-            !between.contains('\n')
-                && !has_dependency_clause_terminator(between)
-                && (between.contains(':') || between.starts_with(' '))
-        })
-}
-
-/// Return whether text contains a dependency-clause terminator.
-fn has_dependency_clause_terminator(value: &str) -> bool {
-    value.char_indices().any(|(index, character)| {
-        character == ';' || (character == '.' && !is_dot_between_digits(value.as_bytes(), index))
-    })
-}
-
-/// Return whether a dot is part of a dotted numeric token.
-fn is_dot_between_digits(bytes: &[u8], index: usize) -> bool {
-    bytes
-        .get(index.wrapping_sub(1))
-        .is_some_and(u8::is_ascii_digit)
-        && bytes.get(index + 1).is_some_and(u8::is_ascii_digit)
-}
-
-/// Find the next anchor-shaped token with leading and trailing boundaries.
-fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)> {
-    let bytes = value.as_bytes();
-    let mut start = start_at;
-
-    while let Some(byte) = bytes.get(start) {
-        if is_anchor_start(bytes, start, *byte) {
-            let end = consume_anchor(bytes, start);
-            if is_anchor_end(bytes, end) {
-                return Some((start, end));
-            }
-        }
-        start += 1;
-    }
-
-    None
-}
-
-/// Return whether an anchor candidate ends before another alphanumeric byte.
-fn is_anchor_end(bytes: &[u8], end: usize) -> bool {
-    !bytes.get(end).is_some_and(u8::is_ascii_alphanumeric)
-}
-
-/// Return whether a byte can start an anchor candidate.
-fn is_anchor_start(bytes: &[u8], start: usize, byte: u8) -> bool {
-    byte.is_ascii_digit()
-        && !bytes
-            .get(start.wrapping_sub(1))
-            .is_some_and(u8::is_ascii_alphanumeric)
-}
-
-/// Consume a dotted numeric anchor candidate from its starting byte.
-fn consume_anchor(bytes: &[u8], start: usize) -> usize {
-    let mut end = consume_digits(bytes, start);
-    while has_dot_digit(bytes, end) {
-        end = consume_digits(bytes, end + 1);
-    }
-    end
-}
-
-/// Consume consecutive ASCII digits.
-fn consume_digits(bytes: &[u8], start: usize) -> usize {
-    let mut end = start;
-    while bytes.get(end).is_some_and(u8::is_ascii_digit) {
-        end += 1;
-    }
-    end
-}
-
-/// Return whether a dot is followed by another digit segment.
-fn has_dot_digit(bytes: &[u8], dot_index: usize) -> bool {
-    matches!(
-        (bytes.get(dot_index), bytes.get(dot_index + 1)),
-        (Some(b'.'), Some(next)) if next.is_ascii_digit()
-    )
 }
 
 /// Convert a collection index into a supported roadmap number.

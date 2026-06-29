@@ -5,6 +5,7 @@ use markdown::mdast::{Heading, List, Node, Root};
 use super::{
     is_phase_heading,
     is_step_heading,
+    looks_like_sub_task_list,
     looks_like_task_list,
     parse_phase_heading,
     parse_step_heading,
@@ -54,6 +55,11 @@ impl DocumentParser {
             Node::Heading(heading) if is_step_heading(&heading) => self.begin_step(&heading),
             Node::Heading(heading) => self.handle_non_roadmap_heading(heading),
             Node::List(list) if looks_like_task_list(&list) => self.append_task_list(&list),
+            Node::List(list) if looks_like_sub_task_list(&list) => {
+                Err(MapspliceError::InvalidRoadmap {
+                    message: "sub-task list appeared without a parent task".to_owned(),
+                })
+            }
             other => {
                 self.push_non_structural_node(other);
                 Ok(())
@@ -148,6 +154,7 @@ impl DocumentParser {
 
         let mut tasks = parse_task_list(list, self.source)?;
         validate_task_numbers(step.number, &tasks)?;
+        validate_sub_task_numbers(&tasks)?;
         step.tasks.append(&mut tasks);
         Ok(())
     }
@@ -212,6 +219,23 @@ fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result
                     task.number, step_number
                 ),
             });
+        }
+    }
+    Ok(())
+}
+
+/// Ensure parsed sub-task numbers belong to their containing task.
+fn validate_sub_task_numbers(tasks: &[TaskEntry]) -> Result<()> {
+    for task in tasks {
+        for sub_task in &task.sub_tasks {
+            if sub_task.number.task_number() != task.number {
+                return Err(MapspliceError::InvalidRoadmap {
+                    message: format!(
+                        "sub-task `{}` does not belong to task `{}`",
+                        sub_task.number, task.number
+                    ),
+                });
+            }
         }
     }
     Ok(())

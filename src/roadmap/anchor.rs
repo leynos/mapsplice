@@ -1,4 +1,4 @@
-//! Typed identifiers for phases, steps, tasks, and CLI anchors.
+//! Typed identifiers for phases, steps, tasks, sub-tasks, and CLI anchors.
 
 use std::{fmt, str::FromStr};
 
@@ -24,6 +24,13 @@ pub struct TaskNumber {
     task: u32,
 }
 
+/// A sub-task number such as `8.2.3.4`.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct SubTaskNumber {
+    task: TaskNumber,
+    sub_task: u32,
+}
+
 /// Structural level in a roadmap.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RoadmapItemLevel {
@@ -33,6 +40,8 @@ pub enum RoadmapItemLevel {
     Step,
     /// Task-level operation.
     Task,
+    /// Sub-task-level reference.
+    SubTask,
 }
 
 impl fmt::Display for RoadmapItemLevel {
@@ -41,11 +50,12 @@ impl fmt::Display for RoadmapItemLevel {
             Self::Phase => formatter.write_str("phase"),
             Self::Step => formatter.write_str("step"),
             Self::Task => formatter.write_str("task"),
+            Self::SubTask => formatter.write_str("sub-task"),
         }
     }
 }
 
-/// A CLI anchor such as `8`, `8.2`, or `8.2.3`.
+/// A CLI anchor such as `8`, `8.2`, `8.2.3`, or `8.2.3.4`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum RoadmapAnchor {
     /// Phase anchor.
@@ -54,6 +64,8 @@ pub enum RoadmapAnchor {
     Step(StepNumber),
     /// Task anchor.
     Task(TaskNumber),
+    /// Sub-task anchor.
+    SubTask(SubTaskNumber),
 }
 
 impl RoadmapAnchor {
@@ -64,6 +76,7 @@ impl RoadmapAnchor {
             Self::Phase(_) => RoadmapItemLevel::Phase,
             Self::Step(_) => RoadmapItemLevel::Step,
             Self::Task(_) => RoadmapItemLevel::Task,
+            Self::SubTask(_) => RoadmapItemLevel::SubTask,
         }
     }
 }
@@ -86,12 +99,19 @@ impl fmt::Display for TaskNumber {
     }
 }
 
+impl fmt::Display for SubTaskNumber {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}.{}", self.task, self.sub_task)
+    }
+}
+
 impl fmt::Display for RoadmapAnchor {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Phase(number) => number.fmt(formatter),
             Self::Step(number) => number.fmt(formatter),
             Self::Task(number) => number.fmt(formatter),
+            Self::SubTask(number) => number.fmt(formatter),
         }
     }
 }
@@ -106,6 +126,10 @@ impl From<StepNumber> for RoadmapAnchor {
 
 impl From<TaskNumber> for RoadmapAnchor {
     fn from(value: TaskNumber) -> Self { Self::Task(value) }
+}
+
+impl From<SubTaskNumber> for RoadmapAnchor {
+    fn from(value: SubTaskNumber) -> Self { Self::SubTask(value) }
 }
 
 impl PhaseNumber {
@@ -189,20 +213,46 @@ impl TaskNumber {
     pub const fn task(self) -> u32 { self.task }
 }
 
+impl SubTaskNumber {
+    /// Construct a validated sub-task number.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MapspliceError::InvalidAnchor`] when `sub_task` is zero.
+    pub fn new(task: TaskNumber, sub_task: u32) -> Result<Self> {
+        let sub_task_number = validate_positive("sub-task", sub_task)?;
+        Ok(Self {
+            task,
+            sub_task: sub_task_number,
+        })
+    }
+
+    /// Return the parent task number.
+    #[must_use]
+    pub const fn task_number(self) -> TaskNumber { self.task }
+
+    /// Return the sub-task ordinal within the parent task.
+    #[must_use]
+    pub const fn sub_task(self) -> u32 { self.sub_task }
+}
+
 impl FromStr for RoadmapAnchor {
     type Err = MapspliceError;
 
     fn from_str(value: &str) -> Result<Self> { parse_anchor(value) }
 }
 
-/// Parse a CLI anchor such as `8`, `8.2`, or `8.2.3`.
+/// Parse a CLI anchor such as `8`, `8.2`, `8.2.3`, or `8.2.3.4`.
 ///
 /// # Example
 ///
 /// ```rust
 /// use mapsplice::{RoadmapAnchor, parse_anchor};
 ///
-/// assert!(matches!(parse_anchor("8.2.3")?, RoadmapAnchor::Task(_)));
+/// assert!(matches!(
+///     parse_anchor("8.2.3.4")?,
+///     RoadmapAnchor::SubTask(_)
+/// ));
 /// assert!(parse_anchor("08.2.3").is_err());
 /// # Ok::<(), mapsplice::MapspliceError>(())
 /// ```
@@ -211,7 +261,7 @@ impl FromStr for RoadmapAnchor {
 ///
 /// Returns [`MapspliceError::InvalidAnchor`] when the value is empty, contains
 /// empty path segments, includes non-numeric components, or has more than
-/// three numeric parts.
+/// four numeric parts.
 pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
     let parts = value.split('.').collect::<Vec<_>>();
     if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
@@ -227,14 +277,27 @@ pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
 
     match numbers.as_slice() {
         [phase] => Ok(PhaseNumber::new(*phase)?.into()),
-        [phase, step] => Ok(StepNumber::new(PhaseNumber::new(*phase)?, *step)?.into()),
-        [phase, step, task] => {
-            Ok(TaskNumber::new(StepNumber::new(PhaseNumber::new(*phase)?, *step)?, *task)?.into())
+        [phase, step] => Ok(build_step_number(*phase, *step)?.into()),
+        [phase, step, task] => Ok(build_task_number(*phase, *step, *task)?.into()),
+        [phase, step, task, sub_task] => {
+            Ok(build_sub_task_number(*phase, *step, *task, *sub_task)?.into())
         }
         _ => Err(MapspliceError::InvalidAnchor {
             anchor: value.to_owned(),
         }),
     }
+}
+
+fn build_step_number(phase: u32, step: u32) -> Result<StepNumber> {
+    StepNumber::new(PhaseNumber::new(phase)?, step)
+}
+
+fn build_task_number(phase: u32, step: u32, task: u32) -> Result<TaskNumber> {
+    TaskNumber::new(build_step_number(phase, step)?, task)
+}
+
+fn build_sub_task_number(phase: u32, step: u32, task: u32, sub_task: u32) -> Result<SubTaskNumber> {
+    SubTaskNumber::new(build_task_number(phase, step, task)?, sub_task)
 }
 
 fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
@@ -298,5 +361,21 @@ impl<'de> Deserialize<'de> for TaskNumber {
     {
         let wire = TaskNumberWire::deserialize(deserializer)?;
         Self::new(wire.step, wire.task).map_err(D::Error::custom)
+    }
+}
+
+#[derive(Deserialize)]
+struct SubTaskNumberWire {
+    task: TaskNumber,
+    sub_task: u32,
+}
+
+impl<'de> Deserialize<'de> for SubTaskNumber {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = SubTaskNumberWire::deserialize(deserializer)?;
+        Self::new(wire.task, wire.sub_task).map_err(D::Error::custom)
     }
 }

@@ -133,6 +133,8 @@ pub use roadmap::{
     RoadmapItemLevel,
     RoadmapOperation,
     StepNumber,
+    SubTaskEntry,
+    SubTaskNumber,
     TaskNumber,
     apply_command,
     fragment_level,

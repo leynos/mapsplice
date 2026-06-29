@@ -16,8 +16,9 @@ use super::{
     RoadmapDocument,
     RoadmapItemLevel,
     StepNumber,
+    SubTaskNumber,
     TaskNumber,
-    model::{ItemIdentity, MarkdownNodes, SourceId, TaskEntry},
+    model::{ItemIdentity, MarkdownNodes, SourceId, SubTaskEntry, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -127,6 +128,8 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
         });
     };
     let (number, summary) = parse_task_paragraph(paragraph)?;
+    let child_body = item.children.get(1..).unwrap_or(&[]);
+    let (body, sub_tasks) = split_task_children(child_body, number, source)?;
     Ok(TaskEntry {
         identity: ItemIdentity {
             source,
@@ -135,8 +138,136 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
         number,
         checked: item.checked,
         summary: MarkdownNodes::from_nodes(summary),
-        body: MarkdownNodes::from_nodes(item.children.iter().skip(1).cloned().collect::<Vec<_>>()),
+        body,
+        sub_tasks,
     })
+}
+
+/// Split nested task content into body blocks and first-class sub-tasks.
+fn split_task_children(
+    children: &[Node],
+    parent: TaskNumber,
+    source: SourceId,
+) -> Result<(MarkdownNodes, Vec<SubTaskEntry>)> {
+    let mut body = MarkdownNodes::new();
+    let mut sub_tasks = Vec::new();
+    for child in children {
+        if let Node::List(list) = child {
+            if looks_like_sub_task_list(list) {
+                parse_sub_task_list(list, parent, source, &mut sub_tasks)?;
+                continue;
+            }
+            if looks_like_task_list(list) {
+                return Err(MapspliceError::InvalidRoadmap {
+                    message: "nested roadmap task lists must use sub-task numbers".to_owned(),
+                });
+            }
+        }
+        body.push(child.clone());
+    }
+    Ok((body, sub_tasks))
+}
+
+/// Parse one nested checklist list into ordered sub-tasks.
+fn parse_sub_task_list(
+    list: &List,
+    parent: TaskNumber,
+    source: SourceId,
+    sub_tasks: &mut Vec<SubTaskEntry>,
+) -> Result<()> {
+    if list.ordered {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
+        });
+    }
+    let expected_start = sub_tasks.len().saturating_add(1);
+    for (offset, node) in list.children.iter().enumerate() {
+        let Node::ListItem(item) = node else {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "roadmap sub-task lists must contain only list items".to_owned(),
+            });
+        };
+        let expected_ordinal =
+            u32::try_from(expected_start + offset).map_err(|_| MapspliceError::InvalidRoadmap {
+                message: "sub-task count exceeds supported numbering range".to_owned(),
+            })?;
+        sub_tasks.push(parse_sub_task_item(item, parent, expected_ordinal, source)?);
+    }
+    Ok(())
+}
+
+/// Parse one nested checklist list item into a sub-task entry.
+fn parse_sub_task_item(
+    item: &ListItem,
+    parent: TaskNumber,
+    expected_ordinal: u32,
+    source: SourceId,
+) -> Result<SubTaskEntry> {
+    if item.checked.is_none() {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
+        });
+    }
+    let first = item
+        .children
+        .first()
+        .ok_or_else(|| MapspliceError::InvalidRoadmap {
+            message: "sub-task list items must start with a paragraph".to_owned(),
+        })?;
+    let Node::Paragraph(paragraph) = first else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "sub-task list items must start with a paragraph".to_owned(),
+        });
+    };
+    let (number, summary) = parse_sub_task_paragraph(paragraph)?;
+    validate_sub_task_number(parent, expected_ordinal, number)?;
+    let child_body = item.children.get(1..).unwrap_or(&[]);
+    let body = parse_sub_task_body(child_body)?;
+    Ok(SubTaskEntry {
+        identity: ItemIdentity {
+            source,
+            anchor: RoadmapAnchor::SubTask(number),
+        },
+        number,
+        checked: item.checked,
+        summary: MarkdownNodes::from_nodes(summary),
+        body,
+    })
+}
+
+/// Parse sub-task body blocks while rejecting deeper roadmap numbering.
+fn parse_sub_task_body(children: &[Node]) -> Result<MarkdownNodes> {
+    let mut body = MarkdownNodes::new();
+    for child in children {
+        if let Node::List(list) = child
+            && looks_like_sub_task_list(list)
+        {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "sub-tasks cannot contain nested roadmap sub-tasks".to_owned(),
+            });
+        }
+        body.push(child.clone());
+    }
+    Ok(body)
+}
+
+/// Validate that a sub-task belongs to its parent and appears in order.
+fn validate_sub_task_number(
+    parent: TaskNumber,
+    expected_ordinal: u32,
+    number: SubTaskNumber,
+) -> Result<()> {
+    if number.task_number() != parent {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: format!("sub-task `{number}` does not belong to task `{parent}`"),
+        });
+    }
+    if number.sub_task() != expected_ordinal {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: format!("sub-task `{number}` is not in document order"),
+        });
+    }
+    Ok(())
 }
 
 /// Parse the numbered prefix and summary from a task paragraph.
@@ -166,6 +297,33 @@ fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)
     Ok((number, summary))
 }
 
+/// Parse the numbered prefix and summary from a sub-task paragraph.
+fn parse_sub_task_paragraph(paragraph: &Paragraph) -> Result<(SubTaskNumber, Vec<Node>)> {
+    let Node::Text(Text { value, .. }) =
+        paragraph
+            .children
+            .first()
+            .ok_or_else(|| MapspliceError::InvalidRoadmap {
+                message: "sub-task paragraphs must start with plain text".to_owned(),
+            })?
+    else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "sub-task paragraphs must start with plain text".to_owned(),
+        });
+    };
+    let (anchor, remainder) = split_numbered_prefix(value, RoadmapItemLevel::SubTask)?;
+    let RoadmapAnchor::SubTask(number) = anchor else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "expected a sub-task number".to_owned(),
+        });
+    };
+    let mut summary = paragraph.children.clone();
+    if let Some(Node::Text(text)) = summary.first_mut() {
+        text.value = remainder;
+    }
+    Ok((number, summary))
+}
+
 /// Split and validate a numbered roadmap prefix from plain text.
 fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(RoadmapAnchor, String)> {
     let (digits, remainder) =
@@ -185,6 +343,16 @@ fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(Roadma
 
 /// Return whether a list begins with a roadmap task number.
 pub(super) fn looks_like_task_list(list: &List) -> bool {
+    looks_like_numbered_list(list, RoadmapItemLevel::Task)
+}
+
+/// Return whether a list begins with a roadmap sub-task number.
+pub(super) fn looks_like_sub_task_list(list: &List) -> bool {
+    looks_like_numbered_list(list, RoadmapItemLevel::SubTask)
+}
+
+/// Return whether a list begins with the requested roadmap item level.
+fn looks_like_numbered_list(list: &List, level: RoadmapItemLevel) -> bool {
     let Some(Node::ListItem(item)) = list.children.first() else {
         return false;
     };
@@ -194,7 +362,7 @@ pub(super) fn looks_like_task_list(list: &List) -> bool {
     let Some(Node::Text(text)) = paragraph.children.first() else {
         return false;
     };
-    split_numbered_prefix(&text.value, RoadmapItemLevel::Task).is_ok()
+    split_numbered_prefix(&text.value, level).is_ok()
 }
 
 /// Parse Markdown into an mdast root node.
