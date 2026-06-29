@@ -46,6 +46,9 @@ fn write_stdout(stdout: &str) -> ExitCode {
 fn emit_clap_display(error: &clap::Error) -> ExitCode {
     let exit_code = error.exit_code();
     if let Err(print_error) = error.print() {
+        if print_error.kind() == io::ErrorKind::BrokenPipe {
+            return ExitCode::SUCCESS;
+        }
         tracing::error!(error = %print_error, error_class = "cli_display", "failed to print CLI display output");
         eprintln!("{print_error}");
         return ExitCode::FAILURE;

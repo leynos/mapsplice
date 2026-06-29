@@ -1,3 +1,5 @@
+//! Integration smoke test for the public `mapsplice` API surface.
+
 use mapsplice::{
     CommandKind,
     GlobalOptions,

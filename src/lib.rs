@@ -3,7 +3,7 @@
 mod cli;
 mod error;
 mod fs;
-mod observability;
+pub mod observability;
 mod roadmap;
 
 use camino::Utf8PathBuf;
@@ -111,12 +111,21 @@ impl RunOutcome {
 }
 
 pub use cli::{CliRequest, CommandKind, GlobalOptions, parse_cli_request};
-pub use observability::{MetricsSnapshot, metrics_snapshot};
+pub use observability::{
+    MetricsSnapshot,
+    metrics_snapshot,
+    record_dependency_rewrites,
+    record_failure,
+    record_in_place_rewrite,
+};
 pub use roadmap::{
+    PhaseNumber,
     RoadmapAnchor,
     RoadmapDocument,
     RoadmapFragment,
     RoadmapItemLevel,
+    StepNumber,
+    TaskNumber,
     fragment_level,
     parse_anchor,
     parse_fragment as parse_fragment_text,

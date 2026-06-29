@@ -100,10 +100,10 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug)]
 pub struct Workspace {
-    _tempdir: TempDir,
     pub dir: Dir,
     pub target: Utf8PathBuf,
     pub fragment: Utf8PathBuf,
+    _tempdir: TempDir,
 }
 
 impl Workspace {

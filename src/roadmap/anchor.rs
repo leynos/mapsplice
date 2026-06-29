@@ -111,12 +111,34 @@ impl From<TaskNumber> for RoadmapAnchor {
 impl PhaseNumber {
     /// Construct a validated phase number.
     ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use mapsplice::PhaseNumber;
+    ///
+    /// let phase = PhaseNumber::new(8)?;
+    ///
+    /// assert_eq!(phase.get(), 8);
+    /// # Ok::<(), mapsplice::MapspliceError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `phase` is zero.
     pub fn new(phase: u32) -> Result<Self> { validate_positive("phase", phase).map(Self) }
 
     /// Return the numeric phase value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use mapsplice::PhaseNumber;
+    ///
+    /// let phase = PhaseNumber::new(3)?;
+    ///
+    /// assert_eq!(phase.get(), 3);
+    /// # Ok::<(), mapsplice::MapspliceError>(())
+    /// ```
     #[must_use]
     pub const fn get(self) -> u32 { self.0 }
 }
@@ -174,6 +196,16 @@ impl FromStr for RoadmapAnchor {
 }
 
 /// Parse a CLI anchor such as `8`, `8.2`, or `8.2.3`.
+///
+/// # Example
+///
+/// ```rust
+/// use mapsplice::{RoadmapAnchor, parse_anchor};
+///
+/// assert!(matches!(parse_anchor("8.2.3")?, RoadmapAnchor::Task(_)));
+/// assert!(parse_anchor("08.2.3").is_err());
+/// # Ok::<(), mapsplice::MapspliceError>(())
+/// ```
 ///
 /// # Errors
 ///

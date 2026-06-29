@@ -92,23 +92,16 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
             indent,
         )),
         Node::List(list) => render_list(list, indent),
-        Node::Blockquote(blockquote) => render_blocks(&blockquote.children, 0).map(|parts| {
-            indent_block(
-                &parts
-                    .into_iter()
-                    .flat_map(|part| {
-                        part.lines()
-                            .map(|line| format!("> {line}"))
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-                indent,
-            )
-        }),
-        Node::Code(Code { value, lang, .. }) => {
-            Ok(render_code_block(value, lang.as_deref(), indent))
-        }
+        Node::Blockquote(blockquote) => render_blocks(&blockquote.children, 0)
+            .map(|parts| indent_block(&render_blockquote_parts(parts), indent)),
+        Node::Code(Code {
+            value, lang, meta, ..
+        }) => Ok(render_code_block(
+            value,
+            lang.as_deref(),
+            meta.as_deref(),
+            indent,
+        )),
         Node::Html(html) => Ok(indent_block(&html.value, indent)),
         Node::Table(table) => render_table(table, indent),
         Node::ThematicBreak(_) => Ok(indent_block("---", indent)),
@@ -122,10 +115,35 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
 }
 
 /// Render a fenced code block using a fence longer than its contents.
-fn render_code_block(value: &str, lang: Option<&str>, indent: usize) -> String {
+fn render_code_block(value: &str, lang: Option<&str>, meta: Option<&str>, indent: usize) -> String {
     let fence = safe_code_fence(value);
-    let opener = lang.map_or_else(|| fence.clone(), |language| format!("{fence}{language}"));
+    let info = code_fence_info(lang, meta);
+    let opener = format!("{fence}{info}");
     indent_block(&format!("{opener}\n{value}\n{fence}"), indent)
+}
+
+/// Render blockquote parts while preserving blank quoted separators.
+fn render_blockquote_parts(parts: Vec<String>) -> String {
+    parts
+        .into_iter()
+        .map(|part| {
+            part.lines()
+                .map(|line| format!("> {line}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .collect::<Vec<_>>()
+        .join("\n>\n")
+}
+
+/// Render the optional fenced-code info string.
+fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
+    match (lang, meta) {
+        (Some(language), Some(metadata)) => format!("{language} {metadata}"),
+        (Some(language), None) => language.to_owned(),
+        (None, Some(metadata)) => metadata.to_owned(),
+        (None, None) => String::new(),
+    }
 }
 
 /// Choose a code fence that cannot be closed by the code contents.

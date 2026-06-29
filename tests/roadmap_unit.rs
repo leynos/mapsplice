@@ -90,6 +90,41 @@ fn parse_roadmap_keeps_preamble_and_structure() {
     assert_eq!(first_step.tasks.len(), 1);
 }
 
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn render_preserves_code_metadata_and_blockquote_spacing(workspace: TestResult<Workspace>) {
+    let test_workspace = workspace_fixture(workspace);
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "> First paragraph.\n",
+            ">\n",
+            "> Second paragraph.\n\n",
+            "```rust ignore\n",
+            "fn main() {}\n",
+            "```\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n",
+        ))
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "append",
+        test_workspace.target.as_str(),
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("append command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert!(stdout.contains("> First paragraph.\n>\n> Second paragraph."));
+    assert!(stdout.contains("```rust ignore\nfn main() {}\n```"));
+}
+
 fn workspace_fixture(workspace: TestResult<Workspace>) -> Workspace {
     match workspace {
         Ok(test_workspace) => test_workspace,
