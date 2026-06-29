@@ -37,15 +37,15 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
         })?;
 
     if is_phase_fragment_start(first) {
-        return parse_phase_fragment(root);
+        return parse_phase_fragment(root, markdown);
     }
 
     if is_step_fragment_start(first) {
-        return parse_step_fragment_root(root);
+        return parse_step_fragment_root(root, markdown);
     }
 
     if is_task_fragment_start(first) {
-        return parse_task_fragment_root(root);
+        return parse_task_fragment_root(root, markdown);
     }
 
     Err(MapspliceError::InvalidRoadmap {
@@ -70,8 +70,8 @@ fn is_task_fragment_start(node: &Node) -> bool {
 }
 
 /// Parse one or more sibling phases from a fragment root.
-fn parse_phase_fragment(root: Root) -> Result<RoadmapFragment> {
-    let document = parse_document_root(root, SourceId::Fragment)?;
+fn parse_phase_fragment(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+    let document = parse_document_root(root, SourceId::Fragment, source_text)?;
     if !document.preamble.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
             message: "phase fragments must not contain a preamble".to_owned(),
@@ -81,7 +81,7 @@ fn parse_phase_fragment(root: Root) -> Result<RoadmapFragment> {
 }
 
 /// Parse one or more sibling steps directly from a fragment root.
-fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
+fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
     let mut steps = Vec::new();
     let mut current_step = None;
 
@@ -110,9 +110,9 @@ fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
                 });
             }
             Node::List(list) if looks_like_task_list(&list) => {
-                append_step_fragment_tasks(&mut current_step, &list)?;
+                append_step_fragment_tasks(&mut current_step, &list, source_text)?;
             }
-            other => push_step_fragment_body(&mut current_step, other)?,
+            other => push_step_fragment_body(&mut current_step, other, source_text)?,
         }
     }
 
@@ -131,7 +131,7 @@ fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
 }
 
 /// Parse a single top-level checklist as a task fragment.
-fn parse_task_fragment_root(root: Root) -> Result<RoadmapFragment> {
+fn parse_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
     if root.children.len() != 1 {
         return Err(MapspliceError::InvalidRoadmap {
             message: "task fragments must contain only a single task list".to_owned(),
@@ -143,7 +143,7 @@ fn parse_task_fragment_root(root: Root) -> Result<RoadmapFragment> {
             message: "task fragments must contain only a single task list".to_owned(),
         });
     };
-    let tasks = parse_task_list(&list, SourceId::Fragment)?;
+    let tasks = parse_task_list(&list, SourceId::Fragment, source_text)?;
     if tasks.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
             message: "task fragment list is empty".to_owned(),
@@ -154,7 +154,11 @@ fn parse_task_fragment_root(root: Root) -> Result<RoadmapFragment> {
 }
 
 /// Append task list entries to the active step fragment.
-fn append_step_fragment_tasks(step: &mut Option<StepSection>, list: &List) -> Result<()> {
+fn append_step_fragment_tasks(
+    step: &mut Option<StepSection>,
+    list: &List,
+    source_text: &str,
+) -> Result<()> {
     let current = step
         .as_mut()
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
@@ -169,23 +173,27 @@ fn append_step_fragment_tasks(step: &mut Option<StepSection>, list: &List) -> Re
         });
     }
 
-    let mut tasks = parse_task_list(list, SourceId::Fragment)?;
+    let mut tasks = parse_task_list(list, SourceId::Fragment, source_text)?;
     validate_task_numbers(current.number, &tasks)?;
     current.tasks.append(&mut tasks);
     Ok(())
 }
 
 /// Preserve non-structural nodes within the active step fragment.
-fn push_step_fragment_body(step: &mut Option<StepSection>, node: Node) -> Result<()> {
+fn push_step_fragment_body(
+    step: &mut Option<StepSection>,
+    node: Node,
+    source_text: &str,
+) -> Result<()> {
     let current = step
         .as_mut()
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
             message: "step fragments must contain only step sections".to_owned(),
         })?;
     if current.tasks.is_empty() {
-        current.body.push(node);
+        current.body.push_preserved(node, source_text);
     } else {
-        current.trailing.push(node);
+        current.trailing.push_preserved(node, source_text);
     }
     Ok(())
 }

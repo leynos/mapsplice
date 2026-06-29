@@ -8,7 +8,7 @@ use table::render_table;
 
 use super::{
     RoadmapDocument,
-    model::{SubTaskEntry, TaskEntry},
+    model::{MarkdownNodes, SubTaskEntry, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -16,29 +16,29 @@ use crate::error::{MapspliceError, Result};
 #[tracing::instrument(skip_all, fields(phases = roadmap.phases.len()))]
 pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     let mut blocks = Vec::new();
-    blocks.extend(render_blocks(roadmap.preamble.nodes(), 0)?);
+    blocks.extend(render_markdown_nodes(&roadmap.preamble, 0)?);
     for phase in &roadmap.phases {
         blocks.push(format!(
             "## {}. {}",
             phase.number,
             render_inline(phase.title.nodes())?
         ));
-        blocks.extend(render_blocks(phase.body.nodes(), 0)?);
+        blocks.extend(render_markdown_nodes(&phase.body, 0)?);
         for step in &phase.steps {
             blocks.push(format!(
                 "### {}. {}",
                 step.number,
                 render_inline(step.title.nodes())?
             ));
-            blocks.extend(render_blocks(step.body.nodes(), 0)?);
+            blocks.extend(render_markdown_nodes(&step.body, 0)?);
             if !step.tasks.is_empty() {
                 blocks.push(render_tasks(
                     step.tasks.iter().collect::<Vec<_>>().as_slice(),
                 )?);
             }
-            blocks.extend(render_blocks(step.trailing.nodes(), 0)?);
+            blocks.extend(render_markdown_nodes(&step.trailing, 0)?);
         }
-        blocks.extend(render_blocks(phase.trailing.nodes(), 0)?);
+        blocks.extend(render_markdown_nodes(&phase.trailing, 0)?);
     }
     Ok(blocks.join("\n\n"))
 }
@@ -64,7 +64,7 @@ fn render_task(task: &TaskEntry) -> Result<String> {
         task.number,
         render_inline(task.summary.nodes())?
     )];
-    for block in render_blocks(task.body.nodes(), 4)? {
+    for block in render_markdown_nodes(&task.body, 4)? {
         parts.push(block);
     }
     if !task.sub_tasks.is_empty() {
@@ -73,7 +73,6 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     Ok(parts.join("\n\n"))
 }
 
-/// Render ordered sub-tasks as a nested checklist.
 fn render_sub_tasks(sub_tasks: &[SubTaskEntry]) -> Result<String> {
     sub_tasks
         .iter()
@@ -82,7 +81,6 @@ fn render_sub_tasks(sub_tasks: &[SubTaskEntry]) -> Result<String> {
         .map(|lines| lines.join("\n"))
 }
 
-/// Render one sub-task and any nested body blocks.
 fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
     let checkbox = match sub_task.checked {
         Some(true) => "[x] ",
@@ -94,13 +92,25 @@ fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
         sub_task.number,
         render_inline(sub_task.summary.nodes())?
     )];
-    for block in render_blocks(sub_task.body.nodes(), 4)? {
+    for block in render_markdown_nodes(&sub_task.body, 4)? {
         parts.push(block);
     }
     Ok(parts.join("\n\n"))
 }
 
-/// Render block nodes with the requested indentation.
+fn render_markdown_nodes(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
+    markdown
+        .nodes()
+        .iter()
+        .zip(markdown.original_blocks())
+        .map(|(node, original)| {
+            original
+                .as_ref()
+                .map_or_else(|| render_block(node, indent), |block| Ok(block.clone()))
+        })
+        .collect()
+}
+
 fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
     nodes
         .iter()
@@ -108,7 +118,6 @@ fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
         .collect()
 }
 
-/// Render one supported Markdown block node.
 fn render_block(node: &Node, indent: usize) -> Result<String> {
     match node {
         Node::Paragraph(paragraph) => {
@@ -155,7 +164,6 @@ fn render_code_block(value: &str, lang: Option<&str>, meta: Option<&str>, indent
     indent_block(&format!("{opener}\n{value}\n{fence}"), indent)
 }
 
-/// Render blockquote parts while preserving blank quoted separators.
 fn render_blockquote_parts(parts: Vec<String>) -> String {
     parts
         .into_iter()
@@ -169,7 +177,6 @@ fn render_blockquote_parts(parts: Vec<String>) -> String {
         .join("\n>\n")
 }
 
-/// Render the optional fenced-code info string.
 fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
     match (lang, meta) {
         (Some(language), Some(metadata)) => format!("{language} {metadata}"),
@@ -179,7 +186,6 @@ fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
     }
 }
 
-/// Choose a code fence that cannot be closed by the code contents.
 fn safe_code_fence(value: &str) -> String {
     "`".repeat(longest_backtick_run(value).saturating_add(1).max(3))
 }

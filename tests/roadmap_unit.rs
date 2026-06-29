@@ -340,6 +340,38 @@ fn render_preserves_code_metadata_and_blockquote_spacing(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn render_preserves_untouched_body_markdown_exactly(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "| Name  | Value |\n",
+            "| :---- | ----: |\n",
+            "| alpha |   10  |\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n\n",
+            "## 2. Phase two\n\n",
+            "### 2.1. Step two\n\n",
+            "- [ ] 2.1.1. Second task.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "2"])
+        .expect("delete command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(
+        &stdout,
+        "| Name  | Value |\n| :---- | ----: |\n| alpha |   10  |",
+    );
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace

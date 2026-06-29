@@ -22,29 +22,35 @@ use crate::{
 };
 
 /// Parse an mdast root into a roadmap document for the given source.
-pub(crate) fn parse_document_root(root: Root, source: SourceId) -> Result<RoadmapDocument> {
-    let mut parser = DocumentParser::new(source);
+pub(crate) fn parse_document_root(
+    root: Root,
+    source: SourceId,
+    source_text: &str,
+) -> Result<RoadmapDocument> {
+    let mut parser = DocumentParser::new(source, source_text);
     for node in root.children {
         parser.parse_node(node)?;
     }
     parser.finish()
 }
 
-struct DocumentParser {
+struct DocumentParser<'source> {
     document: RoadmapDocument,
     current_phase: Option<PhaseSection>,
     current_step: Option<StepSection>,
     source: SourceId,
+    source_text: &'source str,
 }
 
-impl DocumentParser {
+impl<'source> DocumentParser<'source> {
     /// Create a parser for one source document.
-    const fn new(source: SourceId) -> Self {
+    const fn new(source: SourceId, source_text: &'source str) -> Self {
         Self {
             document: RoadmapDocument::new(),
             current_phase: None,
             current_step: None,
             source,
+            source_text,
         }
     }
 
@@ -123,7 +129,9 @@ impl DocumentParser {
     /// Reject unsupported headings once roadmap parsing has started.
     fn handle_non_roadmap_heading(&mut self, heading: Heading) -> Result<()> {
         if self.current_phase.is_none() {
-            self.document.preamble.push(Node::Heading(heading));
+            self.document
+                .preamble
+                .push_preserved(Node::Heading(heading), self.source_text);
             return Ok(());
         }
 
@@ -152,7 +160,7 @@ impl DocumentParser {
             });
         }
 
-        let mut tasks = parse_task_list(list, self.source)?;
+        let mut tasks = parse_task_list(list, self.source, self.source_text)?;
         validate_task_numbers(step.number, &tasks)?;
         validate_sub_task_numbers(&tasks)?;
         step.tasks.append(&mut tasks);
@@ -177,18 +185,20 @@ impl DocumentParser {
     fn push_non_structural_node(&mut self, node: Node) {
         if let Some(step) = self.current_step.as_mut() {
             if step.tasks.is_empty() {
-                step.body.push(node);
+                step.body.push_preserved(node, self.source_text);
             } else {
-                step.trailing.push(node);
+                step.trailing.push_preserved(node, self.source_text);
             }
         } else if let Some(phase) = self.current_phase.as_mut() {
             if phase.steps.is_empty() {
-                phase.body.push(node);
+                phase.body.push_preserved(node, self.source_text);
             } else {
-                phase.trailing.push(node);
+                phase.trailing.push_preserved(node, self.source_text);
             }
         } else {
-            self.document.preamble.push(node);
+            self.document
+                .preamble
+                .push_preserved(node, self.source_text);
         }
     }
 

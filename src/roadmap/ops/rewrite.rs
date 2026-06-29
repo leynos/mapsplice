@@ -9,7 +9,7 @@ use super::{
         StepNumber,
         SubTaskNumber,
         TaskNumber,
-        model::{RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
+        model::{MarkdownNodes, RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
     },
     dependency_text::rewrite_text_value,
 };
@@ -70,47 +70,47 @@ pub(super) fn rewrite_dependencies(
     plan: &RenumberPlan,
 ) -> Result<u64> {
     let mut rewrite_count = 0;
-    rewrite_nodes(
-        roadmap.preamble.nodes_mut(),
+    rewrite_markdown_nodes(
+        &mut roadmap.preamble,
         SourceId::Target,
         plan,
         &mut rewrite_count,
     )?;
 
     for phase in &mut roadmap.phases {
-        rewrite_nodes(
-            phase.title.nodes_mut(),
+        rewrite_markdown_nodes(
+            &mut phase.title,
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
-        rewrite_nodes(
-            phase.body.nodes_mut(),
+        rewrite_markdown_nodes(
+            &mut phase.body,
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
-        rewrite_nodes(
-            phase.trailing.nodes_mut(),
+        rewrite_markdown_nodes(
+            &mut phase.trailing,
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
         for step in &mut phase.steps {
-            rewrite_nodes(
-                step.title.nodes_mut(),
+            rewrite_markdown_nodes(
+                &mut step.title,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
             )?;
-            rewrite_nodes(
-                step.body.nodes_mut(),
+            rewrite_markdown_nodes(
+                &mut step.body,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
             )?;
-            rewrite_nodes(
-                step.trailing.nodes_mut(),
+            rewrite_markdown_nodes(
+                &mut step.trailing,
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
@@ -129,18 +129,8 @@ fn rewrite_task_entry(
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
 ) -> Result<()> {
-    rewrite_nodes(
-        task.summary.nodes_mut(),
-        task.identity.source,
-        plan,
-        rewrite_count,
-    )?;
-    rewrite_nodes(
-        task.body.nodes_mut(),
-        task.identity.source,
-        plan,
-        rewrite_count,
-    )?;
+    rewrite_markdown_nodes(&mut task.summary, task.identity.source, plan, rewrite_count)?;
+    rewrite_markdown_nodes(&mut task.body, task.identity.source, plan, rewrite_count)?;
     for sub_task in &mut task.sub_tasks {
         rewrite_sub_task_entry(sub_task, plan, rewrite_count)?;
     }
@@ -153,18 +143,33 @@ fn rewrite_sub_task_entry(
     plan: &RenumberPlan,
     rewrite_count: &mut u64,
 ) -> Result<()> {
-    rewrite_nodes(
-        sub_task.summary.nodes_mut(),
+    rewrite_markdown_nodes(
+        &mut sub_task.summary,
         sub_task.identity.source,
         plan,
         rewrite_count,
     )?;
-    rewrite_nodes(
-        sub_task.body.nodes_mut(),
+    rewrite_markdown_nodes(
+        &mut sub_task.body,
         sub_task.identity.source,
         plan,
         rewrite_count,
     )
+}
+
+/// Rewrite Markdown nodes and invalidate original snippets only on change.
+fn rewrite_markdown_nodes(
+    markdown: &mut MarkdownNodes,
+    source: SourceId,
+    plan: &RenumberPlan,
+    rewrite_count: &mut u64,
+) -> Result<()> {
+    let before = *rewrite_count;
+    rewrite_nodes(markdown.nodes_mut(), source, plan, rewrite_count)?;
+    if *rewrite_count > before {
+        markdown.clear_original_blocks();
+    }
+    Ok(())
 }
 
 /// Rewrite every eligible text node in a node slice.

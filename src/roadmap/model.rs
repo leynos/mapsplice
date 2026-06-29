@@ -96,6 +96,7 @@ pub struct SubTaskEntry {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MarkdownNodes {
     nodes: Vec<Node>,
+    original_blocks: Vec<Option<String>>,
 }
 
 /// Where a parsed item came from.
@@ -137,14 +138,28 @@ impl RoadmapDocument {
 impl MarkdownNodes {
     /// Create an empty roadmap Markdown node collection.
     #[must_use]
-    pub const fn new() -> Self { Self { nodes: Vec::new() } }
+    pub const fn new() -> Self {
+        Self {
+            nodes: Vec::new(),
+            original_blocks: Vec::new(),
+        }
+    }
 
-    /// Push one parsed Markdown node.
-    pub(crate) fn push(&mut self, node: Node) { self.nodes.push(node); }
+    /// Push one parsed Markdown node while preserving its original source.
+    pub(crate) fn push_preserved(&mut self, node: Node, source: &str) {
+        let original = original_block(&node, source);
+        self.nodes.push(node);
+        self.original_blocks.push(original);
+    }
 
     /// Construct Markdown nodes from parser-owned mdast nodes.
     #[must_use]
-    pub(crate) const fn from_nodes(nodes: Vec<Node>) -> Self { Self { nodes } }
+    pub(crate) fn from_nodes(nodes: Vec<Node>) -> Self {
+        Self {
+            original_blocks: vec![None; nodes.len()],
+            nodes,
+        }
+    }
 
     /// Return whether the collection has no Markdown nodes.
     #[must_use]
@@ -158,8 +173,23 @@ impl MarkdownNodes {
     #[must_use]
     pub(crate) fn nodes(&self) -> &[Node] { &self.nodes }
 
+    /// Return original source blocks for parse/render adapters.
+    #[must_use]
+    pub(crate) fn original_blocks(&self) -> &[Option<String>] { &self.original_blocks }
+
     /// Return mutable contained nodes for parse/render adapters.
     pub(crate) fn nodes_mut(&mut self) -> &mut [Node] { &mut self.nodes }
+
+    /// Clear preserved source snippets after a semantic node rewrite.
+    pub(crate) fn clear_original_blocks(&mut self) { self.original_blocks.fill(None); }
+}
+
+/// Copy the exact source span for an unchanged Markdown node.
+fn original_block(node: &Node, source: &str) -> Option<String> {
+    let position = node.position()?;
+    source
+        .get(position.start.offset..position.end.offset)
+        .map(str::to_owned)
 }
 
 impl Default for RoadmapDocument {

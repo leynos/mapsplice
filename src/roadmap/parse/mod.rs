@@ -22,6 +22,12 @@ use super::{
 };
 use crate::error::{MapspliceError, Result};
 
+#[derive(Clone, Copy)]
+struct ParseContext<'source> {
+    source: SourceId,
+    source_text: &'source str,
+}
+
 /// Parse a target roadmap document.
 ///
 /// # Errors
@@ -31,7 +37,7 @@ use crate::error::{MapspliceError, Result};
 #[tracing::instrument(skip_all, fields(bytes = markdown.len()))]
 pub fn parse_roadmap(markdown: &str) -> Result<RoadmapDocument> {
     let root = parse_root(markdown)?;
-    document::parse_document_root(root, SourceId::Target)
+    document::parse_document_root(root, SourceId::Target, markdown)
 }
 
 /// Return whether a heading is a supported phase heading.
@@ -91,7 +97,15 @@ fn strip_heading_prefix(
 }
 
 /// Parse an unordered checklist into roadmap task entries.
-pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskEntry>> {
+pub(super) fn parse_task_list(
+    list: &List,
+    source: SourceId,
+    source_text: &str,
+) -> Result<Vec<TaskEntry>> {
+    let context = ParseContext {
+        source,
+        source_text,
+    };
     if list.ordered {
         return Err(MapspliceError::InvalidRoadmap {
             message: "roadmap task lists must be unordered checklist items".to_owned(),
@@ -101,7 +115,7 @@ pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskE
     list.children
         .iter()
         .map(|node| match node {
-            Node::ListItem(item) => parse_task_item(item, source),
+            Node::ListItem(item) => parse_task_item(item, context),
             _ => Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap lists must contain only list items".to_owned(),
             }),
@@ -110,7 +124,7 @@ pub(super) fn parse_task_list(list: &List, source: SourceId) -> Result<Vec<TaskE
 }
 
 /// Parse one checklist list item into a task entry.
-fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
+fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
     if item.checked.is_none() {
         return Err(MapspliceError::InvalidRoadmap {
             message: "roadmap task lists must be unordered checklist items".to_owned(),
@@ -129,10 +143,10 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
     };
     let (number, summary) = parse_task_paragraph(paragraph)?;
     let child_body = item.children.get(1..).unwrap_or(&[]);
-    let (body, sub_tasks) = split_task_children(child_body, number, source)?;
+    let (body, sub_tasks) = split_task_children(child_body, number, context)?;
     Ok(TaskEntry {
         identity: ItemIdentity {
-            source,
+            source: context.source,
             anchor: RoadmapAnchor::Task(number),
         },
         number,
@@ -147,14 +161,14 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
 fn split_task_children(
     children: &[Node],
     parent: TaskNumber,
-    source: SourceId,
+    context: ParseContext<'_>,
 ) -> Result<(MarkdownNodes, Vec<SubTaskEntry>)> {
     let mut body = MarkdownNodes::new();
     let mut sub_tasks = Vec::new();
     for child in children {
         if let Node::List(list) = child {
             if looks_like_sub_task_list(list) {
-                parse_sub_task_list(list, parent, source, &mut sub_tasks)?;
+                parse_sub_task_list(list, parent, context, &mut sub_tasks)?;
                 continue;
             }
             if looks_like_task_list(list) {
@@ -163,7 +177,7 @@ fn split_task_children(
                 });
             }
         }
-        body.push(child.clone());
+        body.push_preserved(child.clone(), context.source_text);
     }
     Ok((body, sub_tasks))
 }
@@ -172,7 +186,7 @@ fn split_task_children(
 fn parse_sub_task_list(
     list: &List,
     parent: TaskNumber,
-    source: SourceId,
+    context: ParseContext<'_>,
     sub_tasks: &mut Vec<SubTaskEntry>,
 ) -> Result<()> {
     if list.ordered {
@@ -191,7 +205,12 @@ fn parse_sub_task_list(
             u32::try_from(expected_start + offset).map_err(|_| MapspliceError::InvalidRoadmap {
                 message: "sub-task count exceeds supported numbering range".to_owned(),
             })?;
-        sub_tasks.push(parse_sub_task_item(item, parent, expected_ordinal, source)?);
+        sub_tasks.push(parse_sub_task_item(
+            item,
+            parent,
+            expected_ordinal,
+            context,
+        )?);
     }
     Ok(())
 }
@@ -201,7 +220,7 @@ fn parse_sub_task_item(
     item: &ListItem,
     parent: TaskNumber,
     expected_ordinal: u32,
-    source: SourceId,
+    context: ParseContext<'_>,
 ) -> Result<SubTaskEntry> {
     if item.checked.is_none() {
         return Err(MapspliceError::InvalidRoadmap {
@@ -222,10 +241,10 @@ fn parse_sub_task_item(
     let (number, summary) = parse_sub_task_paragraph(paragraph)?;
     validate_sub_task_number(parent, expected_ordinal, number)?;
     let child_body = item.children.get(1..).unwrap_or(&[]);
-    let body = parse_sub_task_body(child_body)?;
+    let body = parse_sub_task_body(child_body, context.source_text)?;
     Ok(SubTaskEntry {
         identity: ItemIdentity {
-            source,
+            source: context.source,
             anchor: RoadmapAnchor::SubTask(number),
         },
         number,
@@ -236,7 +255,7 @@ fn parse_sub_task_item(
 }
 
 /// Parse sub-task body blocks while rejecting deeper roadmap numbering.
-fn parse_sub_task_body(children: &[Node]) -> Result<MarkdownNodes> {
+fn parse_sub_task_body(children: &[Node], source_text: &str) -> Result<MarkdownNodes> {
     let mut body = MarkdownNodes::new();
     for child in children {
         if let Node::List(list) = child
@@ -246,7 +265,7 @@ fn parse_sub_task_body(children: &[Node]) -> Result<MarkdownNodes> {
                 message: "sub-tasks cannot contain nested roadmap sub-tasks".to_owned(),
             });
         }
-        body.push(child.clone());
+        body.push_preserved(child.clone(), source_text);
     }
     Ok(body)
 }
