@@ -97,9 +97,27 @@ impl CommandKind {
     /// # fn main() -> mapsplice::Result<()> {
     /// let fragment = Utf8PathBuf::from("fragment.md");
     /// let anchor = parse_anchor("1")?;
+    /// let task_anchor = parse_anchor("1.1.1")?;
     ///
     /// assert_eq!(
     ///     CommandKind::Append {
+    ///         fragment: fragment.clone()
+    ///     }
+    ///     .fragment_path(),
+    ///     Some(&fragment)
+    /// );
+    /// assert_eq!(
+    ///     CommandKind::Insert {
+    ///         anchor,
+    ///         after: true,
+    ///         fragment: fragment.clone()
+    ///     }
+    ///     .fragment_path(),
+    ///     Some(&fragment)
+    /// );
+    /// assert_eq!(
+    ///     CommandKind::Replace {
+    ///         anchor: task_anchor,
     ///         fragment: fragment.clone()
     ///     }
     ///     .fragment_path(),

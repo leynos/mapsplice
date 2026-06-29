@@ -13,29 +13,29 @@ use crate::error::{MapspliceError, Result};
 #[tracing::instrument(skip_all, fields(phases = roadmap.phases.len()))]
 pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     let mut blocks = Vec::new();
-    blocks.extend(render_blocks(&roadmap.preamble, 0)?);
+    blocks.extend(render_blocks(roadmap.preamble.nodes(), 0)?);
     for phase in &roadmap.phases {
         blocks.push(format!(
             "## {}. {}",
             phase.number,
-            render_inline(&phase.title)?
+            render_inline(phase.title.nodes())?
         ));
-        blocks.extend(render_blocks(&phase.body, 0)?);
+        blocks.extend(render_blocks(phase.body.nodes(), 0)?);
         for step in &phase.steps {
             blocks.push(format!(
                 "### {}. {}",
                 step.number,
-                render_inline(&step.title)?
+                render_inline(step.title.nodes())?
             ));
-            blocks.extend(render_blocks(&step.body, 0)?);
+            blocks.extend(render_blocks(step.body.nodes(), 0)?);
             if !step.tasks.is_empty() {
                 blocks.push(render_tasks(
                     step.tasks.iter().collect::<Vec<_>>().as_slice(),
                 )?);
             }
-            blocks.extend(render_blocks(&step.trailing, 0)?);
+            blocks.extend(render_blocks(step.trailing.nodes(), 0)?);
         }
-        blocks.extend(render_blocks(&phase.trailing, 0)?);
+        blocks.extend(render_blocks(phase.trailing.nodes(), 0)?);
     }
     Ok(blocks.join("\n\n"))
 }
@@ -59,9 +59,9 @@ fn render_task(task: &super::model::TaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {checkbox}{}. {}",
         task.number,
-        render_inline(&task.summary)?
+        render_inline(task.summary.nodes())?
     )];
-    for block in render_blocks(&task.body, 4)? {
+    for block in render_blocks(task.body.nodes(), 4)? {
         parts.push(block);
     }
     Ok(parts.join("\n\n"))

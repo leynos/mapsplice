@@ -22,8 +22,9 @@ where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    let request = parse_cli_request(args)?;
-    run_request(request).inspect_err(|error| observability::record_failure(error.class()))
+    parse_cli_request(args)
+        .and_then(run_request)
+        .inspect_err(|error| observability::record_failure(error.class()))
 }
 
 /// Execute a parsed request.

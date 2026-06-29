@@ -15,12 +15,25 @@ pub(super) fn render_table(table: &Table, indent: usize) -> Result<String> {
     let header = rows.first().ok_or_else(|| MapspliceError::InvalidRoadmap {
         message: "tables must contain at least one row".to_owned(),
     })?;
+    validate_table_widths(&rows, header.len())?;
     let mut lines = vec![
         render_table_line(header),
         render_table_line(&render_table_delimiter(&table.align, header.len())),
     ];
     lines.extend(rows.iter().skip(1).map(|row| render_table_line(row)));
     Ok(indent_block(&lines.join("\n"), indent))
+}
+
+/// Ensure table rows all have the same cell count as the header.
+fn validate_table_widths(rows: &[Vec<String>], width: usize) -> Result<()> {
+    for row in rows.iter().skip(1) {
+        if row.len() != width {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "table rows must have the same width as the header".to_owned(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Render one mdast table row into cell text.

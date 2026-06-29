@@ -22,8 +22,10 @@ rustup toolchain install nightly-2026-03-26 \
   --component rustfmt \
   --component clippy \
   --component rustc-codegen-cranelift-preview
-rustup default nightly-2026-03-26
 ```
+
+The checked-in `rust-toolchain.toml` selects this toolchain for commands run in
+the repository.
 
 Install `clang` when it is not already present:
 

@@ -5,7 +5,6 @@ use std::{
     process::ExitCode,
 };
 
-use clap::error::ErrorKind;
 use mapsplice::{MapspliceError, RunOutcome};
 
 /// Run the CLI and report failures.
@@ -13,9 +12,7 @@ fn main() -> ExitCode {
     init_tracing();
     match mapsplice::run_from_args(std::env::args_os()) {
         Ok(outcome) => emit_outcome(outcome),
-        Err(MapspliceError::Clap(error)) if is_display_request(error.kind()) => {
-            emit_clap_display(&error)
-        }
+        Err(MapspliceError::Clap(error)) => emit_clap_display(&error),
         Err(error) => report_error(&error),
     }
 }
@@ -40,10 +37,6 @@ fn write_stdout(stdout: &str) -> ExitCode {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
-}
-
-const fn is_display_request(kind: ErrorKind) -> bool {
-    matches!(kind, ErrorKind::DisplayHelp | ErrorKind::DisplayVersion)
 }
 
 #[expect(

@@ -1,9 +1,6 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::{
-    collections::BTreeMap,
-    ops::{Deref, DerefMut},
-};
+use std::collections::BTreeMap;
 
 use markdown::mdast::Node;
 
@@ -128,31 +125,24 @@ impl MarkdownNodes {
     /// Push one parsed Markdown node.
     pub fn push(&mut self, node: Node) { self.nodes.push(node); }
 
-    /// Return the contained nodes as a slice for parse/render adapters.
+    /// Return whether the collection has no Markdown nodes.
     #[must_use]
-    pub fn as_slice(&self) -> &[Node] { &self.nodes }
+    pub const fn is_empty(&self) -> bool { self.nodes.is_empty() }
 
-    /// Return the contained nodes as a mutable slice for parse/render adapters.
+    /// Return the number of Markdown nodes in the collection.
     #[must_use]
-    pub fn as_mut_slice(&mut self) -> &mut [Node] { &mut self.nodes }
+    pub const fn len(&self) -> usize { self.nodes.len() }
+
+    /// Return the contained nodes for parse/render adapters.
+    #[must_use]
+    pub(crate) fn nodes(&self) -> &[Node] { &self.nodes }
+
+    /// Return mutable contained nodes for parse/render adapters.
+    pub(crate) fn nodes_mut(&mut self) -> &mut [Node] { &mut self.nodes }
 }
 
 impl From<Vec<Node>> for MarkdownNodes {
     fn from(nodes: Vec<Node>) -> Self { Self { nodes } }
-}
-
-impl From<MarkdownNodes> for Vec<Node> {
-    fn from(nodes: MarkdownNodes) -> Self { nodes.nodes }
-}
-
-impl Deref for MarkdownNodes {
-    type Target = [Node];
-
-    fn deref(&self) -> &Self::Target { self.as_slice() }
-}
-
-impl DerefMut for MarkdownNodes {
-    fn deref_mut(&mut self) -> &mut Self::Target { self.as_mut_slice() }
 }
 
 impl Default for RoadmapDocument {

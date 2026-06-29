@@ -51,7 +51,7 @@ pub(super) fn rewrite_dependencies(
 ) -> Result<()> {
     let mut rewrite_count = 0;
     rewrite_nodes(
-        &mut roadmap.preamble,
+        roadmap.preamble.nodes_mut(),
         SourceId::Target,
         plan,
         &mut rewrite_count,
@@ -59,51 +59,51 @@ pub(super) fn rewrite_dependencies(
 
     for phase in &mut roadmap.phases {
         rewrite_nodes(
-            &mut phase.title,
+            phase.title.nodes_mut(),
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
         rewrite_nodes(
-            &mut phase.body,
+            phase.body.nodes_mut(),
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
         rewrite_nodes(
-            &mut phase.trailing,
+            phase.trailing.nodes_mut(),
             phase.identity.source,
             plan,
             &mut rewrite_count,
         )?;
         for step in &mut phase.steps {
             rewrite_nodes(
-                &mut step.title,
+                step.title.nodes_mut(),
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
             )?;
             rewrite_nodes(
-                &mut step.body,
+                step.body.nodes_mut(),
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
             )?;
             rewrite_nodes(
-                &mut step.trailing,
+                step.trailing.nodes_mut(),
                 step.identity.source,
                 plan,
                 &mut rewrite_count,
             )?;
             for task in &mut step.tasks {
                 rewrite_nodes(
-                    &mut task.summary,
+                    task.summary.nodes_mut(),
                     task.identity.source,
                     plan,
                     &mut rewrite_count,
                 )?;
                 rewrite_nodes(
-                    &mut task.body,
+                    task.body.nodes_mut(),
                     task.identity.source,
                     plan,
                     &mut rewrite_count,
@@ -287,9 +287,14 @@ fn has_dependency_clause_separator(value: &str, after_keyword: usize, anchor_sta
     value
         .get(after_keyword..anchor_start)
         .is_some_and(|between| {
-            !between.contains('\n') && (between.contains(':') || between.starts_with(' '))
+            !between.contains('\n')
+                && !between.chars().any(is_dependency_clause_terminator)
+                && (between.contains(':') || between.starts_with(' '))
         })
 }
+
+/// Return whether a character terminates a dependency clause.
+const fn is_dependency_clause_terminator(character: char) -> bool { matches!(character, '.' | ';') }
 
 /// Find the next anchor-shaped token with leading and trailing boundaries.
 fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)> {

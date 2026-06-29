@@ -1,24 +1,29 @@
 //! Shared fixtures for integration and behavioural tests.
 
-#![allow(
-    dead_code,
-    reason = "integration test crates include different subsets of shared fixtures"
+#![expect(
+    clippy::allow_attributes,
+    reason = "dead-code suppressions are scoped to helpers shared across test crates"
 )]
 
 use std::{
     env,
     error::Error,
     ffi::OsString,
+    path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
 
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use cap_std::{ambient_authority, fs_utf8::Dir};
 use rstest::fixture;
 use tempfile::TempDir;
 
 pub type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const TARGET_TWO_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
@@ -29,6 +34,10 @@ pub const TARGET_TWO_PHASES: &str = concat!(
     "- [ ] 2.1.1. Second task. Requires 2.1.1.\n",
 );
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const TARGET_TWO_TASKS: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
@@ -37,6 +46,10 @@ pub const TARGET_TWO_TASKS: &str = concat!(
     "- [ ] 1.1.2. Second task. Depends on 1.1.1 and 1.1.2.\n",
 );
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const TARGET_THREE_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
@@ -50,14 +63,26 @@ pub const TARGET_THREE_PHASES: &str = concat!(
     "- [ ] 3.1.1. Final task. Requires 3.1.1.\n",
 );
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const PHASE_FRAGMENT: &str = concat!(
     "## 9. Inserted phase\n\n",
     "### 9.1. Added step\n\n",
     "- [ ] 9.1.1. Added task. Requires 9.1.1.\n",
 );
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub const REPLACEMENT_FRAGMENT: &str = concat!(
     "## 7. Replacement phase A\n\n",
     "### 7.1. Step A\n\n",
@@ -67,6 +92,10 @@ pub const REPLACEMENT_FRAGMENT: &str = concat!(
     "- [ ] 8.1.1. Replacement task B. Requires 8.1.1.\n",
 );
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug)]
@@ -88,6 +117,10 @@ impl Workspace {
         Ok(())
     }
 
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
     pub fn write_xdg_config(&self, contents: &str) -> TestResult<Utf8PathBuf> {
         self.dir.create_dir_all("mapsplice")?;
         self.dir.write("mapsplice/config.toml", contents)?;
@@ -98,9 +131,38 @@ impl Workspace {
         Ok(parent.to_path_buf())
     }
 
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
+    pub fn write_local_config(&self, contents: &str) -> TestResult {
+        self.dir.write(".mapsplice.toml", contents)?;
+        Ok(())
+    }
+
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
+    pub fn enter_root(&self) -> TestResult<CwdGuard> {
+        let parent = self
+            .target
+            .parent()
+            .ok_or_else(|| "target path should have a parent".to_owned())?;
+        CwdGuard::enter(parent)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
     pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
 }
 
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
 pub struct EnvVarGuard {
     _lock: MutexGuard<'static, ()>,
     key: &'static str,
@@ -108,6 +170,10 @@ pub struct EnvVarGuard {
 }
 
 impl EnvVarGuard {
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
     pub fn set(key: &'static str, value: impl AsRef<str>) -> TestResult<Self> {
         let lock = ENV_LOCK.lock()?;
         let previous = env::var_os(key);
@@ -136,6 +202,35 @@ impl Drop for EnvVarGuard {
             }
         }
     }
+}
+
+#[allow(
+    dead_code,
+    reason = "shared fixtures are used by different test crates"
+)]
+pub struct CwdGuard {
+    _lock: MutexGuard<'static, ()>,
+    previous: PathBuf,
+}
+
+impl CwdGuard {
+    #[allow(
+        dead_code,
+        reason = "shared fixtures are used by different test crates"
+    )]
+    pub fn enter(path: &Utf8Path) -> TestResult<Self> {
+        let lock = ENV_LOCK.lock()?;
+        let previous = env::current_dir()?;
+        env::set_current_dir(path.as_std_path())?;
+        Ok(Self {
+            _lock: lock,
+            previous,
+        })
+    }
+}
+
+impl Drop for CwdGuard {
+    fn drop(&mut self) { if let Err(_error) = env::set_current_dir(&self.previous) {} }
 }
 
 pub fn create_workspace() -> TestResult<Workspace> {

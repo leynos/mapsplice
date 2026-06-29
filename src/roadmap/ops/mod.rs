@@ -75,17 +75,19 @@ pub fn apply_command(
     operation: RoadmapOperation,
     fragment: Option<&RoadmapFragment>,
 ) -> Result<()> {
+    let mut staged = roadmap.clone();
     match operation {
-        RoadmapOperation::Append => append_fragment(roadmap, fragment)?,
+        RoadmapOperation::Append => append_fragment(&mut staged, fragment)?,
         RoadmapOperation::Insert { anchor, after } => {
-            insert_fragment(roadmap, anchor, after, fragment)?;
+            insert_fragment(&mut staged, anchor, after, fragment)?;
         }
-        RoadmapOperation::Delete { anchor } => delete_anchor(roadmap, anchor)?,
-        RoadmapOperation::Replace { anchor } => replace_anchor(roadmap, anchor, fragment)?,
+        RoadmapOperation::Delete { anchor } => delete_anchor(&mut staged, anchor)?,
+        RoadmapOperation::Replace { anchor } => replace_anchor(&mut staged, anchor, fragment)?,
     }
 
-    let plan = renumber_document(roadmap)?;
-    rewrite_dependencies(roadmap, &plan)?;
+    let plan = renumber_document(&mut staged)?;
+    rewrite_dependencies(&mut staged, &plan)?;
+    *roadmap = staged;
     Ok(())
 }
 

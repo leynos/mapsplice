@@ -50,11 +50,10 @@ fn global_config_candidates() -> Vec<Utf8PathBuf> {
 
 /// Read one optional configuration candidate through a directory capability.
 fn read_config_candidate(path: &Utf8Path) -> Result<std::result::Result<String, ()>> {
-    let Some(parent) = path.parent() else {
-        return Err(MapspliceError::Configuration {
-            message: format!("configuration path `{path}` has no parent"),
-        });
-    };
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_str().is_empty())
+        .unwrap_or_else(|| Utf8Path::new("."));
     let Some(file_name) = path.file_name() else {
         return Err(MapspliceError::Configuration {
             message: format!("configuration path `{path}` has no file name"),

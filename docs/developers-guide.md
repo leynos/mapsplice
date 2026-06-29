@@ -3,7 +3,21 @@
 This guide is for maintainers and contributors changing `mapsplice` internals,
 library APIs, command-line behaviour, tests, or build tooling.
 
-## Architecture boundaries
+## 1. Normative references
+
+The source-of-truth documents for internal changes are:
+
+- [Design document](mapsplice-design.md) for architecture boundaries and
+  roadmap grammar.
+- [Accepted decision record and implementation plan](execplans/initial-tool.md)
+  for the initial tool decisions.
+- [Roadmap](roadmap.md) for planned structural work.
+- [Contributing guide](contributing.md) for local prerequisites and quality
+  gates.
+- [Documentation style guide](documentation-style-guide.md) for Markdown
+  conventions.
+
+## 2. Architecture boundaries
 
 `mapsplice` is split into a narrow binary adapter, a library application
 boundary, and roadmap domain modules:
@@ -25,7 +39,7 @@ The roadmap model stores Markdown content in `MarkdownNodes`, a value object
 that keeps parser nodes behind the parse/render boundary. New roadmap fields
 should prefer typed domain values over raw parser or adapter types.
 
-## Public library APIs
+## 3. Public library APIs
 
 The library API is intentionally small:
 
@@ -42,7 +56,7 @@ The library API is intentionally small:
 Public APIs must return typed `MapspliceError` variants. Opaque reports belong
 only at external process boundaries.
 
-## Configuration behaviour
+## 4. Configuration behaviour
 
 The CLI uses `ortho-config` for optional defaults:
 
@@ -56,7 +70,7 @@ The CLI uses `ortho-config` for optional defaults:
 Configuration tests must serialize process environment mutation with the shared
 test guard in `tests/support/mod.rs`.
 
-## Observability
+## 5. Observability
 
 Tracing spans exist at the process, filesystem, parse, splice, render, and
 rewrite boundaries. Stable fields include operation, anchor, path, byte count,
@@ -67,7 +81,7 @@ through standard tracing environment configuration.
 durable metrics; they exist to make failure and rewrite counts inspectable in
 tests and embeddings without adding a metrics backend.
 
-## Verification layers
+## 6. Verification layers
 
 The test suite has four layers:
 
@@ -82,7 +96,7 @@ Property tests should construct valid inputs rather than filter invalid data
 after generation. Any shrunk failure should be promoted to a named regression
 test when it captures a real bug.
 
-## Local tooling
+## 7. Local tooling
 
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
