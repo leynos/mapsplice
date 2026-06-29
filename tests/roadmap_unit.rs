@@ -1,5 +1,6 @@
 //! `rstest` coverage for roadmap parsing and splice semantics.
 
+#[path = "support/unit.rs"]
 mod support;
 
 use mapsplice::{

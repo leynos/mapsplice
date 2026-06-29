@@ -101,3 +101,40 @@ pub fn metrics_snapshot() -> MetricsSnapshot {
         dependency_rewrites: DEPENDENCY_REWRITES.load(Ordering::Relaxed),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Concurrency coverage for process-local observability counters.
+
+    use std::thread;
+
+    use super::{
+        metrics_snapshot,
+        record_dependency_rewrites,
+        record_failure,
+        record_in_place_rewrite,
+    };
+
+    #[test]
+    fn counters_record_concurrent_increments() {
+        let before = metrics_snapshot();
+        let handles = (0..8)
+            .map(|_| {
+                thread::spawn(|| {
+                    record_failure("test");
+                    record_in_place_rewrite();
+                    record_dependency_rewrites(2);
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for handle in handles {
+            handle.join().expect("counter worker should finish");
+        }
+
+        let after = metrics_snapshot();
+        assert_eq!(after.failures, before.failures + 8);
+        assert_eq!(after.in_place_rewrites, before.in_place_rewrites + 8);
+        assert_eq!(after.dependency_rewrites, before.dependency_rewrites + 16);
+    }
+}

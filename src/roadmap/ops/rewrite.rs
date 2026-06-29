@@ -11,7 +11,6 @@ use super::super::{
 };
 use crate::{
     error::{MapspliceError, Result},
-    observability,
     roadmap::parse_anchor,
 };
 
@@ -48,7 +47,7 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
 pub(super) fn rewrite_dependencies(
     roadmap: &mut RoadmapDocument,
     plan: &RenumberPlan,
-) -> Result<()> {
+) -> Result<u64> {
     let mut rewrite_count = 0;
     rewrite_nodes(
         roadmap.preamble.nodes_mut(),
@@ -111,8 +110,7 @@ pub(super) fn rewrite_dependencies(
             }
         }
     }
-    observability::record_dependency_rewrites(rewrite_count);
-    Ok(())
+    Ok(rewrite_count)
 }
 
 /// Rewrite every eligible text node in a node slice.

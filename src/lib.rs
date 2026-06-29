@@ -50,7 +50,8 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    apply_command(&mut roadmap, operation, fragment.as_ref())?;
+    let dependency_rewrites = apply_command(&mut roadmap, operation, fragment)?;
+    observability::record_dependency_rewrites(dependency_rewrites);
 
     let rendered = render_roadmap(&roadmap)?;
     if request.global.in_place {

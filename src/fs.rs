@@ -155,3 +155,28 @@ fn path_shape_error(
         source: io::Error::new(io::ErrorKind::InvalidInput, message),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Concurrency coverage for temporary-file name generation.
+
+    use std::{collections::BTreeSet, thread};
+
+    use super::temp_file_name;
+
+    #[test]
+    fn temporary_names_are_unique_under_concurrent_calls() {
+        let handles = (0..16)
+            .map(|_| thread::spawn(|| temp_file_name("target.md")))
+            .collect::<Vec<_>>();
+        let mut names = BTreeSet::new();
+
+        for handle in handles {
+            let name = handle
+                .join()
+                .expect("temporary-name worker should finish")
+                .expect("temporary name should be generated");
+            assert!(names.insert(name), "temporary name should be unique");
+        }
+    }
+}

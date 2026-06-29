@@ -1,5 +1,6 @@
 //! Property tests for roadmap numbering and dependency rewrite invariants.
 
+#[path = "support/properties.rs"]
 mod support;
 
 use mapsplice::{parse_anchor, run_from_args};

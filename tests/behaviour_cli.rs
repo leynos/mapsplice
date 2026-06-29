@@ -1,6 +1,7 @@
 //! Behavioural coverage for the `mapsplice` binary.
 
 mod steps;
+#[path = "support/cli.rs"]
 mod support;
 
 use rstest_bdd_macros::scenario;
