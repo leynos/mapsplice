@@ -13,12 +13,27 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
+      WHITAKER_INSTALLER_VERSION: '0.2.5'
+      MERMAN_CLI_VERSION: '0.8.0-alpha.2'
+      NIXIE_CLI_VERSION: '1.1.0'
+      NIXIE_PYTHON_VERSION: '3.14'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@7da7c6d89033d13cbb1c64803d108ddca97e69c2
+      - name: Install mold linker
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update \
+            && sudo apt-get install --yes --no-install-recommends clang mold
       - name: Format
         run: make check-fmt
+      - name: Typecheck
+        run: make typecheck
       - name: Markdown lint
         uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd
         with:
@@ -26,6 +41,29 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
+      - name: Install Mermaid validators
+        run: |
+          uv tool install --python "${{ env.NIXIE_PYTHON_VERSION }}" --managed-python "nixie-cli==${{ env.NIXIE_CLI_VERSION }}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          cargo binstall --no-confirm merman-cli@${{ env.MERMAN_CLI_VERSION }}
+      - name: Mermaid diagrams
+        run: make nixie
+      - name: Cache Whitaker installation
+        id: cache-whitaker
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: |
+            ~/.cargo/bin/whitaker-installer
+            ~/.local/bin/whitaker
+            ~/.dylint_drivers
+            ~/.local/share/whitaker
+          key: whitaker-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_VERSION }}
+      - name: Install Whitaker
+        run: |
+          if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+            cargo binstall --no-confirm whitaker-installer@${{ env.WHITAKER_INSTALLER_VERSION }}
+          fi
+          whitaker-installer --cranelift
       - name: Lint
         run: make lint
       - name: Test and Measure Coverage
