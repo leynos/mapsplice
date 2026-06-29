@@ -46,8 +46,8 @@ The library API is intentionally small:
 - `run_from_args` executes the complete CLI workflow from command-line
   arguments and returns a `RunOutcome`.
 - `run_request` executes an already parsed `CliRequest`.
-- `parse_roadmap_text` and `parse_fragment_text` parse supported roadmap
-  Markdown into typed domain structures.
+- `parse_roadmap` and `parse_fragment` parse supported roadmap Markdown into
+  typed domain structures.
 - `parse_anchor` validates canonical positive anchors such as `8`, `8.2`, and
   `8.2.3`.
 - `metrics_snapshot` returns bounded process-local counters for failures,

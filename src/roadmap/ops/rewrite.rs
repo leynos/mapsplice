@@ -286,13 +286,25 @@ fn has_dependency_clause_separator(value: &str, after_keyword: usize, anchor_sta
         .get(after_keyword..anchor_start)
         .is_some_and(|between| {
             !between.contains('\n')
-                && !between.chars().any(is_dependency_clause_terminator)
+                && !has_dependency_clause_terminator(between)
                 && (between.contains(':') || between.starts_with(' '))
         })
 }
 
-/// Return whether a character terminates a dependency clause.
-const fn is_dependency_clause_terminator(character: char) -> bool { matches!(character, '.' | ';') }
+/// Return whether text contains a dependency-clause terminator.
+fn has_dependency_clause_terminator(value: &str) -> bool {
+    value.char_indices().any(|(index, character)| {
+        character == ';' || (character == '.' && !is_dot_between_digits(value.as_bytes(), index))
+    })
+}
+
+/// Return whether a dot is part of a dotted numeric token.
+fn is_dot_between_digits(bytes: &[u8], index: usize) -> bool {
+    bytes
+        .get(index.wrapping_sub(1))
+        .is_some_and(u8::is_ascii_digit)
+        && bytes.get(index + 1).is_some_and(u8::is_ascii_digit)
+}
 
 /// Find the next anchor-shaped token with leading and trailing boundaries.
 fn next_anchor_candidate(value: &str, start_at: usize) -> Option<(usize, usize)> {

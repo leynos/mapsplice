@@ -16,7 +16,7 @@ use crate::{
     roadmap::{
         RoadmapFragment,
         StepNumber,
-        model::{ItemIdentity, SourceId, StepSection, TaskEntry},
+        model::{ItemIdentity, MarkdownNodes, SourceId, StepSection, TaskEntry},
     },
 };
 
@@ -98,10 +98,10 @@ fn parse_step_fragment_root(root: Root) -> Result<RoadmapFragment> {
                         anchor: number.into(),
                     },
                     number,
-                    title: title.into(),
-                    body: Vec::new().into(),
+                    title: MarkdownNodes::from_nodes(title),
+                    body: MarkdownNodes::new(),
                     tasks: Vec::new(),
-                    trailing: Vec::new().into(),
+                    trailing: MarkdownNodes::new(),
                 });
             }
             Node::Heading(_) => {

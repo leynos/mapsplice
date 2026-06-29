@@ -46,7 +46,7 @@ cat > fragment.md <<'EOF'
 
 ### 9.1. Added step
 
-- [ ] 9.1.1. Added task. Requires 9.1.1.
+- [ ] 9.1.1. Added task. Requires 1.1.1.
 EOF
 
 mapsplice append target.md fragment.md > updated.md

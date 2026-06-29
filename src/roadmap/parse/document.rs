@@ -16,7 +16,7 @@ use crate::{
         RoadmapAnchor,
         RoadmapDocument,
         StepNumber,
-        model::{ItemIdentity, PhaseSection, SourceId, StepSection, TaskEntry},
+        model::{ItemIdentity, MarkdownNodes, PhaseSection, SourceId, StepSection, TaskEntry},
     },
 };
 
@@ -74,10 +74,10 @@ impl DocumentParser {
                 anchor: RoadmapAnchor::Phase(number),
             },
             number,
-            title: title.into(),
-            body: Vec::new().into(),
+            title: MarkdownNodes::from_nodes(title),
+            body: MarkdownNodes::new(),
             steps: Vec::new(),
-            trailing: Vec::new().into(),
+            trailing: MarkdownNodes::new(),
         });
         Ok(())
     }
@@ -106,10 +106,10 @@ impl DocumentParser {
                 anchor: RoadmapAnchor::Step(number),
             },
             number,
-            title: title.into(),
-            body: Vec::new().into(),
+            title: MarkdownNodes::from_nodes(title),
+            body: MarkdownNodes::new(),
             tasks: Vec::new(),
-            trailing: Vec::new().into(),
+            trailing: MarkdownNodes::new(),
         });
         Ok(())
     }

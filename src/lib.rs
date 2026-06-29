@@ -9,7 +9,13 @@ mod roadmap;
 use camino::Utf8PathBuf;
 pub use error::{MapspliceError, Result};
 use fs::{read_utf8, rewrite_utf8};
-use roadmap::{RoadmapOperation, apply_command, parse_fragment, parse_roadmap, render_roadmap};
+use roadmap::{
+    RoadmapOperation as RoadmapOperationInner,
+    apply_command as apply_command_inner,
+    parse_fragment as parse_fragment_inner,
+    parse_roadmap as parse_roadmap_inner,
+    render_roadmap,
+};
 
 /// Execute `mapsplice` using command-line arguments.
 ///
@@ -47,18 +53,18 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     );
     let _span_guard = span.enter();
     let target_text = read_utf8(&request.target)?;
-    let mut roadmap = parse_roadmap(&target_text)?;
+    let mut roadmap = parse_roadmap_inner(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    let dependency_rewrites = apply_command(&mut roadmap, operation, fragment)?;
-    observability::record_dependency_rewrites(dependency_rewrites);
-
+    let dependency_rewrites = apply_command_inner(&mut roadmap, operation, fragment)?;
     let rendered = render_roadmap(&roadmap)?;
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
+        observability::record_dependency_rewrites(dependency_rewrites);
         observability::record_in_place_rewrite();
         Ok(RunOutcome::in_place(request.target))
     } else {
+        observability::record_dependency_rewrites(dependency_rewrites);
         Ok(RunOutcome::stdout(rendered))
     }
 }
@@ -68,21 +74,21 @@ fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment
         Some(path) => {
             tracing::debug!(path = %path, "loading roadmap fragment");
             let fragment_text = read_utf8(path)?;
-            parse_fragment(&fragment_text).map(Some)
+            parse_fragment_inner(&fragment_text).map(Some)
         }
         None => Ok(None),
     }
 }
 
-const fn operation_from_command(command: &cli::CommandKind) -> RoadmapOperation {
+const fn operation_from_command(command: &cli::CommandKind) -> RoadmapOperationInner {
     match command {
-        CommandKind::Append { .. } => RoadmapOperation::Append,
-        CommandKind::Insert { anchor, after, .. } => RoadmapOperation::Insert {
+        CommandKind::Append { .. } => RoadmapOperationInner::Append,
+        CommandKind::Insert { anchor, after, .. } => RoadmapOperationInner::Insert {
             anchor: *anchor,
             after: *after,
         },
-        CommandKind::Delete { anchor } => RoadmapOperation::Delete { anchor: *anchor },
-        CommandKind::Replace { anchor, .. } => RoadmapOperation::Replace { anchor: *anchor },
+        CommandKind::Delete { anchor } => RoadmapOperationInner::Delete { anchor: *anchor },
+        CommandKind::Replace { anchor, .. } => RoadmapOperationInner::Replace { anchor: *anchor },
     }
 }
 
@@ -125,10 +131,14 @@ pub use roadmap::{
     RoadmapDocument,
     RoadmapFragment,
     RoadmapItemLevel,
+    RoadmapOperation,
     StepNumber,
     TaskNumber,
+    apply_command,
     fragment_level,
     parse_anchor,
+    parse_fragment,
     parse_fragment as parse_fragment_text,
+    parse_roadmap,
     parse_roadmap as parse_roadmap_text,
 };

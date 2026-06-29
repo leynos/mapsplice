@@ -123,7 +123,11 @@ impl MarkdownNodes {
     pub const fn new() -> Self { Self { nodes: Vec::new() } }
 
     /// Push one parsed Markdown node.
-    pub fn push(&mut self, node: Node) { self.nodes.push(node); }
+    pub(crate) fn push(&mut self, node: Node) { self.nodes.push(node); }
+
+    /// Construct Markdown nodes from parser-owned mdast nodes.
+    #[must_use]
+    pub(crate) const fn from_nodes(nodes: Vec<Node>) -> Self { Self { nodes } }
 
     /// Return whether the collection has no Markdown nodes.
     #[must_use]
@@ -139,10 +143,6 @@ impl MarkdownNodes {
 
     /// Return mutable contained nodes for parse/render adapters.
     pub(crate) fn nodes_mut(&mut self) -> &mut [Node] { &mut self.nodes }
-}
-
-impl From<Vec<Node>> for MarkdownNodes {
-    fn from(nodes: Vec<Node>) -> Self { Self { nodes } }
 }
 
 impl Default for RoadmapDocument {

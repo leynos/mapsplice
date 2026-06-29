@@ -68,6 +68,27 @@ impl RoadmapOperation {
 /// Apply a roadmap operation to the parsed roadmap.
 ///
 /// Returns the number of dependency references rewritten by the operation.
+///
+/// # Errors
+///
+/// Returns an error when a fragment is missing or at the wrong structural
+/// level, when an anchor is absent from the target roadmap, or when dependency
+/// rewriting finds an unresolved reference.
+///
+/// # Examples
+///
+/// ```rust
+/// use mapsplice::{MapspliceError, RoadmapDocument, RoadmapOperation, apply_command};
+///
+/// let mut roadmap = RoadmapDocument::new();
+/// let error = apply_command(&mut roadmap, RoadmapOperation::Append, None)
+///     .expect_err("append requires a fragment");
+///
+/// assert!(matches!(
+///     error,
+///     MapspliceError::MissingFragment { command: "append" }
+/// ));
+/// ```
 #[tracing::instrument(
     skip_all,
     fields(operation = operation.name(), anchor = operation.anchor().map(|anchor| anchor.to_string()).as_deref().unwrap_or(""))

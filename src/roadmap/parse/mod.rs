@@ -17,7 +17,7 @@ use super::{
     RoadmapItemLevel,
     StepNumber,
     TaskNumber,
-    model::{ItemIdentity, SourceId, TaskEntry},
+    model::{ItemIdentity, MarkdownNodes, SourceId, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -134,14 +134,8 @@ fn parse_task_item(item: &ListItem, source: SourceId) -> Result<TaskEntry> {
         },
         number,
         checked: item.checked,
-        summary: summary.into(),
-        body: item
-            .children
-            .iter()
-            .skip(1)
-            .cloned()
-            .collect::<Vec<_>>()
-            .into(),
+        summary: MarkdownNodes::from_nodes(summary),
+        body: MarkdownNodes::from_nodes(item.children.iter().skip(1).cloned().collect::<Vec<_>>()),
     })
 }
 

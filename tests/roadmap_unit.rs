@@ -3,6 +3,8 @@
 #[path = "support/unit.rs"]
 mod support;
 
+use std::fmt::Debug;
+
 use mapsplice::{
     MapspliceError,
     RoadmapItemLevel,
@@ -91,10 +93,39 @@ fn parse_roadmap_keeps_preamble_and_structure() {
     assert_eq!(first_step.tasks.len(), 1);
 }
 
+fn assert_contains(haystack: &str, needle: &str) {
+    assert!(haystack.contains(needle));
+}
+
+fn assert_equal<T>(actual: &T, expected: &T)
+where
+    T: Debug + PartialEq,
+{
+    assert_eq!(actual, expected);
+}
+
+fn assert_dangling_dependency(error: &MapspliceError) {
+    assert!(matches!(error, MapspliceError::DanglingDependency { .. }));
+}
+
+fn assert_level_mismatch(error: &MapspliceError) {
+    assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
+}
+
+fn assert_anchor_not_found(error: &MapspliceError) {
+    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
+}
+
+fn assert_configuration_error(error: &MapspliceError) {
+    assert!(matches!(error, MapspliceError::Configuration { .. }));
+}
+
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn render_preserves_code_metadata_and_blockquote_spacing(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn render_preserves_code_metadata_and_blockquote_spacing(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(concat!(
             "# Example\n\n",
@@ -122,21 +153,15 @@ fn render_preserves_code_metadata_and_blockquote_spacing(workspace: TestResult<W
     .expect("append command should succeed");
     let stdout = outcome.stdout.unwrap_or_default();
 
-    assert!(stdout.contains("> First paragraph.\n>\n> Second paragraph."));
-    assert!(stdout.contains("```rust ignore\nfn main() {}\n```"));
-}
-
-fn workspace_fixture(workspace: TestResult<Workspace>) -> Workspace {
-    match workspace {
-        Ok(test_workspace) => test_workspace,
-        Err(error) => panic!("workspace fixture should initialize: {error}"),
-    }
+    assert_contains(&stdout, "> First paragraph.\n>\n> Second paragraph.");
+    assert_contains(&stdout, "```rust ignore\nfn main() {}\n```");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -164,19 +189,20 @@ fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspac
         "### 3.1. Added step\n\n",
         "- [ ] 3.1.1. Added task. Requires 3.1.1.",
     );
-    assert_eq!(outcome.stdout.as_deref(), Some(expected));
-    assert_eq!(
-        test_workspace
-            .read_target()
-            .expect("target should still be readable"),
-        TARGET_TWO_PHASES
+    assert_equal(&outcome.stdout.as_deref(), &Some(expected));
+    assert_equal(
+        &test_workspace.read_target()?,
+        &TARGET_TWO_PHASES.to_owned(),
     );
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn insert_before_phase_renumbers_later_phases_and_dependencies(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn insert_before_phase_renumbers_later_phases_and_dependencies(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -193,24 +219,18 @@ fn insert_before_phase_renumbers_later_phases_and_dependencies(workspace: TestRe
     ])
     .expect("insert command should succeed");
 
-    assert!(
-        outcome
-            .stdout
-            .as_deref()
-            .is_some_and(|stdout| stdout.contains("## 3. Phase two"))
-    );
-    assert!(
-        outcome
-            .stdout
-            .as_deref()
-            .is_some_and(|stdout| stdout.contains("Requires 3.1.1."))
-    );
+    let stdout = outcome.stdout.unwrap_or_default();
+    assert_contains(&stdout, "## 3. Phase two");
+    assert_contains(&stdout, "Requires 3.1.1.");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn insert_after_task_renumbers_later_tasks_within_the_step(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn insert_after_task_renumbers_later_tasks_within_the_step(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_TASKS)
         .expect("target should be written");
@@ -229,14 +249,18 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(workspace: TestResult
     .expect("insert-after command should succeed");
 
     let stdout = outcome.stdout.unwrap_or_default();
-    assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
-    assert!(stdout.contains("- [ ] 1.1.3. Second task. Depends on 1.1.1 and 1.1.2."));
+    assert_contains(&stdout, "- [ ] 1.1.2. Inserted task. Requires 1.1.2.");
+    assert_contains(
+        &stdout,
+        "- [ ] 1.1.3. Second task. Depends on 1.1.1 and 1.1.2.",
+    );
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(concat!(
             "# Example\n\n",
@@ -257,13 +281,14 @@ fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) {
     ])
     .expect_err("dangling dependency references must fail");
 
-    assert!(matches!(error, MapspliceError::DanglingDependency { .. }));
+    assert_dangling_dependency(&error);
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_THREE_PHASES)
         .expect("target should be written");
@@ -271,14 +296,41 @@ fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>
     let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "2"])
         .expect("delete command should succeed");
     let stdout = outcome.stdout.unwrap_or_default();
-    assert!(stdout.contains("## 2. Phase three"));
-    assert!(stdout.contains("Requires 2.1.1."));
+    assert_contains(&stdout, "## 2. Phase three");
+    assert_contains(&stdout, "Requires 2.1.1.");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n\n",
+            "## 2. Phase two\n\n",
+            "### 2.1. Step two\n\n",
+            "- [ ] 2.1.1. Second task. Requires 1.0.0, 2.1.1, and 2.1.1.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
+        .expect("delete command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, "Requires 1.0.0, 1.1.1, and 1.1.1.");
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -296,15 +348,18 @@ fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) {
     .expect("replace command should succeed");
 
     let stdout = outcome.stdout.unwrap_or_default();
-    assert!(stdout.contains("## 2. Replacement phase A"));
-    assert!(stdout.contains("## 3. Replacement phase B"));
-    assert!(stdout.contains("Requires 3.1.1."));
+    assert_contains(&stdout, "## 2. Replacement phase A");
+    assert_contains(&stdout, "## 3. Replacement phase B");
+    assert_contains(&stdout, "Requires 3.1.1.");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn in_place_mode_rewrites_target_and_emits_no_stdout(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn in_place_mode_rewrites_target_and_emits_no_stdout(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -318,19 +373,15 @@ fn in_place_mode_rewrites_target_and_emits_no_stdout(workspace: TestResult<Works
     ])
     .expect("in-place delete should succeed");
 
-    assert_eq!(outcome.stdout, None);
-    assert!(
-        test_workspace
-            .read_target()
-            .expect("target should still be readable")
-            .contains("## 1. Phase two")
-    );
+    assert_equal(&outcome.stdout, &None);
+    assert_contains(&test_workspace.read_target()?, "## 1. Phase two");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -347,13 +398,14 @@ fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) {
     ])
     .expect_err("mismatched fragment level must fail");
 
-    assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
+    assert_level_mismatch(&error);
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_target(TARGET_TWO_PHASES)
         .expect("target should be written");
@@ -361,13 +413,14 @@ fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) {
     let error = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "99"])
         .expect_err("missing anchor must fail");
 
-    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
+    assert_anchor_not_found(&error);
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn insert_after_can_default_from_environment(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn insert_after_can_default_from_environment(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     let _after = EnvVarGuard::set("MAPSPLICE_CMDS_INSERT_AFTER", "true")
         .expect("environment guard should install");
     test_workspace
@@ -387,13 +440,14 @@ fn insert_after_can_default_from_environment(workspace: TestResult<Workspace>) {
     .expect("insert command should succeed with environment default");
 
     let stdout = outcome.stdout.unwrap_or_default();
-    assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
+    assert_contains(&stdout, "- [ ] 1.1.2. Inserted task. Requires 1.1.2.");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn insert_after_can_default_from_config_file(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn insert_after_can_default_from_config_file(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     let xdg_home = test_workspace
         .write_xdg_config("[cmds.insert]\nafter = true\n")
         .expect("config should be written");
@@ -416,13 +470,14 @@ fn insert_after_can_default_from_config_file(workspace: TestResult<Workspace>) {
     .expect("insert command should succeed with config default");
 
     let stdout = outcome.stdout.unwrap_or_default();
-    assert!(stdout.contains("- [ ] 1.1.2. Inserted task. Requires 1.1.2."));
+    assert_contains(&stdout, "- [ ] 1.1.2. Inserted task. Requires 1.1.2.");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn in_place_can_default_from_environment(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn in_place_can_default_from_environment(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     let _in_place =
         EnvVarGuard::set("MAPSPLICE_IN_PLACE", "true").expect("environment guard should install");
     test_workspace
@@ -432,19 +487,15 @@ fn in_place_can_default_from_environment(workspace: TestResult<Workspace>) {
     let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
         .expect("delete command should succeed with in-place environment default");
 
-    assert_eq!(outcome.stdout, None);
-    assert!(
-        test_workspace
-            .read_target()
-            .expect("target should still be readable")
-            .contains("## 1. Phase two")
-    );
+    assert_equal(&outcome.stdout, &None);
+    assert_contains(&test_workspace.read_target()?, "## 1. Phase two");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn in_place_can_default_from_config_file(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn in_place_can_default_from_config_file(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     let xdg_home = test_workspace
         .write_xdg_config("in_place = true\n")
         .expect("config should be written");
@@ -457,19 +508,15 @@ fn in_place_can_default_from_config_file(workspace: TestResult<Workspace>) {
     let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
         .expect("delete command should succeed with in-place config default");
 
-    assert_eq!(outcome.stdout, None);
-    assert!(
-        test_workspace
-            .read_target()
-            .expect("target should still be readable")
-            .contains("## 1. Phase two")
-    );
+    assert_equal(&outcome.stdout, &None);
+    assert_contains(&test_workspace.read_target()?, "## 1. Phase two");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn in_place_can_default_from_local_config_file(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn in_place_can_default_from_local_config_file(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace
         .write_local_config("in_place = true\n")
         .expect("local config should be written");
@@ -483,19 +530,17 @@ fn in_place_can_default_from_local_config_file(workspace: TestResult<Workspace>)
     let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
         .expect("delete command should succeed with local in-place config default");
 
-    assert_eq!(outcome.stdout, None);
-    assert!(
-        test_workspace
-            .read_target()
-            .expect("target should still be readable")
-            .contains("## 1. Phase two")
-    );
+    assert_equal(&outcome.stdout, &None);
+    assert_contains(&test_workspace.read_target()?, "## 1. Phase two");
+    Ok(())
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn invalid_insert_config_surfaces_configuration_error(workspace: TestResult<Workspace>) {
-    let test_workspace = workspace_fixture(workspace);
+fn invalid_insert_config_surfaces_configuration_error(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     let xdg_home = test_workspace
         .write_xdg_config("[cmds.insert]\nafter = \"later\"\n")
         .expect("config should be written");
@@ -517,5 +562,6 @@ fn invalid_insert_config_surfaces_configuration_error(workspace: TestResult<Work
     ])
     .expect_err("invalid config should fail");
 
-    assert!(matches!(error, MapspliceError::Configuration { .. }));
+    assert_configuration_error(&error);
+    Ok(())
 }
