@@ -1,12 +1,9 @@
 //! Shared fixtures for behavioural CLI tests.
 
-use std::error::Error;
+#[path = "workspace.rs"]
+mod workspace_support;
 
-use camino::Utf8PathBuf;
-use cap_std::{ambient_authority, fs_utf8::Dir};
-use tempfile::TempDir;
-
-pub type TestResult<T = ()> = Result<T, Box<dyn Error>>;
+pub use workspace_support::{TestResult, Workspace, create_workspace};
 
 pub const TARGET_TWO_PHASES: &str = concat!(
     "# Example\n\n",
@@ -56,37 +53,6 @@ pub const REPLACEMENT_FRAGMENT: &str = concat!(
     "- [ ] 8.1.1. Replacement task B. Requires 8.1.1.\n",
 );
 
-#[derive(Debug)]
-pub struct Workspace {
-    pub dir: Dir,
-    pub target: Utf8PathBuf,
-    pub fragment: Utf8PathBuf,
-    _tempdir: TempDir,
-}
-
 impl Workspace {
-    pub fn write_target(&self, contents: &str) -> TestResult {
-        self.dir.write("target.md", contents)?;
-        Ok(())
-    }
-
-    pub fn write_fragment(&self, contents: &str) -> TestResult {
-        self.dir.write("fragment.md", contents)?;
-        Ok(())
-    }
-
     pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
-}
-
-pub fn create_workspace() -> TestResult<Workspace> {
-    let tempdir = tempfile::tempdir()?;
-    let root = Utf8PathBuf::from_path_buf(tempdir.path().to_path_buf())
-        .map_err(|path| format!("temporary directory is not valid UTF-8: {}", path.display()))?;
-    let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
-    Ok(Workspace {
-        dir,
-        target: root.join("target.md"),
-        fragment: root.join("fragment.md"),
-        _tempdir: tempdir,
-    })
 }

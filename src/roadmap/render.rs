@@ -8,7 +8,7 @@ use table::render_table;
 
 use super::{
     RoadmapDocument,
-    model::{MarkdownNodes, SubTaskEntry, TaskEntry},
+    model::{MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -64,21 +64,21 @@ fn render_task(task: &TaskEntry) -> Result<String> {
         task.number,
         render_inline(task.summary.nodes())?
     )];
-    for block in render_markdown_nodes(&task.body, 4)? {
-        parts.push(block);
-    }
-    if !task.sub_tasks.is_empty() {
-        parts.push(indent_block(&render_sub_tasks(&task.sub_tasks)?, 4));
+    for child in &task.children {
+        match child {
+            TaskChild::Body(body) => parts.extend(render_markdown_nodes(body, 4)?),
+            TaskChild::SubTask(identity) => {
+                if let Some(sub_task) = task
+                    .sub_tasks
+                    .iter()
+                    .find(|sub_task| sub_task.identity == *identity)
+                {
+                    parts.push(indent_block(&render_sub_task(sub_task)?, 4));
+                }
+            }
+        }
     }
     Ok(parts.join("\n\n"))
-}
-
-fn render_sub_tasks(sub_tasks: &[SubTaskEntry]) -> Result<String> {
-    sub_tasks
-        .iter()
-        .map(render_sub_task)
-        .collect::<Result<Vec<_>>>()
-        .map(|lines| lines.join("\n"))
 }
 
 fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {

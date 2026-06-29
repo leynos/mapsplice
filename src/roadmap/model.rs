@@ -75,6 +75,17 @@ pub struct TaskEntry {
     pub body: MarkdownNodes,
     /// Ordered fourth-level sub-tasks nested beneath this task.
     pub sub_tasks: Vec<SubTaskEntry>,
+    /// Original ordered child sequence beneath this task.
+    pub children: Vec<TaskChild>,
+}
+
+/// One ordered child beneath a numbered task.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TaskChild {
+    /// Non-structural Markdown body blocks.
+    Body(MarkdownNodes),
+    /// A first-class sub-task identified by its original identity.
+    SubTask(ItemIdentity),
 }
 
 /// A numbered sub-task list item.

@@ -2,6 +2,8 @@
 
 mod document;
 mod fragment;
+mod sub_task_body;
+mod task_children;
 
 pub use fragment::parse_fragment;
 use markdown::{
@@ -9,6 +11,8 @@ use markdown::{
     mdast::{Heading, List, ListItem, Node, Paragraph, Root, Text},
     to_mdast,
 };
+use sub_task_body::parse_sub_task_body;
+use task_children::TaskChildren;
 
 use super::{
     PhaseNumber,
@@ -18,7 +22,7 @@ use super::{
     StepNumber,
     SubTaskNumber,
     TaskNumber,
-    model::{ItemIdentity, MarkdownNodes, SourceId, SubTaskEntry, TaskEntry},
+    model::{ItemIdentity, MarkdownNodes, SourceId, SubTaskEntry, TaskChild, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -143,7 +147,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
     };
     let (number, summary) = parse_task_paragraph(paragraph)?;
     let child_body = item.children.get(1..).unwrap_or(&[]);
-    let (body, sub_tasks) = split_task_children(child_body, number, context)?;
+    let (body, sub_tasks, children) = split_task_children(child_body, number, context)?;
     Ok(TaskEntry {
         identity: ItemIdentity {
             source: context.source,
@@ -154,6 +158,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
         summary: MarkdownNodes::from_nodes(summary),
         body,
         sub_tasks,
+        children,
     })
 }
 
@@ -162,13 +167,13 @@ fn split_task_children(
     children: &[Node],
     parent: TaskNumber,
     context: ParseContext<'_>,
-) -> Result<(MarkdownNodes, Vec<SubTaskEntry>)> {
-    let mut body = MarkdownNodes::new();
-    let mut sub_tasks = Vec::new();
+) -> Result<(MarkdownNodes, Vec<SubTaskEntry>, Vec<TaskChild>)> {
+    let mut task_children = TaskChildren::new();
     for child in children {
         if let Node::List(list) = child {
             if looks_like_sub_task_list(list) {
-                parse_sub_task_list(list, parent, context, &mut sub_tasks)?;
+                task_children.flush_body();
+                parse_sub_task_list(list, parent, context, &mut task_children)?;
                 continue;
             }
             if looks_like_task_list(list) {
@@ -177,9 +182,16 @@ fn split_task_children(
                 });
             }
         }
-        body.push_preserved(child.clone(), context.source_text);
+        task_children
+            .body
+            .push_preserved(child.clone(), context.source_text);
     }
-    Ok((body, sub_tasks))
+    task_children.flush_body();
+    Ok((
+        task_children.body,
+        task_children.sub_tasks,
+        task_children.ordered,
+    ))
 }
 
 /// Parse one nested checklist list into ordered sub-tasks.
@@ -187,14 +199,14 @@ fn parse_sub_task_list(
     list: &List,
     parent: TaskNumber,
     context: ParseContext<'_>,
-    sub_tasks: &mut Vec<SubTaskEntry>,
+    task_children: &mut TaskChildren,
 ) -> Result<()> {
     if list.ordered {
         return Err(MapspliceError::InvalidRoadmap {
             message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
         });
     }
-    let expected_start = sub_tasks.len().saturating_add(1);
+    let expected_start = task_children.sub_tasks.len().saturating_add(1);
     for (offset, node) in list.children.iter().enumerate() {
         let Node::ListItem(item) = node else {
             return Err(MapspliceError::InvalidRoadmap {
@@ -205,12 +217,11 @@ fn parse_sub_task_list(
             u32::try_from(expected_start + offset).map_err(|_| MapspliceError::InvalidRoadmap {
                 message: "sub-task count exceeds supported numbering range".to_owned(),
             })?;
-        sub_tasks.push(parse_sub_task_item(
-            item,
-            parent,
-            expected_ordinal,
-            context,
-        )?);
+        let sub_task = parse_sub_task_item(item, parent, expected_ordinal, context)?;
+        task_children
+            .ordered
+            .push(TaskChild::SubTask(sub_task.identity));
+        task_children.sub_tasks.push(sub_task);
     }
     Ok(())
 }
@@ -252,22 +263,6 @@ fn parse_sub_task_item(
         summary: MarkdownNodes::from_nodes(summary),
         body,
     })
-}
-
-/// Parse sub-task body blocks while rejecting deeper roadmap numbering.
-fn parse_sub_task_body(children: &[Node], source_text: &str) -> Result<MarkdownNodes> {
-    let mut body = MarkdownNodes::new();
-    for child in children {
-        if let Node::List(list) = child
-            && looks_like_sub_task_list(list)
-        {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: "sub-tasks cannot contain nested roadmap sub-tasks".to_owned(),
-            });
-        }
-        body.push_preserved(child.clone(), source_text);
-    }
-    Ok(body)
 }
 
 /// Validate that a sub-task belongs to its parent and appears in order.
