@@ -99,7 +99,7 @@ ______________________________________________________________________
 - Enforce strict level matching so a task fragment cannot be inserted where a
   phase belongs.
 - Renumber downstream phases, steps, and tasks after every structural edit.
-- Rewrite matching dependency references found in roadmap text nodes.
+- Rewrite matching dependency references in supported `Requires` clauses.
 
 ______________________________________________________________________
 

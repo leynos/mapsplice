@@ -30,7 +30,22 @@ where
 {
     parse_cli_request(args)
         .and_then(run_request)
-        .inspect_err(|error| observability::record_failure(error.class()))
+        .inspect_err(|error| {
+            if should_record_failure(error) {
+                observability::record_failure(error.class());
+            }
+        })
+}
+
+fn should_record_failure(error: &MapspliceError) -> bool {
+    !matches!(
+        error,
+        MapspliceError::Clap(clap_error)
+            if matches!(
+                clap_error.kind(),
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+            )
+    )
 }
 
 /// Execute a parsed request.

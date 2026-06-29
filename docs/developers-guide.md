@@ -117,6 +117,7 @@ make lint
 Run these gates for Markdown changes:
 
 ```bash
+make fmt
 make markdownlint
 make nixie
 ```

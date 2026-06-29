@@ -54,7 +54,7 @@ pub(super) fn rewrite_text_value(
 
 /// Return whether the candidate appears in a supported dependency clause.
 fn is_dependency_anchor(value: &str, start: usize) -> bool {
-    ["Requires", "Blocks"].into_iter().any(|keyword| {
+    ["Requires"].into_iter().any(|keyword| {
         latest_keyword_before(value, start, keyword).is_some_and(|position| {
             is_keyword_boundary(value, position, keyword.len())
                 && has_dependency_clause_separator(value, position + keyword.len(), start)

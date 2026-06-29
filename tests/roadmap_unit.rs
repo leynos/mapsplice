@@ -9,6 +9,7 @@ use mapsplice::{
     MapspliceError,
     RoadmapItemLevel,
     fragment_level,
+    metrics_snapshot,
     parse_anchor,
     parse_fragment_text,
     parse_roadmap_text,
@@ -515,6 +516,22 @@ fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn help_and_version_do_not_record_failures() {
+    let before = metrics_snapshot();
+
+    let help_error = run_from_args(["mapsplice", "--help"])
+        .expect_err("help should be surfaced as clap display");
+    let version_error = run_from_args(["mapsplice", "--version"])
+        .expect_err("version should be surfaced as clap display");
+    let after = metrics_snapshot();
+
+    assert!(matches!(help_error, MapspliceError::Clap(_)));
+    assert!(matches!(version_error, MapspliceError::Clap(_)));
+    assert_equal(&after.failures, &before.failures);
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -536,6 +553,30 @@ fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "Requires 1.0.0, 1.1.1, and 1.1.1.");
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn dependency_rewrite_ignores_blocks_clauses(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n\n",
+            "## 2. Phase two\n\n",
+            "### 2.1. Step two\n\n",
+            "- [ ] 2.1.1. Second task. Blocks 2.1.1.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
+        .expect("delete command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, "Blocks 2.1.1.");
     Ok(())
 }
 

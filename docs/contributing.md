@@ -56,10 +56,11 @@ make check-fmt
 make lint
 make typecheck
 make test
+make fmt
 make markdownlint
 make nixie
 ```
 
 `make check-fmt`, `make lint`, `make typecheck`, and `make test` are required
-for Rust changes. `make markdownlint` and `make nixie` are required for
-Markdown changes, especially documents with Mermaid diagrams.
+for Rust changes. `make fmt`, `make markdownlint`, and `make nixie` are
+required for Markdown changes, especially documents with Mermaid diagrams.
