@@ -145,8 +145,10 @@ required implementation fix together in one green, gated commit.
 - [x] (2026-06-30) Work item 2 added the exact nested sub-task no-op fixture
   and fixed renderer spacing, continuation indentation, and plain hyphen
   escaping so the fixture passes.
-- [ ] Work item 3: Reconcile documentation and roadmap status before final
-  gates.
+- [x] (2026-06-30) Work item 3 reconciled documentation and roadmap status
+  after the exact model/render behaviour was proven.
+- [ ] Final gates: Confirm HEAD with the required deterministic gates before
+  returning.
 
 ## Surprises & Discoveries
 
@@ -251,6 +253,25 @@ required implementation fix together in one green, gated commit.
   at `connecting_to_review_service` and produced no review result or actionable
   findings:
   `/tmp/scrutineer-coderabbit-wi2-mapsplice-roadmap-2-1-1.out`.
+- Work item 3 updates `docs/developers-guide.md` and `docs/users-guide.md` to
+  document fourth-level addendum sub-task anchors, updates
+  `docs/mapsplice-design.md` to remove the stale D2 "Addenda not modelled"
+  divergence, and marks only `docs/roadmap.md` task 2.1.1 complete.
+- Work item 3 deterministic gates passed via scrutineer:
+  `/tmp/scrutineer-make-all-wi3-mapsplice-roadmap-2-1-1.out`,
+  `/tmp/scrutineer-markdownlint-wi3-mapsplice-roadmap-2-1-1.out`, and
+  `/tmp/scrutineer-nixie-wi3-mapsplice-roadmap-2-1-1.out`.
+- Work item 3 CodeRabbit review was attempted once, but the CLI again remained
+  at `connecting_to_review_service` and produced no review result or actionable
+  findings:
+  `/tmp/scrutineer-coderabbit-wi3-mapsplice-roadmap-2-1-1.out`.
+- After recording the work item 3 CodeRabbit outcome, `make all` and
+  `make markdownlint` passed via scrutineer again. `make nixie` then hit
+  intermittent timeouts in untouched Mermaid diagrams before passing on a
+  normal-target retry:
+  `/tmp/scrutineer-make-all-wi3b-mapsplice-roadmap-2-1-1.out`,
+  `/tmp/scrutineer-markdownlint-wi3b-mapsplice-roadmap-2-1-1.out`, and
+  `/tmp/scrutineer-nixie-wi3f-mapsplice-roadmap-2-1-1.out`.
 
 ## Decision Log
 
@@ -686,6 +707,11 @@ Work item 2 filled that proof gap with
 run failed on task body indentation, extra blank spacing, and escaped hyphen
 output. The renderer now preserves the nested sub-task fixture byte-for-byte
 and the focused render and sub-task suites pass.
+
+Work item 3 reconciled the public documentation with the proven implementation
+state. The guides now describe fourth-level addendum sub-task anchors, the
+design document no longer claims addenda are unmodelled, and the roadmap marks
+only task 2.1.1 complete.
 
 ## Revision note
 

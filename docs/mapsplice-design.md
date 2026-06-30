@@ -205,8 +205,8 @@ inspection.
 
 ## 9. Known divergences from the target contract
 
-The current release does not yet meet sections 5–7 in two respects. Both are
-tracked in `docs/roadmap.md`.
+The current release does not yet meet sections 5–7 in one respect, tracked in
+`docs/roadmap.md`.
 
 - **D1 — Unscoped reference rewriting (violates C3, F1).** Rewriting matches any
   anchor-shaped token rather than only dependency references, so a
@@ -214,10 +214,6 @@ tracked in `docs/roadmap.md`.
   renumbered roadmap number is corrupted (for example `§2.1` becomes `§3.1`
   when phase 2 shifts to 3). The fix is to scope rewriting to dependency
   contexts per section 7.
-- **D2 — Addenda not modelled (violates C4).** Addendum sub-tasks are treated as
-  opaque task body rather than first-class items, so a sub-task number is left
-  stale when its parent renumbers, and its list nesting is mangled on render.
-  The fix is to model the fourth level explicitly.
 
 ## 10. Risks, trade-offs, and future extensions
 

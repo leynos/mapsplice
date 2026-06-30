@@ -48,8 +48,8 @@ The library API is intentionally small:
 - `run_request` executes an already parsed `CliRequest`.
 - `parse_roadmap` and `parse_fragment` parse supported roadmap Markdown into
   typed domain structures.
-- `parse_anchor` validates canonical positive anchors such as `8`, `8.2`, and
-  `8.2.3`.
+- `parse_anchor` validates canonical positive anchors such as `8`, `8.2`,
+  `8.2.3`, and `8.2.3.1`.
 - `metrics_snapshot` returns bounded process-local counters for failures,
   in-place rewrites, and dependency rewrites.
 

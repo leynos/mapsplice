@@ -3,8 +3,8 @@
 This roadmap drives `mapsplice` to the fidelity and contract guarantees set out
 in `mapsplice-design.md`. It is itself written in the roadmap grammar
 `mapsplice` edits, so it doubles as a living conformance fixture. Work
-fix-debt-first: the two known divergences (unscoped reference rewriting and
-unmodelled addenda) come before the corpus that locks the guarantees in.
+fix-debt-first: the known reference-rewrite divergence comes before the corpus
+that locks the guarantees in.
 
 ## 1. Guarantee reference-rewrite fidelity
 
@@ -51,7 +51,7 @@ text, so they must renumber and render like every other item.
 This step answers whether a fourth-level sub-task tracks its parent through a
 renumber and survives rendering with its nesting intact.
 
-- [ ] 2.1.1. Represent addendum sub-tasks in the roadmap model.
+- [x] 2.1.1. Represent addendum sub-tasks in the roadmap model.
   - Extend the model so a task owns ordered fourth-level sub-tasks, each with
     its
     own identity and number, parsed from nested numbered list items.

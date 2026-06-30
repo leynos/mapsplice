@@ -23,22 +23,27 @@ cargo run -- <subcommand> ...
 
 ## The roadmap shape `mapsplice` expects
 
-`mapsplice` treats a roadmap as three structural levels:
+`mapsplice` treats a roadmap as four structural levels:
 
 - **Phases** are level-2 headings such as `## 8. Phase title`.
 - **Steps** are level-3 headings such as `### 8.2. Step title`.
 - **Tasks** are Markdown list items whose first paragraph begins with a number
   such as `- [ ] 8.2.3. Task title`.
+- **Addendum sub-tasks** are nested task checklist items whose first paragraph
+  begins with a fourth-level number such as `- [ ] 8.2.3.1. Sub-task title`.
 
 Optional document preamble content may appear before the first numbered phase.
 Tasks may also contain extra paragraphs or nested bullet lists beneath the
-first numbered paragraph.
+first numbered paragraph. Ordinary nested bullets remain task body Markdown;
+numbered nested checklist items that use the fourth-level form are addendum
+sub-tasks owned by their parent task.
 
 Anchors on the command line map directly to those levels:
 
 - `8` targets a phase
 - `8.2` targets a step
 - `8.2.3` targets a task
+- `8.2.3.1` targets an addendum sub-task
 
 Fragments supplied to `insert` and `replace` must contain one or more sibling
 items at the same level as the target anchor.
