@@ -23,7 +23,7 @@ NIXIE ?= nixie
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
 
-all: check-fmt lint test ## Perform a comprehensive check of code
+all: check-fmt lint typecheck test ## Perform a comprehensive check of code
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
