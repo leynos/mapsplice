@@ -68,7 +68,7 @@ fn append_renumbers_sub_tasks_and_their_dependencies(
     assert_contains(&stdout, "1.1.1. Parent task. Requires 1.1.1.1.");
     assert_contains(
         &stdout,
-        "    - [ ] 1.1.1.1. First sub\\-task. Requires 1.1.1.",
+        "    - [ ] 1.1.1.1. First sub-task. Requires 1.1.1.",
     );
     assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.2.");
     Ok(())
@@ -99,7 +99,7 @@ fn delete_renumbers_sub_tasks_with_parent_task(workspace: TestResult<Workspace>)
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "- [ ] 1.1.1. Parent task.");
-    assert_contains(&stdout, "    - [ ] 1.1.1.1. Nested sub\\-task.");
+    assert_contains(&stdout, "    - [ ] 1.1.1.1. Nested sub-task.");
     Ok(())
 }
 
@@ -128,7 +128,7 @@ fn delete_sub_task_renumbers_later_sub_tasks(workspace: TestResult<Workspace>) -
     .expect("sub-task delete should succeed");
     let stdout = outcome.stdout.unwrap_or_default();
 
-    assert_contains(&stdout, "    - [x] 1.1.1.1. Second sub\\-task.");
+    assert_contains(&stdout, "    - [x] 1.1.1.1. Second sub-task.");
     assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.1.");
     Ok(())
 }
@@ -154,7 +154,7 @@ fn dependency_rewrites_inside_sub_task_text(workspace: TestResult<Workspace>) ->
         .expect("delete command should succeed");
     let stdout = outcome.stdout.unwrap_or_default();
 
-    assert_contains(&stdout, "1.1.1.1. Nested sub\\-task. Requires 1.1.1.");
+    assert_contains(&stdout, "1.1.1.1. Nested sub-task. Requires 1.1.1.");
     Ok(())
 }
 

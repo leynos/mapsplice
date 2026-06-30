@@ -1,10 +1,16 @@
 //! Deterministic renderer for the supported roadmap subset.
 
+#[cfg(test)]
+#[path = "render_tests.rs"]
+mod render_tests;
 #[path = "render_table.rs"]
 mod table;
+#[path = "render_text.rs"]
+mod text;
 
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
 use table::render_table;
+use text::{escape_markdown, indent_block, render_code_block};
 
 use super::{
     RoadmapDocument,
@@ -62,11 +68,11 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {checkbox}{}. {}",
         task.number,
-        render_inline(task.summary.nodes())?
+        render_item_summary(&render_inline(task.summary.nodes())?, 4)
     )];
     for child in &task.children {
         match child {
-            TaskChild::Body(body) => parts.extend(render_markdown_nodes(body, 4)?),
+            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
             TaskChild::SubTask(identity) => {
                 if let Some(sub_task) = task
                     .sub_tasks
@@ -78,7 +84,7 @@ fn render_task(task: &TaskEntry) -> Result<String> {
             }
         }
     }
-    Ok(parts.join("\n\n"))
+    Ok(parts.join("\n"))
 }
 
 fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
@@ -90,12 +96,31 @@ fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {checkbox}{}. {}",
         sub_task.number,
-        render_inline(sub_task.summary.nodes())?
+        render_item_summary(&render_inline(sub_task.summary.nodes())?, 0)
     )];
-    for block in render_markdown_nodes(&sub_task.body, 4)? {
+    for block in render_nested_body(&sub_task.body, 0)? {
         parts.push(block);
     }
-    Ok(parts.join("\n\n"))
+    Ok(parts.join("\n"))
+}
+
+fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
+    render_markdown_nodes(markdown, 0).map(|blocks| {
+        blocks
+            .into_iter()
+            .map(|block| indent_block(&block, indent))
+            .collect()
+    })
+}
+
+fn render_item_summary(summary: &str, continuation_indent: usize) -> String {
+    let mut lines = summary.lines();
+    let Some(first) = lines.next() else {
+        return String::new();
+    };
+    let mut rendered = vec![first.to_owned()];
+    rendered.extend(lines.map(|line| indent_block(line, continuation_indent)));
+    rendered.join("\n")
 }
 
 fn render_markdown_nodes(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
@@ -156,14 +181,6 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
     }
 }
 
-/// Render a fenced code block using a fence longer than its contents.
-fn render_code_block(value: &str, lang: Option<&str>, meta: Option<&str>, indent: usize) -> String {
-    let fence = safe_code_fence(value);
-    let info = code_fence_info(lang, meta);
-    let opener = format!("{fence}{info}");
-    indent_block(&format!("{opener}\n{value}\n{fence}"), indent)
-}
-
 fn render_blockquote_parts(parts: Vec<String>) -> String {
     parts
         .into_iter()
@@ -175,34 +192,6 @@ fn render_blockquote_parts(parts: Vec<String>) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n>\n")
-}
-
-fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
-    match (lang, meta) {
-        (Some(language), Some(metadata)) => format!("{language} {metadata}"),
-        (Some(language), None) => language.to_owned(),
-        (None, Some(metadata)) => metadata.to_owned(),
-        (None, None) => String::new(),
-    }
-}
-
-fn safe_code_fence(value: &str) -> String {
-    "`".repeat(longest_backtick_run(value).saturating_add(1).max(3))
-}
-
-/// Return the longest contiguous backtick run in a string.
-fn longest_backtick_run(value: &str) -> usize {
-    let mut longest = 0;
-    let mut current = 0;
-    for character in value.chars() {
-        if character == '`' {
-            current += 1;
-            longest = longest.max(current);
-        } else {
-            current = 0;
-        }
-    }
-    longest
 }
 
 /// Render an ordered or unordered Markdown list.
@@ -295,59 +284,6 @@ fn render_inline_node(node: &Node) -> Result<String> {
             ),
         }),
     }
-}
-
-/// Escape Markdown metacharacters in plain text.
-fn escape_markdown(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for character in value.chars() {
-        if is_markdown_metacharacter(character) {
-            escaped.push('\\');
-        }
-        escaped.push(character);
-    }
-    escaped
-}
-
-/// Return whether a character should be escaped in plain text output.
-const fn is_markdown_metacharacter(character: char) -> bool {
-    matches!(
-        character,
-        '*' | '_'
-            | '`'
-            | '['
-            | ']'
-            | '('
-            | ')'
-            | '~'
-            | '>'
-            | '#'
-            | '+'
-            | '-'
-            | '='
-            | '|'
-            | '{'
-            | '}'
-    )
-}
-
-/// Indent every non-empty line in a rendered block.
-fn indent_block(block: &str, spaces: usize) -> String {
-    if spaces == 0 {
-        return block.to_owned();
-    }
-    let padding = " ".repeat(spaces);
-    block
-        .lines()
-        .map(|line| {
-            if line.is_empty() {
-                String::new()
-            } else {
-                format!("{padding}{line}")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 /// Convert a zero-based list index into a renderable ordinal offset.

@@ -142,8 +142,9 @@ required implementation fix together in one green, gated commit.
 - [x] (2026-06-30) Work item 1 audited the model surface and test evidence:
   first-class sub-task model support exists, but no exact nested sub-task
   no-op fixture exists yet.
-- [ ] Work item 2: Add the exact round-trip regression and minimal fix if the
-  audit finds a gap.
+- [x] (2026-06-30) Work item 2 added the exact nested sub-task no-op fixture
+  and fixed renderer spacing, continuation indentation, and plain hyphen
+  escaping so the fixture passes.
 - [ ] Work item 3: Reconcile documentation and roadmap status before final
   gates.
 
@@ -210,6 +211,46 @@ required implementation fix together in one green, gated commit.
 - Work item 1 CodeRabbit review was attempted once, but the CLI emitted only
   `connecting_to_review_service` and no review result. This is recorded as a
   deferred review issue rather than code feedback.
+- Work item 2 red evidence:
+  `roadmap::render::tests::exact_nested_sub_task_round_trip` failed because
+  the renderer emitted `Body before.` without task indentation, inserted a
+  blank line before the nested sub-task, and escaped `Nested sub-task` as
+  `Nested sub\\-task`.
+- The exact fixture belongs in `src/roadmap/render.rs` because the public API
+  exports parsing but not a no-op render helper. Keeping the test inside the
+  renderer module proves the parser-plus-renderer path without widening the
+  public API.
+- The exact fixture now lives in `src/roadmap/render_tests.rs`, included as a
+  private renderer test module, because keeping it inline pushed
+  `src/roadmap/render.rs` past the 400-line module limit.
+- Renderer text helpers now live in `src/roadmap/render_text.rs` so
+  `src/roadmap/render.rs` stays below the 400-line module limit after adding
+  the exact fixture hook.
+- The renderer fix replays task and sub-task child blocks with single newlines,
+  indents Markdown lazy-continuation lines in item summaries, and no longer
+  escapes ordinary hyphens inside plain text.
+- Work item 2 focused green commands passed:
+  `/tmp/green-exact-subtask-roundtrip-mapsplice-roadmap-2-1-1.out`,
+  `/tmp/test-roadmap-sub-tasks-green-mapsplice-roadmap-2-1-1.out`, and
+  `/tmp/test-roadmap-render-green-mapsplice-roadmap-2-1-1.out`.
+- Memtrace `detect_changes` was attempted for the work item 2 unified diff,
+  but the MCP host returned `user cancelled MCP tool call`; semantic scope was
+  checked locally with `git --no-pager diff --no-ext-diff`, `sem diff`, and
+  focused tests instead.
+- Work item 2 deterministic code gates passed via scrutineer:
+  `/tmp/scrutineer-make-all-wi2c-mapsplice-roadmap-2-1-1.out` and
+  `/tmp/scrutineer-markdownlint-wi2c-mapsplice-roadmap-2-1-1.out`.
+- Work item 2 `make nixie` failed twice via scrutineer with the same Mermaid
+  conversion timeout in untouched `docs/rstest-bdd-users-guide.md` diagram 1:
+  `/tmp/scrutineer-nixie-wi2c-mapsplice-roadmap-2-1-1.out` and
+  `/tmp/scrutineer-nixie-wi2d-mapsplice-roadmap-2-1-1.out`.
+- `nixie --help` exposes renderer and concurrency switches but no documented
+  timeout option, so the repeated work item 2 `nixie` failure is treated as an
+  unrelated environment/tool timeout rather than a sub-task model regression.
+- Work item 2 CodeRabbit review was attempted once, but the CLI again remained
+  at `connecting_to_review_service` and produced no review result or actionable
+  findings:
+  `/tmp/scrutineer-coderabbit-wi2-mapsplice-roadmap-2-1-1.out`.
 
 ## Decision Log
 
@@ -252,6 +293,19 @@ required implementation fix together in one green, gated commit.
   review findings or a rate-limit wait time, and the only service output was a
   connection status. The unresolved review is tracked here and in the final
   open issues list.
+  Date/Author: 2026-06-30, implementation agent.
+
+- Decision: Keep the exact no-op fixture as a renderer module unit test.
+  Rationale: integration tests cannot call the internal renderer directly, and
+  adding a public no-op render helper would broaden the library API for test
+  evidence. The module unit test exercises `parse_roadmap` and `render_roadmap`
+  together while keeping the API unchanged.
+  Date/Author: 2026-06-30, implementation agent.
+
+- Decision: Stop escaping ordinary hyphens in rendered plain text.
+  Rationale: source-byte fidelity requires `sub-task` to render as `sub-task`,
+  not `sub\\-task`. Hyphens inside inline text are not list markers and do not
+  need escaping in the supported renderer context.
   Date/Author: 2026-06-30, implementation agent.
 
 ## Context and orientation
@@ -626,6 +680,12 @@ sub-tasks as first-class `SubTaskEntry` values ordered under their parent
 `TaskEntry`. The acceptance gap is proof, not basic modelling: no existing
 fixture exercises a parser-plus-renderer no-op path and asserts byte-identical
 output for a nested fourth-level checklist item.
+
+Work item 2 filled that proof gap with
+`roadmap::render::tests::exact_nested_sub_task_round_trip`. The initial red
+run failed on task body indentation, extra blank spacing, and escaped hyphen
+output. The renderer now preserves the nested sub-task fixture byte-for-byte
+and the focused render and sub-task suites pass.
 
 ## Revision note
 

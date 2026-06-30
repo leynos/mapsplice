@@ -133,7 +133,7 @@ fn render_preserves_task_body_and_sub_task_order(workspace: TestResult<Workspace
     assert_ordered(
         &stdout,
         "Body before.",
-        "- [ ] 1.1.1.1. Nested sub\\-task.",
+        "- [ ] 1.1.1.1. Nested sub-task.",
         "Body after.",
     )?;
     Ok(())
