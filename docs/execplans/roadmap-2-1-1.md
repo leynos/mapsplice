@@ -139,7 +139,9 @@ required implementation fix together in one green, gated commit.
 - [x] (2026-06-30) Verified that current visible tests include structural
   sub-task tests but do not, from inspection alone, prove exact no-op nested
   sub-task round-trip identity.
-- [ ] Work item 1: Audit first-class sub-task model and exact round-trip proof.
+- [x] (2026-06-30) Work item 1 audited the model surface and test evidence:
+  first-class sub-task model support exists, but no exact nested sub-task
+  no-op fixture exists yet.
 - [ ] Work item 2: Add the exact round-trip regression and minimal fix if the
   audit finds a gap.
 - [ ] Work item 3: Reconcile documentation and roadmap status before final
@@ -177,6 +179,37 @@ required implementation fix together in one green, gated commit.
   planning. Retry `leta` commands from the assigned worktree before code edits;
   if the daemon still cannot start, record the failure and use exact local
   inspection for branch-local evidence.
+- Memtrace `list_indexed_repositories` was retried during implementation and
+  the MCP host again returned `user cancelled MCP tool call`, so canonical-main
+  graph context was unavailable for work item 1.
+- `leta workspace add` was retried with `LETA_HOME` and `XDG_DATA_HOME` under
+  `/tmp`, but still failed with `Read-only file system (os error 30)`.
+  Branch-local verification therefore used bounded inspection of the named
+  Rust files plus focused tests.
+- `sem diff --from origin/main --to HEAD --format json` reported only the
+  added ExecPlan before implementation; no pre-existing semantic code delta
+  was present.
+- `TaskEntry` owns ordered first-class `SubTaskEntry` values through
+  `sub_tasks: Vec<SubTaskEntry>` and preserves interleaved task body/sub-task
+  order through `children: Vec<TaskChild>`.
+- `RoadmapAnchor::SubTask`, `SubTaskNumber`, and `parse_anchor` already accept
+  canonical fourth-level anchors such as `8.2.3.4`.
+- The plan's focused command
+  `cargo test --workspace --all-targets --all-features roadmap_sub_tasks`
+  passed but ran zero `tests/roadmap_sub_tasks.rs` tests because the filter did
+  not match their names. The corrective command
+  `cargo test --workspace --all-targets --all-features --test roadmap_sub_tasks`
+  passed and ran the eight sub-task integration tests.
+- No existing test asserts a full no-op render output equals source bytes for a
+  nested `8.2.3.1`-style sub-task. The existing render test still proves only
+  relative order and uses the escaped marker `Nested sub\\-task`.
+- Work item 1 deterministic gates passed via scrutineer:
+  `/tmp/scrutineer-make-all-wi1-mapsplice-roadmap-2-1-1.out`,
+  `/tmp/scrutineer-markdownlint-wi1-mapsplice-roadmap-2-1-1.out`, and
+  `/tmp/scrutineer-nixie-wi1-mapsplice-roadmap-2-1-1.out`.
+- Work item 1 CodeRabbit review was attempted once, but the CLI emitted only
+  `connecting_to_review_service` and no review result. This is recorded as a
+  deferred review issue rather than code feedback.
 
 ## Decision Log
 
@@ -207,6 +240,19 @@ required implementation fix together in one green, gated commit.
   responsible for emitted bytes. Any byte-identity claim must be pinned by an
   exact fixture test, not by an assumption about the external parser.
   Date/Author: 2026-06-30, planning agent.
+
+- Decision: Proceed to work item 2.
+  Rationale: work item 1 confirmed the first-class model surface but found no
+  exact nested sub-task no-op byte-identity fixture; the plan requires adding
+  the missing regression before documentation can mark task 2.1.1 complete.
+  Date/Author: 2026-06-30, implementation agent.
+
+- Decision: Commit the work item 1 audit with a deferred CodeRabbit issue.
+  Rationale: deterministic gates passed, CodeRabbit did not produce actionable
+  review findings or a rate-limit wait time, and the only service output was a
+  connection status. The unresolved review is tracked here and in the final
+  open issues list.
+  Date/Author: 2026-06-30, implementation agent.
 
 ## Context and orientation
 
@@ -575,10 +621,11 @@ Branch-local evidence collected during planning:
 
 ## Outcomes & Retrospective
 
-No implementation has begun. This round revises the plan so task 2.1.1 cannot
-be marked complete by symbol presence alone. The plan now requires exact nested
-sub-task no-op byte identity, commits every ExecPlan edit after formatting and
-gates, and places final status edits before final validation.
+Work item 1 confirmed that the roadmap model already represents addendum
+sub-tasks as first-class `SubTaskEntry` values ordered under their parent
+`TaskEntry`. The acceptance gap is proof, not basic modelling: no existing
+fixture exercises a parser-plus-renderer no-op path and asserts byte-identical
+output for a nested fourth-level checklist item.
 
 ## Revision note
 
