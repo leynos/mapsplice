@@ -22,9 +22,16 @@ rather than rewriting every number-shaped token.
   - Define the dependency context (the `Requires` clause) and the anchor-token
     rules from the design, as a single predicate that decides whether an anchor
     token is a dependency reference.
+  - Keep invalid/version-like text separate from valid unresolved dependency
+    references: `Requires 1.4.0` is preserved because `0` is not a positive
+    anchor component, while `Requires 99.1.1` is a valid dependency-reference
+    candidate that remains unchanged when no renumber-plan mapping exists.
   - See mapsplice-design.md, "The dependency-reference model".
   - Success: a documented predicate classifies anchor tokens; unit tests cover
-    `Requires` clauses, section references, versions, and prose numbers.
+    `Requires` clauses, invalid version-like values such as `1.4.0`, valid
+    unresolved dependency references such as `99.1.1`, section references,
+    versions, and prose numbers without treating those boundaries as the same
+    classification path.
 - [ ] 1.1.2. Scope reference rewriting to dependency contexts.
   - Requires 1.1.1.
   - Rewrite only dependency references; preserve every incidental anchor token,
