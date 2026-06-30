@@ -1,6 +1,7 @@
 target/
 **/*.rs.bk
 .grepai/
+.memdb/
 *:Zone.Identifier
 .agents/mcp/context_pack/packs/
 *.swp
