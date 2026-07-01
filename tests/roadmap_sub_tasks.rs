@@ -13,8 +13,45 @@ use rstest::rstest;
 use sub_task_support::TARGET_WITH_SUB_TASKS;
 use workspace_support::{TestResult, Workspace, workspace};
 
+const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str = concat!(
+    "# Example\n\n",
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "- [ ] 1.1.1. First phase task.\n\n",
+    "## 2. Phase two\n\n",
+    "### 2.1. Step two\n\n",
+    "- [ ] 2.1.1. Second phase task.\n\n",
+    "## 3. Phase three\n\n",
+    "### 3.1. Step three\n\n",
+    "- [ ] 3.1.1. Third phase task.\n\n",
+    "## 4. Phase four\n\n",
+    "### 4.1. Step four\n\n",
+    "- [ ] 4.1.1. Fourth phase task.\n\n",
+    "## 5. Phase five\n\n",
+    "### 5.1. Step five\n\n",
+    "- [ ] 5.1.1. Fifth phase task.\n\n",
+    "## 6. Phase six\n\n",
+    "### 6.1. Step six\n\n",
+    "- [ ] 6.1.1. Sixth phase task.\n\n",
+    "## 7. Phase seven\n\n",
+    "### 7.1. Step seven\n\n",
+    "- [ ] 7.1.1. Seventh phase task.\n\n",
+    "## 8. Phase eight\n\n",
+    "### 8.1. Step eight one\n\n",
+    "- [ ] 8.1.1. Earlier phase eight task.\n\n",
+    "### 8.2. Step eight two\n\n",
+    "- [ ] 8.2.1. First task.\n",
+    "- [ ] 8.2.2. Second task.\n",
+    "- [ ] 8.2.3. Parent task. Requires 8.2.3.1.\n",
+    "    - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.\n",
+);
+
 fn assert_contains(haystack: &str, needle: &str) {
     assert!(haystack.contains(needle));
+}
+
+fn assert_not_contains(haystack: &str, needle: &str) {
+    assert!(!haystack.contains(needle));
 }
 
 fn assert_invalid_roadmap(error: &MapspliceError) {
@@ -71,6 +108,36 @@ fn append_renumbers_sub_tasks_and_their_dependencies(
         "    - [ ] 1.1.1.1. First sub-task. Requires 1.1.1.",
     );
     assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.2.");
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_before_phase_moves_sub_task_and_rewrites_sub_task_references(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(TARGET_PHASE_EIGHT_WITH_SUB_TASK)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "insert",
+        test_workspace.target.as_str(),
+        "8",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("insert command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, "- [ ] 9.2.3. Parent task. Requires 9.2.3.1.");
+    assert_contains(&stdout, "- [ ] 9.2.3.1. Nested sub-task. Requires 9.2.3.");
+    assert_not_contains(&stdout, "Requires 8.2.3.1.");
+    assert_not_contains(&stdout, "- [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.");
     Ok(())
 }
 

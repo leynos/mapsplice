@@ -65,7 +65,7 @@ renumber and survives rendering with its nesting intact.
   - See mapsplice-design.md, "The roadmap grammar".
   - Success: parsing a task with nested `8.2.3.1`-style items yields first-class
     sub-task items, and rendering them is byte-identical to the source.
-- [ ] 2.1.2. Renumber sub-tasks with their parent.
+- [x] 2.1.2. Renumber sub-tasks with their parent.
   - Requires 2.1.1.
   - Include the fourth level in the renumber plan so a sub-task follows its
     parent's new number, and rewrite dependency references to it.
