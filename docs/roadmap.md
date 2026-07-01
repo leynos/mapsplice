@@ -72,7 +72,7 @@ renumber and survives rendering with its nesting intact.
   - Success: when a parent task moves from 8.2.3 to 9.2.3 its sub-task moves
     from
     8.2.3.1 to 9.2.3.1, and references to the sub-task are rewritten to match.
-- [ ] 2.1.3. Preserve sub-task nesting and indentation on render.
+- [x] 2.1.3. Preserve sub-task nesting and indentation on render.
   - Requires 2.1.1.
   - Emit sub-tasks at the correct nesting depth without breaking them out of
     their parent list.
