@@ -138,6 +138,36 @@ proptest! {
             "incidental token changed or mapped reference missing: {stdout}"
         );
     }
+
+    #[test]
+    fn scoped_reference_generated_incidental_tokens_are_preserved(
+        section_phase in 1u32..20,
+        section_step in 1u32..20,
+        version_major in 1u32..20,
+        version_minor in 0u32..20,
+        version_patch in 0u32..20,
+        count in 1u32..200,
+    ) {
+        let section_reference = format!("§{section_phase}.{section_step}");
+        let version = format!("{version_major}.{version_minor}.{version_patch}");
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        workspace
+            .write_target(&roadmap_with_dependency_text(&format!(
+                "See {section_reference}. Released {version}. Count {count}. Requires 2.1.1."
+            )))
+            .expect("target should be written");
+
+        let outcome = run_from_args(["mapsplice", "delete", workspace.target.as_str(), "1"])
+            .expect("delete command should succeed");
+        let stdout = outcome.stdout.unwrap_or_default();
+
+        prop_assert!(
+            stdout.contains(&format!(
+                "See {section_reference}. Released {version}. Count {count}. Requires 1.1.1."
+            )),
+            "scoped reference incidental text changed or mapped reference missing: {stdout}"
+        );
+    }
 }
 
 fn numbered_phase_roadmap(phase_count: usize) -> String {

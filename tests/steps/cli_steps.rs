@@ -92,6 +92,19 @@ fn target_three_phases(cli_state: &mut CliFixture) -> TestResult {
     state_mut(cli_state)?.write_target(TARGET_THREE_PHASES)
 }
 
+#[given("the target roadmap with scoped reference text")]
+fn target_with_scoped_reference_text(cli_state: &mut CliFixture) -> TestResult {
+    state_mut(cli_state)?.write_target(concat!(
+        "# Example\n\n",
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. First task.\n\n",
+        "## 2. Phase two\n\n",
+        "### 2.1. Step two\n\n",
+        "- [ ] 2.1.1. Second task. See §2.1. Released 1.4.0. Count 27. Requires 2.1.1, 2.1.1.\n",
+    ))
+}
+
 #[given("the phase fragment roadmap")]
 fn phase_fragment(cli_state: &mut CliFixture) -> TestResult {
     state_mut(cli_state)?.write_fragment(PHASE_FRAGMENT)
@@ -142,6 +155,13 @@ fn delete_phase_two(cli_state: &mut CliFixture) -> TestResult {
     let state = state_mut(cli_state)?;
     let target = state.target_path().clone();
     state.run(["delete", target.as_str(), "2"])
+}
+
+#[when("I delete phase 1")]
+fn delete_phase_one(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    let target = state.target_path().clone();
+    state.run(["delete", target.as_str(), "1"])
 }
 
 #[when("I replace phase 2 with the replacement fragment")]
@@ -219,6 +239,16 @@ fn stdout_rewrites_after_delete(cli_state: &mut CliFixture) -> TestResult {
     let state = state_mut(cli_state)?;
     assert!(state.stdout.contains("## 2. Phase three"));
     assert!(state.stdout.contains("Requires 2.1.1."));
+    Ok(())
+}
+
+#[then("stdout preserves scoped_reference incidental numbers and rewrites Requires dependencies")]
+fn stdout_preserves_scoped_reference_text(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    assert!(state.stdout.contains("See §2.1."));
+    assert!(state.stdout.contains("Released 1.4.0."));
+    assert!(state.stdout.contains("Count 27."));
+    assert!(state.stdout.contains("Requires 1.1.1, 1.1.1."));
     Ok(())
 }
 

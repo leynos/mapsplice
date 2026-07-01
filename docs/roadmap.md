@@ -32,7 +32,7 @@ rather than rewriting every number-shaped token.
     unresolved dependency references such as `99.1.1`, section references,
     versions, and prose numbers without treating those boundaries as the same
     classification path.
-- [ ] 1.1.2. Scope reference rewriting to dependency contexts.
+- [x] 1.1.2. Scope reference rewriting to dependency contexts.
   - Requires 1.1.1.
   - Rewrite only dependency references; preserve every incidental anchor token,
     including section references preceded by a sigil and version strings.

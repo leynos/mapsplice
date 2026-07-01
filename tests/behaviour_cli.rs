@@ -45,6 +45,18 @@ fn delete_phase(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>>
 
 #[scenario(
     path = "tests/features/mapsplice.feature",
+    name = "Delete preserves scoped_reference incidental numbers while rewriting Requires \
+            dependencies"
+)]
+fn delete_preserves_scoped_reference_incidental_numbers(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
     name = "Replace swaps a phase with multiple phases from a fragment file"
 )]
 fn replace_phase(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {

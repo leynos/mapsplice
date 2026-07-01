@@ -100,8 +100,9 @@ Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in
 `src/roadmap/ops/dependency_text.rs`. Unit tests cover the classifier branches,
 behavioural tests cover unresolved valid references, invalid version-like
-tokens, and mapped rewrites, and property tests cover generated invalid and
-incidental token preservation.
+tokens, mapped rewrites, and scoped preservation through the compiled binary.
+Property tests cover generated invalid dependency tokens, incidental numeric
+text, and scoped reference preservation beside mapped `Requires` references.
 
 ## 7. Local tooling
 

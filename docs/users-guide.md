@@ -105,6 +105,10 @@ The result will:
 - renumber the original phase 2 to `3`
 - rewrite dependency prose such as `Requires 2.1.1.` to `Requires 3.1.1.`
 
+Only `Requires` dependency references are rewritten. Incidental numeric text
+such as section references (`§2.1`), semantic versions (`1.4.0`), and prose
+quantities is preserved.
+
 ## Command details
 
 ### `append`

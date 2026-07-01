@@ -28,6 +28,12 @@ Feature: Mapsplice roadmap editing
     Then the command succeeds
     And stdout removes phase 2 and rewrites the remaining dependency to 2.1.1
 
+  Scenario: Delete preserves scoped_reference incidental numbers while rewriting Requires dependencies
+    Given the target roadmap with scoped reference text
+    When I delete phase 1
+    Then the command succeeds
+    And stdout preserves scoped_reference incidental numbers and rewrites Requires dependencies
+
   Scenario: Replace swaps a phase with multiple phases from a fragment file
     Given the target roadmap with two phases
     And the replacement fragment roadmap

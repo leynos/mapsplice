@@ -221,8 +221,15 @@ mod tests {
 
     use rstest::rstest;
 
-    use super::{DependencyReferenceClassification, classify_dependency_reference};
-    use crate::roadmap::parse_anchor;
+    use super::{
+        DependencyReferenceClassification,
+        classify_dependency_reference,
+        rewrite_text_value,
+    };
+    use crate::roadmap::{
+        model::{RenumberPlan, SourceId},
+        parse_anchor,
+    };
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     enum ExpectedClassification {
@@ -250,6 +257,11 @@ mod tests {
         ExpectedClassification::Reference("99.1.1")
     )]
     #[case::section_sigil("Requires §1.2", "1.2", ExpectedClassification::NotDependencyReference)]
+    #[case::dependency_reference_section_sigil_in_nearby_prose(
+        "See §2.1. Requires 2.1.1",
+        "2.1",
+        ExpectedClassification::NotDependencyReference
+    )]
     #[case::outside_dependency_clause(
         "See 1.2",
         "1.2",
@@ -257,6 +269,11 @@ mod tests {
     )]
     #[case::sentence_terminated(
         "Requires 1.2. Then 2.3",
+        "2.3",
+        ExpectedClassification::NotDependencyReference
+    )]
+    #[case::dependency_reference_semicolon_terminated(
+        "Requires 1.2; Then 2.3",
         "2.3",
         ExpectedClassification::NotDependencyReference
     )]
@@ -305,5 +322,34 @@ mod tests {
             classify_dependency_reference(value, start, end),
             DependencyReferenceClassification::NotDependencyReference,
         );
+    }
+
+    #[rstest]
+    #[case::dependency_reference_rewrites_multiple_moved_references(
+        "Requires 2.1.1, 2.1.1.",
+        "Requires 1.1.1, 1.1.1.",
+        2
+    )]
+    #[case::dependency_reference_preserves_unresolved_valid_reference(
+        "Requires 99.1.1.",
+        "Requires 99.1.1.",
+        0
+    )]
+    fn dependency_reference_text_rewrite_scopes_mapped_references(
+        #[case] value: &str,
+        #[case] expected: &str,
+        #[case] expected_count: u64,
+    ) {
+        let mut plan = RenumberPlan::default();
+        plan.insert(
+            SourceId::Target,
+            parse_anchor("2.1.1").expect("old test anchor should parse"),
+            parse_anchor("1.1.1").expect("new test anchor should parse"),
+        );
+
+        let (actual, count) = rewrite_text_value(value, SourceId::Target, &plan);
+
+        assert_eq!(actual, expected);
+        assert_eq!(count, expected_count);
     }
 }
