@@ -54,6 +54,15 @@ Feature: Mapsplice roadmap editing
     And stdout is empty
     And the target file now starts with phase 1 titled Phase two
 
+  Scenario: Dangling dependency reference fails in place without rewriting target
+    Given the target roadmap with a dangling dependency reference
+    And the phase fragment roadmap
+    When I try to append the phase fragment in place
+    Then the command fails
+    And stdout is empty
+    And stderr mentions dangling dependency anchor 99.1.1
+    And the target file remains unchanged
+
   Scenario: Level mismatch returns a clear failure
     Given the target roadmap with two phases
     And the task fragment roadmap

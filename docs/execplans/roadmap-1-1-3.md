@@ -593,11 +593,13 @@ Add exact fixture pairs for:
 - `multi_id_requires.input.md`
 - `multi_id_requires.expected.md`
 
-The substring fixture must include a four-level token such as `1.2.17.1` or
-`2.1.1.1` and prove that the renderer never partially rewrites a prefix of the
-token. The multi-id fixture must include at least two moved ids in one
-`Requires` clause and prove each is rewritten exactly once while punctuation
-and surrounding prose are preserved.
+The substring fixture must include a boundary token such as `2.1.1a` and prove
+that the renderer never partially rewrites a prefix of the token. After
+`4.1.2`, valid four-level `Requires` anchors must resolve rather than dangle,
+so the behavioural backstop covers the valid sub-task case while the golden
+fixture stays focused on invalid boundary text. The multi-id fixture must
+include at least two moved ids in one `Requires` clause and prove each is
+rewritten exactly once while punctuation and surrounding prose are preserved.
 Add them as standalone `#[rstest]` test functions named exactly
 `substring_non_match` and `multi_id_requires`.
 
@@ -948,11 +950,13 @@ service and produced no file-level findings.
 Work item 3 added `substring_non_match.input.md` /
 `substring_non_match.expected.md` and `multi_id_requires.input.md` /
 `multi_id_requires.expected.md`. The substring red check first rewrote the
-four-level unresolved token prefix in the expected file and failed with a
-stdout diff; the corrected fixture preserves `2.1.1.1` and rewrites only the
-valid `2.1.1` dependency. The multi-id red check first left the second moved
-dependency stale and failed with a stdout diff; the corrected fixture rewrites
-both `Requires` ids exactly once. The focused tests passed with:
+invalid boundary token prefix in the expected file and failed with a stdout
+diff; recovery on top of `4.1.2` kept this golden fixture focused on invalid
+boundary text with `2.1.1a`, while the behavioural backstop covers the valid
+sub-task case by proving `2.1.1.1` rewrites to `1.1.1.1` as a unit. The
+multi-id red check first left the second moved dependency stale and failed with
+a stdout diff; the corrected fixture rewrites both `Requires` ids exactly
+once. The focused tests passed with:
 
 ```bash
 set -o pipefail

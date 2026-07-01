@@ -9,6 +9,7 @@ use rstest_bdd_macros::{given, then, when};
 use crate::support::{
     PHASE_FRAGMENT,
     REPLACEMENT_FRAGMENT,
+    TARGET_DANGLING_DEPENDENCY,
     TARGET_THREE_PHASES,
     TARGET_TWO_PHASES,
     TARGET_TWO_TASKS,
@@ -24,13 +25,18 @@ pub(crate) type CliFixture = TestResult<CliState>;
 pub(crate) struct CliState {
     workspace: Workspace,
     binary: Utf8PathBuf,
+    original_target: String,
     stdout: String,
     stderr: String,
     success: bool,
 }
 
 impl CliState {
-    fn write_target(&self, contents: &str) -> TestResult { self.workspace.write_target(contents) }
+    fn write_target(&mut self, contents: &str) -> TestResult {
+        self.workspace.write_target(contents)?;
+        contents.clone_into(&mut self.original_target);
+        Ok(())
+    }
 
     fn write_fragment(&self, contents: &str) -> TestResult {
         self.workspace.write_fragment(contents)
@@ -64,6 +70,7 @@ pub(crate) fn cli_state() -> CliFixture {
     Ok(CliState {
         workspace,
         binary,
+        original_target: String::new(),
         stdout: String::new(),
         stderr: String::new(),
         success: false,
@@ -105,6 +112,11 @@ fn target_with_scoped_reference_text(cli_state: &mut CliFixture) -> TestResult {
     ))
 }
 
+#[given("the target roadmap with a dangling dependency reference")]
+fn target_with_dangling_dependency(cli_state: &mut CliFixture) -> TestResult {
+    state_mut(cli_state)?.write_target(TARGET_DANGLING_DEPENDENCY)
+}
+
 #[given("the target roadmap with adversarial reference text")]
 fn target_with_adversarial_reference_text(cli_state: &mut CliFixture) -> TestResult {
     state_mut(cli_state)?.write_target(concat!(
@@ -115,6 +127,7 @@ fn target_with_adversarial_reference_text(cli_state: &mut CliFixture) -> TestRes
         "## 2. Phase two\n\n",
         "### 2.1. Step two\n\n",
         "- [ ] 2.1.1. First moved task.\n",
+        "    - [ ] 2.1.1.1. First moved sub-task.\n",
         "- [ ] 2.1.2. Second moved task. See §2.1. Released 1.4.0. Count 27. Requires 2.1.1.1, \
          2.1.1, 2.1.2.\n",
     ))
@@ -194,6 +207,14 @@ fn delete_in_place(cli_state: &mut CliFixture) -> TestResult {
     state.run(["--in-place", "delete", target.as_str(), "1"])
 }
 
+#[when("I try to append the phase fragment in place")]
+fn append_phase_fragment_in_place(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    let target = state.target_path().clone();
+    let fragment = state.fragment_path().clone();
+    state.run(["--in-place", "append", target.as_str(), fragment.as_str()])
+}
+
 #[when("I try to insert the mismatched fragment before phase 2")]
 fn insert_mismatch(cli_state: &mut CliFixture) -> TestResult {
     let state = state_mut(cli_state)?;
@@ -230,7 +251,8 @@ fn stdout_contains_phase_three(cli_state: &mut CliFixture) -> TestResult {
 
 #[then("the target file remains unchanged")]
 fn target_unchanged(cli_state: &mut CliFixture) -> TestResult {
-    assert_eq!(state_mut(cli_state)?.read_target()?, TARGET_TWO_PHASES);
+    let state = state_mut(cli_state)?;
+    assert_eq!(state.read_target()?, state.original_target);
     Ok(())
 }
 
@@ -273,7 +295,7 @@ fn stdout_preserves_adversarial_reference_text(cli_state: &mut CliFixture) -> Te
     assert!(state.stdout.contains("See §2.1."));
     assert!(state.stdout.contains("Released 1.4.0."));
     assert!(state.stdout.contains("Count 27."));
-    assert!(state.stdout.contains("Requires 2.1.1.1, 1.1.1, 1.1.2."));
+    assert!(state.stdout.contains("Requires 1.1.1.1, 1.1.1, 1.1.2."));
     Ok(())
 }
 
@@ -310,4 +332,13 @@ fn stderr_mentions_missing_anchor(cli_state: &mut CliFixture) -> TestResult {
     let stderr = &state_mut(cli_state)?.stderr;
     assert!(stderr.contains("anchor `99` was not found in the target roadmap"));
     Ok(())
+}
+
+#[then("stderr mentions dangling dependency anchor 99.1.1")]
+fn stderr_mentions_dangling_dependency(cli_state: &mut CliFixture) -> TestResult {
+    let stderr = &state_mut(cli_state)?.stderr;
+    if stderr.contains("dependency anchor `99.1.1` was not found in the target roadmap") {
+        return Ok(());
+    }
+    Err(format!("expected dangling dependency diagnostic, got: {stderr}").into())
 }

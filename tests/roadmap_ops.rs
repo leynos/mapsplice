@@ -139,7 +139,7 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn unresolved_dependency_reference_is_preserved(workspace: TestResult<Workspace>) -> TestResult {
+fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
         .write_target(concat!(
@@ -153,16 +153,18 @@ fn unresolved_dependency_reference_is_preserved(workspace: TestResult<Workspace>
         .write_fragment(PHASE_FRAGMENT)
         .expect("fragment should be written");
 
-    let outcome = run_from_args([
+    let error = run_from_args([
         "mapsplice",
         "append",
         test_workspace.target.as_str(),
         test_workspace.fragment.as_str(),
     ])
-    .expect("unresolved valid dependency references should be preserved");
-    let stdout = outcome.stdout.unwrap_or_default();
+    .expect_err("unresolved valid dependency references must fail");
 
-    assert_contains(&stdout, "Requires 99.1.1.");
+    let MapspliceError::DanglingDependency { anchor } = error else {
+        return Err(format!("expected dangling dependency error, got {error:?}").into());
+    };
+    assert_equal(&anchor.to_string(), &"99.1.1".to_owned());
     Ok(())
 }
 

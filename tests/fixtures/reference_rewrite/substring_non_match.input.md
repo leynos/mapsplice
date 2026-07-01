@@ -10,4 +10,4 @@
 
 ### 2.1. Step two
 
-- [ ] 2.1.1. Second task. Requires 2.1.1.1, 2.1.1.
+- [ ] 2.1.1. Second task. Requires 2.1.1a, 2.1.1.

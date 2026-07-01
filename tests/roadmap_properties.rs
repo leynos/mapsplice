@@ -3,7 +3,7 @@
 #[path = "support/properties.rs"]
 mod support;
 
-use mapsplice::{parse_anchor, run_from_args};
+use mapsplice::{MapspliceError, parse_anchor, run_from_args};
 use proptest::prelude::*;
 use support::{PHASE_FRAGMENT, create_workspace};
 
@@ -113,6 +113,29 @@ proptest! {
                 "invalid dependency token changed or mapped reference missing: {stdout}"
             );
         }
+    }
+
+    #[test]
+    fn generated_valid_dangling_dependency_references_are_reported(
+        phase in 3u32..1_000,
+        step in 1u32..1_000,
+        task in 1u32..1_000,
+    ) {
+        let raw_anchor = format!("{phase}.{step}.{task}");
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        workspace
+            .write_target(&roadmap_with_dependency_text(&format!("Requires {raw_anchor}.")))
+            .expect("target should be written");
+
+        let error = run_from_args(["mapsplice", "delete", workspace.target.as_str(), "1"])
+            .expect_err("dangling dependency reference should fail");
+
+        let MapspliceError::DanglingDependency { anchor } = error else {
+            return Err(TestCaseError::fail(format!(
+                "expected dangling dependency error for {raw_anchor}, got {error:?}"
+            )));
+        };
+        prop_assert_eq!(anchor.to_string(), raw_anchor);
     }
 
     #[test]

@@ -5,6 +5,7 @@ use markdown::mdast::Node;
 use super::{
     super::{
         PhaseNumber,
+        RoadmapAnchor,
         RoadmapDocument,
         StepNumber,
         SubTaskNumber,
@@ -14,6 +15,23 @@ use super::{
     dependency_text::rewrite_text_value,
 };
 use crate::error::{MapspliceError, Result};
+
+/// Mutable state shared by one dependency-rewrite traversal.
+struct DependencyRewriteContext<'plan> {
+    plan: &'plan RenumberPlan,
+    rewrite_count: u64,
+    unresolved: Vec<RoadmapAnchor>,
+}
+
+impl<'plan> DependencyRewriteContext<'plan> {
+    const fn new(plan: &'plan RenumberPlan) -> Self {
+        Self {
+            plan,
+            rewrite_count: 0,
+            unresolved: Vec::new(),
+        }
+    }
+}
 
 /// Renumber every roadmap item and return the old-to-new mapping.
 pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<RenumberPlan> {
@@ -69,70 +87,37 @@ pub(super) fn rewrite_dependencies(
     roadmap: &mut RoadmapDocument,
     plan: &RenumberPlan,
 ) -> Result<u64> {
-    let mut rewrite_count = 0;
-    rewrite_markdown_nodes(
-        &mut roadmap.preamble,
-        SourceId::Target,
-        plan,
-        &mut rewrite_count,
-    )?;
+    let mut context = DependencyRewriteContext::new(plan);
+    rewrite_markdown_nodes(&mut roadmap.preamble, SourceId::Target, &mut context)?;
 
     for phase in &mut roadmap.phases {
-        rewrite_markdown_nodes(
-            &mut phase.title,
-            phase.identity.source,
-            plan,
-            &mut rewrite_count,
-        )?;
-        rewrite_markdown_nodes(
-            &mut phase.body,
-            phase.identity.source,
-            plan,
-            &mut rewrite_count,
-        )?;
-        rewrite_markdown_nodes(
-            &mut phase.trailing,
-            phase.identity.source,
-            plan,
-            &mut rewrite_count,
-        )?;
+        rewrite_markdown_nodes(&mut phase.title, phase.identity.source, &mut context)?;
+        rewrite_markdown_nodes(&mut phase.body, phase.identity.source, &mut context)?;
+        rewrite_markdown_nodes(&mut phase.trailing, phase.identity.source, &mut context)?;
         for step in &mut phase.steps {
-            rewrite_markdown_nodes(
-                &mut step.title,
-                step.identity.source,
-                plan,
-                &mut rewrite_count,
-            )?;
-            rewrite_markdown_nodes(
-                &mut step.body,
-                step.identity.source,
-                plan,
-                &mut rewrite_count,
-            )?;
-            rewrite_markdown_nodes(
-                &mut step.trailing,
-                step.identity.source,
-                plan,
-                &mut rewrite_count,
-            )?;
+            rewrite_markdown_nodes(&mut step.title, step.identity.source, &mut context)?;
+            rewrite_markdown_nodes(&mut step.body, step.identity.source, &mut context)?;
+            rewrite_markdown_nodes(&mut step.trailing, step.identity.source, &mut context)?;
             for task in &mut step.tasks {
-                rewrite_task_entry(task, plan, &mut rewrite_count)?;
+                rewrite_task_entry(task, &mut context)?;
             }
         }
     }
-    Ok(rewrite_count)
+    if let Some(anchor) = context.unresolved.into_iter().next() {
+        return Err(MapspliceError::DanglingDependency { anchor });
+    }
+    Ok(context.rewrite_count)
 }
 
 /// Rewrite dependencies inside one task and its ordered sub-tasks.
 fn rewrite_task_entry(
     task: &mut TaskEntry,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
-    rewrite_markdown_nodes(&mut task.summary, task.identity.source, plan, rewrite_count)?;
-    rewrite_markdown_nodes(&mut task.body, task.identity.source, plan, rewrite_count)?;
+    rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
+    rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
     for sub_task in &mut task.sub_tasks {
-        rewrite_sub_task_entry(sub_task, plan, rewrite_count)?;
+        rewrite_sub_task_entry(sub_task, context)?;
     }
     Ok(())
 }
@@ -140,33 +125,21 @@ fn rewrite_task_entry(
 /// Rewrite dependencies inside one sub-task.
 fn rewrite_sub_task_entry(
     sub_task: &mut SubTaskEntry,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
-    rewrite_markdown_nodes(
-        &mut sub_task.summary,
-        sub_task.identity.source,
-        plan,
-        rewrite_count,
-    )?;
-    rewrite_markdown_nodes(
-        &mut sub_task.body,
-        sub_task.identity.source,
-        plan,
-        rewrite_count,
-    )
+    rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
+    rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)
 }
 
 /// Rewrite Markdown nodes and invalidate original snippets only on change.
 fn rewrite_markdown_nodes(
     markdown: &mut MarkdownNodes,
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
-    let before = *rewrite_count;
-    rewrite_nodes(markdown.nodes_mut(), source, plan, rewrite_count)?;
-    if *rewrite_count > before {
+    let before = context.rewrite_count;
+    rewrite_nodes(markdown.nodes_mut(), source, context)?;
+    if context.rewrite_count > before {
         markdown.clear_original_blocks();
     }
     Ok(())
@@ -176,11 +149,10 @@ fn rewrite_markdown_nodes(
 fn rewrite_nodes(
     nodes: &mut [Node],
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
     for node in nodes {
-        rewrite_node(node, source, plan, rewrite_count)?;
+        rewrite_node(node, source, context)?;
     }
     Ok(())
 }
@@ -189,44 +161,39 @@ fn rewrite_nodes(
 fn rewrite_node(
     node: &mut Node,
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
     if let Node::Text(text) = node {
-        let (rewritten, count) = rewrite_text_value(&text.value, source, plan);
-        text.value = rewritten;
-        *rewrite_count += count;
+        let report = rewrite_text_value(&text.value, source, context.plan);
+        context.unresolved.extend(report.unresolved);
+        text.value = report.value;
+        context.rewrite_count += report.rewrite_count;
         return Ok(());
     }
 
-    rewrite_container_node(node, source, plan, rewrite_count)
+    rewrite_container_node(node, source, context)
 }
 
 /// Rewrite block-level container children.
 fn rewrite_container_node(
     node: &mut Node,
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
     match node {
-        Node::Root(root) => rewrite_nodes(&mut root.children, source, plan, rewrite_count),
-        Node::Paragraph(paragraph) => {
-            rewrite_nodes(&mut paragraph.children, source, plan, rewrite_count)
-        }
-        Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, plan, rewrite_count),
-        Node::Blockquote(blockquote) => {
-            rewrite_nodes(&mut blockquote.children, source, plan, rewrite_count)
-        }
-        Node::List(list) => rewrite_nodes(&mut list.children, source, plan, rewrite_count),
-        Node::ListItem(item) => rewrite_nodes(&mut item.children, source, plan, rewrite_count),
-        Node::Table(table) => rewrite_nodes(&mut table.children, source, plan, rewrite_count),
-        Node::TableRow(row) => rewrite_nodes(&mut row.children, source, plan, rewrite_count),
-        Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, plan, rewrite_count),
+        Node::Root(root) => rewrite_nodes(&mut root.children, source, context),
+        Node::Paragraph(paragraph) => rewrite_nodes(&mut paragraph.children, source, context),
+        Node::Heading(heading) => rewrite_nodes(&mut heading.children, source, context),
+        Node::Blockquote(blockquote) => rewrite_nodes(&mut blockquote.children, source, context),
+        Node::List(list) => rewrite_nodes(&mut list.children, source, context),
+        Node::ListItem(item) => rewrite_nodes(&mut item.children, source, context),
+        Node::Table(table) => rewrite_nodes(&mut table.children, source, context),
+        Node::TableRow(row) => rewrite_nodes(&mut row.children, source, context),
+        Node::TableCell(cell) => rewrite_nodes(&mut cell.children, source, context),
         Node::FootnoteDefinition(definition) => {
-            rewrite_nodes(&mut definition.children, source, plan, rewrite_count)
+            rewrite_nodes(&mut definition.children, source, context)
         }
-        _ => rewrite_inline_container_node(node, source, plan, rewrite_count),
+        _ => rewrite_inline_container_node(node, source, context),
     }
 }
 
@@ -234,18 +201,15 @@ fn rewrite_container_node(
 fn rewrite_inline_container_node(
     node: &mut Node,
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
     match node {
-        Node::Emphasis(emphasis) => {
-            rewrite_nodes(&mut emphasis.children, source, plan, rewrite_count)
-        }
-        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, plan, rewrite_count),
-        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, plan, rewrite_count),
-        Node::Link(link) => rewrite_nodes(&mut link.children, source, plan, rewrite_count),
-        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, plan, rewrite_count),
-        _ => rewrite_mdx_container_node(node, source, plan, rewrite_count),
+        Node::Emphasis(emphasis) => rewrite_nodes(&mut emphasis.children, source, context),
+        Node::Strong(strong) => rewrite_nodes(&mut strong.children, source, context),
+        Node::Delete(delete) => rewrite_nodes(&mut delete.children, source, context),
+        Node::Link(link) => rewrite_nodes(&mut link.children, source, context),
+        Node::LinkReference(link) => rewrite_nodes(&mut link.children, source, context),
+        _ => rewrite_mdx_container_node(node, source, context),
     }
 }
 
@@ -253,16 +217,11 @@ fn rewrite_inline_container_node(
 fn rewrite_mdx_container_node(
     node: &mut Node,
     source: SourceId,
-    plan: &RenumberPlan,
-    rewrite_count: &mut u64,
+    context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
     match node {
-        Node::MdxJsxFlowElement(element) => {
-            rewrite_nodes(&mut element.children, source, plan, rewrite_count)
-        }
-        Node::MdxJsxTextElement(element) => {
-            rewrite_nodes(&mut element.children, source, plan, rewrite_count)
-        }
+        Node::MdxJsxFlowElement(element) => rewrite_nodes(&mut element.children, source, context),
+        Node::MdxJsxTextElement(element) => rewrite_nodes(&mut element.children, source, context),
         _ => Ok(()),
     }
 }

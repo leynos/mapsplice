@@ -11,14 +11,22 @@ enum DependencyReferenceClassification {
     NotDependencyReference,
 }
 
-/// Rewrite anchor candidates within a text value and return the rewrite count.
+/// Dependency-reference rewrite details for one text value.
+pub(super) struct DependencyRewriteReport {
+    pub(super) value: String,
+    pub(super) rewrite_count: u64,
+    pub(super) unresolved: Vec<RoadmapAnchor>,
+}
+
+/// Rewrite anchor candidates within a text value and report rewrite details.
 pub(super) fn rewrite_text_value(
     value: &str,
     source: SourceId,
     plan: &RenumberPlan,
-) -> (String, u64) {
+) -> DependencyRewriteReport {
     let mut result = String::with_capacity(value.len());
     let mut rewrite_count = 0;
+    let mut unresolved = Vec::new();
     let mut index = 0;
 
     while index < value.len() {
@@ -48,6 +56,7 @@ pub(super) fn rewrite_text_value(
                     rewrite_count += 1;
                     result.push_str(&mapped.to_string());
                 } else {
+                    unresolved.push(anchor);
                     result.push_str(candidate);
                 }
             }
@@ -55,7 +64,11 @@ pub(super) fn rewrite_text_value(
         index = end;
     }
 
-    (result, rewrite_count)
+    DependencyRewriteReport {
+        value: result,
+        rewrite_count,
+        unresolved,
+    }
 }
 
 /// Classify an anchor-shaped candidate by dependency context and anchor validity.
@@ -330,11 +343,18 @@ mod tests {
         "Requires 1.1.1, 1.1.1.",
         2
     )]
-    #[case::dependency_reference_preserves_unresolved_valid_reference(
-        "Requires 99.1.1.",
-        "Requires 99.1.1.",
+    #[case::dependency_reference_preserves_invalid_version_token(
+        "Requires 1.4.0.",
+        "Requires 1.4.0.",
         0
     )]
+    #[case::dependency_reference_preserves_section_reference("Requires §2.1.", "Requires §2.1.", 0)]
+    #[case::dependency_reference_preserves_prose_number(
+        "Count 27. Requires none.",
+        "Count 27. Requires none.",
+        0
+    )]
+    #[case::dependency_reference_ignores_blocks_clause("Blocks 2.1.1.", "Blocks 2.1.1.", 0)]
     fn dependency_reference_text_rewrite_scopes_mapped_references(
         #[case] value: &str,
         #[case] expected: &str,
@@ -347,9 +367,24 @@ mod tests {
             parse_anchor("1.1.1").expect("new test anchor should parse"),
         );
 
-        let (actual, count) = rewrite_text_value(value, SourceId::Target, &plan);
+        let report = rewrite_text_value(value, SourceId::Target, &plan);
 
-        assert_eq!(actual, expected);
-        assert_eq!(count, expected_count);
+        assert_eq!(report.value, expected);
+        assert_eq!(report.rewrite_count, expected_count);
+        assert_eq!(report.unresolved, []);
+    }
+
+    #[test]
+    fn dependency_reference_reports_unresolved_valid_reference() {
+        let plan = RenumberPlan::default();
+
+        let report = rewrite_text_value("Requires 99.1.1.", SourceId::Target, &plan);
+
+        assert_eq!(report.value, "Requires 99.1.1.");
+        assert_eq!(report.rewrite_count, 0);
+        assert_eq!(
+            report.unresolved,
+            [parse_anchor("99.1.1").expect("test anchor should parse")]
+        );
     }
 }

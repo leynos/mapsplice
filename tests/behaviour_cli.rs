@@ -86,6 +86,15 @@ fn in_place_mode(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>
 
 #[scenario(
     path = "tests/features/mapsplice.feature",
+    name = "Dangling dependency reference fails in place without rewriting target"
+)]
+fn dangling_dependency_in_place(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
     name = "Level mismatch returns a clear failure"
 )]
 fn level_mismatch(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {

@@ -174,6 +174,9 @@ mapsplice --in-place delete docs/roadmap.md 8
 When `--in-place` is used, `mapsplice` rewrites the target and does not emit
 the roadmap body on standard output.
 
+If validation fails in `--in-place` mode, the target file is left unchanged and
+no roadmap body is emitted on standard output.
+
 ## Configuration
 
 `mapsplice` uses `ortho-config` for optional configuration loading. Required
@@ -205,6 +208,8 @@ command line should stay short.
 - a step appears before the first phase
 - a task list appears without a containing step
 - unsupported heading structure appears inside the roadmap body
+- a valid `Requires` dependency reference cannot be resolved to a roadmap item
+  after the edit
 
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.

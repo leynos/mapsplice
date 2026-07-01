@@ -131,10 +131,12 @@ These hold for every successful operation:
   numbers are contiguous from 1, in document order, at every level. No gaps, no
   duplicates, no out-of-order numbering survives an operation.
 - **C3 — Reference-rewrite contract.** A *dependency reference* (section 7) to a
-  renumbered item is rewritten to that item's new number. A number that is
-  **not** a dependency reference — a design-document section reference such as
-  `§3.2`, a semantic version such as `1.4.0`, or an incidental quantity — is
-  **never** rewritten, even when it coincides with a renumbered roadmap number.
+  renumbered item is rewritten to that item's new number. A valid dependency
+  reference that does not resolve after an edit is reported as a dangling
+  dependency diagnostic. A number that is **not** a dependency reference — a
+  design-document section reference such as `§3.2`, a semantic version such as
+  `1.4.0`, or an incidental quantity — is **never** rewritten, even when it
+  coincides with a renumbered roadmap number.
 - **C4 — Addenda contract.** An addendum sub-task is a first-class item: it
   renumbers with its parent (when task `8.2.3` becomes `9.2.3`, sub-task
   `8.2.3.1` becomes `9.2.3.1`), and its Markdown nesting and indentation are
@@ -166,8 +168,10 @@ contract behind C3.
   and C3.
 - **Resolution.** A dependency reference is resolved against the renumber plan:
   the source-local mapping first, then a unique cross-source mapping when the
-  anchor is defined exactly once across the target and the fragment. An anchor
-  that does not resolve is left unchanged.
+  anchor is defined exactly once across the target and the fragment. A valid
+  dependency reference that does not resolve is a dangling dependency and the
+  operation fails with a typed diagnostic before output is emitted or an
+  in-place write occurs.
 
 ## 8. Fixture and test requirements
 
@@ -190,6 +194,7 @@ inspection.
   | Addendum renumber               | `8.2.3.1` tracks its parent task (C4)      |
   | Addendum render fidelity        | nesting and indentation preserved (C4, F1) |
   | `Requires` lists                | every id in a multi-id clause is rewritten |
+  | Dangling `Requires`             | unresolved valid anchors fail closed       |
 
   *Table 1: Required adversarial fixtures for the fidelity and reference
   contracts.*
@@ -205,15 +210,9 @@ inspection.
 
 ## 9. Known divergences from the target contract
 
-The current release does not yet meet sections 5–7 in one respect, tracked in
-`docs/roadmap.md`.
-
-- **D1 — Unscoped reference rewriting (violates C3, F1).** Rewriting matches any
-  anchor-shaped token rather than only dependency references, so a
-  design-document section reference such as `§2.1` that coincides with a
-  renumbered roadmap number is corrupted (for example `§2.1` becomes `§3.1`
-  when phase 2 shifts to 3). The fix is to scope rewriting to dependency
-  contexts per section 7.
+There are no known divergences from the dependency-reference contract in
+sections 5–7. The remaining roadmap work in `docs/roadmap.md` expands the
+fixture corpus and round-trip guarantees that pin the contract mechanically.
 
 ## 10. Risks, trade-offs, and future extensions
 

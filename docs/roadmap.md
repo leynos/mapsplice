@@ -25,7 +25,7 @@ rather than rewriting every number-shaped token.
   - Keep invalid/version-like text separate from valid unresolved dependency
     references: `Requires 1.4.0` is preserved because `0` is not a positive
     anchor component, while `Requires 99.1.1` is a valid dependency-reference
-    candidate that remains unchanged when no renumber-plan mapping exists.
+    candidate that is later reported when no renumber-plan mapping exists.
   - See mapsplice-design.md, "The dependency-reference model".
   - Success: a documented predicate classifies anchor tokens; unit tests cover
     `Requires` clauses, invalid version-like values such as `1.4.0`, valid
@@ -129,7 +129,7 @@ typed errors rather than partial or mangled output.
     level
     mismatch, and a missing anchor, with no partial output and no in-place write
     on failure.
-- [ ] 4.1.2. Report unresolved dependency references.
+- [x] 4.1.2. Report unresolved dependency references.
   - Requires 1.1.2.
   - Surface a `Requires` reference that resolves to no known item after an edit,
     so a dangling dependency is visible rather than silent.
