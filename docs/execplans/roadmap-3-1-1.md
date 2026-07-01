@@ -148,7 +148,7 @@ fixture.
   `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1` on
   `roadmap-3-1-1`.
 - [x] (2026-07-02T00:00:00Z) Loaded `execplans`, `leta`, `firecrawl-mcp`,
-  `rust-router`, and `roadmap-doc` for this planning round.
+  `rust-router`, and `sem` for this planning round.
 - [x] (2026-07-02T00:00:00Z) Read source-of-truth documents:
   `AGENTS.md`, `docs/roadmap.md`, `docs/mapsplice-design.md`,
   `docs/developers-guide.md`, `docs/users-guide.md`,
@@ -171,6 +171,11 @@ fixture.
   existing nested sub-task render test expectation is explicitly updated, and
   Markdown formatter file lists are item-scoped rather than derived from the
   whole worktree diff.
+- [x] (2026-07-02T00:00:00Z) Revised this plan for design-review round 4:
+  grammar, contract, and output-mode fixture work items now bind every case to
+  an explicit command shape before listing `fragment.md` in formatter commands,
+  and the missing-anchor in-place failure fixture now requires compiled-binary
+  stdout coverage.
 - [ ] Work item 1: Establish raw-byte golden comparisons and the renderer
   newline contract.
 - [ ] Work item 2: Add successful operation golden fixtures.
@@ -452,9 +457,9 @@ Validation for this work item:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-raw-bytes.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-raw-bytes.out
 cargo test --workspace --all-targets --all-features roadmap::render \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-render-newline.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-render-newline.out
 item=raw-bytes
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -473,10 +478,10 @@ if ((${#md_files[@]})); then
 else
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-raw-bytes.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-raw-bytes.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-raw-bytes.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-raw-bytes.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-raw-bytes.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-raw-bytes.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-raw-bytes.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-raw-bytes.out
 ```
 
 Commit only after these commands pass.
@@ -528,7 +533,7 @@ Validation for this work item:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-operations.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-operations.out
 item=operations
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -565,10 +570,10 @@ else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-operations.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-operations.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-operations.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-operations.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-operations.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-operations.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-operations.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-operations.out
 ```
 
 Commit only after these commands pass.
@@ -587,25 +592,35 @@ Load these skills for this work item: `leta`, `rust-router`,
 Add successful golden cases that each isolate one grammar-surface preservation
 requirement while still using a real operation:
 
-- `preamble_preserved/` proves optional preamble content before the first phase
-  survives an operation unchanged.
-- `phase_step_task_surface/` proves phases, steps, tasks, and task checklist
-  markers render in the accepted grammar.
-- `multi_line_task_body/` proves continuation paragraphs in a task body survive
-  exactly.
-- `nested_bullets/` proves ordinary nested bullets remain task body Markdown,
-  not addendum sub-tasks.
-- `tables_preserved/` proves a GFM table inside a task body renders
-  deterministically.
-- `code_blocks_preserved/` proves fenced code blocks, language tags, and code
-  indentation survive exactly.
-- `addendum_body_surface/` proves an addendum sub-task with its own body
-  remains nested under its parent task.
+- `preamble_preserved/` uses `insert --after` against an unrelated later task
+  and a sibling task `fragment.md`, proving optional preamble content before
+  the first phase survives the insertion unchanged.
+- `phase_step_task_surface/` uses `insert --after` against a task anchor and a
+  sibling task `fragment.md`, proving phases, steps, tasks, and task checklist
+  markers render in the accepted grammar while the inserted task is renumbered.
+- `multi_line_task_body/` uses `insert --after` against an unrelated later
+  task and a sibling task `fragment.md`, proving continuation paragraphs in an
+  untouched task body survive exactly.
+- `nested_bullets/` uses `insert --after` against an unrelated later task and a
+  sibling task `fragment.md`, proving ordinary nested bullets remain task body
+  Markdown, not addendum sub-tasks.
+- `tables_preserved/` uses `insert --after` against an unrelated later task and
+  a sibling task `fragment.md`, proving a GFM table inside an untouched task
+  body renders deterministically.
+- `code_blocks_preserved/` uses `insert --after` against an unrelated later
+  task and a sibling task `fragment.md`, proving fenced code blocks, language
+  tags, and code indentation survive exactly.
+- `addendum_body_surface/` uses `insert --after` against an unrelated later
+  addendum sub-task and a sibling addendum `fragment.md`, proving an addendum
+  sub-task with its own body remains nested under its parent task.
 
-Prefer the smallest operation that demonstrates preservation, usually deleting
-or inserting an unrelated later task. Do not combine all grammar surfaces into
-one fixture; each named case should fail with a narrow diff if a renderer path
-regresses.
+Every grammar-surface case in this work item is therefore an insert case and
+must contain `target.md`, `fragment.md`, and `expected.md`. Do not combine all
+grammar surfaces into one fixture; each named case should fail with a narrow
+diff if a renderer path regresses. If implementation discovers that one of
+these command shapes is impossible without a product/design change, stop and
+revise this plan instead of silently switching that case to a target-only
+operation.
 
 Tests to add or update:
 
@@ -621,7 +636,7 @@ Validation for this work item:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-grammar.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-grammar.out
 item=grammar
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -656,10 +671,10 @@ else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-grammar.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-grammar.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-grammar.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-grammar.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-grammar.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-grammar.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-grammar.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-grammar.out
 ```
 
 Commit only after these commands pass.
@@ -680,24 +695,44 @@ does not require adding Kani, Verus, Miri, or proptest in task 3.1.1.
 
 Add or register named cases so the golden corpus explicitly covers:
 
-- `f1_content_preservation/`, proving unrelated content is byte-identical
-  except for documented edit consequences.
-- `f2_minimal_diff/`, proving the only changed numbers are addressed items,
+- `f1_content_preservation/` uses `insert --after` against an unrelated later
+  task and a sibling task `fragment.md`, proving unrelated content is
+  byte-identical except for documented edit consequences.
+- `f2_minimal_diff/` uses `insert` before a task anchor with a sibling task
+  `fragment.md`, proving the only changed numbers are addressed items,
   renumbered later items, and dependency references to those items.
 - `f3_c5_identity_replace/`, proving the 3.1.1 F3/C5 acceptance criterion:
   replacing an addressed item with byte-identical content emits a complete
   roadmap byte-identical to the original `target.md`, including the canonical
   final newline. This case must use the raw identity assertion added in work
-  item 1, not a comparison path that trims fixture text.
-- `c2_renumber_contiguous/`, proving phases, steps, tasks, and addenda are
-  contiguous after an edit.
-- `c3_requires_rewrite/`, proving mapped `Requires` dependencies are rewritten
-  and incidental numbers are preserved.
-- `c4_addendum_contract/`, proving addendum sub-tasks renumber with their
-  parent and preserve indentation.
-- `adversarial_addendum_renumber/`, proving `8.2.3.1` tracks its parent task.
-- `adversarial_addendum_render_fidelity/`, proving addendum nesting and
-  indentation are preserved.
+  item 1, not a comparison path that trims fixture text. It uses `replace`
+  against a task anchor and a byte-identical task `fragment.md`, and it does
+  not need an `expected.md` file.
+- `c1_level_mismatch_fails_closed/` uses `insert` before a phase anchor with a
+  task-level `fragment.md`, proving C1 strict level matching rejects the wrong
+  fragment level with a typed `MapspliceError::LevelMismatch` and leaves the
+  target byte-identical to `target.md`. This fixture has no `expected.md`
+  because the assertion is a typed failure and unchanged-target check.
+- `c2_renumber_contiguous/` uses `insert` before a phase anchor with a phase
+  `fragment.md`, proving phases, steps, tasks, and addenda are contiguous
+  after the edit.
+- `c3_requires_rewrite/` uses `insert` before a task anchor with a sibling task
+  `fragment.md`, proving mapped `Requires` dependencies are rewritten and
+  incidental numbers are preserved.
+- `c4_addendum_contract/` uses `insert --after` against an addendum sub-task
+  anchor with a sibling addendum `fragment.md`, proving addendum sub-tasks
+  renumber with their parent and preserve indentation.
+- `adversarial_addendum_renumber/` uses `insert` before a parent task anchor
+  with a sibling task `fragment.md`, proving `8.2.3.1` tracks its parent task.
+- `adversarial_addendum_render_fidelity/` uses `replace` against an addendum
+  sub-task anchor with an equivalent addendum `fragment.md`, proving addendum
+  nesting and indentation are preserved.
+
+Every contract/adversarial case whose formatter list includes `fragment.md`
+is therefore an insert or replace case. The only case in this work item that
+omits `expected.md` is `f3_c5_identity_replace/`, because its assertion target
+is the original `target.md` bytes through the private raw identity expectation.
+Do not list or create a placeholder `expected.md` for that case.
 
 Keep the existing reference-rewrite fixtures covered: section-reference
 preservation, section-reference-outside-`Requires`, version/quantity
@@ -719,7 +754,7 @@ Validation for this work item:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-contracts.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-contracts.out
 item=contracts
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -731,6 +766,8 @@ md_files=(
   tests/fixtures/golden/f2_minimal_diff/expected.md
   tests/fixtures/golden/f3_c5_identity_replace/target.md
   tests/fixtures/golden/f3_c5_identity_replace/fragment.md
+  tests/fixtures/golden/c1_level_mismatch_fails_closed/target.md
+  tests/fixtures/golden/c1_level_mismatch_fails_closed/fragment.md
   tests/fixtures/golden/c2_renumber_contiguous/target.md
   tests/fixtures/golden/c2_renumber_contiguous/fragment.md
   tests/fixtures/golden/c2_renumber_contiguous/expected.md
@@ -756,10 +793,10 @@ else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-contracts.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-contracts.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-contracts.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-contracts.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-contracts.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-contracts.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-contracts.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-contracts.out
 ```
 
 Commit only after these commands pass.
@@ -777,10 +814,12 @@ Load these skills for this work item: `leta`, `rust-router`,
 
 Add or register named cases that prove output and fail-closed behaviour:
 
-- `c6_stdout_mode/` proves stdout mode emits the roadmap body and leaves the
+- `c6_stdout_mode/` uses `insert --after` against a task anchor with a sibling
+  task `fragment.md`, proving stdout mode emits the roadmap body and leaves the
   target file byte-identical to `target.md`.
-- `c6_in_place_success/` proves `--in-place` emits no roadmap body on stdout,
-  writes the target byte-identically to `expected.md`, and returns a
+- `c6_in_place_success/` uses `insert --after` against a task anchor with a
+  sibling task `fragment.md`, proving `--in-place` emits no roadmap body on
+  stdout, writes the target byte-identically to `expected.md`, and returns a
   `written_path`. This comparison must use the raw expected fixture bytes added
   in work item 1, including the final newline.
 - `f5_in_place_failure_no_write/` proves an in-place failure emits no stdout,
@@ -799,13 +838,18 @@ Add or register named cases that prove output and fail-closed behaviour:
 
 The existing library harness cannot observe stdout on failure because
 `run_from_args` returns `Err(MapspliceError)` before producing `RunOutcome`.
-Do not fake that assertion in `tests/golden/mod.rs`. Reuse the existing
-compiled-binary behavioural surface instead: `tests/features/mapsplice.feature`
-already has `Then stdout is empty`, and `tests/steps/cli_steps.rs` already
-implements that step by inspecting the child process stdout. Extend that
-feature surface only if the new failure fixture needs a distinct scenario.
-Keep target-unchanged assertions in the golden harness. Do not introduce a
-public API for fixture metadata.
+Do not fake that assertion in `tests/golden/mod.rs`. Add a compiled-binary BDD
+scenario in `tests/features/mapsplice.feature` for
+`f5_in_place_failure_no_write/`: run `mapsplice --in-place delete <target>
+<missing-anchor>` against a temporary copy of that fixture, then assert the
+command fails with the expected missing-anchor diagnostic, `Then stdout is
+empty`, and the target file is byte-identical to its original contents. Reuse
+the existing step implementation in `tests/steps/cli_steps.rs` if it already
+supports these assertions; otherwise add the smallest private step needed to
+compare the target copy to the saved original bytes. This compiled-binary
+scenario or an equivalent child-process test is mandatory for work item 5, not
+conditional. Keep target-unchanged assertions in the golden harness too. Do
+not introduce a public API for fixture metadata.
 
 Tests to add or update:
 
@@ -815,15 +859,19 @@ Tests to add or update:
 - Property tests: none in task 3.1.1.
 - Snapshot tests: none.
 - End-to-end tests: success cases and failure cases must call `run_from_args`;
-  failure cases assert `MapspliceError` shape, empty stdout when applicable,
-  and unchanged target file.
+  failure cases assert `MapspliceError` shape and unchanged target file. The
+  missing-anchor in-place failure must also have compiled-binary BDD coverage
+  proving empty stdout and unchanged target bytes because `run_from_args`
+  cannot observe child-process stdout on error.
 
 Validation for this work item:
 
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-output-fail.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-output-fail.out
+cargo test --workspace --all-targets --all-features --test behaviour_cli \
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-output-fail-behaviour.out
 item=output-fail
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -846,10 +894,10 @@ else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-output-fail.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-output-fail.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-output-fail.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-output-fail.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-output-fail.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-output-fail.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-output-fail.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-output-fail.out
 ```
 
 Commit only after these commands pass.
@@ -882,7 +930,7 @@ Validation for this work item:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1-final.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1-final.out
 item=final
 md_files=(
   docs/execplans/roadmap-3-1-1.md
@@ -897,10 +945,10 @@ else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1-final.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-final.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-final.out
-sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-final.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1-final.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-final.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-final.out
+sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-final.out
 ```
 
 Commit only after these commands pass.
@@ -914,7 +962,7 @@ set -o pipefail
 cd /home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1
 git branch --show-current | tee /tmp/branch-mapsplice-roadmap-3-1-1-preflight.out
 sem diff --from origin/main --to HEAD --format json \
-  | tee /tmp/sem-mapsplice-roadmap-3-1-1-preflight.out
+  2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-preflight.out
 ```
 
 Expected preflight before implementation starts:
@@ -957,9 +1005,9 @@ The required repository validation commands for the completed task are:
 
 ```bash
 set -o pipefail
-make all | tee /tmp/all-mapsplice-roadmap-3-1-1.out
-make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1.out
-make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1.out
+make all 2>&1 | tee /tmp/all-mapsplice-roadmap-3-1-1.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1.out
 ```
 
 `make all` is required because current `origin/main` includes the `typecheck`
@@ -971,7 +1019,7 @@ The focused acceptance command is:
 ```bash
 set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
-  | tee /tmp/test-mapsplice-roadmap-3-1-1.out
+  2>&1 | tee /tmp/test-mapsplice-roadmap-3-1-1.out
 ```
 
 Acceptance criteria:
@@ -1122,3 +1170,13 @@ string, and `src/roadmap/render.rs::render_roadmap` emits
 `blocks.join("\n\n")` without a final newline. Later F3/C5 and C6 fixtures now
 depend on the raw-byte harness and canonical final-newline contract instead of
 claiming byte identity through normalized strings.
+
+2026-07-02 round-4 design-review revision: resolved the deterministic
+formatter-list blockers by binding every work item 3, 4, and 5 case that lists
+`fragment.md` to an explicit insert or replace command that requires a
+fragment. The plan now says target-only failure cases list only `target.md`,
+and the `f3_c5_identity_replace/` case lists `target.md` and `fragment.md`
+only because it compares against original target bytes. The plan also now
+requires a compiled-binary BDD scenario, or equivalent child-process test, that
+proves `f5_in_place_failure_no_write/` emits empty stdout and leaves the target
+unchanged for the missing-anchor in-place failure.
