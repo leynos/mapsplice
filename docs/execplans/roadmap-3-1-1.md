@@ -66,7 +66,8 @@ fixture.
   path-specific formatter commands. Do not run repository-global Markdown
   formatting such as `make fmt` or `mdformat-all` for this task.
 - Every test, lint, format check, and gate command must be logged with `tee` to
-  a branch-specific `/tmp` file.
+  a branch-specific `/tmp` file, and every shell block that pipes through
+  `tee` must enable `set -o pipefail` before the first pipeline.
 - Commit after each work item that changes files, and gate each commit.
 
 ## Tolerances
@@ -84,6 +85,8 @@ fixture.
 - If a focused test or repository gate still fails after two focused fix
   attempts, record the failing command, log path, and observed error in
   `Decision Log`, then stop for review.
+- If a validation or formatter command is copied without `set -o pipefail`
+  before a `| tee` pipeline, stop and repair the command before continuing.
 - If formatter churn touches files outside the current work item, park or
   discard it with a named stash following
   `df12-stash v1 task=3.1.1 kind=<discard|park|keep> reason="<short>"`.
@@ -162,6 +165,12 @@ fixture.
   in-place target to that stripped string, and
   `src/roadmap/render.rs::render_roadmap` returns `blocks.join("\n\n")`
   without a final newline.
+- [x] (2026-07-01T22:56:09Z) Revised this plan for design-review round 3:
+  validation snippets now enable `set -o pipefail`, work item 1 updates the
+  design and user documentation for renderer newline normalization, the
+  existing nested sub-task render test expectation is explicitly updated, and
+  Markdown formatter file lists are item-scoped rather than derived from the
+  whole worktree diff.
 - [ ] Work item 1: Establish raw-byte golden comparisons and the renderer
   newline contract.
 - [ ] Work item 2: Add successful operation golden fixtures.
@@ -390,6 +399,20 @@ one `\n`, not zero and not two. Then make the minimal production change in
 and do not add an extra newline when the joined body already ends with one.
 This revises the renderer/fixture newline contract to: all successful rendered
 roadmaps are canonical, gate-clean Markdown ending in one final newline.
+Update the existing `src/roadmap/render_tests.rs::exact_nested_sub_task_round_trip`
+fixture at the same time so its `source` string includes the canonical final
+newline. Without that expectation update, the renderer change deliberately
+breaks the current test that asserts output without a final newline.
+
+Update the source-of-truth documentation in the same commit. In
+`docs/mapsplice-design.md` section 5, expand F3 to name the one documented
+normalization: every non-empty rendered roadmap ends in exactly one final
+newline, and applying the renderer again does not add another newline. In
+`docs/users-guide.md` section "Output modes", document the user-visible
+behaviour that successful standard-output and in-place rewrites produce
+canonical Markdown with exactly one final newline for non-empty roadmaps. This
+documentation update is part of the renderer contract change, not a later
+cleanup.
 
 After the renderer contract is pinned, update `tests/golden/mod.rs` so expected
 successful output is read and compared as raw fixture bytes. Remove the final
@@ -413,6 +436,9 @@ Tests to add or update:
 
 - Unit tests: add a focused renderer test in `src/roadmap/render_tests.rs` for
   the canonical final newline; it must fail before the renderer change.
+- Unit tests: update
+  `src/roadmap/render_tests.rs::exact_nested_sub_task_round_trip` so its
+  expected source includes the canonical final newline.
 - Behavioural tests: update existing golden tests so the five
   `tests/fixtures/reference_rewrite/*.expected.md` files compare without
   newline stripping.
@@ -424,26 +450,25 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-raw-bytes.out
 cargo test --workspace --all-targets --all-features roadmap::render \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-render-newline.out
 item=raw-bytes
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  docs/mapsplice-design.md
+  docs/users-guide.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
 fi
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+if ((${#md_files[@]})); then
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -501,20 +526,40 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-operations.out
 item=operations
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  tests/fixtures/golden/append_phase/target.md
+  tests/fixtures/golden/append_phase/fragment.md
+  tests/fixtures/golden/append_phase/expected.md
+  tests/fixtures/golden/insert_phase_before/target.md
+  tests/fixtures/golden/insert_phase_before/fragment.md
+  tests/fixtures/golden/insert_phase_before/expected.md
+  tests/fixtures/golden/insert_step_after/target.md
+  tests/fixtures/golden/insert_step_after/fragment.md
+  tests/fixtures/golden/insert_step_after/expected.md
+  tests/fixtures/golden/insert_task_before/target.md
+  tests/fixtures/golden/insert_task_before/fragment.md
+  tests/fixtures/golden/insert_task_before/expected.md
+  tests/fixtures/golden/insert_sub_task_after/target.md
+  tests/fixtures/golden/insert_sub_task_after/fragment.md
+  tests/fixtures/golden/insert_sub_task_after/expected.md
+  tests/fixtures/golden/delete_task/target.md
+  tests/fixtures/golden/delete_task/expected.md
+  tests/fixtures/golden/replace_step/target.md
+  tests/fixtures/golden/replace_step/fragment.md
+  tests/fixtures/golden/replace_step/expected.md
+  tests/fixtures/golden/replace_sub_task/target.md
+  tests/fixtures/golden/replace_sub_task/fragment.md
+  tests/fixtures/golden/replace_sub_task/expected.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -574,20 +619,38 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-grammar.out
 item=grammar
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  tests/fixtures/golden/preamble_preserved/target.md
+  tests/fixtures/golden/preamble_preserved/fragment.md
+  tests/fixtures/golden/preamble_preserved/expected.md
+  tests/fixtures/golden/phase_step_task_surface/target.md
+  tests/fixtures/golden/phase_step_task_surface/fragment.md
+  tests/fixtures/golden/phase_step_task_surface/expected.md
+  tests/fixtures/golden/multi_line_task_body/target.md
+  tests/fixtures/golden/multi_line_task_body/fragment.md
+  tests/fixtures/golden/multi_line_task_body/expected.md
+  tests/fixtures/golden/nested_bullets/target.md
+  tests/fixtures/golden/nested_bullets/fragment.md
+  tests/fixtures/golden/nested_bullets/expected.md
+  tests/fixtures/golden/tables_preserved/target.md
+  tests/fixtures/golden/tables_preserved/fragment.md
+  tests/fixtures/golden/tables_preserved/expected.md
+  tests/fixtures/golden/code_blocks_preserved/target.md
+  tests/fixtures/golden/code_blocks_preserved/fragment.md
+  tests/fixtures/golden/code_blocks_preserved/expected.md
+  tests/fixtures/golden/addendum_body_surface/target.md
+  tests/fixtures/golden/addendum_body_surface/fragment.md
+  tests/fixtures/golden/addendum_body_surface/expected.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -654,20 +717,40 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-contracts.out
 item=contracts
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  tests/fixtures/golden/f1_content_preservation/target.md
+  tests/fixtures/golden/f1_content_preservation/fragment.md
+  tests/fixtures/golden/f1_content_preservation/expected.md
+  tests/fixtures/golden/f2_minimal_diff/target.md
+  tests/fixtures/golden/f2_minimal_diff/fragment.md
+  tests/fixtures/golden/f2_minimal_diff/expected.md
+  tests/fixtures/golden/f3_c5_identity_replace/target.md
+  tests/fixtures/golden/f3_c5_identity_replace/fragment.md
+  tests/fixtures/golden/c2_renumber_contiguous/target.md
+  tests/fixtures/golden/c2_renumber_contiguous/fragment.md
+  tests/fixtures/golden/c2_renumber_contiguous/expected.md
+  tests/fixtures/golden/c3_requires_rewrite/target.md
+  tests/fixtures/golden/c3_requires_rewrite/fragment.md
+  tests/fixtures/golden/c3_requires_rewrite/expected.md
+  tests/fixtures/golden/c4_addendum_contract/target.md
+  tests/fixtures/golden/c4_addendum_contract/fragment.md
+  tests/fixtures/golden/c4_addendum_contract/expected.md
+  tests/fixtures/golden/adversarial_addendum_renumber/target.md
+  tests/fixtures/golden/adversarial_addendum_renumber/fragment.md
+  tests/fixtures/golden/adversarial_addendum_renumber/expected.md
+  tests/fixtures/golden/adversarial_addendum_render_fidelity/target.md
+  tests/fixtures/golden/adversarial_addendum_render_fidelity/fragment.md
+  tests/fixtures/golden/adversarial_addendum_render_fidelity/expected.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -702,13 +785,17 @@ Add or register named cases that prove output and fail-closed behaviour:
   in work item 1, including the final newline.
 - `f5_in_place_failure_no_write/` proves an in-place failure emits no stdout,
   returns the expected typed `MapspliceError`, and leaves the target
-  byte-identical to `target.md`.
+  byte-identical to `target.md`. Use a target-only delete case with a missing
+  anchor so this fixture has no `fragment.md` or `expected.md`.
 - `dangling_requires_fails_closed/` proves a valid unresolved dependency
   reference reports `MapspliceError::DanglingDependency`, emits no stdout, and
-  leaves the target unchanged.
+  leaves the target unchanged. Use a target-only delete or in-place delete case
+  that removes the referenced item, so this fixture has no `fragment.md` or
+  `expected.md`.
 - `adversarial_dangling_requires/` proves the required adversarial class from
   design section 8 explicitly, rather than relying on unrelated behavioural
-  tests.
+  tests. Use a target-only operation, so this fixture has no `fragment.md` or
+  `expected.md`.
 
 The existing library harness cannot observe stdout on failure because
 `run_from_args` returns `Err(MapspliceError)` before producing `RunOutcome`.
@@ -734,20 +821,26 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-output-fail.out
 item=output-fail
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  tests/fixtures/golden/c6_stdout_mode/target.md
+  tests/fixtures/golden/c6_stdout_mode/fragment.md
+  tests/fixtures/golden/c6_stdout_mode/expected.md
+  tests/fixtures/golden/c6_in_place_success/target.md
+  tests/fixtures/golden/c6_in_place_success/fragment.md
+  tests/fixtures/golden/c6_in_place_success/expected.md
+  tests/fixtures/golden/f5_in_place_failure_no_write/target.md
+  tests/fixtures/golden/dangling_requires_fails_closed/target.md
+  tests/fixtures/golden/adversarial_dangling_requires/target.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -787,20 +880,18 @@ Tests to add or update:
 Validation for this work item:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1-final.out
 item=final
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
+md_files=(
+  docs/execplans/roadmap-3-1-1.md
+  docs/roadmap.md
 )
-if test -n "$changed_md"; then
-  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+if ((${#md_files[@]})); then
+  mdtablefix "${md_files[@]}" 2>&1 \
     | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
-  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+  markdownlint-cli2 --fix "${md_files[@]}" 2>&1 \
     | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
 else
   : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
@@ -819,6 +910,7 @@ Commit only after these commands pass.
 Begin every implementation session from the assigned worktree:
 
 ```bash
+set -o pipefail
 cd /home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1
 git branch --show-current | tee /tmp/branch-mapsplice-roadmap-3-1-1-preflight.out
 sem diff --from origin/main --to HEAD --format json \
@@ -846,8 +938,9 @@ For each work item:
    failure in `Surprises & Discoveries` before changing production code.
 4. Make the smallest source or fixture changes needed for the focused command
    to pass.
-5. Format changed Markdown files only using the path-safe changed-file recipe
-   from the relevant work item.
+5. Format only the explicit `md_files=(...)` list from the relevant work item.
+   Do not replace that item-scoped list with whole-worktree `git diff` or
+   `git ls-files --others` discovery.
 6. Run `make all`, `make markdownlint`, and `make nixie` with `tee`.
 7. Use `sem diff --format json` with `tee` to review entity-level changes
    before commit.
@@ -863,6 +956,7 @@ returns canonical Markdown with one final newline.
 The required repository validation commands for the completed task are:
 
 ```bash
+set -o pipefail
 make all | tee /tmp/all-mapsplice-roadmap-3-1-1.out
 make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1.out
 make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1.out
@@ -875,6 +969,7 @@ because the task changes Markdown fixtures, roadmap status, and this ExecPlan.
 The focused acceptance command is:
 
 ```bash
+set -o pipefail
 cargo test --workspace --all-targets --all-features --test roadmap_golden \
   | tee /tmp/test-mapsplice-roadmap-3-1-1.out
 ```
@@ -911,25 +1006,15 @@ directory is partially created, either finish all required files in that
 directory before running tests or delete the incomplete directory before
 committing. Do not leave empty fixture directories.
 
-Formatter commands operate only on currently changed Markdown files that still
-exist in the worktree. They combine unstaged tracked paths, staged paths, and
-untracked paths:
+Formatter commands operate only on the item-scoped `md_files=(...)` arrays
+listed in each work item. Every path in those arrays is required to exist by
+the time that work item's validation block runs. If the implementation changes
+a different Markdown file, update the current work item's explicit list before
+formatting. Do not use whole-worktree changed-file discovery for formatting in
+this task; it is not deterministic enough for a multi-agent worktree.
 
-```bash
-changed_md=$(
-  {
-    git diff --name-only --diff-filter=ACMRT -- '*.md'
-    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
-    git ls-files --others --exclude-standard -- '*.md'
-  } | sort -u
-)
-```
-
-The `ACMRT` filters exclude deleted tracked paths, and
-`git ls-files --others --exclude-standard -- '*.md'` adds new fixture Markdown
-before it is staged. If formatter output touches unrelated Markdown files,
-inspect the diff and use a named stash with `kind=discard` for unrelated churn
-before continuing.
+If formatter output touches unrelated Markdown files, inspect the diff and use
+a named stash with `kind=discard` for unrelated churn before continuing.
 
 If a golden fixture reveals a renderer, parser, operation, or error-shape
 defect, keep the failing fixture, add the smallest production fix, and rerun
