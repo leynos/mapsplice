@@ -105,6 +105,21 @@ fn target_with_scoped_reference_text(cli_state: &mut CliFixture) -> TestResult {
     ))
 }
 
+#[given("the target roadmap with adversarial reference text")]
+fn target_with_adversarial_reference_text(cli_state: &mut CliFixture) -> TestResult {
+    state_mut(cli_state)?.write_target(concat!(
+        "# Example\n\n",
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. First task.\n\n",
+        "## 2. Phase two\n\n",
+        "### 2.1. Step two\n\n",
+        "- [ ] 2.1.1. First moved task.\n",
+        "- [ ] 2.1.2. Second moved task. See §2.1. Released 1.4.0. Count 27. Requires 2.1.1.1, \
+         2.1.1, 2.1.2.\n",
+    ))
+}
+
 #[given("the phase fragment roadmap")]
 fn phase_fragment(cli_state: &mut CliFixture) -> TestResult {
     state_mut(cli_state)?.write_fragment(PHASE_FRAGMENT)
@@ -249,6 +264,16 @@ fn stdout_preserves_scoped_reference_text(cli_state: &mut CliFixture) -> TestRes
     assert!(state.stdout.contains("Released 1.4.0."));
     assert!(state.stdout.contains("Count 27."));
     assert!(state.stdout.contains("Requires 1.1.1, 1.1.1."));
+    Ok(())
+}
+
+#[then("stdout preserves adversarial references and rewrites Requires dependencies")]
+fn stdout_preserves_adversarial_reference_text(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    assert!(state.stdout.contains("See §2.1."));
+    assert!(state.stdout.contains("Released 1.4.0."));
+    assert!(state.stdout.contains("Count 27."));
+    assert!(state.stdout.contains("Requires 2.1.1.1, 1.1.1, 1.1.2."));
     Ok(())
 }
 

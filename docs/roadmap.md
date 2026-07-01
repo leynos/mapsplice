@@ -39,7 +39,7 @@ rather than rewriting every number-shaped token.
   - Success: an edit that shifts later numbers rewrites every `Requires`
     reference to the moved items, and leaves a section reference, a version such
     as 1.4.0, and prose numbers unchanged.
-- [ ] 1.1.3. Pin the corruption cases with regression fixtures.
+- [x] 1.1.3. Pin the corruption cases with regression fixtures.
   - Requires 1.1.2.
   - Add golden fixtures for the adversarial reference cases drawn from the
     design.

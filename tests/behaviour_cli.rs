@@ -57,6 +57,17 @@ fn delete_preserves_scoped_reference_incidental_numbers(
 
 #[scenario(
     path = "tests/features/mapsplice.feature",
+    name = "Delete preserves adversarial reference text while rewriting Requires dependencies"
+)]
+fn delete_preserves_adversarial_reference_text(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
     name = "Replace swaps a phase with multiple phases from a fragment file"
 )]
 fn replace_phase(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {

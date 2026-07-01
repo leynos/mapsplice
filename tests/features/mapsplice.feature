@@ -34,6 +34,12 @@ Feature: Mapsplice roadmap editing
     Then the command succeeds
     And stdout preserves scoped_reference incidental numbers and rewrites Requires dependencies
 
+  Scenario: Delete preserves adversarial reference text while rewriting Requires dependencies
+    Given the target roadmap with adversarial reference text
+    When I delete phase 1
+    Then the command succeeds
+    And stdout preserves adversarial references and rewrites Requires dependencies
+
   Scenario: Replace swaps a phase with multiple phases from a fragment file
     Given the target roadmap with two phases
     And the replacement fragment roadmap
