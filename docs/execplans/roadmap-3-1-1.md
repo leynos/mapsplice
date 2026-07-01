@@ -21,8 +21,12 @@ This plan does not implement roadmap task 3.1.2's generated no-op property or
 roadmap task 3.1.3's rendered-output Markdown stability sweep. It does require
 task 3.1.1 to include one exact identity fixture for F3/C5: replacing an item
 with byte-identical content must leave the complete roadmap byte-identical.
-Task 3.1.2 can later broaden that pinned example into a property over every
-conformant fixture.
+That proof is not possible with the current harness because it strips one
+trailing newline from expected fixtures before comparison. This plan therefore
+first establishes the raw-byte golden comparison contract and the renderer's
+canonical final-newline contract, then adds the fixture corpus. Task 3.1.2 can
+later broaden the pinned identity example into a property over every conformant
+fixture.
 
 ## Constraints
 
@@ -127,6 +131,14 @@ conformant fixture.
   adversarial class, and assert typed errors, empty stdout, and unchanged target
   files instead of inventing successful output.
 
+- Risk: A green golden test can still fail to prove byte identity if the
+  harness normalizes expected Markdown before comparison.
+  Severity: high.
+  Likelihood: verified.
+  Mitigation: make raw-byte comparison and the renderer final-newline contract
+  the first work item. No F3/C5 or C6 fixture may be added until the harness
+  compares expected bytes without stripping the fixture newline.
+
 ## Progress
 
 - [x] (2026-07-02T00:00:00Z) Confirmed the assigned worktree and branch:
@@ -144,11 +156,19 @@ conformant fixture.
   branch delta before this planning edit.
 - [x] (2026-07-02T00:00:00Z) Verified the locked local source for `markdown`
   1.0.0, `rstest` 0.26.1, `proptest` 1.11.0, and `insta` 1.48.0.
-- [ ] Work item 1: Add successful operation golden fixtures.
-- [ ] Work item 2: Add grammar-surface preservation fixtures.
-- [ ] Work item 3: Add fidelity and contract fixtures.
-- [ ] Work item 4: Add output-mode and fail-closed fixtures.
-- [ ] Work item 5: Mark roadmap 3.1.1 complete after gates.
+- [x] (2026-07-02T00:00:00Z) Confirmed the design-review blocker against
+  branch-local source: `tests/golden/mod.rs::expected_output` strips one final
+  newline before comparison, `tests/golden/mod.rs::assert_target` compares the
+  in-place target to that stripped string, and
+  `src/roadmap/render.rs::render_roadmap` returns `blocks.join("\n\n")`
+  without a final newline.
+- [ ] Work item 1: Establish raw-byte golden comparisons and the renderer
+  newline contract.
+- [ ] Work item 2: Add successful operation golden fixtures.
+- [ ] Work item 3: Add grammar-surface preservation fixtures.
+- [ ] Work item 4: Add fidelity and contract fixtures.
+- [ ] Work item 5: Add output-mode and fail-closed fixtures.
+- [ ] Work item 6: Mark roadmap 3.1.1 complete after gates.
 
 ## Surprises & discoveries
 
@@ -167,6 +187,13 @@ conformant fixture.
   `user cancelled MCP tool call`. No load-bearing claim in this plan depends on
   inaccessible official documentation; crate behaviour is pinned to the locked
   local source listed in `Research evidence`.
+- The round-2 design-review blocker is a real current-code gap:
+  `tests/golden/mod.rs::expected_output` reads a fixture and removes one final
+  newline before comparison, `tests/golden/mod.rs::assert_target` compares
+  in-place output to that normalized string, and
+  `src/roadmap/render.rs::render_roadmap` returns `blocks.join("\n\n")`.
+  Therefore an F3/C5 or C6 fixture can pass while failing to prove raw fixture
+  bytes, especially because Markdown formatters normally keep a final newline.
 - `cargo tree -i` shows locked versions that differ from manifest minimums
   under caret requirements: `markdown v1.0.0`, `rstest v0.26.1`,
   `proptest v1.11.0`, and `insta v1.48.0`.
@@ -203,6 +230,23 @@ conformant fixture.
   Rationale: The design requires committed input-and-expected Markdown pairs.
   `insta` remains appropriate for existing stable CLI help snapshots, but these
   fixtures should be plain Markdown artefacts.
+  Date/Author: 2026-07-02 / Codex.
+
+- Decision: Establish a canonical final-newline renderer contract before
+  adding the F3/C5 and C6 fixtures.
+  Rationale: Current Markdown fixtures are formatter-gated and therefore keep a
+  final newline, but `render_roadmap` currently returns `blocks.join("\n\n")`
+  without one and the golden harness strips one final newline from expected
+  output. Raw identity is unprovable until the renderer emits a single final
+  newline for non-empty roadmaps and the harness compares raw expected bytes.
+  Date/Author: 2026-07-02 / Codex.
+
+- Decision: Add a dedicated raw identity expectation for F3/C5 rather than
+  relying on a duplicated `expected.md` file.
+  Rationale: Comparing the command output directly to the original target bytes
+  proves the identity contract and avoids a false positive where both
+  `target.md` and `expected.md` share the same formatter-normalized text after
+  the harness strips bytes.
   Date/Author: 2026-07-02 / Codex.
 
 - Decision: Cover F3/C5 in 3.1.1 with an exact identity replacement fixture,
@@ -309,9 +353,110 @@ the runtime assertion path starts at `.../insta-1.48.0/src/runtime.rs` line
 846. This task deliberately avoids new `insta` snapshots because committed
 input-and-expected Markdown pairs are the required golden artefacts.
 
+The current branch-local golden harness cannot prove raw byte identity until
+work item 1 changes it. `tests/golden/mod.rs::assert_success` reads the
+expected body through `expected_output`, `expected_output` removes one final
+newline at lines 338-343, and `assert_target` compares the in-place target
+contents to that normalized string at lines 236-246. The output side also
+lacks a canonical final newline: `src/roadmap/render.rs::render_roadmap`
+returns `blocks.join("\n\n")` at lines 23-49, and `src/main.rs::write_stdout`
+writes the returned bytes exactly with `io::stdout().write_all(stdout.as_bytes())`.
+The round-2 design-review finding is therefore resolved by making work item 1
+both a renderer-contract change and a raw-byte harness change before any
+contract fixtures are added.
+
 ## Plan of work
 
-### Work item 1: Add successful operation golden fixtures
+### Work item 1: Establish raw-byte golden comparisons and the renderer newline contract
+
+Read these documents before editing: `docs/mapsplice-design.md` sections 5,
+6, and 8; `docs/developers-guide.md` sections 2, 3, and 6;
+`docs/users-guide.md` sections "Output modes" and "Validation rules and
+failure cases"; `docs/documentation-style-guide.md` sections "Markdown rules"
+and "Formatting"; and `AGENTS.md` sections "Rust Specific Guidance",
+"Testing", "Error Handling", and "Markdown Guidance".
+
+Load these skills for this work item: `leta`, `rust-router`,
+`rust-unit-testing`, `rust-errors`, `domain-cli-and-daemons`, `sem`, and
+`en-gb-oxendict-style`.
+
+Make this work item the first commit because every later F3/C5 and C6 fixture
+depends on it. The implementer must add a focused red renderer test before
+changing the renderer. Add the test in `src/roadmap/render_tests.rs` and make
+it prove that `render_roadmap` returns a non-empty roadmap ending in exactly
+one `\n`, not zero and not two. Then make the minimal production change in
+`src/roadmap/render.rs::render_roadmap`: build the existing
+`blocks.join("\n\n")` body, append a single final newline for non-empty output,
+and do not add an extra newline when the joined body already ends with one.
+This revises the renderer/fixture newline contract to: all successful rendered
+roadmaps are canonical, gate-clean Markdown ending in one final newline.
+
+After the renderer contract is pinned, update `tests/golden/mod.rs` so expected
+successful output is read and compared as raw fixture bytes. Remove the final
+newline stripping from `expected_output` and keep the helper returning the
+fixture contents unchanged. Comparison through `String` is acceptable because
+all fixtures are UTF-8 Markdown, but the compared contents must be unmodified.
+Add one private assertion path for raw identity cases: the F3/C5 identity case
+must be able to compare stdout directly to `original_target` without going
+through `expected.md`, and C6 in-place success must compare the target file
+directly to the unmodified `expected.md` bytes.
+
+Do not change the public library API. The raw identity expectation is private
+test metadata under `tests/golden/mod.rs`. Add a private expected-body enum
+with `Fixture(FixturePath)` and `OriginalTarget` variants, then use
+`OriginalTarget` only for `f3_c5_identity_replace/`. The important invariant
+is observable: `f3_c5_identity_replace/` compares run output to the original
+`target.md` bytes, while ordinary golden cases and C6 in-place success compare
+run output or target contents to raw `expected.md` bytes.
+
+Tests to add or update:
+
+- Unit tests: add a focused renderer test in `src/roadmap/render_tests.rs` for
+  the canonical final newline; it must fail before the renderer change.
+- Behavioural tests: update existing golden tests so the five
+  `tests/fixtures/reference_rewrite/*.expected.md` files compare without
+  newline stripping.
+- Property tests: none in task 3.1.1.
+- Snapshot tests: none.
+- End-to-end tests: rerun `tests/roadmap_golden.rs` through `run_from_args` so
+  stdout and in-place comparisons use raw expected bytes.
+
+Validation for this work item:
+
+```bash
+cargo test --workspace --all-targets --all-features --test roadmap_golden \
+  | tee /tmp/test-mapsplice-roadmap-3-1-1-raw-bytes.out
+cargo test --workspace --all-targets --all-features roadmap::render \
+  | tee /tmp/test-mapsplice-roadmap-3-1-1-render-newline.out
+item=raw-bytes
+changed_md=$(
+  {
+    git diff --name-only --diff-filter=ACMRT -- '*.md'
+    git diff --cached --name-only --diff-filter=ACMRT -- '*.md'
+    git ls-files --others --exclude-standard -- '*.md'
+  } | sort -u
+)
+if test -n "$changed_md"; then
+  printf '%s\n' "$changed_md" | xargs mdtablefix 2>&1 \
+    | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
+else
+  : | tee "/tmp/mdtablefix-mapsplice-roadmap-3-1-1-${item}.out"
+fi
+if test -n "$changed_md"; then
+  printf '%s\n' "$changed_md" | xargs markdownlint-cli2 --fix 2>&1 \
+    | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
+else
+  : | tee "/tmp/markdownlint-fix-mapsplice-roadmap-3-1-1-${item}.out"
+fi
+make all | tee /tmp/all-mapsplice-roadmap-3-1-1-raw-bytes.out
+make markdownlint | tee /tmp/markdownlint-mapsplice-roadmap-3-1-1-raw-bytes.out
+make nixie | tee /tmp/nixie-mapsplice-roadmap-3-1-1-raw-bytes.out
+sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-raw-bytes.out
+```
+
+Commit only after these commands pass.
+
+### Work item 2: Add successful operation golden fixtures
 
 Read these documents before editing: `docs/roadmap.md` section 3.1.1;
 `docs/mapsplice-design.md` sections 4, 6, and 8; `docs/users-guide.md`
@@ -383,7 +528,7 @@ sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-operations.out
 
 Commit only after these commands pass.
 
-### Work item 2: Add grammar-surface preservation fixtures
+### Work item 3: Add grammar-surface preservation fixtures
 
 Read these documents before editing: `docs/roadmap.md` section 3.1.1;
 `docs/mapsplice-design.md` sections 4, 5, and 8; `docs/users-guide.md`
@@ -456,7 +601,7 @@ sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-grammar.out
 
 Commit only after these commands pass.
 
-### Work item 3: Add fidelity and contract fixtures
+### Work item 4: Add fidelity and contract fixtures
 
 Read these documents before editing: `docs/mapsplice-design.md` section 5 for
 F1 through F5, section 6 for C1 through C5, section 7 for the
@@ -478,7 +623,9 @@ Add or register named cases so the golden corpus explicitly covers:
   renumbered later items, and dependency references to those items.
 - `f3_c5_identity_replace/`, proving the 3.1.1 F3/C5 acceptance criterion:
   replacing an addressed item with byte-identical content emits a complete
-  roadmap byte-identical to `target.md`.
+  roadmap byte-identical to the original `target.md`, including the canonical
+  final newline. This case must use the raw identity assertion added in work
+  item 1, not a comparison path that trims fixture text.
 - `c2_renumber_contiguous/`, proving phases, steps, tasks, and addenda are
   contiguous after an edit.
 - `c3_requires_rewrite/`, proving mapped `Requires` dependencies are rewritten
@@ -534,7 +681,7 @@ sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-contracts.out
 
 Commit only after these commands pass.
 
-### Work item 4: Add output-mode and fail-closed fixtures
+### Work item 5: Add output-mode and fail-closed fixtures
 
 Read these documents before editing: `docs/mapsplice-design.md` sections 5,
 6, 7, and 8; `docs/users-guide.md` sections "Output modes" and "Validation
@@ -551,7 +698,8 @@ Add or register named cases that prove output and fail-closed behaviour:
   target file byte-identical to `target.md`.
 - `c6_in_place_success/` proves `--in-place` emits no roadmap body on stdout,
   writes the target byte-identically to `expected.md`, and returns a
-  `written_path`.
+  `written_path`. This comparison must use the raw expected fixture bytes added
+  in work item 1, including the final newline.
 - `f5_in_place_failure_no_write/` proves an in-place failure emits no stdout,
   returns the expected typed `MapspliceError`, and leaves the target
   byte-identical to `target.md`.
@@ -562,9 +710,15 @@ Add or register named cases that prove output and fail-closed behaviour:
   design section 8 explicitly, rather than relying on unrelated behavioural
   tests.
 
-If the existing harness lacks a helper for asserting failure stdout is empty,
-add the smallest private helper in `tests/golden/mod.rs` and cover it through
-the new failure cases. Do not introduce a public API for fixture metadata.
+The existing library harness cannot observe stdout on failure because
+`run_from_args` returns `Err(MapspliceError)` before producing `RunOutcome`.
+Do not fake that assertion in `tests/golden/mod.rs`. Reuse the existing
+compiled-binary behavioural surface instead: `tests/features/mapsplice.feature`
+already has `Then stdout is empty`, and `tests/steps/cli_steps.rs` already
+implements that step by inspecting the child process stdout. Extend that
+feature surface only if the new failure fixture needs a distinct scenario.
+Keep target-unchanged assertions in the golden harness. Do not introduce a
+public API for fixture metadata.
 
 Tests to add or update:
 
@@ -607,7 +761,7 @@ sem diff --format json | tee /tmp/sem-mapsplice-roadmap-3-1-1-output-fail.out
 
 Commit only after these commands pass.
 
-### Work item 5: Mark roadmap 3.1.1 complete after gates
+### Work item 6: Mark roadmap 3.1.1 complete after gates
 
 Read these documents before editing: `docs/roadmap.md` section 3.1.1,
 `docs/documentation-style-guide.md` section "Roadmap task writing guidelines",
@@ -616,7 +770,7 @@ and `AGENTS.md` section "Markdown Guidance".
 Load these skills for this work item: `leta`, `sem`, `execplans`, and
 `en-gb-oxendict-style`.
 
-After work items 1 through 4 are committed and gated, update only
+After work items 1 through 5 are committed and gated, update only
 `docs/roadmap.md` to mark task 3.1.1 complete. Then update this ExecPlan's
 `Progress`, `Decision Log`, and `Outcomes & Retrospective` sections with final
 fixture counts, gate log paths, and follow-up notes for tasks 3.1.2 and 3.1.3.
@@ -699,6 +853,11 @@ For each work item:
    before commit.
 8. Commit the work item with an imperative subject and explanatory body.
 
+Work item 1 is a prerequisite for all later fixture work. Do not add
+`f3_c5_identity_replace/`, `c6_in_place_success/`, or any fixture claiming raw
+identity until the harness compares unmodified expected bytes and the renderer
+returns canonical Markdown with one final newline.
+
 ## Validation and acceptance
 
 The required repository validation commands for the completed task are:
@@ -731,10 +890,12 @@ Acceptance criteria:
 - The corpus covers design guarantees F1 through F5 and C1 through C6 where
   those guarantees have observable output or failure behaviour.
 - F3/C5 are not merely "ready" for 3.1.2: `f3_c5_identity_replace/` must be an
-  exact 3.1.1 golden comparison whose expected output is byte-identical to the
-  target.
+  exact 3.1.1 golden comparison whose command output is byte-identical to the
+  original target, including the canonical final newline.
 - C6 and F5 include stdout target-unchanged, in-place success, and in-place
   failure/no-write assertions.
+- C6 in-place success compares the written target to raw `expected.md` bytes,
+  not a string with one final newline stripped.
 - Existing reference-rewrite adversarial fixtures remain covered, and the
   missing addendum renumber, addendum render-fidelity, and dangling-`Requires`
   adversarial classes are added explicitly.
@@ -842,7 +1003,20 @@ tests/fixtures/golden/<case-name>/expected.md
 
 `fragment.md` exists only for append, insert, and replace cases. Failure cases
 may use an expected error enum in Rust metadata rather than an output file when
-there is no successful rendered body.
+there is no successful rendered body. The F3/C5 raw identity case may compare
+directly to the original `target.md` bytes through private Rust metadata
+instead of duplicating those bytes in `expected.md`.
+
+The final harness must preserve these private test-interface invariants:
+
+```rust
+fn expected_output(path: FixturePath) -> TestResult<String>;
+```
+
+The helper may keep this name or be renamed, but it must return fixture
+contents unchanged. It must not remove a trailing newline. Raw identity cases
+must compare stdout or in-place target contents to the original target fixture
+contents read by `read_fixture`, also unchanged.
 
 ## Revision note
 
@@ -853,3 +1027,13 @@ ExecPlan edit. The revised plan keeps all work items implementable, cites the
 governing documents and skills per item, records Memtrace/Leta/Firecrawl
 tooling failures as non-blocking evidence, and uses path-safe validation
 commands.
+
+2026-07-02 round-2 design-review revision: resolved the raw-byte identity
+blocker by making raw golden comparisons and the renderer final-newline
+contract the first work item. The plan now cites the exact current-code gap:
+`tests/golden/mod.rs::expected_output` strips one final newline,
+`tests/golden/mod.rs::assert_target` compares in-place output to the stripped
+string, and `src/roadmap/render.rs::render_roadmap` emits
+`blocks.join("\n\n")` without a final newline. Later F3/C5 and C6 fixtures now
+depend on the raw-byte harness and canonical final-newline contract instead of
+claiming byte identity through normalized strings.
