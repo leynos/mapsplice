@@ -30,10 +30,6 @@ where
     assert_eq!(actual, expected);
 }
 
-fn assert_dangling_dependency(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::DanglingDependency { .. }));
-}
-
 fn assert_level_mismatch(error: &MapspliceError) {
     assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
 }
@@ -143,7 +139,7 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
+fn unresolved_dependency_reference_is_preserved(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
         .write_target(concat!(
@@ -157,15 +153,16 @@ fn dangling_dependency_is_rejected(workspace: TestResult<Workspace>) -> TestResu
         .write_fragment(PHASE_FRAGMENT)
         .expect("fragment should be written");
 
-    let error = run_from_args([
+    let outcome = run_from_args([
         "mapsplice",
         "append",
         test_workspace.target.as_str(),
         test_workspace.fragment.as_str(),
     ])
-    .expect_err("dangling dependency references must fail");
+    .expect("unresolved valid dependency references should be preserved");
+    let stdout = outcome.stdout.unwrap_or_default();
 
-    assert_dangling_dependency(&error);
+    assert_contains(&stdout, "Requires 99.1.1.");
     Ok(())
 }
 

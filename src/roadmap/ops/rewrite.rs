@@ -193,7 +193,7 @@ fn rewrite_node(
     rewrite_count: &mut u64,
 ) -> Result<()> {
     if let Node::Text(text) = node {
-        let (rewritten, count) = rewrite_text_value(&text.value, source, plan)?;
+        let (rewritten, count) = rewrite_text_value(&text.value, source, plan);
         text.value = rewritten;
         *rewrite_count += count;
         return Ok(());

@@ -96,6 +96,13 @@ Property tests should construct valid inputs rather than filter invalid data
 after generation. Any shrunk failure should be promoted to a named regression
 test when it captures a real bug.
 
+Dependency-reference rewrite coverage is layered around the internal
+`classify_dependency_reference` predicate in
+`src/roadmap/ops/dependency_text.rs`. Unit tests cover the classifier branches,
+behavioural tests cover unresolved valid references, invalid version-like
+tokens, and mapped rewrites, and property tests cover generated invalid and
+incidental token preservation.
+
 ## 7. Local tooling
 
 Local builds use the pinned nightly toolchain in

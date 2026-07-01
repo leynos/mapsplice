@@ -81,6 +81,63 @@ proptest! {
             );
         }
     }
+
+    #[test]
+    fn generated_invalid_dependency_tokens_are_preserved(
+        phase in 1u32..20,
+        step in 1u32..20,
+        task in 1u32..20,
+        sub_task in 1u32..20,
+        extra in 1u32..20,
+    ) {
+        let candidates = [
+            format!("{phase}.0.{task}"),
+            format!("{phase}.{step}.0"),
+            format!("{phase}.0.{task}.{sub_task}"),
+            format!("{phase}.{step}.{task}.0"),
+            format!("{phase}.{step}.{task}.{sub_task}.{extra}"),
+        ];
+
+        for candidate in candidates {
+            let workspace = create_workspace().expect("workspace fixture should initialize");
+            workspace
+                .write_target(&roadmap_with_dependency_text(&format!("Requires {candidate}, 2.1.1.")))
+                .expect("target should be written");
+
+            let outcome = run_from_args(["mapsplice", "delete", workspace.target.as_str(), "1"])
+                .expect("delete command should succeed");
+            let stdout = outcome.stdout.unwrap_or_default();
+
+            prop_assert!(
+                stdout.contains(&format!("Requires {candidate}, 1.1.1.")),
+                "invalid dependency token changed or mapped reference missing: {stdout}"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_incidental_numeric_tokens_are_preserved(
+        phase in 1u32..20,
+        step in 1u32..20,
+        task in 1u32..20,
+    ) {
+        let incidental_token = format!("{phase}.{step}.{task}");
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        workspace
+            .write_target(&roadmap_with_dependency_text(&format!(
+                "See {incidental_token}. Requires 2.1.1."
+            )))
+            .expect("target should be written");
+
+        let outcome = run_from_args(["mapsplice", "delete", workspace.target.as_str(), "1"])
+            .expect("delete command should succeed");
+        let stdout = outcome.stdout.unwrap_or_default();
+
+        prop_assert!(
+            stdout.contains(&format!("See {incidental_token}. Requires 1.1.1.")),
+            "incidental token changed or mapped reference missing: {stdout}"
+        );
+    }
 }
 
 fn numbered_phase_roadmap(phase_count: usize) -> String {
@@ -93,4 +150,11 @@ fn numbered_phase_roadmap(phase_count: usize) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn roadmap_with_dependency_text(text: &str) -> String {
+    format!(
+        "# Example\n\n## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. First task.\n\n## 2. \
+         Phase two\n\n### 2.1. Step two\n\n- [ ] 2.1.1. Second task. {text}\n"
+    )
 }

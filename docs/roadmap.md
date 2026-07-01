@@ -18,7 +18,7 @@ This step answers whether `mapsplice` can tell a dependency reference apart
 from an incidental number — a section reference, a version, or a quantity —
 rather than rewriting every number-shaped token.
 
-- [ ] 1.1.1. Specify the dependency-reference predicate in code.
+- [x] 1.1.1. Specify the dependency-reference predicate in code.
   - Define the dependency context (the `Requires` clause) and the anchor-token
     rules from the design, as a single predicate that decides whether an anchor
     token is a dependency reference.

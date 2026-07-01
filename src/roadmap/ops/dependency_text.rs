@@ -1,17 +1,22 @@
 //! Dependency-clause text scanning for roadmap anchor rewrites.
 
 use super::super::{model::RenumberPlan, parse_anchor};
-use crate::{
-    error::{MapspliceError, Result},
-    roadmap::model::SourceId,
-};
+use crate::roadmap::{RoadmapAnchor, model::SourceId};
+
+/// Classification for an anchor-shaped candidate in a text value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DependencyReferenceClassification {
+    Reference(RoadmapAnchor),
+    InvalidDependencyToken,
+    NotDependencyReference,
+}
 
 /// Rewrite anchor candidates within a text value and return the rewrite count.
 pub(super) fn rewrite_text_value(
     value: &str,
     source: SourceId,
     plan: &RenumberPlan,
-) -> Result<(String, u64)> {
+) -> (String, u64) {
     let mut result = String::with_capacity(value.len());
     let mut rewrite_count = 0;
     let mut index = 0;
@@ -30,26 +35,63 @@ pub(super) fn rewrite_text_value(
             index = end;
             continue;
         };
-        if !is_dependency_anchor(value, start) {
-            result.push_str(candidate);
-            index = end;
-            continue;
+        match classify_dependency_reference(value, start, end) {
+            DependencyReferenceClassification::NotDependencyReference
+            | DependencyReferenceClassification::InvalidDependencyToken => {
+                result.push_str(candidate);
+            }
+            DependencyReferenceClassification::Reference(anchor) => {
+                if let Some(mapped) = plan
+                    .resolve(source, anchor)
+                    .or_else(|| plan.resolve_unique(anchor))
+                {
+                    rewrite_count += 1;
+                    result.push_str(&mapped.to_string());
+                } else {
+                    result.push_str(candidate);
+                }
+            }
         }
-        let Ok(anchor) = parse_anchor(candidate) else {
-            result.push_str(candidate);
-            index = end;
-            continue;
-        };
-        let mapped = plan
-            .resolve(source, anchor)
-            .or_else(|| plan.resolve_unique(anchor))
-            .ok_or(MapspliceError::DanglingDependency { anchor })?;
-        rewrite_count += 1;
-        result.push_str(&mapped.to_string());
         index = end;
     }
 
-    Ok((result, rewrite_count))
+    (result, rewrite_count)
+}
+
+/// Classify an anchor-shaped candidate by dependency context and anchor validity.
+fn classify_dependency_reference(
+    value: &str,
+    start: usize,
+    end: usize,
+) -> DependencyReferenceClassification {
+    if !has_anchor_candidate_boundaries(value, start, end)
+        || !is_dependency_candidate_context(value, start)
+    {
+        return DependencyReferenceClassification::NotDependencyReference;
+    }
+
+    let Some(candidate) = value.get(start..end) else {
+        return DependencyReferenceClassification::NotDependencyReference;
+    };
+
+    parse_anchor(candidate).map_or(
+        DependencyReferenceClassification::InvalidDependencyToken,
+        DependencyReferenceClassification::Reference,
+    )
+}
+
+/// Return whether the candidate span has standalone anchor boundaries.
+fn has_anchor_candidate_boundaries(value: &str, start: usize, end: usize) -> bool {
+    let bytes = value.as_bytes();
+    bytes
+        .get(start)
+        .is_some_and(|byte| is_anchor_start(bytes, start, *byte))
+        && is_anchor_end(bytes, end)
+}
+
+/// Return whether the candidate is in a dependency context, not a section reference.
+fn is_dependency_candidate_context(value: &str, start: usize) -> bool {
+    !has_section_sigil(value, start) && is_dependency_anchor(value, start)
 }
 
 /// Return whether the candidate appears in a supported dependency clause.
@@ -60,6 +102,14 @@ fn is_dependency_anchor(value: &str, start: usize) -> bool {
                 && has_dependency_clause_separator(value, position + keyword.len(), start)
         })
     })
+}
+
+/// Return whether the candidate is immediately preceded by a section sigil.
+fn has_section_sigil(value: &str, start: usize) -> bool {
+    value
+        .get(..start)
+        .and_then(|prefix| prefix.chars().next_back())
+        .is_some_and(|character| character == '§')
 }
 
 /// Find the latest dependency keyword before an anchor candidate.
@@ -163,4 +213,97 @@ fn has_dot_digit(bytes: &[u8], dot_index: usize) -> bool {
         (bytes.get(dot_index), bytes.get(dot_index + 1)),
         (Some(b'.'), Some(next)) if next.is_ascii_digit()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    //! Unit coverage for dependency-reference classification branches.
+
+    use rstest::rstest;
+
+    use super::{DependencyReferenceClassification, classify_dependency_reference};
+    use crate::roadmap::parse_anchor;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ExpectedClassification {
+        Reference(&'static str),
+        InvalidDependencyToken,
+        NotDependencyReference,
+    }
+
+    #[rstest]
+    #[case::space_separator("Requires 1.2.3", "1.2.3", ExpectedClassification::Reference("1.2.3"))]
+    #[case::colon_separator("Requires: 1.2.3", "1.2.3", ExpectedClassification::Reference("1.2.3"))]
+    #[case::comma_separated(
+        "Requires 1.2.3, 2.3.4",
+        "2.3.4",
+        ExpectedClassification::Reference("2.3.4")
+    )]
+    #[case::version_like_zero(
+        "Requires 1.4.0",
+        "1.4.0",
+        ExpectedClassification::InvalidDependencyToken
+    )]
+    #[case::valid_unresolved_shape(
+        "Requires 99.1.1",
+        "99.1.1",
+        ExpectedClassification::Reference("99.1.1")
+    )]
+    #[case::section_sigil("Requires §1.2", "1.2", ExpectedClassification::NotDependencyReference)]
+    #[case::outside_dependency_clause(
+        "See 1.2",
+        "1.2",
+        ExpectedClassification::NotDependencyReference
+    )]
+    #[case::sentence_terminated(
+        "Requires 1.2. Then 2.3",
+        "2.3",
+        ExpectedClassification::NotDependencyReference
+    )]
+    #[case::greedy_four_level(
+        "Requires 1.2.17.1",
+        "1.2.17.1",
+        ExpectedClassification::Reference("1.2.17.1")
+    )]
+    fn dependency_reference_classification_handles_candidate_context(
+        #[case] value: &str,
+        #[case] candidate: &str,
+        #[case] expected_case: ExpectedClassification,
+    ) {
+        let start = value
+            .find(candidate)
+            .expect("test candidate should appear in the value");
+        let end = start + candidate.len();
+        let expected = match expected_case {
+            ExpectedClassification::Reference(raw) => DependencyReferenceClassification::Reference(
+                parse_anchor(raw).expect("test anchor should parse"),
+            ),
+            ExpectedClassification::InvalidDependencyToken => {
+                DependencyReferenceClassification::InvalidDependencyToken
+            }
+            ExpectedClassification::NotDependencyReference => {
+                DependencyReferenceClassification::NotDependencyReference
+            }
+        };
+
+        assert_eq!(classify_dependency_reference(value, start, end), expected);
+    }
+
+    #[rstest]
+    #[case::letter_prefix("Requires A1.2", "1.2")]
+    #[case::letter_suffix("Requires 1.2B", "1.2")]
+    fn dependency_reference_classification_rejects_alphanumeric_boundaries(
+        #[case] value: &str,
+        #[case] candidate: &str,
+    ) {
+        let start = value
+            .find(candidate)
+            .expect("test candidate should appear in the value");
+        let end = start + candidate.len();
+
+        assert_eq!(
+            classify_dependency_reference(value, start, end),
+            DependencyReferenceClassification::NotDependencyReference,
+        );
+    }
 }
