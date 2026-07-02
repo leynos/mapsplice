@@ -6,5 +6,6 @@
 
 - [ ] 1.1.1. Parent task.
   - [ ] 1.1.1.1. Addendum task.
+
       Addendum continuation paragraph.
 - [ ] 1.1.2. Inserted sibling task.

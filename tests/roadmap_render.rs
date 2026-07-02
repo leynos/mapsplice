@@ -143,9 +143,9 @@ fn render_separates_task_body_paragraphs(workspace: TestResult<Workspace>) -> Te
     assert_contains(
         &stdout,
         concat!(
-            "- [ ] 1.1.1. Body task.\n",
+            "- [ ] 1.1.1. Body task.\n\n",
             "  First continuation paragraph.\n\n",
-            "  Second continuation paragraph.\n",
+            "  Second continuation paragraph.\n\n",
             "- [ ] 1.1.2. Anchor task.",
         ),
     );
@@ -195,7 +195,7 @@ fn render_preserves_task_body_and_sub_task_order(workspace: TestResult<Workspace
             "### 1.1. Step one\n\n",
             "- [ ] 1.1.1. Parent task.\n",
             "    Body before.\n",
-            "    - [ ] 1.1.1.1. Nested sub-task.\n",
+            "  - [ ] 1.1.1.1. Nested sub-task.\n",
             "    Body after.\n",
         ))
         .expect("target should be written");
@@ -232,7 +232,7 @@ fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspac
             "### 1.1. Step one\n\n",
             "- [ ] 1.1.1. Parent task.\n",
             "    Body before.\n",
-            "    - [ ] 1.1.1.1. Nested sub-task.\n",
+            "  - [ ] 1.1.1.1. Nested sub-task.\n",
             "    Body after.\n",
         ))
         .expect("target should be written");

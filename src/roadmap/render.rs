@@ -56,20 +56,11 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
 
 /// Render a list of roadmap tasks as Markdown checklist lines.
 fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
-    let mut rendered = String::new();
-    let mut previous_task = None;
-    for task in tasks {
-        if let Some(previous) = previous_task {
-            if task_needs_following_blank(previous) {
-                rendered.push_str("\n\n");
-            } else {
-                rendered.push('\n');
-            }
-        }
-        rendered.push_str(&render_task(task)?);
-        previous_task = Some(*task);
-    }
-    Ok(rendered)
+    tasks
+        .iter()
+        .map(|task| render_task(task))
+        .collect::<Result<Vec<_>>>()
+        .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
 }
 
 /// Render one roadmap task and any nested body blocks.
@@ -86,7 +77,7 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     )];
     for child in &task.children {
         match child {
-            TaskChild::Body(body) => push_task_body_blocks(&mut parts, body, 2)?,
+            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
             TaskChild::SubTask(identity) => {
                 if let Some(sub_task) = task
                     .sub_tasks
@@ -113,45 +104,46 @@ fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
         sub_task.number,
         render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
-    for block in render_nested_body(&sub_task.body, indent + 2)? {
-        parts.push(block);
+    let body_blocks = render_nested_body(&sub_task.body, indent + 4)?;
+    if !body_blocks.is_empty() {
+        parts.push(String::new());
+        parts.extend(body_blocks);
     }
     Ok(parts.join("\n"))
 }
 
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
-    render_markdown_nodes(markdown, indent)
-}
-
-fn push_task_body_blocks(
-    parts: &mut Vec<String>,
-    markdown: &MarkdownNodes,
-    indent: usize,
-) -> Result<()> {
-    let blocks = render_markdown_nodes(markdown, indent)?;
-    for (index, (node, block)) in markdown.nodes().iter().zip(blocks).enumerate() {
-        if index > 0 || needs_task_body_blank_lines(node) {
-            push_blank_line(parts);
+    let rendered_blocks = render_markdown_nodes(markdown, indent)?;
+    let paragraph_count = markdown
+        .nodes()
+        .iter()
+        .filter(|node| matches!(node, Node::Paragraph(_)))
+        .count();
+    let mut nested_blocks = Vec::new();
+    for (node, rendered_block) in markdown.nodes().iter().zip(rendered_blocks) {
+        if matches!(node, Node::Code(_) | Node::List(_) | Node::Table(_)) {
+            push_blank_separator(&mut nested_blocks);
+            nested_blocks.push(rendered_block);
+            if !nested_blocks
+                .last()
+                .is_some_and(|block| block.ends_with('\n'))
+            {
+                push_blank_separator(&mut nested_blocks);
+            }
+        } else if matches!(node, Node::Paragraph(_)) && paragraph_count > 1 {
+            push_blank_separator(&mut nested_blocks);
+            nested_blocks.push(rendered_block);
+            push_blank_separator(&mut nested_blocks);
+        } else {
+            nested_blocks.push(rendered_block);
         }
-        parts.push(block);
     }
-    Ok(())
+    Ok(nested_blocks)
 }
 
-fn task_needs_following_blank(task: &TaskEntry) -> bool {
-    matches!(
-        task.children.last(),
-        Some(TaskChild::Body(body)) if body.nodes().last().is_some_and(needs_task_body_blank_lines)
-    )
-}
-
-const fn needs_task_body_blank_lines(node: &Node) -> bool {
-    matches!(node, Node::Code(_) | Node::Table(_))
-}
-
-fn push_blank_line(parts: &mut Vec<String>) {
-    if parts.last().is_some_and(|part| !part.is_empty()) {
-        parts.push(String::new());
+fn push_blank_separator(blocks: &mut Vec<String>) {
+    if !blocks.last().is_some_and(String::is_empty) {
+        blocks.push(String::new());
     }
 }
 

@@ -127,7 +127,7 @@ fn target_with_adversarial_reference_text(cli_state: &mut CliFixture) -> TestRes
         "## 2. Phase two\n\n",
         "### 2.1. Step two\n\n",
         "- [ ] 2.1.1. First moved task.\n",
-        "    - [ ] 2.1.1.1. First moved sub-task.\n",
+        "  - [ ] 2.1.1.1. First moved sub-task.\n",
         "- [ ] 2.1.2. Second moved task. See §2.1. Released 1.4.0. Count 27. Requires 2.1.1.1, \
          2.1.1, 2.1.2.\n",
     ))

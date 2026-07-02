@@ -229,7 +229,7 @@ fn malformed_sub_task_parent_is_rejected() {
         "## 1. Phase one\n\n",
         "### 1.1. Step one\n\n",
         "- [ ] 1.1.1. Parent task.\n",
-        "    - [ ] 1.1.2.1. Wrong parent.\n",
+        "  - [ ] 1.1.2.1. Wrong parent.\n",
     ))
     .expect_err("sub-task must belong to parent task");
 
@@ -243,7 +243,7 @@ fn nested_roadmap_task_list_under_task_is_rejected() {
         "## 1. Phase one\n\n",
         "### 1.1. Step one\n\n",
         "- [ ] 1.1.1. Parent task.\n",
-        "    - [ ] 1.1.2. Nested sibling task.\n",
+        "  - [ ] 1.1.2. Nested sibling task.\n",
     ))
     .expect_err("nested roadmap task lists should fail");
 
@@ -257,8 +257,8 @@ fn nested_roadmap_task_list_under_sub_task_is_rejected() {
         "## 1. Phase one\n\n",
         "### 1.1. Step one\n\n",
         "- [ ] 1.1.1. Parent task.\n",
-        "    - [ ] 1.1.1.1. Nested sub-task.\n",
-        "        - [ ] 1.1.2. Nested roadmap task.\n",
+        "  - [ ] 1.1.1.1. Nested sub-task.\n",
+        "    - [ ] 1.1.2. Nested roadmap task.\n",
     ))
     .expect_err("sub-task body must reject roadmap-shaped lists");
 

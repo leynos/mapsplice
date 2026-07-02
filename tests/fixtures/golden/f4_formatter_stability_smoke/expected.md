@@ -15,5 +15,6 @@ stable code block
 - [ ] 1.1.1. Formatter smoke anchor.
 - [ ] 1.1.2. Inserted formatter task.
 - [ ] 1.1.3. Formatter nested task.
+
   - Stable nested bullet.
     - Stable child bullet.

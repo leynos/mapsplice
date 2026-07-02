@@ -108,7 +108,7 @@ mechanically rather than by inspection.
       construction into a parameterized harness that preserves named cases
       while reducing repeated helper and assertion edits. Lightweight addendum
       pass.
-- [ ] 3.1.2. Add a no-op round-trip property test.
+- [x] 3.1.2. Add a no-op round-trip property test.
   - Requires 3.1.1.
   - For any conformant fixture, a no-op edit must render byte-identical output.
   - Success: the property holds across the corpus, and a second formatter pass

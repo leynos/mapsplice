@@ -5,6 +5,7 @@
 ### 1.1. Alpha step
 
 - [ ] 1.1.1. Body task.
+
   - Ordinary body bullet.
     - Nested body bullet.
 

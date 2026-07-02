@@ -6,4 +6,3 @@
 
 - [ ] 1.1.1. First task.
 - [ ] 1.1.2. Second task.
-
