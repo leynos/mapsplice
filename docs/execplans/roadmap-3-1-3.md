@@ -328,7 +328,7 @@ review is deferred because the sandbox has no default network route.
   - Scope: Add a rendered-output gate fixture with an ordinary ordered list in
     a task body, pinning the `mdtablefix --renumber` interaction. Lightweight
     addendum pass.
-- [ ] 3.1.3.2. Clarify F1/F4 normalization boundaries.
+- [x] 3.1.3.2. Clarify F1/F4 normalization boundaries.
   - Source: review:3.1.3 (medium).
   - Scope: Document whether exact preservation applies only to gate-clean input
     or whether successful rendering may normalize formatter-unstable input.
@@ -796,5 +796,19 @@ Known initial formatter-probe failures to expect in the Red phase include:
   and `make nixie` passed on retry in
   `/tmp/nixie-mapsplice-roadmap-3-1-3-addendum-3-1-3-1-retry1.out` after a
   transient timeout on `docs/ortho-config-users-guide.md`. CodeRabbit was
+  deferred with
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+- 2026-07-02: Addendum pass 3.1.3.2. Clarified that F1 byte-exact
+  preservation is defined for conformant, gate-clean input and that successful
+  rendering may normalize formatter-unstable accepted input only as needed to
+  satisfy F4. Reused the same bounded local documentation path because the
+  Memtrace and `scrutineer` limitations from 3.1.3.1 still applied. The second
+  `scrutineer` attempt also reported `usage limit for GPT-5.3-Codex-Spark`.
+  `make all` passed in `/tmp/all-mapsplice-roadmap-3-1-3-addendum-3-1-3-2.out`,
+  `make markdownlint` passed in
+  `/tmp/markdownlint-mapsplice-roadmap-3-1-3-addendum-3-1-3-2.out`, and
+  `make nixie` passed on retry in
+  `/tmp/nixie-mapsplice-roadmap-3-1-3-addendum-3-1-3-2-retry1.out` after a
+  transient timeout on `docs/rstest-bdd-users-guide.md`. CodeRabbit was
   deferred with
   `deferred coderabbit review: no default network route visible in this sandbox`.

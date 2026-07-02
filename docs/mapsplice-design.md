@@ -102,7 +102,16 @@ address these levels directly: `8` a phase, `8.2` a step, `8.2.3` a task,
 
 ## 5. Fidelity guarantees
 
-These hold for every successful operation:
+These hold for every successful operation over conformant, gate-clean input.
+Here, *gate-clean* means the input already passes the house Markdown formatter
+and linter without a diff. Gate cleanliness is not itself a parse rule:
+`mapsplice` may accept formatter-unstable Markdown that still matches the
+roadmap grammar. When it does, F4 takes precedence over byte-for-byte
+preservation for formatter-unstable syntax, so successful rendering may
+normalize unstable spacing, list numbering, table alignment, or fence spelling
+only as needed to produce gate-clean Markdown. Such normalization must be
+deterministic, limited to formatter-unstable syntax, and pinned by fixtures.
+Untouched gate-clean content remains byte-exact.
 
 - **F1 — Content preservation.** Every node that the operation does not
   structurally target, and that is not renumbered or reference-rewritten as a
