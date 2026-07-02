@@ -75,3 +75,11 @@ Feature: Mapsplice roadmap editing
     When I try to delete missing phase 99
     Then the command fails
     And stderr mentions that anchor 99 was not found
+
+  Scenario: Missing anchor fails in place without rewriting target
+    Given the target roadmap with two phases
+    When I try to delete missing phase 99 in place
+    Then the command fails
+    And stdout is empty
+    And stderr mentions that anchor 99 was not found
+    And the target file remains unchanged

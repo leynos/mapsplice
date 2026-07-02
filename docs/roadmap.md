@@ -89,7 +89,7 @@ regression is a failing test rather than a silent corruption.
 This step answers whether the fidelity and contract guarantees are enforced
 mechanically rather than by inspection.
 
-- [ ] 3.1.1. Assemble the grammar-surface and per-contract golden fixtures.
+- [x] 3.1.1. Assemble the grammar-surface and per-contract golden fixtures.
   - Requires 1.1.3 and 2.1.3.
   - Add one input-and-expected fixture per operation and per guarantee, covering
     the preamble, phases, steps, tasks, multi-line bodies, nested bullets,

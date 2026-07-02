@@ -1,5 +1,7 @@
 //! Golden fixture coverage for roadmap operations and contracts.
 
+#[path = "roadmap_golden/contracts.rs"]
+mod contracts;
 mod golden;
 
 use golden::{
@@ -27,16 +29,28 @@ fn golden_success_case(
     command: GoldenCommand,
     has_fragment: bool,
 ) -> GoldenCase {
+    golden_success_output_case(
+        name,
+        command,
+        has_fragment,
+        SuccessOutput::Stdout {
+            expected: golden_fixture(name, "expected.md"),
+        },
+    )
+}
+
+fn golden_success_output_case(
+    name: &'static str,
+    command: GoldenCommand,
+    has_fragment: bool,
+    output: SuccessOutput,
+) -> GoldenCase {
     GoldenCase {
         name,
         command,
         target: golden_fixture(name, "target.md"),
         fragment: has_fragment.then_some(golden_fixture(name, "fragment.md")),
-        expectation: GoldenExpectation::Success {
-            output: SuccessOutput::Stdout {
-                expected: golden_fixture(name, "expected.md"),
-            },
-        },
+        expectation: GoldenExpectation::Success { output },
     }
 }
 

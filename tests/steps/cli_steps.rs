@@ -230,6 +230,13 @@ fn delete_missing_phase(cli_state: &mut CliFixture) -> TestResult {
     state.run(["delete", target.as_str(), "99"])
 }
 
+#[when("I try to delete missing phase 99 in place")]
+fn delete_missing_phase_in_place(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    let target = state.target_path().clone();
+    state.run(["--in-place", "delete", target.as_str(), "99"])
+}
+
 #[then("the command succeeds")]
 fn command_succeeds(cli_state: &mut CliFixture) -> TestResult {
     assert!(state_mut(cli_state)?.success, "expected command to succeed");

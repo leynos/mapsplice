@@ -107,6 +107,10 @@ fn expectation_metadata_covers_output_modes_and_fixture_shapes() {
             output: SuccessOutput::OriginalTargetStdout,
         },
         GoldenExpectation::Failure {
+            error: ExpectedError::InvalidRoadmap,
+            output: FailureOutput::TargetUnchanged,
+        },
+        GoldenExpectation::Failure {
             error: ExpectedError::DanglingDependency,
             output: FailureOutput::TargetUnchanged,
         },

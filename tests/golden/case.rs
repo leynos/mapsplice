@@ -60,6 +60,8 @@ pub(crate) enum FailureOutput {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ExpectedError {
+    /// Expect an invalid-roadmap diagnostic.
+    InvalidRoadmap,
     /// Expect a dangling dependency diagnostic.
     DanglingDependency,
     /// Expect a source/fragment level mismatch diagnostic.

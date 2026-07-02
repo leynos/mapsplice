@@ -110,3 +110,12 @@ fn missing_anchor(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error
     let _ = cli_state?;
     Ok(())
 }
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Missing anchor fails in place without rewriting target"
+)]
+fn missing_anchor_in_place(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
