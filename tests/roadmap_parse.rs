@@ -42,6 +42,7 @@ fn parse_anchor_rejects_invalid_forms(#[case] raw: &str) {
 )]
 #[case("### 9.2. Step\n\n- [ ] 9.2.1. Task.\n", RoadmapItemLevel::Step)]
 #[case("- [ ] 9.9.9. Task.\n", RoadmapItemLevel::Task)]
+#[case("- [ ] 9.9.9.9. Sub-task.\n", RoadmapItemLevel::SubTask)]
 fn parse_fragment_detects_supported_level(
     #[case] fragment: &str,
     #[case] expected: RoadmapItemLevel,

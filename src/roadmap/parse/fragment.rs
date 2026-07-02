@@ -6,9 +6,11 @@ use super::{
     document::parse_document_root,
     is_phase_heading,
     is_step_heading,
+    looks_like_sub_task_list,
     looks_like_task_list,
     parse_root,
     parse_step_heading,
+    parse_sub_task_fragment_list,
     parse_task_list,
 };
 use crate::{
@@ -16,7 +18,7 @@ use crate::{
     roadmap::{
         RoadmapFragment,
         StepNumber,
-        model::{ItemIdentity, MarkdownNodes, SourceId, StepSection, TaskEntry},
+        model::{ItemIdentity, MarkdownNodes, SourceId, StepSection, SubTaskEntry, TaskEntry},
     },
 };
 
@@ -48,9 +50,16 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
         return parse_task_fragment_root(root, markdown);
     }
 
+    if is_sub_task_fragment_start(first) {
+        return parse_sub_task_fragment_root(root, markdown);
+    }
+
     Err(MapspliceError::InvalidRoadmap {
-        message: "fragment must start with a phase heading, step heading, or numbered task list"
-            .to_owned(),
+        message: concat!(
+            "fragment must start with a phase heading, step heading, numbered ",
+            "task list, or numbered sub-task list"
+        )
+        .to_owned(),
     })
 }
 
@@ -67,6 +76,11 @@ fn is_step_fragment_start(node: &Node) -> bool {
 /// Return whether the first fragment node starts a task fragment.
 fn is_task_fragment_start(node: &Node) -> bool {
     matches!(node, Node::List(list) if looks_like_task_list(list))
+}
+
+/// Return whether the first fragment node starts an addendum sub-task fragment.
+fn is_sub_task_fragment_start(node: &Node) -> bool {
+    matches!(node, Node::List(list) if looks_like_sub_task_list(list))
 }
 
 /// Parse one or more sibling phases from a fragment root.
@@ -151,6 +165,29 @@ fn parse_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
     }
     validate_task_siblings(&tasks)?;
     Ok(RoadmapFragment::Task(tasks))
+}
+
+/// Parse a single top-level checklist as an addendum sub-task fragment.
+fn parse_sub_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+    if root.children.len() != 1 {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "sub-task fragments must contain only a single sub-task list".to_owned(),
+        });
+    }
+
+    let Some(Node::List(list)) = root.children.into_iter().next() else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "sub-task fragments must contain only a single sub-task list".to_owned(),
+        });
+    };
+    let sub_tasks = parse_sub_task_fragment_list(&list, source_text)?;
+    if sub_tasks.is_empty() {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: "sub-task fragment list is empty".to_owned(),
+        });
+    }
+    validate_sub_task_siblings(&sub_tasks)?;
+    Ok(RoadmapFragment::SubTask(sub_tasks))
 }
 
 /// Append task list entries to the active step fragment.
@@ -239,6 +276,22 @@ fn validate_task_siblings(tasks: &[TaskEntry]) -> Result<()> {
         if task.number.step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "task fragments must contain tasks from one step".to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Ensure sub-task fragments contain siblings from the same parent task.
+fn validate_sub_task_siblings(sub_tasks: &[SubTaskEntry]) -> Result<()> {
+    let Some(first) = sub_tasks.first() else {
+        return Ok(());
+    };
+    let parent = first.number.task_number();
+    for sub_task in sub_tasks {
+        if sub_task.number.task_number() != parent {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: "sub-task fragments must contain sub-tasks from one task".to_owned(),
             });
         }
     }

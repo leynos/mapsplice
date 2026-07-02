@@ -10,5 +10,13 @@
     },
     "MD029": { "style": "ordered" }
   },
-  "ignores": ["**/.venv/**", ".node_modules/**", "**/node_modules/**", "**/target/**"]
+  "ignores": [
+    "**/.venv/**",
+    ".node_modules/**",
+    "**/node_modules/**",
+    "**/target/**",
+    "tests/fixtures/golden/**/fragment.md",
+    "tests/fixtures/golden/*sub_task*/expected.md",
+    "tests/fixtures/golden/*sub_task*/target.md"
+  ]
 }

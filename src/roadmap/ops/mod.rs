@@ -2,8 +2,10 @@
 
 mod dependency_text;
 mod rewrite;
+mod sub_task;
 
 use rewrite::{renumber_document, rewrite_dependencies};
+use sub_task::{delete_sub_task, insert_sub_tasks, replace_sub_task};
 
 use super::{
     PhaseNumber,
@@ -12,10 +14,9 @@ use super::{
     RoadmapFragment,
     RoadmapItemLevel,
     StepNumber,
-    SubTaskNumber,
     TaskNumber,
     fragment_level,
-    model::{PhaseSection, StepSection, TaskEntry},
+    model::{PhaseSection, StepSection},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -69,28 +70,10 @@ impl RoadmapOperation {
 
 /// Apply a roadmap operation to the parsed roadmap.
 ///
-/// Returns the number of dependency references rewritten by the operation.
-///
 /// # Errors
 ///
-/// Returns an error when a fragment is missing or at the wrong structural
-/// level, when an anchor is absent from the target roadmap, or when dependency
-/// rewriting finds an unresolved reference.
-///
-/// # Examples
-///
-/// ```rust
-/// use mapsplice::{MapspliceError, RoadmapDocument, RoadmapOperation, apply_command};
-///
-/// let mut roadmap = RoadmapDocument::new();
-/// let error = apply_command(&mut roadmap, RoadmapOperation::Append, None)
-///     .expect_err("append requires a fragment");
-///
-/// assert!(matches!(
-///     error,
-///     MapspliceError::MissingFragment { command: "append" }
-/// ));
-/// ```
+/// Returns an error for missing or mismatched fragments, absent anchors, or
+/// unresolved dependency references.
 #[tracing::instrument(
     skip_all,
     fields(operation = operation.name(), anchor = operation.anchor().map(|anchor| anchor.to_string()).as_deref().unwrap_or(""))
@@ -116,7 +99,6 @@ pub fn apply_command(
     Ok(dependency_rewrites)
 }
 
-/// Append a phase-level fragment to the roadmap.
 fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragment>) -> Result<()> {
     let fragment_document = required_fragment("append", fragment)?;
     let found = fragment_level(&fragment_document);
@@ -130,7 +112,6 @@ fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragme
     Ok(())
 }
 
-/// Insert a fragment before or after an existing anchor.
 fn insert_fragment(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
@@ -143,27 +124,25 @@ fn insert_fragment(
 
     match (anchor, fragment_document) {
         (RoadmapAnchor::Phase(target), RoadmapFragment::Phase(phases)) => {
-            insert_phases(roadmap, target, after, phases)?;
+            insert_phases(roadmap, target, after, phases)
         }
         (RoadmapAnchor::Step(target), RoadmapFragment::Step(steps)) => {
-            insert_steps(roadmap, target, after, steps)?;
+            insert_steps(roadmap, target, after, steps)
         }
         (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
-            insert_tasks(roadmap, target, after, tasks)?;
+            insert_tasks(roadmap, target, after, tasks)
         }
-        _ => {
-            return Err(MapspliceError::LevelMismatch {
-                anchor,
-                expected: anchor.level(),
-                found,
-            });
+        (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
+            insert_sub_tasks(roadmap, target, after, sub_tasks)
         }
+        _ => Err(MapspliceError::LevelMismatch {
+            anchor,
+            expected: anchor.level(),
+            found,
+        }),
     }
-
-    Ok(())
 }
 
-/// Insert phase sections around the target phase.
 fn insert_phases(
     roadmap: &mut RoadmapDocument,
     target: PhaseNumber,
@@ -177,12 +156,13 @@ fn insert_phases(
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.into(),
         })?;
-    let insert_at = insertion_index(index, after);
-    roadmap.phases.splice(insert_at..insert_at, phases);
+    roadmap.phases.splice(
+        index + usize::from(after)..index + usize::from(after),
+        phases,
+    );
     Ok(())
 }
 
-/// Insert step sections around the target step.
 fn insert_steps(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -190,12 +170,13 @@ fn insert_steps(
     steps: Vec<StepSection>,
 ) -> Result<()> {
     let (phase, step_index) = find_step_parent_mut(roadmap, target)?;
-    let insert_at = insertion_index(step_index, after);
-    phase.steps.splice(insert_at..insert_at, steps);
+    phase.steps.splice(
+        step_index + usize::from(after)..step_index + usize::from(after),
+        steps,
+    );
     Ok(())
 }
 
-/// Insert task entries around the target task.
 fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
@@ -203,17 +184,13 @@ fn insert_tasks(
     tasks: Vec<super::model::TaskEntry>,
 ) -> Result<()> {
     let (step, task_index) = find_task_parent_mut(roadmap, target)?;
-    let insert_at = insertion_index(task_index, after);
-    step.tasks.splice(insert_at..insert_at, tasks);
+    step.tasks.splice(
+        task_index + usize::from(after)..task_index + usize::from(after),
+        tasks,
+    );
     Ok(())
 }
 
-/// Return the splice index for before-or-after insertion.
-const fn insertion_index(index: usize, after: bool) -> usize {
-    if after { index + 1 } else { index }
-}
-
-/// Delete the roadmap item addressed by the anchor.
 fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result<()> {
     match anchor {
         RoadmapAnchor::Phase(target) => {
@@ -233,14 +210,12 @@ fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result
             step.tasks.remove(task_index);
         }
         RoadmapAnchor::SubTask(target) => {
-            let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-            task.sub_tasks.remove(sub_task_index);
+            delete_sub_task(roadmap, target)?;
         }
     }
     Ok(())
 }
 
-/// Replace the addressed roadmap item with sibling fragment items.
 fn replace_anchor(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
@@ -258,28 +233,29 @@ fn replace_anchor(
                 .position(|phase| phase.number == target)
                 .ok_or(MapspliceError::AnchorNotFound { anchor })?;
             roadmap.phases.splice(index..=index, phases);
+            Ok(())
         }
         (RoadmapAnchor::Step(target), RoadmapFragment::Step(steps)) => {
             let (phase, step_index) = find_step_parent_mut(roadmap, target)?;
             phase.steps.splice(step_index..=step_index, steps);
+            Ok(())
         }
         (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
             let (step, task_index) = find_task_parent_mut(roadmap, target)?;
             step.tasks.splice(task_index..=task_index, tasks);
+            Ok(())
         }
-        _ => {
-            return Err(MapspliceError::LevelMismatch {
-                anchor,
-                expected: anchor.level(),
-                found,
-            });
+        (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
+            replace_sub_task(roadmap, target, sub_tasks)
         }
+        _ => Err(MapspliceError::LevelMismatch {
+            anchor,
+            expected: anchor.level(),
+            found,
+        }),
     }
-
-    Ok(())
 }
 
-/// Return the fragment required by a fragment-consuming command.
 fn required_fragment(
     command: &'static str,
     fragment: Option<RoadmapFragment>,
@@ -287,7 +263,6 @@ fn required_fragment(
     fragment.ok_or(MapspliceError::MissingFragment { command })
 }
 
-/// Ensure a fragment level matches the target anchor level.
 fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Result<()> {
     let expected = anchor.level();
     if expected == found {
@@ -301,7 +276,6 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
     }
 }
 
-/// Locate the mutable parent phase and index for a step anchor.
 fn find_step_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -321,7 +295,6 @@ fn find_step_parent_mut(
         })
 }
 
-/// Locate the mutable parent step and index for a task anchor.
 fn find_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
@@ -334,29 +307,6 @@ fn find_task_parent_mut(
                 .map(|task_index| (step, task_index))
         }) {
             return Ok((step, task_index));
-        }
-    }
-
-    Err(MapspliceError::AnchorNotFound {
-        anchor: target.into(),
-    })
-}
-
-/// Locate the mutable parent task and index for a sub-task anchor.
-fn find_sub_task_parent_mut(
-    roadmap: &mut RoadmapDocument,
-    target: SubTaskNumber,
-) -> Result<(&mut TaskEntry, usize)> {
-    for phase in &mut roadmap.phases {
-        for step in &mut phase.steps {
-            if let Some((task, sub_task_index)) = step.tasks.iter_mut().find_map(|task| {
-                task.sub_tasks
-                    .iter()
-                    .position(|sub_task| sub_task.number == target)
-                    .map(|sub_task_index| (task, sub_task_index))
-            }) {
-                return Ok((task, sub_task_index));
-            }
         }
     }
 

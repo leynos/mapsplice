@@ -3,7 +3,12 @@
 mod golden;
 
 use golden::{
+    FixturePath,
+    GoldenCase,
+    GoldenCommand,
+    GoldenExpectation,
     GoldenWorkspace,
+    SuccessOutput,
     TestResult,
     assert_golden_case,
     create_workspace,
@@ -15,6 +20,128 @@ use rstest::{fixture, rstest};
 fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
     Ok(workspace)
+}
+
+fn golden_success_case(
+    name: &'static str,
+    command: GoldenCommand,
+    has_fragment: bool,
+) -> GoldenCase {
+    GoldenCase {
+        name,
+        command,
+        target: golden_fixture(name, "target.md"),
+        fragment: has_fragment.then_some(golden_fixture(name, "fragment.md")),
+        expectation: GoldenExpectation::Success {
+            output: SuccessOutput::Stdout {
+                expected: golden_fixture(name, "expected.md"),
+            },
+        },
+    }
+}
+
+const fn golden_fixture(case: &'static str, file: &'static str) -> FixturePath {
+    FixturePath::Golden { case, file }
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn append_phase(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case("append_phase", GoldenCommand::Append, true),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_phase_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_phase_before",
+            GoldenCommand::InsertBefore { anchor: "2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_step_after",
+            GoldenCommand::InsertAfter { anchor: "1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_before",
+            GoldenCommand::InsertBefore { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_sub_task_after",
+            GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn delete_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "delete_task",
+            GoldenCommand::Delete { anchor: "1.1.2" },
+            false,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_step(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "replace_step",
+            GoldenCommand::Replace { anchor: "1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_sub_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "replace_sub_task",
+            GoldenCommand::Replace { anchor: "1.1.1.2" },
+            true,
+        ),
+    )
 }
 
 #[rstest]

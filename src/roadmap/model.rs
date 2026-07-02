@@ -24,6 +24,8 @@ pub enum RoadmapFragment {
     Step(Vec<StepSection>),
     /// Task-level fragment.
     Task(Vec<TaskEntry>),
+    /// Addendum sub-task-level fragment.
+    SubTask(Vec<SubTaskEntry>),
 }
 
 /// A phase section headed by `## <n>.`.
@@ -215,6 +217,7 @@ impl RoadmapFragment {
             Self::Phase(_) => RoadmapItemLevel::Phase,
             Self::Step(_) => RoadmapItemLevel::Step,
             Self::Task(_) => RoadmapItemLevel::Task,
+            Self::SubTask(_) => RoadmapItemLevel::SubTask,
         }
     }
 }
