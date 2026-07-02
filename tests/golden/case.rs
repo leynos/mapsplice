@@ -73,6 +73,8 @@ pub(crate) enum ExpectedError {
     InvalidRoadmap,
     /// Expect a dangling dependency diagnostic.
     DanglingDependency,
+    /// Expect an append-specific source/fragment level mismatch diagnostic.
+    AppendLevelMismatch,
     /// Expect a source/fragment level mismatch diagnostic.
     LevelMismatch,
     /// Expect a missing-anchor diagnostic.

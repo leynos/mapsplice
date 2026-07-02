@@ -5,7 +5,15 @@ mod support;
 
 use std::fmt::Debug;
 
-use mapsplice::{MapspliceError, metrics_snapshot, run_from_args};
+use mapsplice::{
+    MapspliceError,
+    RoadmapOperation,
+    apply_command,
+    metrics_snapshot,
+    parse_fragment,
+    parse_roadmap,
+    run_from_args,
+};
 use rstest::rstest;
 use support::{
     PHASE_FRAGMENT,
@@ -165,6 +173,26 @@ fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>)
         return Err(format!("expected dangling dependency error, got {error:?}").into());
     };
     assert_equal(&anchor.to_string(), &"99.1.1".to_owned());
+    Ok(())
+}
+
+#[rstest]
+fn apply_command_leaves_roadmap_unchanged_on_error() -> TestResult {
+    let mut roadmap = parse_roadmap(concat!(
+        "# Example\n\n",
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. First task. Requires 99.1.1.\n",
+    ))?;
+    let original = roadmap.clone();
+    let fragment = parse_fragment(PHASE_FRAGMENT)?;
+
+    let result = apply_command(&mut roadmap, RoadmapOperation::Append, Some(fragment));
+
+    if !matches!(result, Err(MapspliceError::DanglingDependency { .. })) {
+        return Err(format!("expected dangling dependency error, got {result:?}").into());
+    }
+    assert_equal(&roadmap, &original);
     Ok(())
 }
 

@@ -131,6 +131,7 @@ pub(crate) fn assert_expected_error(
     match (actual, expected) {
         (MapspliceError::InvalidRoadmap { .. }, ExpectedError::InvalidRoadmap)
         | (MapspliceError::DanglingDependency { .. }, ExpectedError::DanglingDependency)
+        | (MapspliceError::AppendLevelMismatch { .. }, ExpectedError::AppendLevelMismatch)
         | (MapspliceError::LevelMismatch { .. }, ExpectedError::LevelMismatch)
         | (MapspliceError::AnchorNotFound { .. }, ExpectedError::MissingAnchor) => Ok(()),
         (unexpected, expected_error) => Err(format!(

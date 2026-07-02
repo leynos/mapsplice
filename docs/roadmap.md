@@ -147,7 +147,7 @@ emit a damaged document.
 This step answers whether malformed input and unresolved edits produce clear,
 typed errors rather than partial or mangled output.
 
-- [ ] 4.1.1. Audit the operations for fail-closed behaviour.
+- [x] 4.1.1. Audit the operations for fail-closed behaviour.
   - Requires 3.1.1.
   - Confirm each operation rejects malformed grammar and level mismatches before
     emitting output, and writes in place only on success.
