@@ -8,6 +8,7 @@ use super::{
     GoldenWorkspace,
     SuccessOutput,
     TestResult,
+    assert_gate_clean_rendered_output,
     expected_output,
 };
 
@@ -59,14 +60,17 @@ fn assert_in_place_success(
     let expected_body = expected_output(expected)?;
     assert_no_stdout(assertion.name, assertion.outcome)?;
     assert_written_path(assertion.name, assertion.workspace, assertion.outcome)?;
-    assert_target(assertion.name, assertion.workspace, &expected_body)
+    assert_rendered_target(assertion.name, assertion.workspace, &expected_body)
 }
 
 pub(crate) fn assert_stdout(name: &str, outcome: &RunOutcome, expected: &str) -> TestResult {
-    outcome.stdout.as_deref().map_or_else(
-        || Err(format!("golden fixture `{name}` emitted no stdout").into()),
-        |actual| compare_text(name, "stdout", actual, expected),
-    )
+    let actual = outcome
+        .stdout
+        .as_deref()
+        .ok_or_else(|| format!("golden fixture `{name}` emitted no stdout"))?;
+
+    compare_text(name, "stdout", actual, expected)?;
+    assert_gate_clean_rendered_output(name, actual)
 }
 
 fn assert_no_stdout(name: &str, outcome: &RunOutcome) -> TestResult {
@@ -100,6 +104,12 @@ fn assert_written_path(
 fn assert_target(name: &str, workspace: &GoldenWorkspace, expected: &str) -> TestResult {
     let actual = workspace.target_contents()?;
     compare_text(name, "target", &actual, expected)
+}
+
+fn assert_rendered_target(name: &str, workspace: &GoldenWorkspace, expected: &str) -> TestResult {
+    let actual = workspace.target_contents()?;
+    compare_text(name, "target", &actual, expected)?;
+    assert_gate_clean_rendered_output(name, &actual)
 }
 
 fn compare_text(name: &str, label: &str, actual: &str, expected: &str) -> TestResult {

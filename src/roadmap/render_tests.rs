@@ -11,7 +11,7 @@ fn exact_nested_sub_task_round_trip() {
         "### 8.2. Step one\n\n",
         "- [ ] 8.2.3. Parent task.\n",
         "    Body before.\n",
-        "    - [ ] 8.2.3.1. Nested sub-task.\n",
+        "  - [ ] 8.2.3.1. Nested sub-task.\n",
         "    Body after.\n",
     );
     let roadmap = parse_roadmap(source).expect("nested sub-task roadmap should parse");

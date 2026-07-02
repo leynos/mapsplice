@@ -43,7 +43,7 @@ const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str = concat!(
     "- [ ] 8.2.1. First task.\n",
     "- [ ] 8.2.2. Second task.\n",
     "- [ ] 8.2.3. Parent task. Requires 8.2.3.1.\n",
-    "    - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.\n",
+    "  - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.\n",
 );
 
 fn assert_contains(haystack: &str, needle: &str) {
@@ -103,10 +103,7 @@ fn append_renumbers_sub_tasks_and_their_dependencies(
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "1.1.1. Parent task. Requires 1.1.1.1.");
-    assert_contains(
-        &stdout,
-        "    - [ ] 1.1.1.1. First sub-task. Requires 1.1.1.",
-    );
+    assert_contains(&stdout, "  - [ ] 1.1.1.1. First sub-task. Requires 1.1.1.");
     assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.2.");
     Ok(())
 }
@@ -152,7 +149,7 @@ fn delete_renumbers_sub_tasks_with_parent_task(workspace: TestResult<Workspace>)
             "### 1.1. Step one\n\n",
             "- [ ] 1.1.1. Removed task.\n",
             "- [ ] 1.1.2. Parent task.\n",
-            "    - [ ] 1.1.2.1. Nested sub-task.\n",
+            "  - [ ] 1.1.2.1. Nested sub-task.\n",
         ))
         .expect("target should be written");
 
@@ -166,7 +163,7 @@ fn delete_renumbers_sub_tasks_with_parent_task(workspace: TestResult<Workspace>)
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "- [ ] 1.1.1. Parent task.");
-    assert_contains(&stdout, "    - [ ] 1.1.1.1. Nested sub-task.");
+    assert_contains(&stdout, "  - [ ] 1.1.1.1. Nested sub-task.");
     Ok(())
 }
 
@@ -180,8 +177,8 @@ fn delete_sub_task_renumbers_later_sub_tasks(workspace: TestResult<Workspace>) -
             "## 1. Phase one\n\n",
             "### 1.1. Step one\n\n",
             "- [ ] 1.1.1. Parent task.\n",
-            "    - [ ] 1.1.1.1. Removed sub-task.\n",
-            "    - [x] 1.1.1.2. Second sub-task.\n",
+            "  - [ ] 1.1.1.1. Removed sub-task.\n",
+            "  - [x] 1.1.1.2. Second sub-task.\n",
             "- [ ] 1.1.2. Sibling task. Requires 1.1.1.2.\n",
         ))
         .expect("target should be written");
@@ -195,7 +192,7 @@ fn delete_sub_task_renumbers_later_sub_tasks(workspace: TestResult<Workspace>) -
     .expect("sub-task delete should succeed");
     let stdout = outcome.stdout.unwrap_or_default();
 
-    assert_contains(&stdout, "    - [x] 1.1.1.1. Second sub-task.");
+    assert_contains(&stdout, "  - [x] 1.1.1.1. Second sub-task.");
     assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.1.");
     Ok(())
 }
@@ -213,7 +210,7 @@ fn dependency_rewrites_inside_sub_task_text(workspace: TestResult<Workspace>) ->
             "## 2. Phase two\n\n",
             "### 2.1. Step two\n\n",
             "- [ ] 2.1.1. Parent task.\n",
-            "    - [ ] 2.1.1.1. Nested sub-task. Requires 2.1.1.\n",
+            "  - [ ] 2.1.1.1. Nested sub-task. Requires 2.1.1.\n",
         ))
         .expect("target should be written");
 

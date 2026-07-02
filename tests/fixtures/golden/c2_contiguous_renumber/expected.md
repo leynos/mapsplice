@@ -5,14 +5,14 @@
 ### 1.1. Alpha step
 
 - [ ] 1.1.1. Alpha task.
-    - [ ] 1.1.1.1. Alpha addendum.
+  - [ ] 1.1.1.1. Alpha addendum.
 
 ## 2. Inserted
 
 ### 2.1. Inserted step
 
 - [ ] 2.1.1. Inserted task.
-    - [ ] 2.1.1.1. Inserted addendum.
+  - [ ] 2.1.1.1. Inserted addendum.
 
 ## 3. Beta
 

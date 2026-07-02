@@ -72,6 +72,88 @@ fn render_preserves_code_metadata_and_blockquote_spacing(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn render_separates_fenced_code_inside_task_body(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Code task.\n\n",
+            "  ```rust\n",
+            "  fn example() {}\n",
+            "  ```\n\n",
+            "- [ ] 1.1.2. Anchor task.\n",
+        ))
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "append",
+        test_workspace.target.as_str(),
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("append command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(
+        &stdout,
+        concat!(
+            "- [ ] 1.1.1. Code task.\n\n",
+            "  ```rust\n",
+            "  fn example() {}\n",
+            "  ```\n\n",
+            "- [ ] 1.1.2. Anchor task.",
+        ),
+    );
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn render_separates_task_body_paragraphs(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Body task.\n\n",
+            "  First continuation paragraph.\n\n",
+            "  Second continuation paragraph.\n\n",
+            "- [ ] 1.1.2. Anchor task.\n",
+        ))
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "append",
+        test_workspace.target.as_str(),
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("append command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(
+        &stdout,
+        concat!(
+            "- [ ] 1.1.1. Body task.\n",
+            "  First continuation paragraph.\n\n",
+            "  Second continuation paragraph.\n",
+            "- [ ] 1.1.2. Anchor task.",
+        ),
+    );
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn render_preserves_untouched_body_markdown_exactly(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -172,7 +254,7 @@ fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspac
         concat!(
             "- [ ] 1.1.1. Parent task.\n",
             "    Body before.\n",
-            "    - [ ] 1.1.1.1. Nested sub-task.\n",
+            "  - [ ] 1.1.1.1. Nested sub-task.\n",
             "    Body after.",
         ),
     );

@@ -1,8 +1,8 @@
+# Roadmap
+
 Project charter
 
 Keep this preamble exactly as authored.
-
-# Roadmap
 
 ## 1. Alpha
 

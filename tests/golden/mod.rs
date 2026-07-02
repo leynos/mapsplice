@@ -2,6 +2,7 @@
 
 mod assertions;
 mod case;
+mod format_gate;
 #[cfg(test)]
 mod metadata_tests;
 mod runner;
@@ -29,6 +30,7 @@ pub(crate) use case::{
     golden_success_output_case,
     reference_delete_case,
 };
+pub(crate) use format_gate::assert_gate_clean_rendered_output;
 pub(crate) use runner::{assert_golden_case, command_args};
 pub(crate) use workspace::{
     GoldenWorkspace,

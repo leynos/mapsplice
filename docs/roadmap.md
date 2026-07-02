@@ -114,7 +114,7 @@ mechanically rather than by inspection.
   - Success: the property holds across the corpus, and a second formatter pass
     on
     rendered output produces no diff.
-- [ ] 3.1.3. Assert gate-clean rendered output.
+- [x] 3.1.3. Assert gate-clean rendered output.
   - Requires 3.1.1.
   - Rendered fixtures must pass the house Markdown gates and be stable under the
     house formatter.

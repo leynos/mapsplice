@@ -56,11 +56,20 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
 
 /// Render a list of roadmap tasks as Markdown checklist lines.
 fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
-    tasks
-        .iter()
-        .map(|task| render_task(task))
-        .collect::<Result<Vec<_>>>()
-        .map(|lines| lines.join("\n"))
+    let mut rendered = String::new();
+    let mut previous_task = None;
+    for task in tasks {
+        if let Some(previous) = previous_task {
+            if task_needs_following_blank(previous) {
+                rendered.push_str("\n\n");
+            } else {
+                rendered.push('\n');
+            }
+        }
+        rendered.push_str(&render_task(task)?);
+        previous_task = Some(*task);
+    }
+    Ok(rendered)
 }
 
 /// Render one roadmap task and any nested body blocks.
@@ -77,14 +86,14 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     )];
     for child in &task.children {
         match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
+            TaskChild::Body(body) => push_task_body_blocks(&mut parts, body, 2)?,
             TaskChild::SubTask(identity) => {
                 if let Some(sub_task) = task
                     .sub_tasks
                     .iter()
                     .find(|sub_task| sub_task.identity == *identity)
                 {
-                    parts.push(render_sub_task(sub_task, 4)?);
+                    parts.push(render_sub_task(sub_task, 2)?);
                 }
             }
         }
@@ -102,9 +111,9 @@ fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     let mut parts = vec![format!(
         "{prefix}- {checkbox}{}. {}",
         sub_task.number,
-        render_item_summary(&render_inline(sub_task.summary.nodes())?, indent)
+        render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
-    for block in render_nested_body(&sub_task.body, indent)? {
+    for block in render_nested_body(&sub_task.body, indent + 2)? {
         parts.push(block);
     }
     Ok(parts.join("\n"))
@@ -112,6 +121,38 @@ fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
 
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
     render_markdown_nodes(markdown, indent)
+}
+
+fn push_task_body_blocks(
+    parts: &mut Vec<String>,
+    markdown: &MarkdownNodes,
+    indent: usize,
+) -> Result<()> {
+    let blocks = render_markdown_nodes(markdown, indent)?;
+    for (index, (node, block)) in markdown.nodes().iter().zip(blocks).enumerate() {
+        if index > 0 || needs_task_body_blank_lines(node) {
+            push_blank_line(parts);
+        }
+        parts.push(block);
+    }
+    Ok(())
+}
+
+fn task_needs_following_blank(task: &TaskEntry) -> bool {
+    matches!(
+        task.children.last(),
+        Some(TaskChild::Body(body)) if body.nodes().last().is_some_and(needs_task_body_blank_lines)
+    )
+}
+
+const fn needs_task_body_blank_lines(node: &Node) -> bool {
+    matches!(node, Node::Code(_) | Node::Table(_))
+}
+
+fn push_blank_line(parts: &mut Vec<String>) {
+    if parts.last().is_some_and(|part| !part.is_empty()) {
+        parts.push(String::new());
+    }
 }
 
 fn render_item_summary(summary: &str, continuation_indent: usize) -> String {

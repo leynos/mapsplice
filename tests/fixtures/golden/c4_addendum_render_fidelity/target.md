@@ -5,6 +5,6 @@
 ### 1.1. Alpha step
 
 - [ ] 1.1.1. Parent task.
-    - [ ] 1.1.1.1. Addendum task.
+  - [ ] 1.1.1.1. Addendum task.
     Addendum continuation paragraph.
 - [ ] 1.1.2. Removed sibling.

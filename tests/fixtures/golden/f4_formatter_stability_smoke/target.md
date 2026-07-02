@@ -1,8 +1,8 @@
 # Roadmap
 
-| Name | Value |
-| --- | --- |
-| Alpha | One |
+| Name  | Value |
+| ----- | ----- |
+| Alpha | One   |
 
 ```text
 stable code block

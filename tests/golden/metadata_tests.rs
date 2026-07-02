@@ -148,6 +148,20 @@ fn expected_output_keeps_final_newline() {
     assert!(fixture.ends_with('\n'));
 }
 
+#[test]
+fn markdownlint_config_ignores_golden_fixture_tree() {
+    let project = Dir::open_ambient_dir(env!("CARGO_MANIFEST_DIR"), ambient_authority())
+        .expect("project directory should be readable");
+    let config = project
+        .read_to_string(".markdownlint-cli2.jsonc")
+        .expect("markdownlint configuration should be readable");
+
+    assert!(
+        config.contains("\"tests/fixtures/golden/**/*.md\""),
+        "rendered output gate must not rely on direct fixture linting"
+    );
+}
+
 fn command_arg_strings(
     workspace: &GoldenWorkspace,
     command: GoldenCommand,
