@@ -20,8 +20,10 @@ The observable outcome is a small parser refactor whose behaviour does not
 change. Focused parser tests pin the exact target and step-fragment diagnostic:
 `task \`TASK\` does not belong to step \`STEP\``. They also pin that a top-level
 task fragment with mixed step numbers still reports the sibling-fragment
-message. The repository gates make all, make markdownlint, and make nixie
-pass before the final roadmap status is updated.
+message. Every commit that updates this plan formats
+`docs/execplans/roadmap-4-1-3.md` directly and runs the Markdown gates; every
+code commit also runs `make all`, which includes the current Cargo typecheck
+target on`origin/main`.
 
 ## Constraints
 
@@ -30,8 +32,8 @@ pass before the final roadmap status is updated.
 - Do not edit the root/control worktree.
 - Treat `origin/main` as the integration branch and `docs/roadmap.md` as the
   roadmap source of truth.
-- This is the first planning round. Do not begin implementation until this
-  draft is approved by the df12-build roadmap workflow.
+- This is planning round 2. Do not begin implementation until this draft is
+  approved by the df12-build roadmap workflow.
 - Preserve the constrained roadmap grammar in `docs/users-guide.md` "The
   roadmap shape `mapsplice` expects" and "Validation rules and failure cases".
 - Preserve `docs/mapsplice-design.md` section 2, which requires mdast-based
@@ -129,13 +131,15 @@ pass before the final roadmap status is updated.
 - [x] (2026-07-02T00:00:00Z) Attempted Leta workspace setup with
   `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-3`;
   it failed with `Error: IO error: Read-only file system (os error 30)`.
-  Attempted `leta files`; it failed with `Error: Failed to start daemon`.
-  Continued with precise known-path source inspection.
+  Branch-local `leta grep` still succeeded for parser symbols, so use Leta as
+  the primary verification route during implementation and fall back only if
+  the implementation session's Leta command itself fails.
 - [x] (2026-07-02T00:00:00Z) Attempted Firecrawl official-doc verification
   with
   `mcp__firecrawl.firecrawl_scrape https://docs.rs/markdown/1.0.0/markdown/fn.to_mdast.html`;
-  the MCP host returned `user cancelled MCP tool call`. Continued with docs.rs
-  via `curl` and local Cargo registry source for the locked crates.
+  repeated Firecrawl MCP calls returned `user cancelled MCP tool call`.
+  Continued with docs.rs via `curl` and local Cargo registry source for the
+  locked crates.
 - [x] (2026-07-02T00:00:00Z) Used `sem entities src/roadmap/parse` to list the
   parse-domain entities and `sem blame src/roadmap/parse/document.rs` to
   confirm the target parser helper dates to the initial tool commit.
@@ -157,9 +161,10 @@ pass before the final roadmap status is updated.
   session.
   Evidence: Memtrace and Firecrawl MCP calls returned
   `user cancelled MCP tool call`; Leta failed first with a read-only workspace
-  setup error and then with `Error: Failed to start daemon`.
+  setup error, but `leta grep` still returned branch-local parser symbols.
   Impact: the implementation is still feasible because the affected surface is
-  small, known, and pinned by local source windows plus tests.
+  small, known, and pinned by Leta symbol output, local source windows, `sem`
+  entity history, and tests.
 
 - Observation: the target parser and step-fragment parser duplicate the exact
   same helper body, but task-fragment sibling validation deliberately has a
@@ -199,6 +204,11 @@ pass before the final roadmap status is updated.
 
 No implementation has begun. This section must be updated after each approved
 work item with the committed change, gate evidence, and any lessons learned.
+
+Round 2 addressed the design-review blocking points by making the Markdown
+formatting and gate commands explicit for every work item that updates this
+plan, adding `make all` before the work item 1 commit, and replacing `rg`
+acceptance checks with Leta-first verification plus an exact-text fallback.
 
 ## Context and Orientation
 
@@ -300,8 +310,19 @@ Focused validation:
 make test TEST_FLAGS='--workspace --all-targets --all-features parse' 2>&1 | tee /tmp/test-mapsplice-roadmap-4-1-3-item-1.out
 ```
 
-Commit after the focused validation passes and the final gates for the work
-item pass.
+Because this item also updates `docs/execplans/roadmap-4-1-3.md` with red and
+green evidence before committing, format that existing plan file directly and
+run the Markdown gates before the commit:
+
+```bash
+mdtablefix --in-place docs/execplans/roadmap-4-1-3.md
+markdownlint-cli2 --fix docs/execplans/roadmap-4-1-3.md
+make all 2>&1 | tee /tmp/make-all-mapsplice-roadmap-4-1-3-item-1.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-4-1-3-item-1.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-4-1-3-item-1.out
+```
+
+Commit after the focused validation, `make all`, and the Markdown gates pass.
 
 ### Work item 2: Extract the shared task-belongs-to-step helper
 
@@ -349,17 +370,32 @@ Refactor validation:
 
 ```bash
 make test TEST_FLAGS='--workspace --all-targets --all-features parse' 2>&1 | tee /tmp/test-mapsplice-roadmap-4-1-3-item-2.out
+mdtablefix --in-place docs/execplans/roadmap-4-1-3.md
+markdownlint-cli2 --fix docs/execplans/roadmap-4-1-3.md
 make all 2>&1 | tee /tmp/make-all-mapsplice-roadmap-4-1-3-item-2.out
+make markdownlint 2>&1 | tee /tmp/markdownlint-mapsplice-roadmap-4-1-3-item-2.out
+make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-4-1-3-item-2.out
 ```
 
 Acceptance for this item:
 
-- `rg -n "fn validate_task_numbers" src/roadmap/parse` prints no matches.
-- `rg -n "validate_tasks_belong_to_step" src/roadmap/parse` shows the helper
-  definition in `src/roadmap/parse/mod.rs` and calls from
-  `src/roadmap/parse/document.rs` and `src/roadmap/parse/fragment.rs`.
+- `leta grep "^validate_task_numbers$" "src/roadmap/parse" -k function`
+  prints no matches. If Leta fails in the implementation session, use exact
+  text fallback
+  `grep -R -n "fn validate_task_numbers" src/roadmap/parse` and expect no
+  output.
+- `leta grep "^validate_tasks_belong_to_step$" "src/roadmap/parse" -k function`
+  shows the helper definition in `src/roadmap/parse/mod.rs`. If Leta fails,
+  use exact text fallback
+  `grep -R -n "fn validate_tasks_belong_to_step" src/roadmap/parse`.
+- `leta refs validate_tasks_belong_to_step` shows calls from
+  `src/roadmap/parse/document.rs` and `src/roadmap/parse/fragment.rs`. If Leta
+  fails, use exact text fallback
+  `grep -R -n "validate_tasks_belong_to_step" src/roadmap/parse`.
 - The focused parser tests from work item 1 still pass.
 - `make all` passes.
+- `make markdownlint` and `make nixie` pass because this work item updates the
+  ExecPlan evidence before committing.
 
 Commit this work item after validation passes.
 
@@ -417,10 +453,13 @@ Commit this item after the formatter and final gates pass.
    inspect ownership before editing.
 
 2. Implement work item 1 and record red-proof and green-test evidence in this
-   plan before committing.
+   plan before committing. Run the path-scoped plan formatter commands,
+   `make all`, `make markdownlint`, and `make nixie` before the commit.
 
-3. Implement work item 2, run focused parser tests and `make all`, then record
-   evidence in this plan before committing.
+3. Implement work item 2, run focused parser tests, record evidence in this
+   plan, run the Leta-first acceptance checks, then run the path-scoped plan
+   formatter commands, `make all`, `make markdownlint`, and `make nixie`
+   before committing.
 
 4. Implement work item 3, run the path-safe Markdown formatter commands for
    files that exist and were edited, then run `make all`, `make markdownlint`,
@@ -478,10 +517,13 @@ Planning evidence:
 ```plaintext
 Memtrace: mcp__memtrace.list_indexed_repositories -> user cancelled MCP tool call
 Leta: leta workspace add <worktree> -> Error: IO error: Read-only file system (os error 30)
-Leta: leta files -> Error: Failed to start daemon
-Firecrawl scrape docs.rs markdown to_mdast -> user cancelled MCP tool call
+Leta: leta grep parser symbols -> succeeded for append_task_list,
+validate_task_numbers, append_step_fragment_tasks, and validate_task_siblings
+Firecrawl scrape docs.rs markdown to_mdast/rstest -> user cancelled MCP tool call
+curl docs.rs markdown/rstest pages -> official rustdoc pages reachable
 sem entities src/roadmap/parse -> listed both validate_task_numbers helpers
-sem blame src/roadmap/parse/document.rs -> helper introduced by initial tool commit 59ed7fb6
+sem blame --json src/roadmap/parse/document.rs -> helper introduced by initial tool commit 59ed7fb6
+sem blame --json src/roadmap/parse/fragment.rs -> fragment helper introduced by initial tool commit 59ed7fb6
 ```
 
 ## Interfaces and Dependencies
@@ -511,3 +553,8 @@ Dependencies remain unchanged:
   records advisory-tool failures, pins the local parser surface, and decomposes
   implementation into independently committable parser-test, helper-refactor,
   and roadmap-closeout work items. Implementation has not begun.
+- 2026-07-02: Revised for planning round 2 after design review. The revision
+  adds explicit path-scoped Markdown formatting and Markdown gates to work
+  items 1 and 2, adds `make all` before the work item 1 commit, and changes
+  work item 2 acceptance checks to use Leta first with exact text search only
+  as a fallback. Implementation has not begun.
