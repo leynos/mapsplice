@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: COMPLETE
 
 ## Purpose / Big Picture
 
@@ -184,7 +184,17 @@ target on`origin/main`.
   invocation returned deferred with
   `no default network route visible in this sandbox`; no actionable review
   feedback was available.
-- [ ] Work item 3: reconcile the roadmap and close the plan.
+- [x] (2026-07-02T21:40:00Z) Work item 3: marked roadmap task 4.1.3 complete
+  in `docs/roadmap.md`, closed this ExecPlan with `Status: COMPLETE`, and
+  recorded the final validation evidence.
+- [x] (2026-07-02T21:40:00Z) Final validation: `make all` passed in
+  `/tmp/make-all-mapsplice-roadmap-4-1-3-final-post-plan.out` with 158
+  nextest tests and doctests passing; `make markdownlint` passed in
+  `/tmp/markdownlint-mapsplice-roadmap-4-1-3-final-post-plan.out`; `make nixie`
+  passed in `/tmp/nixie-mapsplice-roadmap-4-1-3-final-post-plan.out`.
+- [x] (2026-07-02T21:40:00Z) Final review: direct CodeRabbit agent invocation
+  returned deferred with `no default network route visible in this sandbox`;
+  review remains an explicit deferred open issue for the supervisor.
 
 ## Surprises & Discoveries
 
@@ -207,8 +217,8 @@ target on`origin/main`.
   Impact: the shared helper should be used only by
   `DocumentParser::append_task_list` and `append_step_fragment_tasks`.
 
-- Observation: `scrutineer` and CodeRabbit were unavailable for work item 1
-  and work item 2 review in this sandbox.
+- Observation: `scrutineer` and CodeRabbit were unavailable for all requested
+  work-item reviews in this sandbox.
   Evidence: `multi_agent_v1.spawn_agent(agent_type=scrutineer)` returned
   `usage limit for GPT-5.3-Codex-Spark`; direct
   `coderabbit-review-agent` returned
@@ -259,6 +269,11 @@ parse-domain helper. The target-roadmap path and step-fragment path now share
 the same typed `MapspliceError::InvalidRoadmap` diagnostic, while
 `validate_task_siblings` remains separate and keeps the task-fragment sibling
 message.
+
+Work item 3 reconciled `docs/roadmap.md`, closed this ExecPlan, and confirmed
+the repository gates at HEAD. `make all`, `make markdownlint`, and `make nixie`
+are green. CodeRabbit review could not run in this sandbox because no default
+network route was visible, so that review is deferred rather than cleared.
 
 Round 2 addressed the design-review blocking points by making the Markdown
 formatting and gate commands explicit for every work item that updates this

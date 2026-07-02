@@ -161,7 +161,7 @@ typed errors rather than partial or mangled output.
     so a dangling dependency is visible rather than silent.
   - Success: an edit that leaves a dangling `Requires` reference reports it, and
     a fixture pins the diagnostic.
-- [ ] 4.1.3. Single-source parse-domain task-number validation.
+- [x] 4.1.3. Single-source parse-domain task-number validation.
   - Requires 4.1.1.
   - Extract the shared task-belongs-to-step invariant used by target and
     fragment parsing into one parse-domain helper while preserving current
