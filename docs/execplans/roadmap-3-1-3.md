@@ -122,6 +122,11 @@ gate-clean.
   Impact: the plan uses bounded local docs, Leta, and file inspection for
   branch-local evidence and records Memtrace unavailability as advisory-tool
   failure, not a blocker.
+- Observation: During post-3.1 remediation triage, Memtrace repository
+  discovery remained unavailable. Evidence: two calls to
+  `mcp__memtrace.list_indexed_repositories` returned
+  `user cancelled MCP tool call`. Impact: triage used roadmap docs,
+  `leta files`, `sem diff`, and bounded file inspection.
 - Observation: Firecrawl MCP calls were cancelled by the host.
   Evidence: `mcp__firecrawl.firecrawl_search` returned
   `user cancelled MCP tool call`. Impact: official-doc evidence uses the web
@@ -315,6 +320,19 @@ evidence: `make all` passed with 135 nextest tests and 7 doctests passed, 2
 doctests ignored; `make markdownlint` passed with 35 files linted; `make nixie`
 validated all Mermaid diagrams on the second sequential retry. CodeRabbit
 review is deferred because the sandbox has no default network route.
+
+## Addenda
+
+- [ ] 3.1.3.1. Add ordered-list body gate fixture.
+  - Source: review:3.1.3 (low).
+  - Scope: Add a rendered-output gate fixture with an ordinary ordered list in
+    a task body, pinning the `mdtablefix --renumber` interaction. Lightweight
+    addendum pass.
+- [ ] 3.1.3.2. Clarify F1/F4 normalization boundaries.
+  - Source: review:3.1.3 (medium).
+  - Scope: Document whether exact preservation applies only to gate-clean input
+    or whether successful rendering may normalize formatter-unstable input.
+    Lightweight addendum pass.
 
 ## Context and orientation
 

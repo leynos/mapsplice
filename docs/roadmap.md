@@ -120,6 +120,22 @@ mechanically rather than by inspection.
     house formatter.
   - Success: `make markdownlint` passes on rendered fixtures and `mdformat-all`
     is a no-op on them.
+  - [ ] 3.1.3.1. Add ordered-list body gate fixture.
+    - Addendum (from review:3.1.3; low). Add a rendered-output gate fixture
+      with an ordinary ordered list in a task body, pinning the
+      `mdtablefix --renumber` interaction. Lightweight addendum pass.
+  - [ ] 3.1.3.2. Clarify F1/F4 normalization boundaries.
+    - Addendum (from review:3.1.3; medium). Document whether exact
+      preservation applies only to gate-clean input or whether successful
+      rendering may normalize formatter-unstable input. Lightweight addendum
+      pass.
+- [ ] 3.1.4. Pin no-op behaviour for formatter-unstable accepted input.
+  - Requires 3.1.2 and 3.1.3.2.
+  - Add adversarial accepted-input cases that make the F1/F4 trade-off explicit
+    when `markdownlint-cli2 --fix` would change indentation or spacing.
+  - Success: the no-op corpus records whether such input is preserved
+    byte-for-byte or normalized, and the generated property enforces the
+    documented boundary.
 
 ## 4. Harden strictness and diagnostics
 
@@ -145,6 +161,19 @@ typed errors rather than partial or mangled output.
     so a dangling dependency is visible rather than silent.
   - Success: an edit that leaves a dangling `Requires` reference reports it, and
     a fixture pins the diagnostic.
+- [ ] 4.1.3. Single-source parse-domain task-number validation.
+  - Requires 4.1.1.
+  - Extract the shared task-belongs-to-step invariant used by target and
+    fragment parsing into one parse-domain helper while preserving current
+    diagnostics.
+  - Success: target and fragment parsers use the same helper, and focused tests
+    pin the shared invariant and unchanged error text.
+- [ ] 4.1.4. Fail closed on renderer model-invariant breaches.
+  - Requires 4.1.1.
+  - Make rendering fail with a typed error when task child ordering references a
+    missing sub-task instead of silently omitting content.
+  - Success: an inconsistent task model produces a diagnostic and no rendered
+    roadmap bytes are emitted.
 
 ### 4.2. Make documentation gates deterministic and scope-aware
 
@@ -167,3 +196,18 @@ review.
   - Success: maintainers can format and lint one or more named Markdown files
     through Makefile-supported commands, and unchanged Markdown files outside
     those paths are left untouched.
+
+### 4.3. Reconcile public API documentation with maintainer expectations
+
+This step answers whether the library entry points documented for maintainers
+are explained with executable examples rather than forcing readers to infer
+usage from tests. Its outcome informs whether public API documentation can be
+treated as part of the maintained contract.
+
+- [ ] 4.3.1. Bring public API Rustdoc examples up to project standard.
+  - Requires 3.1.3.
+  - Add compact executable Rustdoc examples for the public APIs listed in the
+    developers' guide, keeping filesystem-heavy flows isolated to temporary
+    paths.
+  - Success: `run_from_args`, `run_request`, and `parse_roadmap` demonstrate
+    typical usage and `cargo test --doc` passes.
