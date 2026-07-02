@@ -98,12 +98,12 @@ mechanically rather than by inspection.
   - Success: the corpus exercises every operation and every fidelity and
     contract
     guarantee, compared exactly.
-  - [ ] 3.1.1.1. Document exact fixture EOF whitespace policy.
+  - [x] 3.1.1.1. Document exact fixture EOF whitespace policy.
     - Addendum (from review:3.1.1; low). Document when raw-byte golden
       fixtures may preserve EOF whitespace and how reviewers distinguish
       intentional fixture fidelity from accidental whitespace churn.
       Lightweight addendum pass.
-  - [ ] 3.1.1.2. Consolidate the golden fixture harness.
+  - [x] 3.1.1.2. Consolidate the golden fixture harness.
     - Addendum (from audit:3.1.1; medium). Refactor golden fixture case
       construction into a parameterized harness that preserves named cases
       while reducing repeated helper and assertion edits. Lightweight addendum

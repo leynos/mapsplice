@@ -14,6 +14,15 @@ pub(crate) struct GoldenCase {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub(crate) struct GoldenFailureSpec {
+    pub(crate) name: &'static str,
+    pub(crate) command: GoldenCommand,
+    pub(crate) fragment: Option<FixturePath>,
+    pub(crate) error: ExpectedError,
+    pub(crate) output: FailureOutput,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum GoldenCommand {
     /// Append the fragment to the target roadmap.
     Append,
@@ -112,6 +121,61 @@ impl GoldenExpectation {
                 ..
             }
         )
+    }
+}
+
+pub(crate) const fn golden_success_case(
+    name: &'static str,
+    command: GoldenCommand,
+    has_fragment: bool,
+) -> GoldenCase {
+    golden_success_output_case(
+        name,
+        command,
+        has_fragment,
+        SuccessOutput::Stdout {
+            expected: golden_fixture(name, "expected.md"),
+        },
+    )
+}
+
+pub(crate) const fn golden_success_output_case(
+    name: &'static str,
+    command: GoldenCommand,
+    has_fragment: bool,
+    output: SuccessOutput,
+) -> GoldenCase {
+    GoldenCase {
+        name,
+        command,
+        target: golden_fixture(name, "target.md"),
+        fragment: golden_fragment(name, has_fragment),
+        expectation: GoldenExpectation::Success { output },
+    }
+}
+
+pub(crate) const fn golden_failure_case(spec: GoldenFailureSpec) -> GoldenCase {
+    GoldenCase {
+        name: spec.name,
+        command: spec.command,
+        target: golden_fixture(spec.name, "target.md"),
+        fragment: spec.fragment,
+        expectation: GoldenExpectation::Failure {
+            error: spec.error,
+            output: spec.output,
+        },
+    }
+}
+
+pub(crate) const fn golden_fixture(case: &'static str, file: &'static str) -> FixturePath {
+    FixturePath::Golden { case, file }
+}
+
+const fn golden_fragment(case: &'static str, has_fragment: bool) -> Option<FixturePath> {
+    if has_fragment {
+        Some(golden_fixture(case, "fragment.md"))
+    } else {
+        None
     }
 }
 

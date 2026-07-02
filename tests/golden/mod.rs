@@ -21,7 +21,12 @@ pub(crate) use case::{
     GoldenCase,
     GoldenCommand,
     GoldenExpectation,
+    GoldenFailureSpec,
     SuccessOutput,
+    golden_failure_case,
+    golden_fixture,
+    golden_success_case,
+    golden_success_output_case,
     reference_delete_case,
 };
 pub(crate) use runner::{assert_golden_case, command_args};

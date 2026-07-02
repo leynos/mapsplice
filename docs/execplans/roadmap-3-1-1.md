@@ -25,7 +25,8 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 
 ## Constraints
 
-- Work only in `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1`.
+- Continue addendum recovery work only in
+  `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1-addendum`.
 - Do not edit the root/control worktree at `/home/leynos/Projects/mapsplice`.
 - Treat `origin/main` as canonical and the integration branch as `main`.
 - Do not begin implementation until this DRAFT is approved by the controlling
@@ -62,7 +63,8 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 
 ## Tolerances
 
-- If `git branch --show-current` is not `roadmap-3-1-1`, stop before editing.
+- If `git branch --show-current` is not `roadmap-3-1-1-addendum`, stop before
+  editing.
 - If `git status --short` is not clean after the approved plan commit, stop
   before fixture implementation.
 - If a work item needs a public API signature change, stop and revise this
@@ -277,12 +279,12 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 
 ## Addenda
 
-- [ ] 3.1.1.1. Document exact fixture EOF whitespace policy.
+- [x] 3.1.1.1. Document exact fixture EOF whitespace policy.
   - Source: review:3.1.1 (low).
   - Scope: Document when raw-byte golden fixtures may preserve EOF whitespace
     and how maintainers distinguish intentional fixture fidelity from
     accidental whitespace churn. Lightweight addendum pass.
-- [ ] 3.1.1.2. Consolidate the golden fixture harness.
+- [x] 3.1.1.2. Consolidate the golden fixture harness.
   - Source: audit:3.1.1 (medium).
   - Scope: Refactor the golden fixture case construction into a parameterized
     harness that preserves named cases while reducing repeated helper and
@@ -645,16 +647,17 @@ recovery pass.
 
 ## Concrete steps
 
-1. Start each implementation session from the assigned worktree:
+1. Start each addendum recovery session from the assigned worktree:
 
    ```bash
-   cd /home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1
+   cd /home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1-addendum
    git branch --show-current
    git status --short
    sem diff --from origin/main --to HEAD --format json
    ```
 
-   Expected branch output is `roadmap-3-1-1`. Stop if the branch differs.
+   Expected branch output is `roadmap-3-1-1-addendum`. Stop if the branch
+   differs.
 
 2. Complete work item 1 before any fixture implementation. Its acceptance
    condition is a committed plan revision and a clean tree.
@@ -783,6 +786,40 @@ Do not introduce new dependencies. Use the locked versions already present in
 new `insta` snapshots for this task.
 
 ## Revision note
+
+2026-07-02 operator recovery: aligned `docs/roadmap.md` addendum checkboxes
+with the completed addendum work, corrected the active branch/worktree guards
+for `roadmap-3-1-1-addendum`, and reran the adoption evidence from the addendum
+worktree. Fresh gates passed: `make all`,
+`make markdownlint`, `make nixie`, `git diff --check`, and
+`coderabbit review --agent` with zero findings.
+
+2026-07-02 addendum pass: `mcp__memtrace.list_indexed_repositories` returned
+`user cancelled MCP tool call`, so branch-local verification proceeded with
+Leta, `sem`, and bounded file inspection as permitted by the addendum rules.
+`leta workspace add
+/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1-addendum` succeeded;
+`leta files tests/` returned `Error: Failed to start daemon`, while targeted
+`leta grep` and `leta show` symbol navigation worked.
+
+2026-07-02 addendum 3.1.1.1 execution: documented the exact fixture
+end-of-file whitespace policy in `docs/mapsplice-design.md`, formatted only
+the touched Markdown files, ran `make all`, `make markdownlint`, and
+`make nixie` successfully, and attempted CodeRabbit review. The configured
+review helper deferred with `deferred coderabbit review: no default network
+route visible in this sandbox`. The `scrutineer` sub-agent was unavailable:
+`You've hit your usage limit for GPT-5.3-Codex-Spark. Switch to another model
+now, or try again at Jul 7th, 2026 12:20 PM.`
+
+2026-07-02 addendum 3.1.1.2 execution: consolidated golden fixture case
+construction into `tests/golden/case.rs`, preserving named golden tests in
+`tests/roadmap_golden.rs` and `tests/roadmap_golden/contracts.rs`. Focused
+`cargo test --workspace --all-targets --all-features --test roadmap_golden`
+passed, `make all` passed, and CodeRabbit review again deferred with
+`deferred coderabbit review: no default network route visible in this
+sandbox`. Later Leta reference queries returned `Error: Failed to start
+daemon`; the change used earlier successful `leta grep` and `leta show`
+results plus bounded file inspection.
 
 2026-07-02 work item 1 execution: moved the plan to `IN PROGRESS`, recorded
 the successful deterministic gate evidence, noted the unavailable `scrutineer`

@@ -182,6 +182,13 @@ inspection.
 - **Golden-fixture corpus.** A corpus of `(input, expected-output)` Markdown
   pairs, one fixture per operation and per contract guarantee, compared
   exactly. A guarantee without a golden fixture is considered unproven.
+- **Fixture EOF whitespace.** Golden fixtures are raw-byte evidence. Expected
+  output fixtures should normally end in exactly one final newline, matching
+  F3. Extra end-of-file whitespace may be kept only when the fixture is proving
+  preservation of source bytes that already contain that whitespace. Reviewers
+  should treat any other trailing whitespace change as accidental churn unless
+  the fixture name, surrounding test, or nearby rationale makes the fidelity
+  case explicit.
 - **Required coverage.** The corpus must exercise the whole grammar surface
   (preamble; phases, steps, tasks; multi-line task bodies; nested bullets;
   tables; code blocks) and, as adversarial cases, every way collateral

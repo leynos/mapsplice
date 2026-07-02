@@ -5,15 +5,12 @@ mod contracts;
 mod golden;
 
 use golden::{
-    FixturePath,
-    GoldenCase,
     GoldenCommand,
-    GoldenExpectation,
     GoldenWorkspace,
-    SuccessOutput,
     TestResult,
     assert_golden_case,
     create_workspace,
+    golden_success_case,
     reference_delete_case,
 };
 use rstest::{fixture, rstest};
@@ -22,40 +19,6 @@ use rstest::{fixture, rstest};
 fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
     Ok(workspace)
-}
-
-fn golden_success_case(
-    name: &'static str,
-    command: GoldenCommand,
-    has_fragment: bool,
-) -> GoldenCase {
-    golden_success_output_case(
-        name,
-        command,
-        has_fragment,
-        SuccessOutput::Stdout {
-            expected: golden_fixture(name, "expected.md"),
-        },
-    )
-}
-
-fn golden_success_output_case(
-    name: &'static str,
-    command: GoldenCommand,
-    has_fragment: bool,
-    output: SuccessOutput,
-) -> GoldenCase {
-    GoldenCase {
-        name,
-        command,
-        target: golden_fixture(name, "target.md"),
-        fragment: has_fragment.then_some(golden_fixture(name, "fragment.md")),
-        expectation: GoldenExpectation::Success { output },
-    }
-}
-
-const fn golden_fixture(case: &'static str, file: &'static str) -> FixturePath {
-    FixturePath::Golden { case, file }
 }
 
 #[rstest]
