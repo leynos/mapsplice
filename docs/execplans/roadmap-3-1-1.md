@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: IN PROGRESS
 
 ## Purpose / big picture
 
@@ -28,8 +28,8 @@ full rendered-output Markdown gate sweep remain out of scope.
 - Work only in `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1`.
 - Do not edit the root/control worktree at `/home/leynos/Projects/mapsplice`.
 - Treat `origin/main` as canonical and the integration branch as `main`.
-- Do not begin implementation of roadmap task 3.1.1 until this DRAFT ExecPlan
-  is approved.
+- The automated workflow instruction approves this ExecPlan for implementation;
+  keep the plan current while work proceeds.
 - Follow `AGENTS.md`, `docs/mapsplice-design.md`,
   `docs/developers-guide.md`, `docs/users-guide.md`, `docs/roadmap.md`,
   `docs/documentation-style-guide.md`, `docs/scripting-standards.md`,
@@ -139,7 +139,18 @@ full rendered-output Markdown gate sweep remain out of scope.
   the specific locked crate symbols recorded in `Research evidence`.
 - [x] (2026-07-02T00:00:00Z) Rewrote this ExecPlan as a clean DRAFT for the
   first planning round.
-- [ ] Work item 1: Approve, format, gate, and commit this ExecPlan revision.
+- [x] (2026-07-02T03:50:00Z) Accepted the automated workflow approval, moved
+  this ExecPlan to `IN PROGRESS`, and started work item 1.
+- [x] (2026-07-02T03:53:26Z) Formatted the ExecPlan with `mdtablefix` and
+  `markdownlint-cli2 --fix`.
+- [x] (2026-07-02T03:53:26Z) Ran the deterministic work item 1 gates locally
+  after `scrutineer` failed to start: `make all` and `make markdownlint`
+  passed.
+- [x] (2026-07-02T04:39:32Z) Operator reran `make nixie` successfully in
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-operator-retry.out`, confirming the
+  earlier unchanged-document renderer timeouts were transient gate instability.
+- [x] (2026-07-02T04:45:07Z) Work item 1: Format, gate, review, and commit
+  this ExecPlan revision.
 - [ ] Work item 2: Add remaining per-contract fidelity and reference fixtures.
 - [ ] Work item 3: Add output-mode and fail-closed fixtures.
 - [ ] Work item 4: Mark roadmap task 3.1.1 complete.
@@ -166,6 +177,28 @@ full rendered-output Markdown gate sweep remain out of scope.
   drives `run_from_args`, compares expected output as raw fixture text, and
   supports typed failure expectations for dangling dependencies, level
   mismatches, and missing anchors.
+- `scrutineer` could not run the work item 1 gates. The sub-agent returned:
+  `You've hit your usage limit for GPT-5.3-Codex-Spark. Switch to another
+  model now, or try again at Jul 7th, 2026 12:20 PM.`
+- `make nixie` failed in
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-plan.out` on unchanged
+  `docs/rstest-bdd-users-guide.md` with `diagram 1 timed out`.
+- `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` failed in
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-plan-serial.out` on unchanged
+  `docs/mapsplice-design.md` and `docs/ortho-config-users-guide.md` with
+  `diagram 1 timed out`. A retry in
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-plan-serial-retry.out` failed on
+  unchanged `docs/mapsplice-design.md` with the same timeout.
+- Operator reran plain `make nixie` successfully in
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-operator-retry.out`. The prior failures
+  are recorded as transient unchanged-document renderer timeouts, not as a
+  current documentation defect.
+- CodeRabbit completed in
+  `/tmp/coderabbit-mapsplice-roadmap-3-1-1-operator-plan-recovery.out` with
+  two pre-existing findings in `tests/golden/assertions.rs`. They are outside
+  this plan-only work item because the branch diff only changes this ExecPlan;
+  keep them available as implementation-round context rather than mixing test
+  helper changes into the plan commit.
 
 ## Decision Log
 
@@ -201,6 +234,21 @@ full rendered-output Markdown gate sweep remain out of scope.
   golden harness observes `run_from_args` results and target bytes, while the
   BDD harness observes real process stdout and stderr. Date/Author:
   2026-07-02 / Codex.
+
+- Decision: Continue work item 1 after operator gate recovery. Rationale: the
+  earlier `make nixie` and serial-recovery failures timed out on unchanged
+  documentation diagrams, and a later plain `make nixie` operator retry passed
+  without source changes. Treat the earlier failures as transient gate
+  instability rather than a current documentation defect. Date/Author:
+  2026-07-02 / Codex operator.
+
+- Decision: Keep CodeRabbit helper findings out of the plan-only recovery
+  commit. Rationale: `git diff origin/main..HEAD` and the dirty diff both touch
+  only this ExecPlan, while the review findings target pre-existing helper
+  behaviour in `tests/golden/assertions.rs`. The helper distinction for
+  in-place failure output is relevant context for fixture implementation, but
+  not required to land the approved plan handoff. Date/Author: 2026-07-02 /
+  Codex operator.
 
 ## Outcomes & Retrospective
 
