@@ -15,8 +15,6 @@
     ".node_modules/**",
     "**/node_modules/**",
     "**/target/**",
-    "tests/fixtures/golden/**/fragment.md",
-    "tests/fixtures/golden/*sub_task*/expected.md",
-    "tests/fixtures/golden/*sub_task*/target.md"
+    "tests/fixtures/golden/**/*.md"
   ]
 }

@@ -200,9 +200,9 @@ impl MarkdownNodes {
 /// Copy the exact source span for an unchanged Markdown node.
 fn original_block(node: &Node, source: &str) -> Option<String> {
     let position = node.position()?;
-    source
-        .get(position.start.offset..position.end.offset)
-        .map(str::to_owned)
+    let prefix = source.get(..position.start.offset)?;
+    let start = prefix.rfind('\n').map_or(0, |index| index + 1);
+    source.get(start..position.end.offset).map(str::to_owned)
 }
 
 impl Default for RoadmapDocument {

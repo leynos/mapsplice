@@ -130,10 +130,23 @@ fixtures without redesigning the harness.
   Focused golden tests, `make all`, `make markdownlint`, and `make nixie`
   passed. CodeRabbit review was deferred because the sandbox has no default
   network route.
-- [ ] Work item 2: Add grammar-surface preservation fixtures.
+- [x] Work item 2: Add grammar-surface preservation fixtures.
 - [ ] Work item 3: Add fidelity and dependency-contract fixtures.
 - [ ] Work item 4: Add output-mode and fail-closed fixtures.
 - [ ] Work item 5: Mark roadmap task 3.1.1 complete.
+- [x] (2026-07-02T03:58:00Z) Work item 2: Added the seven planned
+  grammar-surface fixtures and named golden tests. The focused golden suite,
+  `make all`, and `make markdownlint` passed, but the required `make nixie`
+  gate did not pass because unchanged Mermaid diagrams repeatedly timed out in
+  the local renderer. This work item is intentionally not committed until the
+  Mermaid gate is green or the supervisor decides how to handle the
+  environmental gate failure.
+- [x] (2026-07-02T02:28:55Z) Work item 2 recovery: reran `make nixie`
+  successfully, verified host-side CodeRabbit findings, fixed the major
+  nested-block preservation issue, and reran the focused golden suite plus
+  `make all`, `make markdownlint`, and `make nixie`. The only remaining
+  CodeRabbit finding is stale: `assert_expected_error` already reports both
+  the expected error variant and the actual `MapspliceError`.
 
 ## Surprises & discoveries
 
@@ -179,6 +192,25 @@ fixtures without redesigning the harness.
   returned `deferred coderabbit review: no default network route visible in
   this sandbox`. This is recorded as an open review issue, not a local gate
   failure.
+- Work item 2 initially exposed that preserved nested task-body Markdown was
+  being reindented during rendering. The renderer now keeps the original source
+  line indentation for preserved blocks and only applies synthetic indentation
+  to nodes whose source snippets have been cleared by a semantic rewrite.
+- The work item 2 `make nixie` gate failed repeatedly on unchanged diagrams:
+  default `make nixie` timed out on
+  `docs/rstest-bdd-users-guide.md: diagram 1`, retry timed out on
+  `docs/ortho-config-users-guide.md: diagram 1`, a third default retry again
+  timed out on `docs/rstest-bdd-users-guide.md: diagram 1`, serial
+  `make NIXIE='nixie --max-concurrency 1' nixie` timed out on
+  `docs/ortho-config-users-guide.md: diagram 1`, alternate
+  `make NIXIE='nixie --renderer mmdc --max-concurrency 1' nixie` failed
+  because Chromium sandbox startup returned `shutdown: Operation not permitted
+  (1)`, and a temporary long-timeout wrapper still timed out on the unchanged
+  Mermaid diagrams after 180 seconds. A supervisor rerun later passed
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-operator-rerun.out` and
+  `/tmp/nixie-mapsplice-roadmap-3-1-1-review-preservation-fix.out`, so this is
+  recorded as a transient environmental gate failure rather than an open
+  branch defect.
 
 ## Decision log
 
@@ -229,6 +261,17 @@ fixtures without redesigning the harness.
   keeps `src/roadmap/ops/mod.rs` and `src/roadmap/parse/mod.rs` below that
   threshold without adding external dependencies or public API surface.
   Date/Author: 2026-07-02 / Codex.
+- Decision: Ignore committed golden fixture Markdown files in the repository
+  markdownlint configuration. Rationale: these files are parser and renderer
+  byte fixtures, not prose documentation; fragment fixtures intentionally lack
+  H1 headings, and expected fixtures intentionally preserve renderer output
+  that Markdown style fixers would rewrite. Date/Author: 2026-07-02 / Codex.
+- Decision: Preserve original nested Markdown source spans by line boundary,
+  not by Markdown node content offset. Rationale: `markdown` node offsets for
+  list-item body blocks can start after the list indentation; using the source
+  line start keeps untouched code blocks, tables, nested bullets, and addendum
+  bodies byte-faithful while still rendering rewritten nodes deterministically.
+  Date/Author: 2026-07-02 / Codex.
 
 ## Outcomes & retrospective
 
@@ -238,6 +281,12 @@ registers each case with explicit command metadata. Addendum sub-task
 insert/replace now works through private fragment and splice support. Local
 deterministic gates are green for this work item; the only gap is deferred
 CodeRabbit review because the sandbox has no default network route.
+
+Work item 2 is complete and ready to commit as a recovery slice. Seven
+grammar-surface cases are present, CodeRabbit's major fidelity findings are
+fixed, and the focused golden suite, `make all`, `make markdownlint`, and
+`make nixie` are green. Work items 3 through 5 remain open, so roadmap task
+3.1.1 must stay unchecked.
 
 ## Context and orientation
 
@@ -893,3 +942,22 @@ operation fixture, the scoped Markdown lint fixture exceptions, direct local
 gate execution after `scrutineer` quota exhaustion, and deferred CodeRabbit
 review caused by missing sandbox network routing. Work items 2 through 5
 remain.
+
+Revision note: Work item 2 was initially left uncommitted because the required
+Mermaid validation gate was not green. It has since been recovered, reviewed,
+fixed, and validated. Earlier transient-failure logs:
+`/tmp/test-mapsplice-roadmap-3-1-1-grammar.out`,
+`/tmp/all-mapsplice-roadmap-3-1-1-grammar.out`,
+`/tmp/markdownlint-mapsplice-roadmap-3-1-1-grammar.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar-retry.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar-retry2.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar-serial.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar-mmdc.out`, and
+`/tmp/nixie-mapsplice-roadmap-3-1-1-grammar-long-timeout.out`.
+Recovery validation logs:
+`/tmp/test-mapsplice-roadmap-3-1-1-review-preservation-golden.out`,
+`/tmp/all-mapsplice-roadmap-3-1-1-review-preservation-fix.out`,
+`/tmp/markdownlint-mapsplice-roadmap-3-1-1-review-preservation-fix.out`,
+`/tmp/nixie-mapsplice-roadmap-3-1-1-review-preservation-fix.out`, and
+`/tmp/coderabbit-mapsplice-roadmap-3-1-1-review-preservation-fix.out`.

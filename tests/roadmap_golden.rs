@@ -146,6 +146,97 @@ fn replace_sub_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn preamble_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "preamble_preserved",
+            GoldenCommand::InsertAfter { anchor: "1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn phase_step_task_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "phase_step_task_surface",
+            GoldenCommand::InsertAfter { anchor: "1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn multi_line_task_body(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "multi_line_task_body",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn nested_bullets(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "nested_bullets",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn tables_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "tables_preserved",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn code_blocks_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "code_blocks_preserved",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn addendum_body_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "addendum_body_surface",
+            GoldenCommand::InsertAfter { anchor: "1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn section_reference(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(&workspace?, reference_delete_case("section_reference", "1"))
 }

@@ -1,4 +1,9 @@
 //! Runner for golden roadmap fixture cases.
+//!
+//! This module loads fixtures described by [`GoldenCase`], prepares a
+//! [`GoldenWorkspace`], drives `mapsplice` through `run_from_args`, and
+//! dispatches outcomes to `assert_expected_error`, `assert_failure_output`, and
+//! `assert_success`.
 
 use std::ffi::OsString;
 
@@ -20,6 +25,7 @@ use super::{
 };
 
 pub(crate) fn assert_golden_case(workspace: &GoldenWorkspace, case: GoldenCase) -> TestResult {
+    ensure_required_fragment(case)?;
     let target = prepare_workspace(workspace, case)?;
     let context = RunContext {
         case,
@@ -38,6 +44,25 @@ pub(crate) fn assert_golden_case(workspace: &GoldenWorkspace, case: GoldenCase) 
             error: expected,
             output,
         } => assert_failed_case(&context, expected, output, run_result),
+    }
+}
+
+fn ensure_required_fragment(case: GoldenCase) -> TestResult {
+    let needs_fragment = matches!(
+        case.command,
+        GoldenCommand::Append
+            | GoldenCommand::InsertBefore { .. }
+            | GoldenCommand::InsertAfter { .. }
+            | GoldenCommand::Replace { .. }
+    );
+    if needs_fragment && case.fragment.is_none() {
+        Err(format!(
+            "golden fixture `{}` uses {:?} but has no fragment fixture",
+            case.name, case.command
+        )
+        .into())
+    } else {
+        Ok(())
     }
 }
 
@@ -104,36 +129,38 @@ pub(crate) fn command_args(
     if is_in_place {
         args.push(OsString::from("--in-place"));
     }
+    let target_arg = workspace.target.as_os_str().to_owned();
+    let fragment_arg = || workspace.fragment.as_os_str().to_owned();
 
     match command {
         GoldenCommand::Append => {
             args.push(OsString::from("append"));
-            args.push(workspace.target.as_os_str().to_owned());
-            args.push(workspace.fragment.as_os_str().to_owned());
+            args.push(target_arg.clone());
+            args.push(fragment_arg());
         }
         GoldenCommand::InsertBefore { anchor } => {
             args.push(OsString::from("insert"));
-            args.push(workspace.target.as_os_str().to_owned());
+            args.push(target_arg.clone());
             args.push(OsString::from(anchor));
-            args.push(workspace.fragment.as_os_str().to_owned());
+            args.push(fragment_arg());
         }
         GoldenCommand::InsertAfter { anchor } => {
             args.push(OsString::from("insert"));
             args.push(OsString::from("--after"));
-            args.push(workspace.target.as_os_str().to_owned());
+            args.push(target_arg.clone());
             args.push(OsString::from(anchor));
-            args.push(workspace.fragment.as_os_str().to_owned());
+            args.push(fragment_arg());
         }
         GoldenCommand::Delete { anchor } => {
             args.push(OsString::from("delete"));
-            args.push(workspace.target.as_os_str().to_owned());
+            args.push(target_arg.clone());
             args.push(OsString::from(anchor));
         }
         GoldenCommand::Replace { anchor } => {
             args.push(OsString::from("replace"));
-            args.push(workspace.target.as_os_str().to_owned());
+            args.push(target_arg);
             args.push(OsString::from(anchor));
-            args.push(workspace.fragment.as_os_str().to_owned());
+            args.push(fragment_arg());
         }
     }
     args

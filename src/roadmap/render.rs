@@ -84,7 +84,7 @@ fn render_task(task: &TaskEntry) -> Result<String> {
                     .iter()
                     .find(|sub_task| sub_task.identity == *identity)
                 {
-                    parts.push(indent_block(&render_sub_task(sub_task)?, 4));
+                    parts.push(render_sub_task(sub_task, 4)?);
                 }
             }
         }
@@ -92,30 +92,26 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     Ok(parts.join("\n"))
 }
 
-fn render_sub_task(sub_task: &SubTaskEntry) -> Result<String> {
+fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     let checkbox = match sub_task.checked {
         Some(true) => "[x] ",
         Some(false) => "[ ] ",
         None => "",
     };
+    let prefix = " ".repeat(indent);
     let mut parts = vec![format!(
-        "- {checkbox}{}. {}",
+        "{prefix}- {checkbox}{}. {}",
         sub_task.number,
-        render_item_summary(&render_inline(sub_task.summary.nodes())?, 0)
+        render_item_summary(&render_inline(sub_task.summary.nodes())?, indent)
     )];
-    for block in render_nested_body(&sub_task.body, 0)? {
+    for block in render_nested_body(&sub_task.body, indent)? {
         parts.push(block);
     }
     Ok(parts.join("\n"))
 }
 
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
-    render_markdown_nodes(markdown, 0).map(|blocks| {
-        blocks
-            .into_iter()
-            .map(|block| indent_block(&block, indent))
-            .collect()
-    })
+    render_markdown_nodes(markdown, indent)
 }
 
 fn render_item_summary(summary: &str, continuation_indent: usize) -> String {

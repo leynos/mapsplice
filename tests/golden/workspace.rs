@@ -65,7 +65,7 @@ fn fixture_path(path: FixturePath) -> Utf8PathBuf {
         FixturePath::Reference { name, kind } => Utf8PathBuf::from("tests")
             .join("fixtures")
             .join("reference_rewrite")
-            .join(format!("{}.{kind}.md", name, kind = kind.as_str())),
+            .join(format!("{name}.{kind}.md", kind = kind.as_str())),
         FixturePath::Golden { case, file } => Utf8PathBuf::from("tests")
             .join("fixtures")
             .join("golden")

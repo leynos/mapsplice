@@ -15,10 +15,15 @@ pub(crate) struct GoldenCase {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum GoldenCommand {
+    /// Append the fragment to the target roadmap.
     Append,
+    /// Insert the fragment before the addressed roadmap item.
     InsertBefore { anchor: &'static str },
+    /// Insert the fragment after the addressed roadmap item.
     InsertAfter { anchor: &'static str },
+    /// Delete the addressed roadmap item without using a fragment.
     Delete { anchor: &'static str },
+    /// Replace the addressed roadmap item with the fragment.
     Replace { anchor: &'static str },
 }
 
@@ -35,31 +40,42 @@ pub(crate) enum GoldenExpectation {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum SuccessOutput {
+    /// Assert command stdout equals the expected fixture.
     Stdout { expected: FixturePath },
+    /// Assert command stdout equals the expected fixture and the target is unchanged.
     StdoutTargetUnchanged { expected: FixturePath },
+    /// Assert in-place mode writes the expected fixture to the target with no stdout.
     InPlaceSuccess { expected: FixturePath },
+    /// Assert command stdout reproduces the original target exactly.
     OriginalTargetStdout,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum FailureOutput {
+    /// Assert the target remains byte-identical after a non-in-place failure.
     TargetUnchanged,
+    /// Assert the target remains byte-identical after an in-place failure.
     InPlaceTargetUnchanged,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ExpectedError {
+    /// Expect a dangling dependency diagnostic.
     DanglingDependency,
+    /// Expect a source/fragment level mismatch diagnostic.
     LevelMismatch,
+    /// Expect a missing-anchor diagnostic.
     MissingAnchor,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum FixturePath {
+    /// Fixture under `tests/fixtures/reference_rewrite/<name>.<kind>.md`.
     Reference {
         name: &'static str,
         kind: FixtureKind,
     },
+    /// Fixture under `tests/fixtures/golden/<case>/<file>`.
     Golden {
         case: &'static str,
         file: &'static str,
@@ -68,7 +84,9 @@ pub(crate) enum FixturePath {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum FixtureKind {
+    /// Expected output fixture.
     Expected,
+    /// Input target fixture.
     Input,
 }
 
