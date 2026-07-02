@@ -14,7 +14,7 @@ use text::{escape_markdown, indent_block, render_code_block};
 
 use super::{
     RoadmapDocument,
-    model::{MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+    model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -79,17 +79,24 @@ fn render_task(task: &TaskEntry) -> Result<String> {
         match child {
             TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
             TaskChild::SubTask(identity) => {
-                if let Some(sub_task) = task
-                    .sub_tasks
-                    .iter()
-                    .find(|sub_task| sub_task.identity == *identity)
-                {
-                    parts.push(render_sub_task(sub_task, 2)?);
-                }
+                let sub_task = find_sub_task_for_child(task, *identity)?;
+                parts.push(render_sub_task(sub_task, 2)?);
             }
         }
     }
     Ok(parts.join("\n"))
+}
+
+fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&SubTaskEntry> {
+    task.sub_tasks
+        .iter()
+        .find(|sub_task| sub_task.identity == identity)
+        .ok_or_else(|| MapspliceError::InvalidRoadmap {
+            message: format!(
+                "task `{}` child ordering references missing sub-task `{}`",
+                task.number, identity.anchor
+            ),
+        })
 }
 
 fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {

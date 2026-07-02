@@ -7,7 +7,10 @@ use cap_std::{ambient_authority, fs_utf8::Dir};
 use tempfile::tempdir;
 
 use super::render_roadmap;
-use crate::roadmap::parse_roadmap;
+use crate::{
+    error::MapspliceError,
+    roadmap::{model::TaskEntry, parse_roadmap},
+};
 
 #[test]
 fn exact_nested_sub_task_round_trip() {
@@ -40,6 +43,35 @@ fn non_empty_roadmap_ends_in_exactly_one_final_newline() {
 
     assert!(rendered.ends_with('\n'));
     assert!(!rendered.ends_with("\n\n"));
+}
+
+#[test]
+fn render_fails_when_task_child_references_missing_sub_task() {
+    let mut roadmap = parse_roadmap(concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] 1.1.1.1. Missing sub-task.\n",
+    ))
+    .expect("roadmap with sub-task should parse");
+    let missing_sub_task = parent_task_mut(&mut roadmap)
+        .expect("roadmap should contain the parent task")
+        .sub_tasks
+        .remove(0);
+
+    let error =
+        render_roadmap(&roadmap).expect_err("orphaned sub-task child should fail rendering");
+
+    let MapspliceError::InvalidRoadmap { message } = error else {
+        panic!("expected InvalidRoadmap for orphaned sub-task child");
+    };
+    assert_eq!(
+        message,
+        format!(
+            "task `1.1.1` child ordering references missing sub-task `{}`",
+            missing_sub_task.number
+        )
+    );
 }
 
 #[test]
@@ -130,6 +162,14 @@ fn conformant_round_trip_fixture_paths() -> Result<Vec<Utf8PathBuf>, String> {
     fixture_paths.sort();
 
     Ok(fixture_paths)
+}
+
+fn parent_task_mut(roadmap: &mut crate::roadmap::RoadmapDocument) -> Option<&mut TaskEntry> {
+    roadmap
+        .phases
+        .first_mut()
+        .and_then(|phase| phase.steps.first_mut())
+        .and_then(|step| step.tasks.first_mut())
 }
 
 fn collect_named_fixture_paths(

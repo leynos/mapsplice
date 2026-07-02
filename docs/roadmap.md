@@ -168,7 +168,7 @@ typed errors rather than partial or mangled output.
     diagnostics.
   - Success: target and fragment parsers use the same helper, and focused tests
     pin the shared invariant and unchanged error text.
-- [ ] 4.1.4. Fail closed on renderer model-invariant breaches.
+- [x] 4.1.4. Fail closed on renderer model-invariant breaches.
   - Requires 4.1.1.
   - Make rendering fail with a typed error when task child ordering references a
     missing sub-task instead of silently omitting content.
