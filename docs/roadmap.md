@@ -98,6 +98,16 @@ mechanically rather than by inspection.
   - Success: the corpus exercises every operation and every fidelity and
     contract
     guarantee, compared exactly.
+  - [ ] 3.1.1.1. Document exact fixture EOF whitespace policy.
+    - Addendum (from review:3.1.1; low). Document when raw-byte golden
+      fixtures may preserve EOF whitespace and how reviewers distinguish
+      intentional fixture fidelity from accidental whitespace churn.
+      Lightweight addendum pass.
+  - [ ] 3.1.1.2. Consolidate the golden fixture harness.
+    - Addendum (from audit:3.1.1; medium). Refactor golden fixture case
+      construction into a parameterized harness that preserves named cases
+      while reducing repeated helper and assertion edits. Lightweight addendum
+      pass.
 - [ ] 3.1.2. Add a no-op round-trip property test.
   - Requires 3.1.1.
   - For any conformant fixture, a no-op edit must render byte-identical output.
@@ -135,3 +145,25 @@ typed errors rather than partial or mangled output.
     so a dangling dependency is visible rather than silent.
   - Success: an edit that leaves a dangling `Requires` reference reports it, and
     a fixture pins the diagnostic.
+
+### 4.2. Make documentation gates deterministic and scope-aware
+
+This step answers whether documentation validation can remain a trustworthy
+signal when CI runs Mermaid checks concurrently and contributors need narrow
+Markdown maintenance without unrelated formatter churn. Its outcome informs how
+later documentation-heavy tasks prove gate cleanliness without destabilizing
+review.
+
+- [ ] 4.2.1. Make Mermaid validation deterministic under CI concurrency.
+  - Requires 3.1.1.
+  - Stabilize the `make nixie` path so unchanged diagrams do not time out under
+    CI concurrency when serial validation passes.
+  - Success: concurrent and serial Mermaid validation give repeatable pass/fail
+    results on the existing documentation corpus.
+- [ ] 4.2.2. Add path-scoped Markdown maintenance targets.
+  - Requires 4.2.1.
+  - Add documented targets or variables that run Markdown formatting and linting
+    on caller-supplied paths without repo-wide formatter churn.
+  - Success: maintainers can format and lint one or more named Markdown files
+    through Makefile-supported commands, and unchanged Markdown files outside
+    those paths are left untouched.

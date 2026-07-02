@@ -275,6 +275,19 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
   passed and produced full-repository gate evidence. Date/Author: 2026-07-02 /
   Codex.
 
+## Addenda
+
+- [ ] 3.1.1.1. Document exact fixture EOF whitespace policy.
+  - Source: review:3.1.1 (low).
+  - Scope: Document when raw-byte golden fixtures may preserve EOF whitespace
+    and how maintainers distinguish intentional fixture fidelity from
+    accidental whitespace churn. Lightweight addendum pass.
+- [ ] 3.1.1.2. Consolidate the golden fixture harness.
+  - Source: audit:3.1.1 (medium).
+  - Scope: Refactor the golden fixture case construction into a parameterized
+    harness that preserves named cases while reducing repeated helper and
+    assertion edits. Lightweight addendum pass.
+
 ## Outcomes & Retrospective
 
 Roadmap task 3.1.1 is complete. The fixture corpus now includes eight
