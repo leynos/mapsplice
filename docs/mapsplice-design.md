@@ -112,8 +112,9 @@ These hold for every successful operation:
   deterministic consequences of the edit — the renumbering of later items
   (section 6, C2) and the rewriting of dependency references to them (C3).
 - **F3 — Round-trip stability.** Parsing a conformant document and rendering it
-  under a no-op edit is the identity, modulo the one documented normalisation
-  the renderer applies (which must itself be idempotent).
+  under a no-op edit is the identity, modulo the one documented normalization:
+  non-empty rendered roadmaps end in exactly one final newline. Rendering again
+  does not add another final newline.
 - **F4 — Gate-clean output.** Rendered output passes the house Markdown gates
   (`make markdownlint`) and is stable under the house formatter
   (`mdformat-all`, which runs `mdtablefix` then `markdownlint-cli2 --fix`): a

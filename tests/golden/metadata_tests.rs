@@ -6,12 +6,14 @@ use cap_std::{ambient_authority, fs_utf8::Dir};
 use super::{
     ExpectedError,
     FailureOutput,
+    FixtureKind,
     FixturePath,
     GoldenCommand,
     GoldenExpectation,
     GoldenWorkspace,
     SuccessOutput,
     command_args,
+    expected_output,
 };
 
 #[test]
@@ -78,29 +80,43 @@ fn command_metadata_covers_supported_shapes() {
 fn expectation_metadata_covers_output_modes_and_fixture_shapes() {
     let expectations = [
         GoldenExpectation::Success {
-            expected: FixturePath::Golden {
-                case: "case_name",
-                file: "expected.md",
+            output: SuccessOutput::Stdout {
+                expected: FixturePath::Golden {
+                    case: "case_name",
+                    file: "expected.md",
+                },
             },
-            output: SuccessOutput::Stdout,
         },
         GoldenExpectation::Success {
-            expected: FixturePath::Golden {
-                case: "case_name",
-                file: "expected.md",
+            output: SuccessOutput::StdoutTargetUnchanged {
+                expected: FixturePath::Golden {
+                    case: "case_name",
+                    file: "expected.md",
+                },
             },
-            output: SuccessOutput::StdoutTargetUnchanged,
         },
         GoldenExpectation::Success {
-            expected: FixturePath::Golden {
-                case: "case_name",
-                file: "expected.md",
+            output: SuccessOutput::InPlaceSuccess {
+                expected: FixturePath::Golden {
+                    case: "case_name",
+                    file: "expected.md",
+                },
             },
-            output: SuccessOutput::InPlaceSuccess,
+        },
+        GoldenExpectation::Success {
+            output: SuccessOutput::OriginalTargetStdout,
         },
         GoldenExpectation::Failure {
             error: ExpectedError::DanglingDependency,
             output: FailureOutput::TargetUnchanged,
+        },
+        GoldenExpectation::Failure {
+            error: ExpectedError::LevelMismatch,
+            output: FailureOutput::TargetUnchanged,
+        },
+        GoldenExpectation::Failure {
+            error: ExpectedError::MissingAnchor,
+            output: FailureOutput::InPlaceTargetUnchanged,
         },
         GoldenExpectation::Failure {
             error: ExpectedError::DanglingDependency,
@@ -108,14 +124,24 @@ fn expectation_metadata_covers_output_modes_and_fixture_shapes() {
         },
     ];
 
-    assert_eq!(
-        expectations
-            .iter()
-            .copied()
-            .filter(|expectation| expectation.is_in_place())
-            .count(),
-        2
-    );
+    let in_place_count = expectations
+        .iter()
+        .copied()
+        .filter(|expectation| expectation.is_in_place())
+        .count();
+
+    assert_eq!(in_place_count, 3);
+}
+
+#[test]
+fn expected_output_keeps_final_newline() {
+    let fixture = expected_output(FixturePath::Reference {
+        name: "section_reference",
+        kind: FixtureKind::Expected,
+    })
+    .expect("fixture should be readable");
+
+    assert!(fixture.ends_with('\n'));
 }
 
 fn command_arg_strings(

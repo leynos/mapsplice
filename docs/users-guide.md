@@ -165,6 +165,9 @@ The default mode writes the updated roadmap to standard output:
 mapsplice replace docs/roadmap.md 8 replacement.md > rewritten.md
 ```
 
+Non-empty rendered roadmaps end in exactly one final newline. A second
+`mapsplice` render of conformant output does not add another final newline.
+
 Use in-place mode when the target should be rewritten directly:
 
 ```bash

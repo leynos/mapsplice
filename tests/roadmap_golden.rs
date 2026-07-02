@@ -20,13 +20,13 @@ fn workspace() -> TestResult<GoldenWorkspace> {
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn section_reference(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(&workspace?, reference_delete_case("section_reference"))
+    assert_golden_case(&workspace?, reference_delete_case("section_reference", "1"))
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn version_quantity(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(&workspace?, reference_delete_case("version_quantity"))
+    assert_golden_case(&workspace?, reference_delete_case("version_quantity", "1"))
 }
 
 #[rstest]
@@ -34,18 +34,21 @@ fn version_quantity(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 fn section_reference_outside_requires(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
-        reference_delete_case("section_reference_outside_requires"),
+        reference_delete_case("section_reference_outside_requires", "1"),
     )
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn substring_non_match(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(&workspace?, reference_delete_case("substring_non_match"))
+    assert_golden_case(
+        &workspace?,
+        reference_delete_case("substring_non_match", "1"),
+    )
 }
 
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn multi_id_requires(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(&workspace?, reference_delete_case("multi_id_requires"))
+    assert_golden_case(&workspace?, reference_delete_case("multi_id_requires", "1"))
 }

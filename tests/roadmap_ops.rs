@@ -67,7 +67,7 @@ fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspac
         "- [ ] 2.1.1. Second task. Requires 2.1.1.\n\n",
         "## 3. Inserted phase\n\n",
         "### 3.1. Added step\n\n",
-        "- [ ] 3.1.1. Added task. Requires 3.1.1.",
+        "- [ ] 3.1.1. Added task. Requires 3.1.1.\n",
     );
     assert_equal(&outcome.stdout.as_deref(), &Some(expected));
     assert_equal(

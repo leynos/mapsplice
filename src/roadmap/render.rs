@@ -46,7 +46,12 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
         }
         blocks.extend(render_markdown_nodes(&phase.trailing, 0)?);
     }
-    Ok(blocks.join("\n\n"))
+    let rendered = blocks.join("\n\n");
+    Ok(if rendered.is_empty() {
+        rendered
+    } else {
+        format!("{rendered}\n")
+    })
 }
 
 /// Render a list of roadmap tasks as Markdown checklist lines.
