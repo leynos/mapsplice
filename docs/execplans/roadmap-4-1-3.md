@@ -151,7 +151,22 @@ target on`origin/main`.
   `src/roadmap/parse/fragment.rs::validate_task_siblings` reports
   `task fragments must contain tasks from one step` and must not be folded into
   the shared helper.
-- [ ] Work item 1: add focused parser diagnostic coverage.
+- [x] (2026-07-02T21:00:00Z) Work item 1: added focused parser diagnostic
+  coverage in `tests/roadmap_parse.rs` for target-roadmap,
+  step-fragment, and task-fragment sibling diagnostics.
+- [x] (2026-07-02T21:00:00Z) Work item 1 red proof: temporarily changed the
+  target-roadmap expected message to step `1.2`; the focused test failed with
+  left `` task `1.2.1` does not belong to step `1.1` `` and right
+  `` task `1.2.1` does not belong to step `1.2` ``. Reverted the mutation
+  before continuing.
+- [x] (2026-07-02T21:00:00Z) Work item 1 validation: focused parser command
+  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-1.out`; `make all`
+  passed in `/tmp/make-all-mapsplice-roadmap-4-1-3-item-1.out` with 158
+  nextest tests and doctests passing.
+- [x] (2026-07-02T21:00:00Z) Work item 1 review: `scrutineer` delegation
+  failed before running because the host reported
+  `usage limit for GPT-5.3-Codex-Spark`; direct CodeRabbit agent invocation
+  returned deferred with `no default network route visible in this sandbox`.
 - [ ] Work item 2: extract the shared task-belongs-to-step helper.
 - [ ] Work item 3: reconcile the roadmap and close the plan.
 
@@ -175,6 +190,15 @@ target on`origin/main`.
   the sibling-only text.
   Impact: the shared helper should be used only by
   `DocumentParser::append_task_list` and `append_step_fragment_tasks`.
+
+- Observation: `scrutineer` and CodeRabbit were unavailable for work item 1
+  review in this sandbox.
+  Evidence: `multi_agent_v1.spawn_agent(agent_type=scrutineer)` returned
+  `usage limit for GPT-5.3-Codex-Spark`; direct
+  `coderabbit-review-agent` returned
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+  Impact: deterministic local gates were run directly with `/tmp` logs, and
+  CodeRabbit review remains a deferred open issue for supervisor handling.
 
 ## Decision Log
 
@@ -202,13 +226,19 @@ target on`origin/main`.
 
 ## Outcomes & Retrospective
 
-No implementation has begun. This section must be updated after each approved
-work item with the committed change, gate evidence, and any lessons learned.
+Work item 1 added focused parser diagnostic tests without changing production
+code. The tests pin three behaviours: target-roadmap task numbers must belong
+to their containing step, step-fragment task numbers must belong to their
+containing step, and top-level task fragments with mixed step numbers keep the
+distinct sibling diagnostic.
 
 Round 2 addressed the design-review blocking points by making the Markdown
 formatting and gate commands explicit for every work item that updates this
 plan, adding `make all` before the work item 1 commit, and replacing `rg`
 acceptance checks with Leta-first verification plus an exact-text fallback.
+Work item 1 then confirmed the expected red failure, restored the green state,
+and passed `make all`. CodeRabbit review could not run because the sandbox had
+no visible default network route.
 
 ## Context and Orientation
 

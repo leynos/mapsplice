@@ -10,6 +10,13 @@ use mapsplice::{
 };
 use rstest::rstest;
 
+fn invalid_roadmap_message(error: &MapspliceError) -> &str {
+    match error {
+        MapspliceError::InvalidRoadmap { message } => message,
+        other => panic!("expected InvalidRoadmap error, got {other:?}"),
+    }
+}
+
 #[rstest]
 #[case("8", "8")]
 #[case("8.2", "8.2")]
@@ -75,4 +82,41 @@ fn parse_roadmap_keeps_preamble_and_structure() {
         .first()
         .expect("phase should contain one step");
     assert_eq!(first_step.tasks.len(), 1);
+}
+
+#[rstest]
+fn parse_roadmap_rejects_task_from_another_step() {
+    let error = parse_roadmap_text(concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.2.1. Wrong step.\n",
+    ))
+    .expect_err("task numbers must belong to their containing step");
+
+    assert_eq!(
+        invalid_roadmap_message(&error),
+        "task `1.2.1` does not belong to step `1.1`",
+    );
+}
+
+#[rstest]
+fn parse_step_fragment_rejects_task_from_another_step() {
+    let error = parse_fragment_text(concat!("### 9.1. Step\n\n", "- [ ] 9.2.1. Wrong step.\n",))
+        .expect_err("step fragments must reject tasks from another step");
+
+    assert_eq!(
+        invalid_roadmap_message(&error),
+        "task `9.2.1` does not belong to step `9.1`",
+    );
+}
+
+#[rstest]
+fn parse_task_fragment_keeps_sibling_step_diagnostic() {
+    let error = parse_fragment_text(concat!("- [ ] 9.1.1. First.\n", "- [ ] 9.2.1. Second.\n",))
+        .expect_err("task fragments must contain tasks from one step");
+
+    assert_eq!(
+        invalid_roadmap_message(&error),
+        "task fragments must contain tasks from one step",
+    );
 }
