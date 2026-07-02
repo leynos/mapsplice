@@ -120,11 +120,11 @@ mechanically rather than by inspection.
     house formatter.
   - Success: `make markdownlint` passes on rendered fixtures and `mdformat-all`
     is a no-op on them.
-  - [ ] 3.1.3.1. Add ordered-list body gate fixture.
+  - [x] 3.1.3.1. Add ordered-list body gate fixture.
     - Addendum (from review:3.1.3; low). Add a rendered-output gate fixture
       with an ordinary ordered list in a task body, pinning the
       `mdtablefix --renumber` interaction. Lightweight addendum pass.
-  - [ ] 3.1.3.2. Clarify F1/F4 normalization boundaries.
+  - [x] 3.1.3.2. Clarify F1/F4 normalization boundaries.
     - Addendum (from review:3.1.3; medium). Document whether exact
       preservation applies only to gate-clean input or whether successful
       rendering may normalize formatter-unstable input. Lightweight addendum
