@@ -2,6 +2,8 @@
 
 #[path = "roadmap_golden/contracts.rs"]
 mod contracts;
+#[path = "roadmap_golden/formatter_boundary.rs"]
+mod formatter_boundary;
 mod golden;
 
 use golden::{

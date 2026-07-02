@@ -1,5 +1,7 @@
 //! Deterministic renderer for the supported roadmap subset.
 
+#[path = "render_preservation.rs"]
+mod preservation;
 #[cfg(test)]
 #[path = "render_tests.rs"]
 mod render_tests;
@@ -9,6 +11,7 @@ mod table;
 mod text;
 
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
+use preservation::render_preserved_or_canonical;
 use table::render_table;
 use text::{escape_markdown, indent_block, render_code_block};
 
@@ -170,9 +173,10 @@ fn render_markdown_nodes(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<
         .iter()
         .zip(markdown.original_blocks())
         .map(|(node, original)| {
-            original
-                .as_ref()
-                .map_or_else(|| render_block(node, indent), |block| Ok(block.clone()))
+            original.as_ref().map_or_else(
+                || render_block(node, indent),
+                |block| render_preserved_or_canonical(node, block, indent),
+            )
         })
         .collect()
 }

@@ -1,8 +1,15 @@
 //! Property tests for roadmap numbering and dependency rewrite invariants.
 
+#[path = "support/formatter_boundary.rs"]
+mod formatter_boundary;
 #[path = "support/properties.rs"]
 mod support;
 
+use formatter_boundary::{
+    assert_house_format_noop,
+    formatter_unstable_boundary_shape,
+    gate_clean_boundary_shape,
+};
 use mapsplice::{MapspliceError, parse_anchor, run_from_args};
 use proptest::prelude::*;
 use support::{PHASE_FRAGMENT, create_workspace};
@@ -190,6 +197,67 @@ proptest! {
             )),
             "scoped reference incidental text changed or mapped reference missing: {stdout}"
         );
+    }
+
+    #[test]
+    fn gate_clean_noop_preserves_stable_boundary_bodies(
+        shape in gate_clean_boundary_shape(),
+    ) {
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        let target = shape.target();
+        workspace
+            .write_target(&target)
+            .expect("target should be written");
+        workspace
+            .write_fragment("- [ ] 1.1.1. Existing task.\n")
+            .expect("fragment should be written");
+
+        let outcome = run_from_args([
+            "mapsplice",
+            "replace",
+            workspace.target.as_str(),
+            "1.1.1",
+            workspace.fragment.as_str(),
+        ])
+        .expect("no-op replace command should succeed");
+        let stdout = outcome.stdout.unwrap_or_default();
+
+        prop_assert_eq!(stdout, target);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 12,
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn formatter_unstable_noop_normalizes_to_documented_boundary(
+        shape in formatter_unstable_boundary_shape(),
+    ) {
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        let target = shape.target();
+        let expected = shape.expected();
+        workspace
+            .write_target(&target)
+            .expect("target should be written");
+        workspace
+            .write_fragment("- [ ] 1.1.1. Existing task.\n")
+            .expect("fragment should be written");
+
+        let outcome = run_from_args([
+            "mapsplice",
+            "replace",
+            workspace.target.as_str(),
+            "1.1.1",
+            workspace.fragment.as_str(),
+        ])
+        .expect("no-op replace command should succeed");
+        let stdout = outcome.stdout.unwrap_or_default();
+
+        prop_assert_eq!(&stdout, &expected);
+        assert_house_format_noop(&stdout).map_err(TestCaseError::fail)?;
     }
 }
 

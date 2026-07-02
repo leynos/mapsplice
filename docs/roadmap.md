@@ -129,7 +129,7 @@ mechanically rather than by inspection.
       preservation applies only to gate-clean input or whether successful
       rendering may normalize formatter-unstable input. Lightweight addendum
       pass.
-- [ ] 3.1.4. Pin no-op behaviour for formatter-unstable accepted input.
+- [x] 3.1.4. Pin no-op behaviour for formatter-unstable accepted input.
   - Requires 3.1.2 and 3.1.3.2.
   - Add adversarial accepted-input cases that make the F1/F4 trade-off explicit
     when `markdownlint-cli2 --fix` would change indentation or spacing.
