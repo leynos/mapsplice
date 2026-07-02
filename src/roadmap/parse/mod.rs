@@ -121,6 +121,23 @@ pub(super) fn parse_task_list(
         .collect()
 }
 
+pub(super) fn validate_tasks_belong_to_step(
+    step_number: StepNumber,
+    tasks: &[TaskEntry],
+) -> Result<()> {
+    for task in tasks {
+        if task.number.step_number() != step_number {
+            return Err(MapspliceError::InvalidRoadmap {
+                message: format!(
+                    "task `{}` does not belong to step `{}`",
+                    task.number, step_number
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
     if item.checked.is_none() {
         return Err(MapspliceError::InvalidRoadmap {

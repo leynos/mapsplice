@@ -12,12 +12,12 @@ use super::{
     parse_step_heading,
     parse_sub_task_fragment_list,
     parse_task_list,
+    validate_tasks_belong_to_step,
 };
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
         RoadmapFragment,
-        StepNumber,
         model::{ItemIdentity, MarkdownNodes, SourceId, StepSection, SubTaskEntry, TaskEntry},
     },
 };
@@ -211,7 +211,7 @@ fn append_step_fragment_tasks(
     }
 
     let mut tasks = parse_task_list(list, SourceId::Fragment, source_text)?;
-    validate_task_numbers(current.number, &tasks)?;
+    validate_tasks_belong_to_step(current.number, &tasks)?;
     current.tasks.append(&mut tasks);
     Ok(())
 }
@@ -231,21 +231,6 @@ fn push_step_fragment_body(
         current.body.push_preserved(node, source_text);
     } else {
         current.trailing.push_preserved(node, source_text);
-    }
-    Ok(())
-}
-
-/// Ensure task fragment numbers belong to the active step.
-fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
-    for task in tasks {
-        if task.number.step_number() != step_number {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: format!(
-                    "task `{}` does not belong to step `{}`",
-                    task.number, step_number
-                ),
-            });
-        }
     }
     Ok(())
 }

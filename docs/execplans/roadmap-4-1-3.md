@@ -167,7 +167,23 @@ target on`origin/main`.
   failed before running because the host reported
   `usage limit for GPT-5.3-Codex-Spark`; direct CodeRabbit agent invocation
   returned deferred with `no default network route visible in this sandbox`.
-- [ ] Work item 2: extract the shared task-belongs-to-step helper.
+- [x] (2026-07-02T21:20:00Z) Work item 2: extracted
+  `validate_tasks_belong_to_step` into `src/roadmap/parse/mod.rs`, wired
+  target-roadmap and step-fragment parsing through it, and removed both local
+  `validate_task_numbers` helpers.
+- [x] (2026-07-02T21:20:00Z) Work item 2 acceptance: Leta daemon startup
+  failed with `Error: Failed to start daemon`, so the exact-text fallback found
+  no `fn validate_task_numbers`, found the helper in
+  `src/roadmap/parse/mod.rs`, and found caller references in
+  `src/roadmap/parse/document.rs` and `src/roadmap/parse/fragment.rs`.
+- [x] (2026-07-02T21:20:00Z) Work item 2 validation: focused parser command
+  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-2.out`; `make all`
+  passed in `/tmp/make-all-mapsplice-roadmap-4-1-3-item-2.out` with 158
+  nextest tests and doctests passing.
+- [x] (2026-07-02T21:20:00Z) Work item 2 review: direct CodeRabbit agent
+  invocation returned deferred with
+  `no default network route visible in this sandbox`; no actionable review
+  feedback was available.
 - [ ] Work item 3: reconcile the roadmap and close the plan.
 
 ## Surprises & Discoveries
@@ -192,13 +208,19 @@ target on`origin/main`.
   `DocumentParser::append_task_list` and `append_step_fragment_tasks`.
 
 - Observation: `scrutineer` and CodeRabbit were unavailable for work item 1
-  review in this sandbox.
+  and work item 2 review in this sandbox.
   Evidence: `multi_agent_v1.spawn_agent(agent_type=scrutineer)` returned
   `usage limit for GPT-5.3-Codex-Spark`; direct
   `coderabbit-review-agent` returned
   `deferred coderabbit review: no default network route visible in this sandbox`.
   Impact: deterministic local gates were run directly with `/tmp` logs, and
   CodeRabbit review remains a deferred open issue for supervisor handling.
+
+- Observation: moving the helper into `src/roadmap/parse/mod.rs` brought the
+  file close to the documented line-count limit.
+  Evidence: after formatting, `src/roadmap/parse/mod.rs` is 399 lines.
+  Impact: no new parser module was required, but future parser helpers should
+  consider a small validation submodule before adding more lines to `mod.rs`.
 
 ## Decision Log
 
@@ -231,6 +253,12 @@ code. The tests pin three behaviours: target-roadmap task numbers must belong
 to their containing step, step-fragment task numbers must belong to their
 containing step, and top-level task fragments with mixed step numbers keep the
 distinct sibling diagnostic.
+
+Work item 2 replaced the two duplicate task-belongs-to-step helpers with one
+parse-domain helper. The target-roadmap path and step-fragment path now share
+the same typed `MapspliceError::InvalidRoadmap` diagnostic, while
+`validate_task_siblings` remains separate and keeps the task-fragment sibling
+message.
 
 Round 2 addressed the design-review blocking points by making the Markdown
 formatting and gate commands explicit for every work item that updates this

@@ -10,13 +10,13 @@ use super::{
     parse_phase_heading,
     parse_step_heading,
     parse_task_list,
+    validate_tasks_belong_to_step,
 };
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
         RoadmapAnchor,
         RoadmapDocument,
-        StepNumber,
         model::{ItemIdentity, MarkdownNodes, PhaseSection, SourceId, StepSection, TaskEntry},
     },
 };
@@ -161,7 +161,7 @@ impl<'source> DocumentParser<'source> {
         }
 
         let mut tasks = parse_task_list(list, self.source, self.source_text)?;
-        validate_task_numbers(step.number, &tasks)?;
+        validate_tasks_belong_to_step(step.number, &tasks)?;
         validate_sub_task_numbers(&tasks)?;
         step.tasks.append(&mut tasks);
         Ok(())
@@ -217,21 +217,6 @@ impl<'source> DocumentParser<'source> {
 
         Ok(self.document)
     }
-}
-
-/// Ensure parsed task numbers belong to their containing step.
-fn validate_task_numbers(step_number: StepNumber, tasks: &[TaskEntry]) -> Result<()> {
-    for task in tasks {
-        if task.number.step_number() != step_number {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: format!(
-                    "task `{}` does not belong to step `{}`",
-                    task.number, step_number
-                ),
-            });
-        }
-    }
-    Ok(())
 }
 
 /// Ensure parsed sub-task numbers belong to their containing task.
