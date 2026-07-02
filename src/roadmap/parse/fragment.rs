@@ -24,6 +24,27 @@ use crate::{
 
 /// Parse a fragment file.
 ///
+/// # Examples
+///
+/// ```rust
+/// use mapsplice::{RoadmapFragment, parse_fragment};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let fragment = parse_fragment(
+///     "## 1. Added phase\n\n### 1.1. Added step\n\n- [ ] 1.1.1. Add the first task\n",
+/// )?;
+///
+/// let RoadmapFragment::Phase(phases) = fragment else {
+///     return Err("expected a phase fragment".into());
+/// };
+/// let task = &phases[0].steps[0].tasks[0];
+///
+/// assert_eq!(phases[0].number.get(), 1);
+/// assert_eq!(task.number.to_string(), "1.1.1");
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Errors
 ///
 /// Returns an error when the Markdown cannot be parsed or when the fragment

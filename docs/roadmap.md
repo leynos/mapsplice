@@ -204,7 +204,7 @@ are explained with executable examples rather than forcing readers to infer
 usage from tests. Its outcome informs whether public API documentation can be
 treated as part of the maintained contract.
 
-- [ ] 4.3.1. Bring public API Rustdoc examples up to project standard.
+- [x] 4.3.1. Bring public API Rustdoc examples up to project standard.
   - Requires 3.1.3.
   - Add compact executable Rustdoc examples for the public APIs listed in the
     developers' guide, keeping filesystem-heavy flows isolated to temporary

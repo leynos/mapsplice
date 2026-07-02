@@ -36,6 +36,20 @@ pub(super) struct ParseContext<'source> {
 
 /// Parse a target roadmap document.
 ///
+/// # Examples
+///
+/// ```rust
+/// # fn main() -> mapsplice::Result<()> {
+/// let roadmap = mapsplice::parse_roadmap(
+///     "## 1. Initial phase\n\n### 1.1. First step\n\n- [ ] 1.1.1. Ship the first task\n",
+/// )?;
+///
+/// let task = &roadmap.phases[0].steps[0].tasks[0];
+/// assert_eq!(task.number.to_string(), "1.1.1");
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Errors
 ///
 /// Returns an error when Markdown parsing or roadmap grammar validation fails.
@@ -299,55 +313,42 @@ fn validate_sub_task_number(
 }
 
 fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)> {
-    let Node::Text(Text { value, .. }) =
-        paragraph
-            .children
-            .first()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "task paragraphs must start with plain text".to_owned(),
-            })?
-    else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "task paragraphs must start with plain text".to_owned(),
-        });
-    };
-    let (anchor, remainder) = split_numbered_prefix(value, RoadmapItemLevel::Task)?;
+    let (anchor, summary) = parse_numbered_paragraph(paragraph, RoadmapItemLevel::Task, "task")?;
     let RoadmapAnchor::Task(number) = anchor else {
         return Err(MapspliceError::InvalidRoadmap {
             message: "expected a task number".to_owned(),
         });
     };
-    let mut summary = paragraph.children.clone();
-    if let Some(Node::Text(text)) = summary.first_mut() {
-        text.value = remainder;
-    }
     Ok((number, summary))
 }
 
 fn parse_sub_task_paragraph(paragraph: &Paragraph) -> Result<(SubTaskNumber, Vec<Node>)> {
-    let Node::Text(Text { value, .. }) =
-        paragraph
-            .children
-            .first()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "sub-task paragraphs must start with plain text".to_owned(),
-            })?
-    else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "sub-task paragraphs must start with plain text".to_owned(),
-        });
-    };
-    let (anchor, remainder) = split_numbered_prefix(value, RoadmapItemLevel::SubTask)?;
+    let (anchor, summary) =
+        parse_numbered_paragraph(paragraph, RoadmapItemLevel::SubTask, "sub-task")?;
     let RoadmapAnchor::SubTask(number) = anchor else {
         return Err(MapspliceError::InvalidRoadmap {
             message: "expected a sub-task number".to_owned(),
         });
     };
+    Ok((number, summary))
+}
+
+fn parse_numbered_paragraph(
+    paragraph: &Paragraph,
+    level: RoadmapItemLevel,
+    item_name: &str,
+) -> Result<(RoadmapAnchor, Vec<Node>)> {
+    let Some(Node::Text(Text { value, .. })) = paragraph.children.first() else {
+        return Err(MapspliceError::InvalidRoadmap {
+            message: format!("{item_name} paragraphs must start with plain text"),
+        });
+    };
+    let (anchor, remainder) = split_numbered_prefix(value, level)?;
     let mut summary = paragraph.children.clone();
     if let Some(Node::Text(text)) = summary.first_mut() {
         text.value = remainder;
     }
-    Ok((number, summary))
+    Ok((anchor, summary))
 }
 
 fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(RoadmapAnchor, String)> {

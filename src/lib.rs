@@ -19,6 +19,58 @@ use roadmap::{
 
 /// Execute `mapsplice` using command-line arguments.
 ///
+/// # Examples
+///
+/// ```rust
+/// use mapsplice::run_from_args;
+///
+/// # use std::{fs, io};
+/// # use camino::Utf8PathBuf;
+/// # use tempfile::{TempDir, tempdir};
+/// #
+/// # fn temp_path(temp: &TempDir, name: &str) -> Result<Utf8PathBuf, io::Error> {
+/// #     Utf8PathBuf::from_path_buf(temp.path().join(name)).map_err(|_| {
+/// #         io::Error::new(io::ErrorKind::InvalidData, "temporary path was not UTF-8")
+/// #     })
+/// # }
+/// #
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let temp = tempdir()?;
+/// let target = temp_path(&temp, "target.md")?;
+/// let fragment = temp_path(&temp, "fragment.md")?;
+///
+/// # fs::write(
+/// #     &target,
+/// #     concat!(
+/// #         "## 1. First phase\n\n### 1.1. First step\n\n- [ ] 1.1.1. Keep this task\n\n",
+/// #         "## 2. Original second phase\n\n### 2.1. Original step\n\n- [ ] 2.1.1. Keep this task\n",
+/// #     ),
+/// # )?;
+/// # fs::write(
+/// #     &fragment,
+/// #     "## 1. Inserted phase\n\n### 1.1. Inserted step\n\n- [ ] 1.1.1. Add this task\n",
+/// # )?;
+/// let args = vec![
+///     "mapsplice".to_owned(),
+///     "insert".to_owned(),
+///     target.to_string(),
+///     "2".to_owned(),
+///     fragment.to_string(),
+/// ];
+///
+/// let outcome = run_from_args(args)?;
+///
+/// assert!(outcome.written_path.is_none());
+/// let rendered = outcome
+///     .stdout
+///     .as_deref()
+///     .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "expected stdout"))?;
+/// assert!(rendered.contains("## 2. Inserted phase"));
+/// assert!(rendered.contains("## 3. Original second phase"));
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Errors
 ///
 /// Returns an error when argument parsing, configuration loading, file I/O,
@@ -49,6 +101,52 @@ fn should_record_failure(error: &MapspliceError) -> bool {
 }
 
 /// Execute a parsed request.
+///
+/// # Examples
+///
+/// ```rust
+/// use mapsplice::{CliRequest, CommandKind, GlobalOptions, run_request};
+///
+/// # use std::{fs, io};
+/// # use camino::Utf8PathBuf;
+/// # use tempfile::{TempDir, tempdir};
+/// #
+/// # fn temp_path(temp: &TempDir, name: &str) -> Result<Utf8PathBuf, io::Error> {
+/// #     Utf8PathBuf::from_path_buf(temp.path().join(name)).map_err(|_| {
+/// #         io::Error::new(io::ErrorKind::InvalidData, "temporary path was not UTF-8")
+/// #     })
+/// # }
+/// #
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let temp = tempdir()?;
+/// let target = temp_path(&temp, "target.md")?;
+/// let fragment = temp_path(&temp, "fragment.md")?;
+///
+/// # fs::write(
+/// #     &target,
+/// #     "## 1. Existing phase\n\n### 1.1. Existing step\n\n- [ ] 1.1.1. Keep this task\n",
+/// # )?;
+/// # fs::write(
+/// #     &fragment,
+/// #     "## 1. Added phase\n\n### 1.1. Added step\n\n- [ ] 1.1.1. Add this task\n",
+/// # )?;
+/// let request = CliRequest {
+///     global: GlobalOptions { in_place: false },
+///     target,
+///     command: CommandKind::Append { fragment },
+/// };
+///
+/// let outcome = run_request(request)?;
+///
+/// assert!(outcome.written_path.is_none());
+/// let rendered = outcome
+///     .stdout
+///     .as_deref()
+///     .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "expected stdout"))?;
+/// assert!(rendered.contains("## 2. Added phase"));
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// # Errors
 ///
