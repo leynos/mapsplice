@@ -2,6 +2,9 @@ target/
 **/*.rs.bk
 .grepai/
 .memdb/
+.memtrace/
+.sem/
+.claude/
 *:Zone.Identifier
 .agents/mcp/context_pack/packs/
 *.swp
