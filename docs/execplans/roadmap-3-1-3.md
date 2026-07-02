@@ -323,7 +323,7 @@ review is deferred because the sandbox has no default network route.
 
 ## Addenda
 
-- [ ] 3.1.3.1. Add ordered-list body gate fixture.
+- [x] 3.1.3.1. Add ordered-list body gate fixture.
   - Source: review:3.1.3 (low).
   - Scope: Add a rendered-output gate fixture with an ordinary ordered list in
     a task body, pinning the `mdtablefix --renumber` interaction. Lightweight
@@ -784,3 +784,17 @@ Known initial formatter-probe failures to expect in the Red phase include:
 - 2026-07-02: Implementation work item 2. Updated renderer spacing and
   formatter-stable fixture bytes, recorded the transient `nixie` timeout, and
   captured focused and full deterministic gate evidence.
+- 2026-07-02: Addendum pass 3.1.3.1. Memtrace
+  `list_indexed_repositories` returned `user cancelled MCP tool call`, so the
+  pass used bounded branch-local evidence through Leta and direct fixture
+  inspection. Added `ordered_list_task_body` to pin ordinary ordered-list body
+  output under the rendered-output formatter gate. The `scrutineer` sub-agent
+  could not run because it reported `usage limit for GPT-5.3-Codex-Spark`; the
+  gates were run directly instead. `make all` passed in
+  `/tmp/all-mapsplice-roadmap-3-1-3-addendum-3-1-3-1.out`, `make markdownlint`
+  passed in `/tmp/markdownlint-mapsplice-roadmap-3-1-3-addendum-3-1-3-1.out`,
+  and `make nixie` passed on retry in
+  `/tmp/nixie-mapsplice-roadmap-3-1-3-addendum-3-1-3-1-retry1.out` after a
+  transient timeout on `docs/ortho-config-users-guide.md`. CodeRabbit was
+  deferred with
+  `deferred coderabbit review: no default network route visible in this sandbox`.
