@@ -183,7 +183,7 @@ Markdown maintenance without unrelated formatter churn. Its outcome informs how
 later documentation-heavy tasks prove gate cleanliness without destabilizing
 review.
 
-- [ ] 4.2.1. Make Mermaid validation deterministic under CI concurrency.
+- [x] 4.2.1. Make Mermaid validation deterministic under CI concurrency.
   - Requires 3.1.1.
   - Stabilize the `make nixie` path so unchanged diagrams do not time out under
     CI concurrency when serial validation passes.

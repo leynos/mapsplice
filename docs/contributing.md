@@ -64,3 +64,8 @@ make nixie
 `make check-fmt`, `make lint`, `make typecheck`, and `make test` are required
 for Rust changes. `make fmt`, `make markdownlint`, and `make nixie` are
 required for Markdown changes, especially documents with Mermaid diagrams.
+`make nixie` uses the CI-installed `merman-cli` renderer, validates tracked
+Markdown files one at a time, and defaults `NIXIE_MAX_CONCURRENCY=1` plus
+`NIXIE_RENDERER_THREADS=1` for deterministic serial validation. Override
+`NIXIE_MAX_CONCURRENCY` only when comparing local renderer concurrency; the
+default command remains the required gate.

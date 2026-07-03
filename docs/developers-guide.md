@@ -129,3 +129,12 @@ make fmt
 make markdownlint
 make nixie
 ```
+
+`make nixie` validates Mermaid diagrams in tracked Markdown files through the
+CI-installed `merman-cli` renderer. The target runs one Markdown file at a time
+and defaults both `NIXIE_MAX_CONCURRENCY` and `NIXIE_RENDERER_THREADS` to `1`,
+so the default command is the serial comparison path used to prove CI
+determinism. Contributors can still override the renderer job cap with, for
+example, `NIXIE_MAX_CONCURRENCY=2 make nixie` when investigating local
+performance, but the serial default is the gate that must pass before
+committing Markdown changes.

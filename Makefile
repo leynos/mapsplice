@@ -18,7 +18,11 @@ CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep 
 JQ ?= jq
 DOC_TEST_TARGETS ?= $(shell if command -v $(JQ) >/dev/null 2>&1; then $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | $(JQ) -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null; else echo jq-missing; fi)
 MDLINT ?= markdownlint-cli2
-NIXIE ?= nixie
+MERMAN ?= merman-cli
+NIXIE_RENDERER_THREADS ?= 1
+NIXIE_MAX_CONCURRENCY ?= 1
+NIXIE_FLAGS ?= -j $(NIXIE_MAX_CONCURRENCY)
+NIXIE_PATHS ?= $(shell git ls-files '*.md')
 
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
@@ -60,7 +64,11 @@ markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
 
 nixie: ## Validate Mermaid diagrams
-	$(NIXIE) --no-sandbox
+	set -e; artefacts_dir="$$(mktemp -d)"; trap 'rm -rf "$$artefacts_dir"' EXIT; \
+	for path in $(NIXIE_PATHS); do \
+		RAYON_NUM_THREADS="$(NIXIE_RENDERER_THREADS)" $(MERMAN) $(NIXIE_FLAGS) \
+			-i "$$path" -a "$$artefacts_dir"; \
+	done
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
