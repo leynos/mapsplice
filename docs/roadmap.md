@@ -189,7 +189,7 @@ review.
     CI concurrency when serial validation passes.
   - Success: concurrent and serial Mermaid validation give repeatable pass/fail
     results on the existing documentation corpus.
-- [ ] 4.2.2. Add path-scoped Markdown maintenance targets.
+- [x] 4.2.2. Add path-scoped Markdown maintenance targets.
   - Requires 4.2.1.
   - Add documented targets or variables that run Markdown formatting and linting
     on caller-supplied paths without repo-wide formatter churn.

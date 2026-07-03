@@ -125,10 +125,15 @@ make lint
 Run these gates for Markdown changes:
 
 ```bash
-make fmt
+MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownfmt
+MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownlint-paths
 make markdownlint
 make nixie
 ```
+
+`MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
+format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
+`make fmt` remains repository-wide and can reformat unrelated Markdown files.
 
 `make nixie` validates Mermaid diagrams in tracked Markdown files through the
 CI-installed `merman-cli` renderer. The target runs one Markdown file at a time

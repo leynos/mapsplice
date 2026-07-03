@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie typecheck
+.PHONY: help all clean test build release lint fmt check-fmt markdownfmt markdownlint markdownlint-paths nixie typecheck
 
 
 TARGET ?= mapsplice
@@ -18,11 +18,18 @@ CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep 
 JQ ?= jq
 DOC_TEST_TARGETS ?= $(shell if command -v $(JQ) >/dev/null 2>&1; then $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | $(JQ) -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null; else echo jq-missing; fi)
 MDLINT ?= markdownlint-cli2
+MDFIX ?= mdtablefix
+MARKDOWN_PATHS ?=
+MARKDOWN_FORMAT_FLAGS ?= --wrap --renumber --breaks --ellipsis --fences --in-place
 MERMAN ?= merman-cli
 NIXIE_RENDERER_THREADS ?= 1
 NIXIE_MAX_CONCURRENCY ?= 1
 NIXIE_FLAGS ?= -j $(NIXIE_MAX_CONCURRENCY)
 NIXIE_PATHS ?= $(shell git ls-files '*.md')
+
+define require_markdown_paths
+$(if $(strip $(MARKDOWN_PATHS)),,$(error set MARKDOWN_PATHS='docs/users-guide.md [more.md...]'))
+endef
 
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
@@ -60,8 +67,17 @@ fmt: ## Format Rust and Markdown sources
 check-fmt: ## Verify formatting
 	$(CARGO) fmt $(CARGO_FMT_WORKSPACE_FLAG) -- --check
 
+markdownfmt: ## Format Markdown files listed in MARKDOWN_PATHS
+	$(call require_markdown_paths)
+	$(MDFIX) $(MARKDOWN_FORMAT_FLAGS) $(MARKDOWN_PATHS)
+	$(MDLINT) --fix --no-globs -- $(MARKDOWN_PATHS)
+
 markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
+
+markdownlint-paths: ## Lint Markdown files listed in MARKDOWN_PATHS
+	$(call require_markdown_paths)
+	$(MDLINT) --no-globs -- $(MARKDOWN_PATHS)
 
 nixie: ## Validate Mermaid diagrams
 	set -e; artefacts_dir="$$(mktemp -d)"; trap 'rm -rf "$$artefacts_dir"' EXIT; \
