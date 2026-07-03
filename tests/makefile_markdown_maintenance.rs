@@ -2,6 +2,7 @@
 
 use std::{
     error::Error,
+    io,
     process::{Command, ExitStatus, Output},
 };
 
@@ -23,6 +24,7 @@ fn makefile_markdown_maintenance_markdownfmt_formats_only_listed_paths(
     assert_success(output.status);
 
     let stdout = String::from_utf8(output.stdout)?;
+    assert_command_appears_before(&stdout, "mdtablefix", "markdownlint-cli2");
     assert_contains_all(
         &stdout,
         &[
@@ -35,6 +37,39 @@ fn makefile_markdown_maintenance_markdownfmt_formats_only_listed_paths(
             "--no-globs",
         ],
     );
+    Ok(())
+}
+
+#[test]
+fn makefile_markdown_maintenance_markdownfmt_accepts_real_tool_flags() -> TestResult {
+    if !command_exists("mdtablefix")? || !command_exists("markdownlint-cli2")? {
+        return Ok(());
+    }
+
+    let workspace = TempDir::new()?;
+    let root = utf8_temp_path(&workspace)?;
+    let workspace_dir = Dir::open_ambient_dir(&root, ambient_authority())?;
+    let selected_path = root.join("selected.md");
+
+    workspace_dir.write(
+        "selected.md",
+        "# Selected\n\n| Name | Value |\n| - | - |\n| Alpha | Beta |\n",
+    )?;
+
+    let output = Command::new("make")
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args([
+            "--always-make",
+            "--no-print-directory",
+            "markdownfmt",
+            &format!("MARKDOWN_PATHS={selected_path}"),
+        ])
+        .output()?;
+
+    assert_success(output.status);
+
+    let selected_contents = workspace_dir.read_to_string("selected.md")?;
+    assert_file_contains(&selected_path, &selected_contents, "Alpha");
     Ok(())
 }
 
@@ -68,6 +103,21 @@ fn makefile_markdown_maintenance_scoped_targets_require_paths(#[case] target: &s
 
     let stderr = String::from_utf8(output.stderr)?;
     assert_failure_mentions_markdown_paths(output.status, &stderr, target);
+    Ok(())
+}
+
+#[test]
+fn makefile_markdown_maintenance_markdownfmt_requires_in_place_flag() -> TestResult {
+    let output = make_markdown_dry_run_with_args(
+        "markdownfmt",
+        Some(SAMPLE_MARKDOWN_PATHS),
+        &["MARKDOWN_FORMAT_FLAGS=--wrap --renumber"],
+    )?;
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_failure_mentions_in_place(output.status, &stderr);
+    assert_not_contains(&stdout, "mdtablefix");
     Ok(())
 }
 
@@ -110,6 +160,14 @@ fn makefile_markdown_maintenance_markdownfmt_does_not_touch_unlisted_files() -> 
 }
 
 fn make_markdown_dry_run(target: &str, markdown_paths: Option<&str>) -> TestResult<Output> {
+    make_markdown_dry_run_with_args(target, markdown_paths, &[])
+}
+
+fn make_markdown_dry_run_with_args(
+    target: &str,
+    markdown_paths: Option<&str>,
+    extra_args: &[&str],
+) -> TestResult<Output> {
     let mut command = Command::new("make");
     command.current_dir(env!("CARGO_MANIFEST_DIR")).args([
         "--dry-run",
@@ -122,7 +180,21 @@ fn make_markdown_dry_run(target: &str, markdown_paths: Option<&str>) -> TestResu
         command.arg(format!("MARKDOWN_PATHS={paths}"));
     }
 
+    command.args(extra_args);
+
     Ok(command.output()?)
+}
+
+fn command_exists(command_name: &str) -> TestResult<bool> {
+    match Command::new(command_name)
+        .arg("--version")
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+    {
+        Ok(output) => Ok(output.status.success()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn utf8_temp_path(workspace: &TempDir) -> TestResult<Utf8PathBuf> {
@@ -161,6 +233,20 @@ fn assert_contains_all(output: &str, expected_values: &[&str]) {
     }
 }
 
+fn assert_command_appears_before(output: &str, first: &str, second: &str) {
+    let Some(first_index) = output.find(first) else {
+        panic!("expected dry-run output to contain {first:?}: {output:?}");
+    };
+    let Some(second_index) = output.find(second) else {
+        panic!("expected dry-run output to contain {second:?}: {output:?}");
+    };
+
+    assert!(
+        first_index < second_index,
+        "expected {first:?} to run before {second:?}, got {output:?}",
+    );
+}
+
 fn assert_not_contains(output: &str, unexpected: &str) {
     assert!(
         !output.contains(unexpected),
@@ -176,6 +262,17 @@ fn assert_failure_mentions_markdown_paths(status: ExitStatus, stderr: &str, targ
     assert!(
         stderr.contains("MARKDOWN_PATHS"),
         "empty MARKDOWN_PATHS diagnostic should name the variable, got {stderr:?}",
+    );
+}
+
+fn assert_failure_mentions_in_place(status: ExitStatus, stderr: &str) {
+    assert!(
+        !status.success(),
+        "make dry-run for markdownfmt should fail when --in-place is missing",
+    );
+    assert!(
+        stderr.contains("--in-place"),
+        "missing MARKDOWN_FORMAT_FLAGS diagnostic should name --in-place, got {stderr:?}",
     );
 }
 

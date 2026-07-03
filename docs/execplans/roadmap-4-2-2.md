@@ -252,17 +252,46 @@ This plan is a draft only. Do not implement it until it is explicitly approved.
 
 ## Addenda
 
-- [ ] 4.2.2.1. Pin scoped Markdown target order and real-tool flags.
+- [x] 4.2.2.1. Pin scoped Markdown target order and real-tool flags.
   - Source: review:4.2.2 (low).
   - Scope: Add an order-and-argument assertion for `markdownfmt`, plus a gated
     real-tool smoke test covering the installed `mdtablefix` and
     `markdownlint-cli2` flag set used by the scoped Markdown targets.
     Lightweight addendum pass.
-- [ ] 4.2.2.2. Guard load-bearing Markdown formatter flags.
+- [x] 4.2.2.2. Guard load-bearing Markdown formatter flags.
   - Source: review:4.2.2 (low).
   - Scope: Fail fast when `MARKDOWN_FORMAT_FLAGS` no longer includes
     `--in-place`, so overriding the flag set cannot reintroduce the
     zero-path/stdin hang risk. Lightweight addendum pass.
+
+Addendum execution notes:
+
+- 2026-07-03: `leta workspace add` failed with
+  `Read-only file system (os error 30)`. Retrying with `HOME=/tmp/leta-home`
+  failed with `Error: Failed to start daemon`, so the addendum used bounded
+  branch-local file inspection for the known test and Makefile surfaces.
+- 2026-07-03: `mcp__memtrace.list_indexed_repositories` returned
+  `user cancelled MCP tool call`, so canonical graph context was unavailable
+  for this planning session.
+- 2026-07-03: item 4.2.2.1 added the scoped formatter command-order assertion
+  and real-tool smoke test. Focused `makefile_markdown_maintenance` tests
+  passed in
+  `/tmp/test-addendum-4221-rerun-mapsplice-roadmap-4-2-2-addendum.out`;
+  `scrutineer` reported `make all` green in
+  `/tmp/all-mapsplice-roadmap-4-2-2-addendum-2.out`.
+- 2026-07-03: CodeRabbit review for item 4.2.2.1 was deferred because the
+  sandbox has no default network route; see
+  `/tmp/coderabbit-mapsplice-roadmap-4-2-2-addendum.out`.
+- 2026-07-03: item 4.2.2.2 added a Make expansion guard that requires
+  `--in-place` in `MARKDOWN_FORMAT_FLAGS`, plus a focused dry-run regression
+  test proving the formatter command is not emitted when the guard fails.
+  Focused `makefile_markdown_maintenance` tests passed in
+  `/tmp/test-addendum-4222-mapsplice-roadmap-4-2-2-addendum.out`; `scrutineer`
+  reported `make all` green in
+  `/tmp/all-mapsplice-roadmap-4-2-2-addendum-3.out`.
+- 2026-07-03: CodeRabbit review for item 4.2.2.2 was deferred because the
+  sandbox has no default network route; see
+  `/tmp/coderabbit-mapsplice-roadmap-4-2-2-addendum-2.out`.
 
 ## Outcomes & retrospective
 

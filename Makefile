@@ -31,6 +31,10 @@ define require_markdown_paths
 $(if $(strip $(MARKDOWN_PATHS)),,$(error set MARKDOWN_PATHS='docs/users-guide.md [more.md...]'))
 endef
 
+define require_markdown_in_place
+$(if $(filter --in-place,$(MARKDOWN_FORMAT_FLAGS)),,$(error set MARKDOWN_FORMAT_FLAGS with --in-place for markdownfmt))
+endef
+
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
 
@@ -69,6 +73,7 @@ check-fmt: ## Verify formatting
 
 markdownfmt: ## Format Markdown files listed in MARKDOWN_PATHS
 	$(call require_markdown_paths)
+	$(call require_markdown_in_place)
 	$(MDFIX) $(MARKDOWN_FORMAT_FLAGS) $(MARKDOWN_PATHS)
 	$(MDLINT) --fix --no-globs -- $(MARKDOWN_PATHS)
 
