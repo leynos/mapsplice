@@ -235,7 +235,7 @@ docs/issues/audit-4.2.2.md.
     silently dropped.
   - Success: rendered roadmap text containing `\` and `!` round-trips through
     the parser without loss, and the formatter-stability corpus remains green.
-- [ ] 4.4.2. Make failed in-place rewrites leave no temporary files.
+- [x] 4.4.2. Make failed in-place rewrites leave no temporary files.
   - Requires 4.1.1.
   - Clean up sibling temporary files on write and rename failures while
     preserving the original error.
