@@ -20,8 +20,8 @@ Phase 6 therefore adds two related contracts:
 
 - `mapsplice validate <target>` checks roadmap syntax, dependencies, and links
   without changing the target.
-- `--json` turns every command into a strict machine contract with one JSON
-  success document on stdout, or one JSON diagnostic document on stderr.
+- `--json` turns every command into a strict machine contract with one compact
+  JSON success document on stdout, or one JSON diagnostic document on stderr.
 
 Human diagnostics stay rich and localizable. Machine diagnostics stay stable
 and non-localized.
@@ -60,13 +60,17 @@ explicitly testing render stability, and it must never emit rewritten Markdown.
 
 Exit classes:
 
-| Code | Class      | Meaning                                           |
-| ---- | ---------- | ------------------------------------------------- |
-| 0    | success    | No validation findings at `error` severity.       |
-| 1    | validation | The roadmap is parseable but has findings.        |
-| 2    | usage      | The command line or configuration is invalid.     |
-| 3    | io         | A target, linked file, or config file is missing. |
-| 4    | internal   | A model invariant or unexpected bug was hit.      |
+| Code | Class      | Meaning                                            |
+| ---- | ---------- | -------------------------------------------------- |
+| 0    | success    | No validation findings at `error` severity.        |
+| 1    | validation | The roadmap has validation findings or is invalid. |
+| 2    | usage      | The command line or configuration is invalid.      |
+| 3    | io         | A target, linked file, or config file is missing.  |
+| 4    | internal   | A model invariant or unexpected bug was hit.       |
+
+This is a deliberate pre-1.0 exit-code break from the current binary, where
+non-clap failures collapse to exit code 1. The new taxonomy must be versioned
+with the JSON schema and documented in the users' guide before release.
 
 Human mode writes diagnostics to stderr. Successful human validation may print
 a short summary to stdout:
@@ -91,6 +95,10 @@ JSON mode writes exactly one success document to stdout and no stderr:
   "findings": []
 }
 ```
+
+`status` is `ok` when there are no findings. It is `findings` when warnings or
+notes are present but no error-severity finding exists; this remains exit code
+0 so agents can distinguish "valid with advice" from "invalid".
 
 JSON failure writes no stdout and one diagnostic document to stderr:
 
@@ -130,22 +138,43 @@ and stderr. `mapsplice` should adopt that contract directly:
   not localized;
 - subprocess output is forbidden in JSON mode.
 
+The binary must decide JSON mode before clap emits an error. The implementation
+should use a lenient pre-scan for `--json` in `argv` and route clap usage
+errors through the JSON diagnostic renderer when the flag is present. The
+pre-scan must not accept unknown aliases; it only selects the renderer for
+errors that happen before normal parsing.
+
+The current binary installs tracing on stderr and reports failures through both
+`tracing::error!` and `eprintln!`. JSON mode must replace that behaviour. The
+JSON renderer must suppress stderr tracing, route diagnostic logs to a file
+when explicitly configured, or fold log previews into the JSON diagnostic
+document. It must never emit trace lines beside the JSON document on stderr.
+
 Edit commands need an additional success payload because stdout is already used
 for rewritten Markdown in human mode. JSON mode should return metadata and put
 the artefact in one of two places:
 
 - in-place edits report `artifact.kind = "target_rewritten"` and the target
   path;
-- non-in-place edits report `artifact.kind = "roadmap_document"` and include
-  the rewritten Markdown in a `content` string.
+- non-in-place JSON edits require `--output <path>` and report
+  `artifact.kind = "written_file"` with the output path and content hash.
 
-This keeps `mapsplice insert --json target.md 2 fragment.md` valid JSON while
-preserving the current human stdout behaviour.
+This keeps
+`mapsplice insert --json --output rewritten.md target.md 2 fragment.md` compact
+and valid JSON while preserving the current human stdout behaviour. A future
+explicit `--include-document` mode may embed the rewritten Markdown in JSON for
+small files, but it is not the default agent contract.
 
 ## Validation model
 
 Validation should use the existing roadmap parser and model rather than a
-parallel Markdown checker. Findings are collected in three passes.
+parallel Markdown checker, but this is not a trivial wrapper around today's
+fail-fast parser. The parser error channel must grow a multi-finding mode with
+line and column ranges from mdast positions. A fatal syntax error still exits
+with class `validation`; when recovery is impossible, the command emits one
+fatal syntax finding and stops later passes.
+
+Findings are collected in three passes.
 
 1. **Syntax pass:** parse the roadmap grammar and report unsupported heading
    structure, task-without-step, step-without-phase, malformed anchors, and
@@ -154,10 +183,11 @@ parallel Markdown checker. Findings are collected in three passes.
    dependency-reference predicate. Valid unresolved anchors are errors.
    Version-like or invalid dependency tokens are warnings when they appear in a
    dependency context.
-3. **Link pass:** inspect local Markdown links. Relative file paths must
-   resolve under the document root. Fragment links must match generated heading
-   slugs. Remote HTTP and HTTPS links are reported as unchecked notes, not
-   fetched.
+3. **Link pass:** inspect local Markdown links. The document root is the git
+   repository root containing the validated file. Relative file paths must stay
+   inside that root and resolve from the linking document's directory. Fragment
+   links must match generated heading slugs. Remote HTTP and HTTPS links are
+   reported as unchecked notes, not fetched.
 
 Every finding carries:
 
@@ -237,6 +267,8 @@ context so it does not drift from the CLI. The skill must instruct agents to:
   settings.
 - JSON golden fixtures pin success and failure schemas for every subcommand.
 - CLI tests assert stdout and stderr byte ownership in human and JSON modes.
+- CLI tests pin JSON usage errors that happen before clap completes parsing.
+- CLI tests prove JSON mode suppresses or redirects tracing stderr output.
 - Agent-context fixtures prove that the skill references real commands.
 
 ## Rollout
@@ -250,6 +282,6 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 
 ## References
 
-- [Agent-native CLI assistance design](../ortho-config/docs/agent-native-cli-design.md).
+- [Agent-native CLI assistance design](https://github.com/leynos/ortho-config/blob/main/docs/agent-native-cli-design.md).
 - [miette `Diagnostic` documentation](https://docs.rs/miette/latest/miette/trait.Diagnostic.html).
 - [miette `GraphicalReportHandler` documentation](https://docs.rs/miette/latest/miette/struct.GraphicalReportHandler.html).

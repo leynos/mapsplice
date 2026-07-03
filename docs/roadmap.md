@@ -360,8 +360,9 @@ evidence rather than prose-only terminal text.
 - [ ] 6.1.1. Add a `validate` subcommand and validation result model.
 
   - Requires 5.1.4.
-  - Reuse the parser and roadmap model to classify syntax, dependency, and
-    link findings without mutating the target document.
+  - Extend the parser error channel for multi-finding validation with
+    source ranges, then reuse the roadmap model to classify syntax,
+    dependency, and link findings without mutating the target document.
   - See docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs/roadmap.md` exits successfully for a
     valid roadmap, reports typed findings for invalid roadmaps, and never
@@ -396,19 +397,23 @@ stdout payloads.
   - Requires 6.1.1.
   - Return exactly one JSON document on success and one JSON diagnostic
     document on failure, keeping human diagnostics on stderr in non-JSON mode.
-  - See ../ortho-config/docs/agent-native-cli-design.md and
+  - See
+    <https://github.com/leynos/ortho-config/blob/main/docs/agent-native-cli-design.md>
+    and
     docs/validation-and-agent-output-design.md.
   - Success: every subcommand has a pinned JSON success schema, failure schema,
-    stdout contract, stderr contract, and exit-code class.
+    stdout contract, stderr contract, exit-code class, clap-usage fallback,
+    and tracing policy.
 
 - [ ] 6.2.2. Emit structured edit summaries for mutating commands.
 
   - Requires 6.2.1.
-  - Summarize operation kind, target path, in-place status, inserted or removed
-    anchors, renumber mappings, dependency rewrites, and emitted artefact
-    location.
+  - Summarize operation kind, target path, in-place status, output path,
+    inserted or removed anchors, renumber mappings, dependency rewrites, and
+    emitted artefact hash.
   - Success: append, insert, delete, and replace can be run with `--json`
-    without losing the rewritten roadmap body or leaking non-JSON bytes.
+    using `--in-place` or `--output <path>` without losing the rewritten
+    roadmap body or leaking non-JSON bytes.
 
 - [ ] 6.2.3. Publish compact agent context for the CLI.
 
@@ -467,43 +472,45 @@ review.
   - Success: the design and fixtures distinguish live roadmap references from
     historical notes, audit evidence, and intentionally stale citations.
 
-### 7.2. Apply ExecPlan renumbering safely
+### 7.2. Decide whether to automate ExecPlan renumbering apply
 
-This step answers whether the planned file renames and content rewrites can be
-applied atomically, reviewed clearly, and validated after the roadmap update.
-Its outcome informs whether ExecPlan renumbering can become part of the normal
-roadmap-edit workflow rather than a manual clean-up phase.
+This step answers whether dry-run evidence justifies building an apply engine
+instead of keeping ExecPlan renumbering as guided manual work. Its outcome
+informs whether the project accepts the extra recovery and history-preservation
+surface of automated writes.
 
-- [ ] 7.2.1. Rename ExecPlan files and update live links.
+- [ ] 7.2.1. Measure dry-run demand before committing to apply automation.
 
   - Requires 7.1.2 and 7.1.3.
-  - Apply non-conflicting file renames and update roadmap links, design links,
-    and live ExecPlan back-references using capability-oriented filesystem
-    operations.
-  - Success: a successful apply leaves no stale live link to a renamed
-    ExecPlan and fails closed before partial writes on conflicts.
+  - Record dry-run reports from real roadmap updates and classify whether
+    guided manual renames are rare, cheap, or repeatedly error-prone.
+  - Success: maintainers have enough evidence to proceed with, defer, or
+    reject one-command apply automation.
 
-- [ ] 7.2.2. Rewrite ExecPlan headings and live roadmap citations.
+- [ ] 7.2.2. Specify apply preconditions before any mutation.
 
   - Requires 7.2.1.
-  - Update titles, metadata, and current-roadmap references while preserving
-    historical transcript and evidence sections according to the policy from
-    7.1.3.
-  - Success: rewritten ExecPlans pass Markdown gates and preserve historical
-    sections byte-for-byte except for explicitly live references.
+  - Require a clean git worktree, matching dry-run content hashes, destination
+    anchors present in the on-disk roadmap, no path conflicts, and no
+    unresolved `review_needed` diagnostics unless explicitly overridden.
+  - Success: the design can prove an apply attempt cannot target a phantom
+    roadmap state and can be recovered through git if interrupted.
 
-- [ ] 7.2.3. Integrate validation before and after renumbering.
+- [ ] 7.2.3. Implement guarded apply only if demand evidence justifies it.
 
-  - Requires 6.1.2 and 7.2.2.
-  - Run roadmap validation, ExecPlan-link validation, and idempotence checks
-    before and after applying a renumbering plan.
-  - Success: failed preflight stops the operation, failed postflight rolls back
-    or leaves a clear recovery report, and a second run is a no-op.
+  - Requires 7.2.2.
+  - Rename ExecPlan files and rewrite only allowlisted live links, titles,
+    metadata fields, and current-roadmap references using capability-oriented
+    filesystem operations.
+  - Success: if built, apply fails closed before partial writes on conflicts,
+    preserves historical sections by default, and a second run returns a clear
+    stale-plan diagnostic.
 
 - [ ] 7.2.4. Document operator recovery and agent boundaries.
 
   - Requires 7.2.3.
-  - Explain dry-run review, conflict handling, rollback evidence, and when an
-    agent must stop for maintainer judgement.
-  - Success: the users' guide and agent skill cover normal renumbering,
-    review-required conflicts, and recovery from interrupted applies.
+  - Explain dry-run review, guided manual renames, clean-worktree recovery,
+    conflict handling, and when an agent must stop for maintainer judgement.
+  - Success: the users' guide and agent skill cover normal dry-run
+    renumbering, review-required conflicts, optional apply, and recovery from
+    interrupted applies.
