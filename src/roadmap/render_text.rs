@@ -74,6 +74,21 @@ fn longest_backtick_run(value: &str) -> usize {
 const fn is_markdown_metacharacter(character: char) -> bool {
     matches!(
         character,
-        '*' | '_' | '`' | '[' | ']' | '(' | ')' | '~' | '>' | '#' | '+' | '=' | '|' | '{' | '}'
+        '\\' | '!'
+            | '*'
+            | '_'
+            | '`'
+            | '['
+            | ']'
+            | '('
+            | ')'
+            | '~'
+            | '>'
+            | '#'
+            | '+'
+            | '='
+            | '|'
+            | '{'
+            | '}'
     )
 }

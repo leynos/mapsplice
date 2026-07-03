@@ -216,6 +216,19 @@ fn code_blocks_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn literal_backslash_escape(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "literal_backslash_escape",
+            GoldenCommand::InsertAfter { anchor: "1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn addendum_body_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

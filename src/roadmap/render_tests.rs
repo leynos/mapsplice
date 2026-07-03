@@ -4,9 +4,10 @@ use std::process::Command;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use cap_std::{ambient_authority, fs_utf8::Dir};
+use rstest::rstest;
 use tempfile::tempdir;
 
-use super::render_roadmap;
+use super::{render_roadmap, text::escape_markdown};
 use crate::{
     error::MapspliceError,
     roadmap::{model::TaskEntry, parse_roadmap},
@@ -43,6 +44,37 @@ fn non_empty_roadmap_ends_in_exactly_one_final_newline() {
 
     assert!(rendered.ends_with('\n'));
     assert!(!rendered.ends_with("\n\n"));
+}
+
+#[rstest]
+#[case::literal_backslash_bang("literal \\! marker", "literal \\\\\\! marker")]
+#[case::bang_before_link(
+    "bang ![link](https://example.com)",
+    "bang \\!\\[link\\]\\(https://example.com\\)"
+)]
+fn literal_escape_markdown_metacharacters_survive_reparse(
+    #[case] input: &str,
+    #[case] expected: &str,
+) {
+    assert_eq!(escape_markdown(input), expected);
+}
+
+#[test]
+fn literal_backslash_bang_round_trip_stays_stable() {
+    let source = concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Preserve \\\\\\! marker and \\![link](https://example.com).\n",
+    );
+    let roadmap = parse_roadmap(source).expect("literal escape roadmap should parse");
+
+    let rendered = render_roadmap(&roadmap).expect("literal escape roadmap should render");
+    let reparsed = parse_roadmap(&rendered).expect("rendered literal escape roadmap should parse");
+    let rendered_again =
+        render_roadmap(&reparsed).expect("reparsed literal escape roadmap should render");
+
+    assert_eq!(rendered, source);
+    assert_eq!(rendered_again, rendered);
 }
 
 #[test]
@@ -134,6 +166,7 @@ const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[
     "tests/fixtures/golden/code_blocks_preserved/target.md",
     "tests/fixtures/golden/nested_bullets/target.md",
     "tests/fixtures/golden/c4_addendum_render_fidelity/target.md",
+    "tests/fixtures/golden/literal_backslash_escape/target.md",
     "tests/fixtures/reference_rewrite/multi_id_requires.input.md",
     "tests/fixtures/reference_rewrite/section_reference.input.md",
     "tests/fixtures/reference_rewrite/substring_non_match.input.md",

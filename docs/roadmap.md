@@ -228,7 +228,7 @@ paths. Its outcome informs whether maintainers can trust escaped output, failed
 in-place writes, and configuration discovery without reading source. See
 docs/issues/audit-4.2.2.md.
 
-- [ ] 4.4.1. Escape literal Markdown backslashes without losing text.
+- [x] 4.4.1. Escape literal Markdown backslashes without losing text.
   - Requires 3.1.3 and 4.1.4.
   - Include literal backslash and exclamation-mark cases in renderer
     round-trip coverage so text nodes cannot be re-read with characters
