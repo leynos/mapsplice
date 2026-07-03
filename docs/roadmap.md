@@ -241,7 +241,7 @@ docs/issues/audit-4.2.2.md.
     preserving the original error.
   - Success: an injected write or rename failure leaves no
     `.mapsplice.tmp` sibling behind and still reports the original failure.
-- [ ] 4.4.3. Document configuration discovery truthfully.
+- [x] 4.4.3. Document configuration discovery truthfully.
   - Requires 4.3.1.
   - Reconcile the developers' and users' guides with the implemented global
     and subcommand default-loading paths, including local versus XDG

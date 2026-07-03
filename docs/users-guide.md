@@ -182,25 +182,87 @@ no roadmap body is emitted on standard output.
 
 ## Configuration
 
-`mapsplice` uses `ortho-config` for optional configuration loading. Required
-inputs such as file paths and anchors remain command-line arguments, while
-optional subcommand settings can come from configuration.
+Required inputs such as target paths, anchors, and fragment paths remain
+command-line arguments. Configuration only supplies optional defaults for the
+global `in_place` setting and the `insert` command's `after` setting.
 
-For example, the `insert --after` behaviour can be set in configuration:
+Boolean configuration values use `true` or `false`.
+
+### Global `in_place`
+
+`in_place` controls whether successful edits rewrite the target file directly.
+It defaults to `false`, so `mapsplice` writes the updated roadmap to standard
+output unless another source enables in-place mode.
+
+Set the file default with a top-level TOML key:
+
+```toml
+in_place = true
+```
+
+On Unix-like systems, `mapsplice` searches these files for global defaults, in
+increasing precedence order:
+
+1. `$XDG_CONFIG_HOME/mapsplice/config.toml`, when `XDG_CONFIG_HOME` is set and
+   is valid Unicode.
+2. `./.mapsplice.toml` in the current working directory.
+
+The environment variable is:
+
+```bash
+MAPSPLICE_IN_PLACE=true
+```
+
+Final precedence for `in_place` is:
+
+1. `--in-place` or `-i`, which can only force `true`.
+2. `MAPSPLICE_IN_PLACE`.
+3. Local `./.mapsplice.toml`.
+4. XDG `$XDG_CONFIG_HOME/mapsplice/config.toml`.
+5. Default `false`.
+
+There is no command-line flag that forces `in_place = false`; use
+`MAPSPLICE_IN_PLACE=false` when a file default should be disabled for one
+process.
+
+### Insert `after`
+
+`after` controls whether `mapsplice insert` places the fragment after the
+anchor. It defaults to before-anchor insertion, matching
+`mapsplice insert <target> <anchor> <file-to-insert>` without `--after`.
+
+Set the file default under the insert command table:
 
 ```toml
 [cmds.insert]
 after = true
 ```
 
-Or through the corresponding environment variable:
+On Unix-like systems, `mapsplice` searches these files for `insert` defaults,
+in increasing precedence order:
+
+1. `~/.mapsplice.toml`.
+2. `$XDG_CONFIG_HOME/mapsplice/config.toml`, when present.
+3. `./.mapsplice.toml` in the current working directory.
+
+The environment variable is:
 
 ```bash
 MAPSPLICE_CMDS_INSERT_AFTER=true
 ```
 
-This is most useful when a local default editing style is preferred and the
-command line should stay short.
+Final precedence for `after` is:
+
+1. `--after`.
+2. `MAPSPLICE_CMDS_INSERT_AFTER`.
+3. Local `./.mapsplice.toml`.
+4. XDG `$XDG_CONFIG_HOME/mapsplice/config.toml`.
+5. Home `~/.mapsplice.toml`.
+6. Default before-anchor insertion.
+
+The command-line flag can only force `after = true`. There is no command-line
+flag that forces `after = false`; use `MAPSPLICE_CMDS_INSERT_AFTER=false` when
+a file default should be disabled for one process.
 
 ## Validation rules and failure cases
 

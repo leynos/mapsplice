@@ -58,17 +58,23 @@ only at external process boundaries.
 
 ## 4. Configuration behaviour
 
-The CLI uses `ortho-config` for optional defaults:
+Configuration behaviour has two current owners:
 
-- Global `in_place` may be supplied by `MAPSPLICE_IN_PLACE=true`, configuration
-  files, or the `--in-place` / `-i` flags.
-- Insert `after` may be supplied by `MAPSPLICE_CMDS_INSERT_AFTER=true`,
-  `[cmds.insert] after = true`, or `--after`.
+- `src/cli_config.rs` owns global `in_place` discovery and parsing. It reads
+  `$XDG_CONFIG_HOME/mapsplice/config.toml` and local `./.mapsplice.toml`,
+  applies `MAPSPLICE_IN_PLACE`, then lets `--in-place` / `-i` force `true`.
+- `src/cli.rs::InsertConfig` owns the insert command's `after` option. It
+  removes Clap's implicit `false` value when `--after` is absent, then merges
+  defaults through `ortho_config::load_and_merge_subcommand_for`.
 - Required values such as target paths, anchors, and fragment paths remain
   command-line arguments.
 
-Configuration tests must serialize process environment mutation with the shared
-test guard in `tests/support/mod.rs`.
+Future optional configuration settings must document which loader owns their
+discovery path. Add or update `tests/roadmap_config.rs` coverage for every
+source and precedence claim before changing the users' guide.
+
+Configuration tests must serialize process environment and current-directory
+mutation with the shared `ProcessStateGuard` in `tests/support/config.rs`.
 
 ## 5. Observability
 
