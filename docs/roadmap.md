@@ -219,3 +219,84 @@ treated as part of the maintained contract.
     paths.
   - Success: `run_from_args`, `run_request`, and `parse_roadmap` demonstrate
     typical usage and `cargo test --doc` passes.
+
+### 4.4. Close audit-found failure and documentation gaps
+
+This step answers whether the editor's hardening work covers the failure modes
+surfaced by the post-4.2.2 audit, rather than only the already-gated happy
+paths. Its outcome informs whether maintainers can trust escaped output, failed
+in-place writes, and configuration discovery without reading source. See
+docs/issues/audit-4.2.2.md.
+
+- [ ] 4.4.1. Escape literal Markdown backslashes without losing text.
+  - Requires 3.1.3 and 4.1.4.
+  - Include literal backslash and exclamation-mark cases in renderer
+    round-trip coverage so text nodes cannot be re-read with characters
+    silently dropped.
+  - Success: rendered roadmap text containing `\` and `!` round-trips through
+    the parser without loss, and the formatter-stability corpus remains green.
+- [ ] 4.4.2. Make failed in-place rewrites leave no temporary files.
+  - Requires 4.1.1.
+  - Clean up sibling temporary files on write and rename failures while
+    preserving the original error.
+  - Success: an injected write or rename failure leaves no
+    `.mapsplice.tmp` sibling behind and still reports the original failure.
+- [ ] 4.4.3. Document configuration discovery truthfully.
+  - Requires 4.3.1.
+  - Reconcile the developers' and users' guides with the implemented global
+    and subcommand default-loading paths, including local versus XDG
+    precedence and the supported environment variables.
+  - Success: the guides name the actual config files, precedence, and
+    environment variables without implying every default is loaded through the
+    same mechanism.
+- [ ] 4.4.4. Cover sub-task splice vector alignment.
+  - Requires 2.1.2 and 4.1.4.
+  - Add focused insert-before, insert-after, and replace cases for sub-task
+    operations that mutate both the structural sub-task vector and the
+    parallel child ordering.
+  - Success: unit tests fail if `sub_tasks` and `children` diverge after
+    inserting or replacing a sub-task at boundary ordinals.
+
+## 5. Consolidate parser and model internals
+
+Idea: if the duplicated parser, renderer, and model mutation seams are
+single-sourced after the strictness work lands, later roadmap-grammar changes
+can be made once instead of revalidating several near-identical code paths.
+This is refactor and consolidation work: its value is reduced drift risk and a
+lower cost for the next grammar change, not new user-facing behaviour. See
+docs/issues/audit-4.2.2.md.
+
+### 5.1. Single-source repeated roadmap-structure machinery
+
+This step answers whether the parser and model share one representation of
+checklist-item parsing, fragment-root validation, lookup helpers, and mutation
+invariants. Its outcome informs whether future grammar work can be reviewed at
+one seam rather than across duplicated branches.
+
+- [ ] 5.1.1. Share task and sub-task checklist parsing.
+  - Requires 4.4.4.
+  - Extract common checklist-head and numbered-prefix parsing helpers for task
+    and sub-task items while preserving current diagnostics.
+  - Success: task and sub-task item parsers use the same helper path, and the
+    existing parse diagnostics and golden fixtures are unchanged.
+- [ ] 5.1.2. Share fragment-root validation and step accumulation.
+  - Requires 5.1.1.
+  - Remove the duplicated single-list fragment-root skeleton and reconcile step
+    fragment parsing with the document parser's step lifecycle.
+  - Success: task, sub-task, and step fragment parsing exercise shared
+    validation machinery and all fragment-level behavioural tests pass without
+    diagnostic drift.
+- [ ] 5.1.3. Collapse duplicated lookup and rendering helpers.
+  - Requires 5.1.1.
+  - Single-source phase lookup, checkbox marker rendering, fragment-level
+    routing, and dependency-rewrite recording where the current code repeats
+    branch-independent logic.
+  - Success: internal call sites use one helper per concept, public behaviour
+    and metrics output remain unchanged, and `make all` passes.
+- [ ] 5.1.4. Encapsulate roadmap mutation invariants.
+  - Requires 5.1.1 and 5.1.3.
+  - Hide direct mutation of `RenumberPlan` and `TaskChildren` internals behind
+    methods that preserve nested-map and ordered-child invariants.
+  - Success: callers cannot bypass the invariant-preserving methods, and tests
+    pin task-body, sub-task, and dependency-renumber behaviour after the
+    encapsulation.
