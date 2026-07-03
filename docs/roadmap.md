@@ -273,7 +273,7 @@ checklist-item parsing, fragment-root validation, lookup helpers, and mutation
 invariants. Its outcome informs whether future grammar work can be reviewed at
 one seam rather than across duplicated branches.
 
-- [ ] 5.1.1. Share task and sub-task checklist parsing.
+- [x] 5.1.1. Share task and sub-task checklist parsing.
   - Requires 4.4.4.
   - Extract common checklist-head and numbered-prefix parsing helpers for task
     and sub-task items while preserving current diagnostics.

@@ -1,11 +1,13 @@
 //! Markdown-to-roadmap parsing and validation.
 
+mod checklist;
 mod document;
 mod fragment;
 mod sub_task_body;
 mod sub_task_fragment;
 mod task_children;
 
+use checklist::{ChecklistKind, parse_checklist_item_head};
 pub use fragment::parse_fragment;
 use markdown::{
     ParseOptions,
@@ -153,32 +155,16 @@ pub(super) fn validate_tasks_belong_to_step(
 }
 
 fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
-    if item.checked.is_none() {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "roadmap task lists must be unordered checklist items".to_owned(),
-        });
-    }
-    let first = item
-        .children
-        .first()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "task list items must start with a paragraph".to_owned(),
-        })?;
-    let Node::Paragraph(paragraph) = first else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "task list items must start with a paragraph".to_owned(),
-        });
-    };
-    let (number, summary) = parse_task_paragraph(paragraph)?;
-    let child_body = item.children.get(1..).unwrap_or(&[]);
-    let (body, sub_tasks, children) = split_task_children(child_body, number, context)?;
+    let head = parse_checklist_item_head(item, ChecklistKind::Task)?;
+    let (number, summary) = parse_task_paragraph(head.paragraph)?;
+    let (body, sub_tasks, children) = split_task_children(head.child_body, number, context)?;
     Ok(TaskEntry {
         identity: ItemIdentity {
             source: context.source,
             anchor: RoadmapAnchor::Task(number),
         },
         number,
-        checked: item.checked,
+        checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
         sub_tasks,
@@ -263,32 +249,16 @@ pub(super) fn parse_sub_task_item_unchecked(
     item: &ListItem,
     context: ParseContext<'_>,
 ) -> Result<SubTaskEntry> {
-    if item.checked.is_none() {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
-        });
-    }
-    let first = item
-        .children
-        .first()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "sub-task list items must start with a paragraph".to_owned(),
-        })?;
-    let Node::Paragraph(paragraph) = first else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "sub-task list items must start with a paragraph".to_owned(),
-        });
-    };
-    let (number, summary) = parse_sub_task_paragraph(paragraph)?;
-    let child_body = item.children.get(1..).unwrap_or(&[]);
-    let body = parse_sub_task_body(child_body, context.source_text)?;
+    let head = parse_checklist_item_head(item, ChecklistKind::SubTask)?;
+    let (number, summary) = parse_sub_task_paragraph(head.paragraph)?;
+    let body = parse_sub_task_body(head.child_body, context.source_text)?;
     Ok(SubTaskEntry {
         identity: ItemIdentity {
             source: context.source,
             anchor: RoadmapAnchor::SubTask(number),
         },
         number,
-        checked: item.checked,
+        checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
     })

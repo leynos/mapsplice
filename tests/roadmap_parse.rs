@@ -59,6 +59,101 @@ fn parse_fragment_detects_supported_level(
 }
 
 #[rstest]
+#[case::ordered_task_list(
+    "1. [ ] 9.9.1. Ordered task.\n",
+    "roadmap task lists must be unordered checklist items"
+)]
+#[case::non_checklist_task_item(
+    "- 9.9.1. Missing checklist marker.\n",
+    "roadmap task lists must be unordered checklist items"
+)]
+#[case::task_paragraph_without_plain_text(
+    concat!("- [ ] 9.9.1. First task.\n", "- [ ] **9.9.2. Bold task.**\n"),
+    "task paragraphs must start with plain text"
+)]
+#[case::sub_task_prefix_in_task_context(
+    concat!("- [ ] 9.9.1. First task.\n", "- [ ] 9.9.2.1. Wrong level.\n"),
+    "expected a task prefix in `9.9.2.1. Wrong level.`"
+)]
+fn parse_task_checklist_head_diagnostics(#[case] fragment: &str, #[case] expected: &str) {
+    let error = parse_fragment_text(fragment).expect_err("malformed task item should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
+}
+
+#[rstest]
+#[case::sub_task_paragraph_without_plain_text(
+    concat!(
+        "- [ ] 9.9.1.1. First sub-task.\n",
+        "- [ ] **9.9.1.2. Bold sub-task.**\n",
+    ),
+    "sub-task paragraphs must start with plain text"
+)]
+#[case::task_prefix_in_sub_task_context(
+    concat!("- [ ] 9.9.1.1. First sub-task.\n", "- [ ] 9.9.2. Wrong level.\n"),
+    "expected a sub-task prefix in `9.9.2. Wrong level.`"
+)]
+fn parse_sub_task_fragment_checklist_head_diagnostics(
+    #[case] fragment: &str,
+    #[case] expected: &str,
+) {
+    let error = parse_fragment_text(fragment).expect_err("malformed sub-task item should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
+}
+
+#[rstest]
+#[case::ordered_nested_sub_task_list(
+    concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  1. [ ] 1.1.1.1. Ordered sub-task.\n",
+    ),
+    "roadmap sub-task lists must be unordered checklist items"
+)]
+#[case::non_checklist_nested_sub_task_item(
+    concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - 1.1.1.1. Missing checklist marker.\n",
+    ),
+    "roadmap sub-task lists must be unordered checklist items"
+)]
+fn parse_nested_sub_task_checklist_head_diagnostics(#[case] roadmap: &str, #[case] expected: &str) {
+    let error = parse_roadmap_text(roadmap).expect_err("malformed sub-task item should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
+}
+
+#[rstest]
+#[case::wrong_parent(
+    concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] 1.1.2.1. Wrong parent.\n",
+    ),
+    "sub-task `1.1.2.1` does not belong to task `1.1.1`"
+)]
+#[case::out_of_order(
+    concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] 1.1.1.1. First sub-task.\n",
+        "  - [ ] 1.1.1.3. Third sub-task.\n",
+    ),
+    "sub-task `1.1.1.3` is not in document order"
+)]
+fn parse_sub_task_checklist_validation_diagnostics(#[case] roadmap: &str, #[case] expected: &str) {
+    let error = parse_roadmap_text(roadmap).expect_err("malformed sub-task should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
+}
+
+#[rstest]
 fn parse_roadmap_keeps_preamble_and_structure() {
     let roadmap = parse_roadmap_text(concat!(
         "# Example\n\n",
