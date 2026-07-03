@@ -19,6 +19,7 @@ from an incidental number — a section reference, a version, or a quantity —
 rather than rewriting every number-shaped token.
 
 - [x] 1.1.1. Specify the dependency-reference predicate in code.
+
   - Define the dependency context (the `Requires` clause) and the anchor-token
     rules from the design, as a single predicate that decides whether an anchor
     token is a dependency reference.
@@ -32,14 +33,18 @@ rather than rewriting every number-shaped token.
     unresolved dependency references such as `99.1.1`, section references,
     versions, and prose numbers without treating those boundaries as the same
     classification path.
+
 - [x] 1.1.2. Scope reference rewriting to dependency contexts.
+
   - Requires 1.1.1.
   - Rewrite only dependency references; preserve every incidental anchor token,
     including section references preceded by a sigil and version strings.
   - Success: an edit that shifts later numbers rewrites every `Requires`
     reference to the moved items, and leaves a section reference, a version such
     as 1.4.0, and prose numbers unchanged.
+
 - [x] 1.1.3. Pin the corruption cases with regression fixtures.
+
   - Requires 1.1.2.
   - Add golden fixtures for the adversarial reference cases drawn from the
     design.
@@ -59,20 +64,25 @@ This step answers whether a fourth-level sub-task tracks its parent through a
 renumber and survives rendering with its nesting intact.
 
 - [x] 2.1.1. Represent addendum sub-tasks in the roadmap model.
+
   - Extend the model so a task owns ordered fourth-level sub-tasks, each with
     its
     own identity and number, parsed from nested numbered list items.
   - See mapsplice-design.md, "The roadmap grammar".
   - Success: parsing a task with nested `8.2.3.1`-style items yields first-class
     sub-task items, and rendering them is byte-identical to the source.
+
 - [x] 2.1.2. Renumber sub-tasks with their parent.
+
   - Requires 2.1.1.
   - Include the fourth level in the renumber plan so a sub-task follows its
     parent's new number, and rewrite dependency references to it.
   - Success: when a parent task moves from 8.2.3 to 9.2.3 its sub-task moves
     from
     8.2.3.1 to 9.2.3.1, and references to the sub-task are rewritten to match.
+
 - [x] 2.1.3. Preserve sub-task nesting and indentation on render.
+
   - Requires 2.1.1.
   - Emit sub-tasks at the correct nesting depth without breaking them out of
     their parent list.
@@ -90,6 +100,7 @@ This step answers whether the fidelity and contract guarantees are enforced
 mechanically rather than by inspection.
 
 - [x] 3.1.1. Assemble the grammar-surface and per-contract golden fixtures.
+
   - Requires 1.1.3 and 2.1.3.
   - Add one input-and-expected fixture per operation and per guarantee, covering
     the preamble, phases, steps, tasks, multi-line bodies, nested bullets,
@@ -108,13 +119,17 @@ mechanically rather than by inspection.
       construction into a parameterized harness that preserves named cases
       while reducing repeated helper and assertion edits. Lightweight addendum
       pass.
+
 - [x] 3.1.2. Add a no-op round-trip property test.
+
   - Requires 3.1.1.
   - For any conformant fixture, a no-op edit must render byte-identical output.
   - Success: the property holds across the corpus, and a second formatter pass
     on
     rendered output produces no diff.
+
 - [x] 3.1.3. Assert gate-clean rendered output.
+
   - Requires 3.1.1.
   - Rendered fixtures must pass the house Markdown gates and be stable under the
     house formatter.
@@ -129,7 +144,9 @@ mechanically rather than by inspection.
       preservation applies only to gate-clean input or whether successful
       rendering may normalize formatter-unstable input. Lightweight addendum
       pass.
+
 - [x] 3.1.4. Pin no-op behaviour for formatter-unstable accepted input.
+
   - Requires 3.1.2 and 3.1.3.2.
   - Add adversarial accepted-input cases that make the F1/F4 trade-off explicit
     when `markdownlint-cli2 --fix` would change indentation or spacing.
@@ -148,6 +165,7 @@ This step answers whether malformed input and unresolved edits produce clear,
 typed errors rather than partial or mangled output.
 
 - [x] 4.1.1. Audit the operations for fail-closed behaviour.
+
   - Requires 3.1.1.
   - Confirm each operation rejects malformed grammar and level mismatches before
     emitting output, and writes in place only on success.
@@ -155,20 +173,26 @@ typed errors rather than partial or mangled output.
     level
     mismatch, and a missing anchor, with no partial output and no in-place write
     on failure.
+
 - [x] 4.1.2. Report unresolved dependency references.
+
   - Requires 1.1.2.
   - Surface a `Requires` reference that resolves to no known item after an edit,
     so a dangling dependency is visible rather than silent.
   - Success: an edit that leaves a dangling `Requires` reference reports it, and
     a fixture pins the diagnostic.
+
 - [x] 4.1.3. Single-source parse-domain task-number validation.
+
   - Requires 4.1.1.
   - Extract the shared task-belongs-to-step invariant used by target and
     fragment parsing into one parse-domain helper while preserving current
     diagnostics.
   - Success: target and fragment parsers use the same helper, and focused tests
     pin the shared invariant and unchanged error text.
+
 - [x] 4.1.4. Fail closed on renderer model-invariant breaches.
+
   - Requires 4.1.1.
   - Make rendering fail with a typed error when task child ordering references a
     missing sub-task instead of silently omitting content.
@@ -184,12 +208,15 @@ later documentation-heavy tasks prove gate cleanliness without destabilizing
 review.
 
 - [x] 4.2.1. Make Mermaid validation deterministic under CI concurrency.
+
   - Requires 3.1.1.
   - Stabilize the `make nixie` path so unchanged diagrams do not time out under
     CI concurrency when serial validation passes.
   - Success: concurrent and serial Mermaid validation give repeatable pass/fail
     results on the existing documentation corpus.
+
 - [x] 4.2.2. Add path-scoped Markdown maintenance targets.
+
   - Requires 4.2.1.
   - Add documented targets or variables that run Markdown formatting and linting
     on caller-supplied paths without repo-wide formatter churn.
@@ -213,6 +240,7 @@ usage from tests. Its outcome informs whether public API documentation can be
 treated as part of the maintained contract.
 
 - [x] 4.3.1. Bring public API Rustdoc examples up to project standard.
+
   - Requires 3.1.3.
   - Add compact executable Rustdoc examples for the public APIs listed in the
     developers' guide, keeping filesystem-heavy flows isolated to temporary
@@ -229,19 +257,24 @@ in-place writes, and configuration discovery without reading source. See
 docs/issues/audit-4.2.2.md.
 
 - [x] 4.4.1. Escape literal Markdown backslashes without losing text.
+
   - Requires 3.1.3 and 4.1.4.
   - Include literal backslash and exclamation-mark cases in renderer
     round-trip coverage so text nodes cannot be re-read with characters
     silently dropped.
   - Success: rendered roadmap text containing `\` and `!` round-trips through
     the parser without loss, and the formatter-stability corpus remains green.
+
 - [x] 4.4.2. Make failed in-place rewrites leave no temporary files.
+
   - Requires 4.1.1.
   - Clean up sibling temporary files on write and rename failures while
     preserving the original error.
   - Success: an injected write or rename failure leaves no
     `.mapsplice.tmp` sibling behind and still reports the original failure.
+
 - [x] 4.4.3. Document configuration discovery truthfully.
+
   - Requires 4.3.1.
   - Reconcile the developers' and users' guides with the implemented global
     and subcommand default-loading paths, including local versus XDG
@@ -249,7 +282,9 @@ docs/issues/audit-4.2.2.md.
   - Success: the guides name the actual config files, precedence, and
     environment variables without implying every default is loaded through the
     same mechanism.
+
 - [x] 4.4.4. Cover sub-task splice vector alignment.
+
   - Requires 2.1.2 and 4.1.4.
   - Add focused insert-before, insert-after, and replace cases for sub-task
     operations that mutate both the structural sub-task vector and the
@@ -274,29 +309,201 @@ invariants. Its outcome informs whether future grammar work can be reviewed at
 one seam rather than across duplicated branches.
 
 - [x] 5.1.1. Share task and sub-task checklist parsing.
+
   - Requires 4.4.4.
   - Extract common checklist-head and numbered-prefix parsing helpers for task
     and sub-task items while preserving current diagnostics.
   - Success: task and sub-task item parsers use the same helper path, and the
     existing parse diagnostics and golden fixtures are unchanged.
+
 - [x] 5.1.2. Share fragment-root validation and step accumulation.
+
   - Requires 5.1.1.
   - Remove the duplicated single-list fragment-root skeleton and reconcile step
     fragment parsing with the document parser's step lifecycle.
   - Success: task, sub-task, and step fragment parsing exercise shared
     validation machinery and all fragment-level behavioural tests pass without
     diagnostic drift.
+
 - [x] 5.1.3. Collapse duplicated lookup and rendering helpers.
+
   - Requires 5.1.1.
   - Single-source phase lookup, checkbox marker rendering, fragment-level
     routing, and dependency-rewrite recording where the current code repeats
     branch-independent logic.
   - Success: internal call sites use one helper per concept, public behaviour
     and metrics output remain unchanged, and `make all` passes.
+
 - [x] 5.1.4. Encapsulate roadmap mutation invariants.
+
   - Requires 5.1.1 and 5.1.3.
   - Hide direct mutation of `RenumberPlan` and `TaskChildren` internals behind
     methods that preserve nested-map and ordered-child invariants.
   - Success: callers cannot bypass the invariant-preserving methods, and tests
     pin task-body, sub-task, and dependency-renumber behaviour after the
     encapsulation.
+
+## 6. Add agent-native validation and output contracts
+
+Idea: `mapsplice` should be usable safely by agents and humans before it edits
+roadmaps. A dedicated validator, miette-style human diagnostics, and strict
+JSON contracts make syntax errors, dependency drift, and broken links visible
+without requiring an edit attempt.
+
+### 6.1. Validate roadmap structure, links, and dependencies
+
+This step answers whether maintainers can run one command that proves a roadmap
+is syntactically valid, internally linked, and dependency-consistent. Its
+outcome informs whether agents can treat validation output as bounded machine
+evidence rather than prose-only terminal text.
+
+- [ ] 6.1.1. Add a `validate` subcommand and validation result model.
+
+  - Requires 5.1.4.
+  - Reuse the parser and roadmap model to classify syntax, dependency, and
+    link findings without mutating the target document.
+  - See docs/validation-and-agent-output-design.md.
+  - Success: `mapsplice validate docs/roadmap.md` exits successfully for a
+    valid roadmap, reports typed findings for invalid roadmaps, and never
+    emits rewritten roadmap Markdown.
+
+- [ ] 6.1.2. Check dependency references and Markdown links.
+
+  - Requires 6.1.1.
+  - Validate every `Requires` anchor against the parsed roadmap and validate
+    local Markdown links against headings, files, and fragments.
+  - Success: missing anchors, malformed dependency tokens, missing files, and
+    unresolved local heading fragments are reported with stable finding codes.
+
+- [ ] 6.1.3. Render miette-style human diagnostics.
+
+  - Requires 6.1.1.
+  - Use source spans, labels, help text, and stable diagnostic codes so human
+    output identifies the relevant roadmap line and the repair action.
+  - Success: fixtures pin graphical diagnostics for syntax, dependency, and
+    link findings, with colour and URL variance disabled for deterministic
+    tests.
+
+### 6.2. Align every command with agent-native output contracts
+
+This step answers whether `mapsplice` has one coherent output contract across
+edit, validate, and future maintenance commands. Its outcome informs whether
+agents can call the tool without scraping human prose or guarding against mixed
+stdout payloads.
+
+- [ ] 6.2.1. Add global `--json` output mode.
+
+  - Requires 6.1.1.
+  - Return exactly one JSON document on success and one JSON diagnostic
+    document on failure, keeping human diagnostics on stderr in non-JSON mode.
+  - See ../ortho-config/docs/agent-native-cli-design.md and
+    docs/validation-and-agent-output-design.md.
+  - Success: every subcommand has a pinned JSON success schema, failure schema,
+    stdout contract, stderr contract, and exit-code class.
+
+- [ ] 6.2.2. Emit structured edit summaries for mutating commands.
+
+  - Requires 6.2.1.
+  - Summarize operation kind, target path, in-place status, inserted or removed
+    anchors, renumber mappings, dependency rewrites, and emitted artefact
+    location.
+  - Success: append, insert, delete, and replace can be run with `--json`
+    without losing the rewritten roadmap body or leaking non-JSON bytes.
+
+- [ ] 6.2.3. Publish compact agent context for the CLI.
+
+  - Requires 6.2.1.
+  - Add a command or documented output that lists supported commands,
+    mutation boundaries, output modes, exit classes, and examples in a compact
+    machine-readable shape.
+  - Success: the generated context names `validate`, all edit commands, and
+    the `--json` contract in a schema-versioned payload.
+
+- [ ] 6.2.4. Package an agent skill for roadmap maintenance.
+
+  - Requires 6.1.3 and 6.2.3.
+  - Author a skill that tells agents when to run validation, how to prefer
+    JSON output, how to interpret miette diagnostics, and when to refuse
+    unsafe roadmap edits.
+  - Success: the skill is tested against the generated agent context and gives
+    agents a bounded workflow for validate-before-edit and validate-after-edit.
+
+## 7. Renumber ExecPlans after roadmap updates
+
+Idea: roadmap task numbers are embedded in ExecPlan filenames, headings, links,
+and historical references. When `mapsplice` renumbers a roadmap, it should be
+able to plan and apply the corresponding ExecPlan renumbering without erasing
+history or creating ambiguous references.
+
+### 7.1. Discover and plan ExecPlan renumbering
+
+This step answers whether `mapsplice` can identify which ExecPlans are tied to
+renumbered roadmap tasks before it changes any files. Its outcome informs the
+boundary between safe automated maintenance and cases that require maintainer
+review.
+
+- [ ] 7.1.1. Model roadmap-to-ExecPlan identity.
+
+  - Requires 6.2.2.
+  - Define how task anchors map to `docs/execplans/roadmap-*.md` filenames,
+    titles, references, and in-document roadmap citations.
+  - See docs/execplan-renumbering-design.md.
+  - Success: fixtures classify matching, missing, duplicate, stale, and
+    manually named ExecPlans without applying changes.
+
+- [ ] 7.1.2. Produce a dry-run renumber plan.
+
+  - Requires 7.1.1.
+  - Convert a roadmap edit's renumber map into an ExecPlan rename and rewrite
+    plan, including conflicts, unchanged files, and review-required cases.
+  - Success: `mapsplice` can emit a JSON dry-run plan that lists every proposed
+    rename, content rewrite, skipped file, conflict, and diagnostic.
+
+- [ ] 7.1.3. Define history-preservation rules.
+
+  - Requires 7.1.1.
+  - Decide which historical references remain as old numbers, which links are
+    rewritten, and how tombstones or redirects are represented when necessary.
+  - Success: the design and fixtures distinguish live roadmap references from
+    historical notes, audit evidence, and intentionally stale citations.
+
+### 7.2. Apply ExecPlan renumbering safely
+
+This step answers whether the planned file renames and content rewrites can be
+applied atomically, reviewed clearly, and validated after the roadmap update.
+Its outcome informs whether ExecPlan renumbering can become part of the normal
+roadmap-edit workflow rather than a manual clean-up phase.
+
+- [ ] 7.2.1. Rename ExecPlan files and update live links.
+
+  - Requires 7.1.2 and 7.1.3.
+  - Apply non-conflicting file renames and update roadmap links, design links,
+    and live ExecPlan back-references using capability-oriented filesystem
+    operations.
+  - Success: a successful apply leaves no stale live link to a renamed
+    ExecPlan and fails closed before partial writes on conflicts.
+
+- [ ] 7.2.2. Rewrite ExecPlan headings and live roadmap citations.
+
+  - Requires 7.2.1.
+  - Update titles, metadata, and current-roadmap references while preserving
+    historical transcript and evidence sections according to the policy from
+    7.1.3.
+  - Success: rewritten ExecPlans pass Markdown gates and preserve historical
+    sections byte-for-byte except for explicitly live references.
+
+- [ ] 7.2.3. Integrate validation before and after renumbering.
+
+  - Requires 6.1.2 and 7.2.2.
+  - Run roadmap validation, ExecPlan-link validation, and idempotence checks
+    before and after applying a renumbering plan.
+  - Success: failed preflight stops the operation, failed postflight rolls back
+    or leaves a clear recovery report, and a second run is a no-op.
+
+- [ ] 7.2.4. Document operator recovery and agent boundaries.
+
+  - Requires 7.2.3.
+  - Explain dry-run review, conflict handling, rollback evidence, and when an
+    agent must stop for maintainer judgement.
+  - Success: the users' guide and agent skill cover normal renumbering,
+    review-required conflicts, and recovery from interrupted applies.
