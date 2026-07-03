@@ -14,6 +14,8 @@ jobs:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
       WHITAKER_INSTALLER_VERSION: '0.2.5'
+      MDTABLEFIX_GIT_REV: '6b1ed9582017ac7832324ada3e9016270c8a5198'
+      MARKDOWNLINT_CLI2_VERSION: '0.22.1'
       MERMAN_CLI_VERSION: '0.8.0-alpha.2'
       NIXIE_CLI_VERSION: '1.1.0'
       NIXIE_PYTHON_VERSION: '3.14'
@@ -48,6 +50,17 @@ jobs:
           cargo binstall --no-confirm merman-cli@${{ env.MERMAN_CLI_VERSION }}
       - name: Mermaid diagrams
         run: make nixie
+      - name: Install Markdown formatter tools
+        run: |
+          cargo install \
+            --git https://github.com/leynos/mdtablefix \
+            --rev "${{ env.MDTABLEFIX_GIT_REV }}" \
+            --locked \
+            --force \
+            mdtablefix
+          npm install --global "markdownlint-cli2@${{ env.MARKDOWNLINT_CLI2_VERSION }}"
+          mdtablefix --version
+          markdownlint-cli2 --version
       - name: Cache Whitaker installation
         id: cache-whitaker
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
