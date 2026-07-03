@@ -9,15 +9,14 @@ use super::{
     looks_like_task_list,
     parse_phase_heading,
     parse_step_heading,
-    parse_task_list,
-    validate_tasks_belong_to_step,
+    step_accumulator::StepAccumulator,
 };
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
         RoadmapAnchor,
         RoadmapDocument,
-        model::{ItemIdentity, MarkdownNodes, PhaseSection, SourceId, StepSection, TaskEntry},
+        model::{ItemIdentity, MarkdownNodes, PhaseSection, SourceId},
     },
 };
 
@@ -37,7 +36,7 @@ pub(crate) fn parse_document_root(
 struct DocumentParser<'source> {
     document: RoadmapDocument,
     current_phase: Option<PhaseSection>,
-    current_step: Option<StepSection>,
+    steps: StepAccumulator<'source>,
     source: SourceId,
     source_text: &'source str,
 }
@@ -48,7 +47,7 @@ impl<'source> DocumentParser<'source> {
         Self {
             document: RoadmapDocument::new(),
             current_phase: None,
-            current_step: None,
+            steps: StepAccumulator::new(source, source_text),
             source,
             source_text,
         }
@@ -66,10 +65,7 @@ impl<'source> DocumentParser<'source> {
                     message: "sub-task list appeared without a parent task".to_owned(),
                 })
             }
-            other => {
-                self.push_non_structural_node(other);
-                Ok(())
-            }
+            other => self.push_non_structural_node(other),
         }
     }
 
@@ -111,18 +107,14 @@ impl<'source> DocumentParser<'source> {
                 ),
             });
         }
-        self.flush_step()?;
-        self.current_step = Some(StepSection {
-            identity: ItemIdentity {
-                source: self.source,
-                anchor: RoadmapAnchor::Step(number),
-            },
-            number,
-            title: MarkdownNodes::from_nodes(title),
-            body: MarkdownNodes::new(),
-            tasks: Vec::new(),
-            trailing: MarkdownNodes::new(),
-        });
+        let current_phase =
+            self.current_phase
+                .as_mut()
+                .ok_or_else(|| MapspliceError::InvalidRoadmap {
+                    message: "step heading appeared before the first phase heading".to_owned(),
+                })?;
+        self.steps
+            .begin_step(number, title, &mut current_phase.steps);
         Ok(())
     }
 
@@ -144,51 +136,26 @@ impl<'source> DocumentParser<'source> {
     }
 
     /// Append a validated checklist task list to the current step.
-    fn append_task_list(&mut self, list: &List) -> Result<()> {
-        let step = self
-            .current_step
-            .as_mut()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "task list appeared without a current step".to_owned(),
-            })?;
-        if !step.trailing.is_empty() {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: format!(
-                    "task list for step `{}` cannot appear after trailing step content",
-                    step.number
-                ),
-            });
-        }
-
-        let mut tasks = parse_task_list(list, self.source, self.source_text)?;
-        validate_tasks_belong_to_step(step.number, &tasks)?;
-        validate_sub_task_numbers(&tasks)?;
-        step.tasks.append(&mut tasks);
-        Ok(())
-    }
+    fn append_task_list(&mut self, list: &List) -> Result<()> { self.steps.append_task_list(list) }
 
     /// Move the current step into its parent phase.
     fn flush_step(&mut self) -> Result<()> {
-        if let Some(step) = self.current_step.take() {
+        if self.steps.has_active_step() {
             let phase =
                 self.current_phase
                     .as_mut()
                     .ok_or_else(|| MapspliceError::InvalidRoadmap {
                         message: "step flush attempted without a phase".to_owned(),
                     })?;
-            phase.steps.push(step);
+            self.steps.flush_into(&mut phase.steps);
         }
         Ok(())
     }
 
     /// Preserve non-structural Markdown in the nearest roadmap body.
-    fn push_non_structural_node(&mut self, node: Node) {
-        if let Some(step) = self.current_step.as_mut() {
-            if step.tasks.is_empty() {
-                step.body.push_preserved(node, self.source_text);
-            } else {
-                step.trailing.push_preserved(node, self.source_text);
-            }
+    fn push_non_structural_node(&mut self, node: Node) -> Result<()> {
+        if self.steps.has_active_step() {
+            self.steps.push_non_structural_node(node)?;
         } else if let Some(phase) = self.current_phase.as_mut() {
             if phase.steps.is_empty() {
                 phase.body.push_preserved(node, self.source_text);
@@ -200,6 +167,7 @@ impl<'source> DocumentParser<'source> {
                 .preamble
                 .push_preserved(node, self.source_text);
         }
+        Ok(())
     }
 
     /// Finish parsing and return a validated roadmap document.
@@ -217,21 +185,4 @@ impl<'source> DocumentParser<'source> {
 
         Ok(self.document)
     }
-}
-
-/// Ensure parsed sub-task numbers belong to their containing task.
-fn validate_sub_task_numbers(tasks: &[TaskEntry]) -> Result<()> {
-    for task in tasks {
-        for sub_task in &task.sub_tasks {
-            if sub_task.number.task_number() != task.number {
-                return Err(MapspliceError::InvalidRoadmap {
-                    message: format!(
-                        "sub-task `{}` does not belong to task `{}`",
-                        sub_task.number, task.number
-                    ),
-                });
-            }
-        }
-    }
-    Ok(())
 }

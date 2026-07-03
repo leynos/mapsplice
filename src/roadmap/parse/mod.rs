@@ -3,6 +3,7 @@
 mod checklist;
 mod document;
 mod fragment;
+mod step_accumulator;
 mod sub_task_body;
 mod sub_task_fragment;
 mod task_children;

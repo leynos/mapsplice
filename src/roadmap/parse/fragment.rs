@@ -12,13 +12,13 @@ use super::{
     parse_step_heading,
     parse_sub_task_fragment_list,
     parse_task_list,
-    validate_tasks_belong_to_step,
+    step_accumulator::StepAccumulator,
 };
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
         RoadmapFragment,
-        model::{ItemIdentity, MarkdownNodes, SourceId, StepSection, SubTaskEntry, TaskEntry},
+        model::{SourceId, StepSection, SubTaskEntry, TaskEntry},
     },
 };
 
@@ -118,26 +118,13 @@ fn parse_phase_fragment(root: Root, source_text: &str) -> Result<RoadmapFragment
 /// Parse one or more sibling steps directly from a fragment root.
 fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
     let mut steps = Vec::new();
-    let mut current_step = None;
+    let mut accumulator = StepAccumulator::new(SourceId::Fragment, source_text);
 
     for node in root.children {
         match node {
             Node::Heading(heading) if is_step_heading(&heading) => {
-                if let Some(step) = current_step.take() {
-                    steps.push(step);
-                }
                 let (number, title) = parse_step_heading(&heading)?;
-                current_step = Some(StepSection {
-                    identity: ItemIdentity {
-                        source: SourceId::Fragment,
-                        anchor: number.into(),
-                    },
-                    number,
-                    title: MarkdownNodes::from_nodes(title),
-                    body: MarkdownNodes::new(),
-                    tasks: Vec::new(),
-                    trailing: MarkdownNodes::new(),
-                });
+                accumulator.begin_step(number, title, &mut steps);
             }
             Node::Heading(_) => {
                 return Err(MapspliceError::InvalidRoadmap {
@@ -145,15 +132,13 @@ fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
                 });
             }
             Node::List(list) if looks_like_task_list(&list) => {
-                append_step_fragment_tasks(&mut current_step, &list, source_text)?;
+                accumulator.append_task_list(&list)?;
             }
-            other => push_step_fragment_body(&mut current_step, other, source_text)?,
+            other => accumulator.push_non_structural_node(other)?,
         }
     }
 
-    if let Some(step) = current_step {
-        steps.push(step);
-    }
+    accumulator.flush_into(&mut steps);
 
     if steps.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
@@ -167,93 +152,86 @@ fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
 
 /// Parse a single top-level checklist as a task fragment.
 fn parse_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
-    if root.children.len() != 1 {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "task fragments must contain only a single task list".to_owned(),
-        });
-    }
-
-    let Some(Node::List(list)) = root.children.into_iter().next() else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "task fragments must contain only a single task list".to_owned(),
-        });
-    };
-    let tasks = parse_task_list(&list, SourceId::Fragment, source_text)?;
-    if tasks.is_empty() {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "task fragment list is empty".to_owned(),
-        });
-    }
-    validate_task_siblings(&tasks)?;
-    Ok(RoadmapFragment::Task(tasks))
+    parse_single_list_fragment(
+        root,
+        source_text,
+        SingleListFragmentParser {
+            messages: SingleListFragmentMessages {
+                single_list: "task fragments must contain only a single task list",
+                empty_list: "task fragment list is empty",
+            },
+            parse_list: parse_task_fragment_list,
+            validate: validate_task_siblings,
+            wrap: RoadmapFragment::Task,
+        },
+    )
 }
 
 /// Parse a single top-level checklist as an addendum sub-task fragment.
 fn parse_sub_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+    parse_single_list_fragment(
+        root,
+        source_text,
+        SingleListFragmentParser {
+            messages: SingleListFragmentMessages {
+                single_list: "sub-task fragments must contain only a single sub-task list",
+                empty_list: "sub-task fragment list is empty",
+            },
+            parse_list: parse_sub_task_fragment_list,
+            validate: validate_sub_task_siblings,
+            wrap: RoadmapFragment::SubTask,
+        },
+    )
+}
+
+fn parse_task_fragment_list(list: &List, source_text: &str) -> Result<Vec<TaskEntry>> {
+    parse_task_list(list, SourceId::Fragment, source_text)
+}
+
+struct SingleListFragmentParser<T> {
+    messages: SingleListFragmentMessages,
+    parse_list: fn(&List, &str) -> Result<Vec<T>>,
+    validate: fn(&[T]) -> Result<()>,
+    wrap: fn(Vec<T>) -> RoadmapFragment,
+}
+
+struct SingleListFragmentMessages {
+    single_list: &'static str,
+    empty_list: &'static str,
+}
+
+/// Parse one top-level list with fragment-level validation and wrapping.
+fn parse_single_list_fragment<T>(
+    root: Root,
+    source_text: &str,
+    parser: SingleListFragmentParser<T>,
+) -> Result<RoadmapFragment> {
+    let SingleListFragmentParser {
+        messages,
+        parse_list,
+        validate,
+        wrap,
+    } = parser;
+
     if root.children.len() != 1 {
         return Err(MapspliceError::InvalidRoadmap {
-            message: "sub-task fragments must contain only a single sub-task list".to_owned(),
+            message: messages.single_list.to_owned(),
         });
     }
 
     let Some(Node::List(list)) = root.children.into_iter().next() else {
         return Err(MapspliceError::InvalidRoadmap {
-            message: "sub-task fragments must contain only a single sub-task list".to_owned(),
+            message: messages.single_list.to_owned(),
         });
     };
-    let sub_tasks = parse_sub_task_fragment_list(&list, source_text)?;
-    if sub_tasks.is_empty() {
+    let items = parse_list(&list, source_text)?;
+    if items.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
-            message: "sub-task fragment list is empty".to_owned(),
+            message: messages.empty_list.to_owned(),
         });
     }
-    validate_sub_task_siblings(&sub_tasks)?;
-    Ok(RoadmapFragment::SubTask(sub_tasks))
-}
-
-/// Append task list entries to the active step fragment.
-fn append_step_fragment_tasks(
-    step: &mut Option<StepSection>,
-    list: &List,
-    source_text: &str,
-) -> Result<()> {
-    let current = step
-        .as_mut()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "task list appeared without a current step".to_owned(),
-        })?;
-    if !current.trailing.is_empty() {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: format!(
-                "task list for step `{}` cannot appear after trailing step content",
-                current.number
-            ),
-        });
-    }
-
-    let mut tasks = parse_task_list(list, SourceId::Fragment, source_text)?;
-    validate_tasks_belong_to_step(current.number, &tasks)?;
-    current.tasks.append(&mut tasks);
-    Ok(())
-}
-
-/// Preserve non-structural nodes within the active step fragment.
-fn push_step_fragment_body(
-    step: &mut Option<StepSection>,
-    node: Node,
-    source_text: &str,
-) -> Result<()> {
-    let current = step
-        .as_mut()
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: "step fragments must contain only step sections".to_owned(),
-        })?;
-    if current.tasks.is_empty() {
-        current.body.push_preserved(node, source_text);
-    } else {
-        current.trailing.push_preserved(node, source_text);
-    }
-    Ok(())
+    validate(&items)?;
+    Ok(wrap(items))
 }
 
 /// Ensure step fragments contain siblings from the same phase.

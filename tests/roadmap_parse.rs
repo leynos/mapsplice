@@ -206,6 +206,24 @@ fn parse_step_fragment_rejects_task_from_another_step() {
 }
 
 #[rstest]
+#[case::task_fragment_with_trailing_paragraph(
+    concat!("- [ ] 9.1.1. First.\n\n", "Trailing paragraph.\n"),
+    "task fragments must contain only a single task list"
+)]
+#[case::sub_task_fragment_with_trailing_paragraph(
+    concat!("- [ ] 9.1.1.1. First.\n\n", "Trailing paragraph.\n"),
+    "sub-task fragments must contain only a single sub-task list"
+)]
+fn parse_single_list_fragments_reject_extra_root_nodes(
+    #[case] fragment: &str,
+    #[case] expected: &str,
+) {
+    let error = parse_fragment_text(fragment).expect_err("extra root nodes should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
+}
+
+#[rstest]
 fn parse_task_fragment_keeps_sibling_step_diagnostic() {
     let error = parse_fragment_text(concat!("- [ ] 9.1.1. First.\n", "- [ ] 9.2.1. Second.\n",))
         .expect_err("task fragments must contain tasks from one step");
@@ -214,4 +232,42 @@ fn parse_task_fragment_keeps_sibling_step_diagnostic() {
         invalid_roadmap_message(&error),
         "task fragments must contain tasks from one step",
     );
+}
+
+#[rstest]
+fn parse_sub_task_fragment_keeps_sibling_task_diagnostic() {
+    let error = parse_fragment_text(concat!(
+        "- [ ] 9.1.1.1. First.\n",
+        "- [ ] 9.1.2.1. Second.\n",
+    ))
+    .expect_err("sub-task fragments must contain sub-tasks from one task");
+
+    assert_eq!(
+        invalid_roadmap_message(&error),
+        "sub-task fragments must contain sub-tasks from one task",
+    );
+}
+
+#[rstest]
+#[case::non_step_heading(
+    concat!("### 9.1. Step\n\n", "#### Non-step heading\n"),
+    "step fragments must contain only step sections"
+)]
+#[case::task_after_trailing_content(
+    concat!(
+        "### 9.1. Step\n\n",
+        "- [ ] 9.1.1. First.\n\n",
+        "Trailing paragraph.\n\n",
+        "- [ ] 9.1.2. Second.\n",
+    ),
+    "task list for step `9.1` cannot appear after trailing step content"
+)]
+#[case::sibling_step_from_another_phase(
+    concat!("### 9.1. First step\n\n", "### 10.1. Second step\n"),
+    "step fragments must contain steps from one phase"
+)]
+fn parse_step_fragment_keeps_lifecycle_diagnostics(#[case] fragment: &str, #[case] expected: &str) {
+    let error = parse_fragment_text(fragment).expect_err("malformed step fragment should fail");
+
+    assert_eq!(invalid_roadmap_message(&error), expected);
 }

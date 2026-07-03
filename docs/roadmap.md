@@ -279,7 +279,7 @@ one seam rather than across duplicated branches.
     and sub-task items while preserving current diagnostics.
   - Success: task and sub-task item parsers use the same helper path, and the
     existing parse diagnostics and golden fixtures are unchanged.
-- [ ] 5.1.2. Share fragment-root validation and step accumulation.
+- [x] 5.1.2. Share fragment-root validation and step accumulation.
   - Requires 5.1.1.
   - Remove the duplicated single-list fragment-root skeleton and reconcile step
     fragment parsing with the document parser's step lifecycle.
