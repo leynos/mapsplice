@@ -196,6 +196,14 @@ review.
   - Success: maintainers can format and lint one or more named Markdown files
     through Makefile-supported commands, and unchanged Markdown files outside
     those paths are left untouched.
+  - [ ] 4.2.2.1. Pin scoped Markdown target order and real-tool flags.
+    - Addendum (from review:4.2.2; low). Add order/argument assertions and a
+      gated real-tool smoke test for the scoped Markdown formatter/linter
+      contracts. Lightweight addendum pass.
+  - [ ] 4.2.2.2. Guard load-bearing Markdown formatter flags.
+    - Addendum (from review:4.2.2; low). Fail fast when
+      `MARKDOWN_FORMAT_FLAGS` drops `--in-place` from the scoped formatter.
+      Lightweight addendum pass.
 
 ### 4.3. Reconcile public API documentation with maintainer expectations
 

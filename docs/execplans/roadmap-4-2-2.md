@@ -250,6 +250,20 @@ This plan is a draft only. Do not implement it until it is explicitly approved.
   ambiguity or cross-file risk. Date/Author: 2026-07-03T03:36:40+02:00,
   implementation agent.
 
+## Addenda
+
+- [ ] 4.2.2.1. Pin scoped Markdown target order and real-tool flags.
+  - Source: review:4.2.2 (low).
+  - Scope: Add an order-and-argument assertion for `markdownfmt`, plus a gated
+    real-tool smoke test covering the installed `mdtablefix` and
+    `markdownlint-cli2` flag set used by the scoped Markdown targets.
+    Lightweight addendum pass.
+- [ ] 4.2.2.2. Guard load-bearing Markdown formatter flags.
+  - Source: review:4.2.2 (low).
+  - Scope: Fail fast when `MARKDOWN_FORMAT_FLAGS` no longer includes
+    `--in-place`, so overriding the flag set cannot reintroduce the
+    zero-path/stdin hang risk. Lightweight addendum pass.
+
 ## Outcomes & retrospective
 
 Work item 1 is implemented. The Makefile now has opt-in scoped Markdown
