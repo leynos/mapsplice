@@ -106,11 +106,14 @@ fn sub_task_children(sub_tasks: &[SubTaskEntry]) -> Vec<TaskChild> {
 mod tests {
     //! Unit tests for sub-task splice model invariants.
 
+    use rstest::rstest;
+
     use crate::roadmap::{
         RoadmapOperation,
         apply_command,
-        model::{TaskChild, TaskEntry},
+        model::{ItemIdentity, TaskChild, TaskEntry},
         parse_anchor,
+        parse_fragment,
         parse_roadmap,
     };
 
@@ -122,6 +125,94 @@ mod tests {
         "  - [x] 1.1.1.2. Remaining sub-task.\n",
     );
 
+    const ROADMAP_WITH_THREE_SUB_TASKS: &str = concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  Parent body before sub-tasks.\n",
+        "  - [ ] 1.1.1.1. First sub-task.\n",
+        "  - [x] 1.1.1.2. Second sub-task.\n",
+        "  - [ ] 1.1.1.3. Third sub-task.\n",
+    );
+
+    const ONE_SUB_TASK_FRAGMENT: &str = "  - [ ] 1.1.1.1. Inserted sub-task.\n";
+    const ONE_REPLACEMENT_SUB_TASK_FRAGMENT: &str = "  - [x] 1.1.1.1. Replacement sub-task.\n";
+    const TWO_REPLACEMENT_SUB_TASK_FRAGMENT: &str = concat!(
+        "  - [x] 1.1.1.1. Replacement sub-task A.\n",
+        "  - [ ] 1.1.1.2. Replacement sub-task B.\n",
+    );
+
+    #[rstest]
+    #[case::before_first(
+        "1.1.1.1",
+        false,
+        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"]
+    )]
+    #[case::after_last(
+        "1.1.1.3",
+        true,
+        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"]
+    )]
+    fn sub_task_insert_keeps_structural_and_child_vectors_aligned(
+        #[case] target: &str,
+        #[case] after: bool,
+        #[case] expected_numbers: &[&str],
+    ) {
+        let mut roadmap =
+            parse_roadmap(ROADMAP_WITH_THREE_SUB_TASKS).expect("sub-task roadmap should parse");
+        let anchor = parse_anchor(target).expect("sub-task anchor should parse");
+        let fragment =
+            parse_fragment(ONE_SUB_TASK_FRAGMENT).expect("sub-task fragment should parse");
+
+        apply_command(
+            &mut roadmap,
+            RoadmapOperation::Insert { anchor, after },
+            Some(fragment),
+        )
+        .expect("sub-task insert should succeed");
+
+        let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
+        assert_sub_task_numbers(task, expected_numbers);
+        assert_sub_task_child_identity_alignment(task);
+    }
+
+    #[rstest]
+    #[case::replace_first(
+        "1.1.1.1",
+        ONE_REPLACEMENT_SUB_TASK_FRAGMENT,
+        &["1.1.1.1", "1.1.1.2", "1.1.1.3"],
+        &[true, true, false]
+    )]
+    #[case::replace_last_with_multiple(
+        "1.1.1.3",
+        TWO_REPLACEMENT_SUB_TASK_FRAGMENT,
+        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"],
+        &[false, true, true, false]
+    )]
+    fn sub_task_replace_keeps_structural_and_child_vectors_aligned(
+        #[case] target: &str,
+        #[case] fragment_source: &str,
+        #[case] expected_numbers: &[&str],
+        #[case] expected_checked: &[bool],
+    ) {
+        let mut roadmap =
+            parse_roadmap(ROADMAP_WITH_THREE_SUB_TASKS).expect("sub-task roadmap should parse");
+        let anchor = parse_anchor(target).expect("sub-task anchor should parse");
+        let fragment = parse_fragment(fragment_source).expect("sub-task fragment should parse");
+
+        apply_command(
+            &mut roadmap,
+            RoadmapOperation::Replace { anchor },
+            Some(fragment),
+        )
+        .expect("sub-task replace should succeed");
+
+        let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
+        assert_sub_task_numbers(task, expected_numbers);
+        assert_sub_task_checked_states(task, expected_checked);
+        assert_sub_task_child_identity_alignment(task);
+    }
+
     #[test]
     fn delete_sub_task_removes_matching_child_reference() {
         let mut roadmap =
@@ -132,21 +223,16 @@ mod tests {
             .expect("sub-task delete should succeed");
 
         let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
-        let child_identities: Vec<_> = task
-            .children
-            .iter()
-            .filter_map(|child| match child {
-                TaskChild::SubTask(identity) => Some(*identity),
-                TaskChild::Body(_) => None,
-            })
-            .collect();
 
         assert_eq!(task.sub_tasks.len(), 1);
         let remaining_sub_task = task
             .sub_tasks
             .first()
             .expect("task should keep the remaining sub-task");
-        assert_eq!(child_identities, vec![remaining_sub_task.identity]);
+        assert_eq!(
+            sub_task_child_identities(task),
+            vec![remaining_sub_task.identity]
+        );
     }
 
     fn parent_task(roadmap: &crate::roadmap::RoadmapDocument) -> Option<&TaskEntry> {
@@ -155,5 +241,43 @@ mod tests {
             .first()
             .and_then(|phase| phase.steps.first())
             .and_then(|step| step.tasks.first())
+    }
+
+    fn assert_sub_task_numbers(task: &TaskEntry, expected: &[&str]) {
+        let actual = task
+            .sub_tasks
+            .iter()
+            .map(|sub_task| sub_task.number.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+
+    fn assert_sub_task_checked_states(task: &TaskEntry, expected: &[bool]) {
+        let actual = task
+            .sub_tasks
+            .iter()
+            .map(|sub_task| sub_task.checked)
+            .collect::<Vec<_>>();
+        let expected_states = expected.iter().copied().map(Some).collect::<Vec<_>>();
+        assert_eq!(actual, expected_states);
+    }
+
+    fn assert_sub_task_child_identity_alignment(task: &TaskEntry) {
+        let sub_task_identities = task
+            .sub_tasks
+            .iter()
+            .map(|sub_task| sub_task.identity)
+            .collect::<Vec<_>>();
+        assert_eq!(sub_task_child_identities(task), sub_task_identities);
+    }
+
+    fn sub_task_child_identities(task: &TaskEntry) -> Vec<ItemIdentity> {
+        task.children
+            .iter()
+            .filter_map(|child| match child {
+                TaskChild::SubTask(identity) => Some(*identity),
+                TaskChild::Body(_) => None,
+            })
+            .collect()
     }
 }

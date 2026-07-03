@@ -249,7 +249,7 @@ docs/issues/audit-4.2.2.md.
   - Success: the guides name the actual config files, precedence, and
     environment variables without implying every default is loaded through the
     same mechanism.
-- [ ] 4.4.4. Cover sub-task splice vector alignment.
+- [x] 4.4.4. Cover sub-task splice vector alignment.
   - Requires 2.1.2 and 4.1.4.
   - Add focused insert-before, insert-after, and replace cases for sub-task
     operations that mutate both the structural sub-task vector and the
