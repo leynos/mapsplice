@@ -1,5 +1,7 @@
 //! `rstest` coverage for roadmap rendering preservation behaviour.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/phase.rs"]
 mod phase_support;
 #[path = "support/roadmap_workspace.rs"]
@@ -7,14 +9,11 @@ mod workspace_support;
 
 use std::io;
 
+use assertions::assert_contains;
 use mapsplice::run_from_args;
 use phase_support::PHASE_FRAGMENT;
 use rstest::rstest;
 use workspace_support::{TestResult, Workspace, workspace};
-
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(haystack.contains(needle));
-}
 
 fn assert_ordered(haystack: &str, first: &str, second: &str, third: &str) -> TestResult {
     let first_index = marker_index(haystack, first)?;

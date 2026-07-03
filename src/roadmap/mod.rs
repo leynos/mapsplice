@@ -5,6 +5,8 @@ mod model;
 mod ops;
 mod parse;
 mod render;
+mod source_preservation;
+mod step_section;
 
 pub use anchor::{
     PhaseNumber,

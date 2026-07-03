@@ -41,9 +41,12 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
             ));
             blocks.extend(render_markdown_nodes(&step.body, 0)?);
             if !step.tasks.is_empty() {
-                blocks.push(render_tasks(
-                    step.tasks.iter().collect::<Vec<_>>().as_slice(),
-                )?);
+                let rendered_tasks =
+                    render_tasks(step.tasks.iter().collect::<Vec<_>>().as_slice())?;
+                blocks.push(step.task_list_source().map_or_else(
+                    || rendered_tasks,
+                    |source| trim_preserved_task_source(source).to_owned(),
+                ));
             }
             blocks.extend(render_markdown_nodes(&step.trailing, 0)?);
         }
@@ -85,6 +88,8 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     }
     Ok(parts.join("\n"))
 }
+
+fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }
 
 const fn checkbox_marker(checked: Option<bool>) -> &'static str {
     match checked {

@@ -1,5 +1,7 @@
 //! `rstest` coverage for structural roadmap sub-task handling.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/phase.rs"]
 mod phase_support;
 #[path = "support/sub_tasks.rs"]
@@ -7,6 +9,7 @@ mod sub_task_support;
 #[path = "support/roadmap_workspace.rs"]
 mod workspace_support;
 
+use assertions::assert_contains;
 use mapsplice::{MapspliceError, parse_roadmap_text, run_from_args};
 use phase_support::PHASE_FRAGMENT;
 use rstest::rstest;
@@ -45,13 +48,6 @@ const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str = concat!(
     "- [ ] 8.2.3. Parent task. Requires 8.2.3.1.\n",
     "  - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.\n",
 );
-
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(
-        haystack.contains(needle),
-        "missing `{needle}` in:\n{haystack}"
-    );
-}
 
 fn assert_not_contains(haystack: &str, needle: &str) {
     assert!(

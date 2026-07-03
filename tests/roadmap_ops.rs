@@ -1,10 +1,13 @@
 //! `rstest` coverage for roadmap splice operations and CLI config merging.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/ops.rs"]
 mod support;
 
 use std::fmt::Debug;
 
+use assertions::assert_contains;
 use mapsplice::{
     MapspliceError,
     RoadmapOperation,
@@ -26,10 +29,6 @@ use support::{
     Workspace,
     workspace,
 };
-
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(haystack.contains(needle));
-}
 
 fn assert_equal<T>(actual: &T, expected: &T)
 where
