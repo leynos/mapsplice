@@ -1,10 +1,15 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use markdown::mdast::Node;
 
 use super::{RoadmapAnchor, RoadmapItemLevel, StepNumber, SubTaskNumber, TaskNumber};
+use crate::error::{MapspliceError, Result};
+
+#[cfg(test)]
+#[path = "model_tests.rs"]
+mod tests;
 
 /// A parsed roadmap document.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -76,9 +81,28 @@ pub struct TaskEntry {
     /// Additional blocks nested beneath the task.
     pub body: MarkdownNodes,
     /// Ordered fourth-level sub-tasks nested beneath this task.
-    pub sub_tasks: Vec<SubTaskEntry>,
+    sub_tasks: Vec<SubTaskEntry>,
     /// Original ordered child sequence beneath this task.
-    pub children: Vec<TaskChild>,
+    children: Vec<TaskChild>,
+}
+
+/// Parser-owned parts required to build one task entry.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct TaskEntryParts {
+    pub(crate) identity: ItemIdentity,
+    pub(crate) number: TaskNumber,
+    pub(crate) checked: Option<bool>,
+    pub(crate) summary: MarkdownNodes,
+    pub(crate) body: MarkdownNodes,
+    pub(crate) sub_tasks: Vec<SubTaskEntry>,
+    pub(crate) children: Vec<TaskChild>,
+}
+
+/// Location for a sub-task splice in both structural task vectors.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SubTaskSplice {
+    pub(crate) sub_task_index: usize,
+    pub(crate) child_index: usize,
 }
 
 /// One ordered child beneath a numbered task.
@@ -134,7 +158,7 @@ pub struct ItemIdentity {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RenumberPlan {
     /// Mapping by source document.
-    pub by_source: BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>,
+    by_source: BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>,
 }
 
 impl RoadmapDocument {
@@ -197,6 +221,112 @@ impl MarkdownNodes {
     pub(crate) fn clear_original_blocks(&mut self) { self.original_blocks.fill(None); }
 }
 
+impl TaskEntry {
+    /// Build a parsed task entry from parser-owned parts.
+    pub(crate) fn from_parts(parts: TaskEntryParts) -> Result<Self> {
+        validate_task_children(&parts)?;
+        Ok(Self {
+            identity: parts.identity,
+            number: parts.number,
+            checked: parts.checked,
+            summary: parts.summary,
+            body: parts.body,
+            sub_tasks: parts.sub_tasks,
+            children: parts.children,
+        })
+    }
+
+    /// Return the structural sub-tasks nested beneath this task.
+    #[must_use]
+    pub fn sub_tasks(&self) -> &[SubTaskEntry] { &self.sub_tasks }
+
+    /// Return mutable sub-tasks for renumbering and dependency rewriting.
+    pub(crate) fn sub_tasks_mut(&mut self) -> &mut [SubTaskEntry] { &mut self.sub_tasks }
+
+    /// Return the original ordered task-child sequence.
+    #[must_use]
+    pub(crate) fn children(&self) -> &[TaskChild] { &self.children }
+
+    /// Find the index of a structural sub-task by rendered number.
+    #[must_use]
+    pub(crate) fn find_sub_task_index(&self, target: SubTaskNumber) -> Option<usize> {
+        self.sub_tasks
+            .iter()
+            .position(|sub_task| sub_task.number == target)
+    }
+
+    /// Insert sub-tasks while keeping the child order vector aligned.
+    pub(crate) fn insert_sub_tasks(
+        &mut self,
+        splice: SubTaskSplice,
+        after: bool,
+        sub_tasks: Vec<SubTaskEntry>,
+    ) {
+        let new_children = sub_task_children(&sub_tasks);
+        let insert_at = splice.sub_task_index + usize::from(after);
+        let child_insert_at = splice.child_index + usize::from(after);
+        self.sub_tasks.splice(insert_at..insert_at, sub_tasks);
+        self.children
+            .splice(child_insert_at..child_insert_at, new_children);
+    }
+
+    /// Delete one sub-task while keeping the child order vector aligned.
+    pub(crate) fn delete_sub_task(&mut self, splice: SubTaskSplice) {
+        self.sub_tasks.remove(splice.sub_task_index);
+        self.children.remove(splice.child_index);
+    }
+
+    /// Replace one sub-task while keeping the child order vector aligned.
+    pub(crate) fn replace_sub_task(&mut self, splice: SubTaskSplice, sub_tasks: Vec<SubTaskEntry>) {
+        let new_children = sub_task_children(&sub_tasks);
+        self.sub_tasks
+            .splice(splice.sub_task_index..=splice.sub_task_index, sub_tasks);
+        self.children
+            .splice(splice.child_index..=splice.child_index, new_children);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn remove_sub_task_without_child_update_for_test(
+        &mut self,
+        sub_task_index: usize,
+    ) -> SubTaskEntry {
+        self.sub_tasks.remove(sub_task_index)
+    }
+}
+
+fn sub_task_children(sub_tasks: &[SubTaskEntry]) -> Vec<TaskChild> {
+    sub_tasks
+        .iter()
+        .map(|sub_task| TaskChild::SubTask(sub_task.identity))
+        .collect()
+}
+
+fn validate_task_children(parts: &TaskEntryParts) -> Result<()> {
+    let sub_task_identities = parts
+        .sub_tasks
+        .iter()
+        .map(|sub_task| sub_task.identity)
+        .collect::<BTreeSet<_>>();
+    let child_identities = parts
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            TaskChild::Body(_) => None,
+            TaskChild::SubTask(identity) => Some(*identity),
+        })
+        .collect::<BTreeSet<_>>();
+    if sub_task_identities == child_identities {
+        Ok(())
+    } else {
+        Err(MapspliceError::InvalidRoadmap {
+            message: format!(
+                "task `{}` has inconsistent structural sub-task children",
+                parts.number
+            ),
+        })
+    }
+}
+
 /// Copy the exact source span for an unchanged Markdown node.
 fn original_block(node: &Node, source: &str) -> Option<String> {
     let position = node.position()?;
@@ -250,7 +380,12 @@ impl RenumberPlan {
         }
     }
 
-    pub(crate) fn insert(&mut self, source: SourceId, old: RoadmapAnchor, new: RoadmapAnchor) {
+    pub(crate) fn record_mapping(
+        &mut self,
+        source: SourceId,
+        old: RoadmapAnchor,
+        new: RoadmapAnchor,
+    ) {
         self.by_source.entry(source).or_default().insert(old, new);
     }
 }

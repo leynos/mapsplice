@@ -1,7 +1,8 @@
 //! Compile-time coverage for the public library API.
 
 #[test]
-fn public_api_compiles_for_basic_callers() {
+fn compile_time_contracts() {
     let cases = trybuild::TestCases::new();
     cases.pass("tests/ui/public_api.rs");
+    cases.compile_fail("tests/ui/model_invariants.rs");
 }

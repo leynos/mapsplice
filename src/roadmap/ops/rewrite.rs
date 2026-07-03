@@ -39,7 +39,7 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
 
     for (phase_index, phase) in roadmap.phases.iter_mut().enumerate() {
         let new_phase = PhaseNumber::new(to_number(phase_index + 1, "phase")?)?;
-        plan.insert(
+        plan.record_mapping(
             phase.identity.source,
             phase.identity.anchor,
             new_phase.into(),
@@ -48,12 +48,12 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
 
         for (step_index, step) in phase.steps.iter_mut().enumerate() {
             let new_step = StepNumber::new(new_phase, to_number(step_index + 1, "step")?)?;
-            plan.insert(step.identity.source, step.identity.anchor, new_step.into());
+            plan.record_mapping(step.identity.source, step.identity.anchor, new_step.into());
             step.number = new_step;
 
             for (task_index, task) in step.tasks.iter_mut().enumerate() {
                 let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
-                plan.insert(task.identity.source, task.identity.anchor, new_task.into());
+                plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
                 task.number = new_task;
                 renumber_sub_tasks(task, new_task, &mut plan)?;
             }
@@ -69,10 +69,10 @@ fn renumber_sub_tasks(
     new_task: TaskNumber,
     plan: &mut RenumberPlan,
 ) -> Result<()> {
-    for (sub_task_index, sub_task) in task.sub_tasks.iter_mut().enumerate() {
+    for (sub_task_index, sub_task) in task.sub_tasks_mut().iter_mut().enumerate() {
         let new_sub_task =
             SubTaskNumber::new(new_task, to_number(sub_task_index + 1, "sub-task")?)?;
-        plan.insert(
+        plan.record_mapping(
             sub_task.identity.source,
             sub_task.identity.anchor,
             new_sub_task.into(),
@@ -116,7 +116,7 @@ fn rewrite_task_entry(
 ) -> Result<()> {
     rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
     rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
-    for sub_task in &mut task.sub_tasks {
+    for sub_task in task.sub_tasks_mut() {
         rewrite_sub_task_entry(sub_task, context)?;
     }
     Ok(())

@@ -6,7 +6,7 @@ use crate::{
     roadmap::{
         RoadmapDocument,
         SubTaskNumber,
-        model::{ItemIdentity, SubTaskEntry, TaskChild, TaskEntry},
+        model::{ItemIdentity, SubTaskEntry, SubTaskSplice, TaskChild, TaskEntry},
     },
 };
 
@@ -18,22 +18,16 @@ pub(super) fn insert_sub_tasks(
 ) -> Result<()> {
     let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     let target_identity = sub_task_identity(task, sub_task_index)?;
-    let child_index = find_sub_task_child_index(task, target_identity)?;
-    let new_children = sub_task_children(&sub_tasks);
-    let insert_at = sub_task_index + usize::from(after);
-    let child_insert_at = child_index + usize::from(after);
-    task.sub_tasks.splice(insert_at..insert_at, sub_tasks);
-    task.children
-        .splice(child_insert_at..child_insert_at, new_children);
+    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+    task.insert_sub_tasks(splice, after, sub_tasks);
     Ok(())
 }
 
 pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumber) -> Result<()> {
     let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     let target_identity = sub_task_identity(task, sub_task_index)?;
-    let child_index = find_sub_task_child_index(task, target_identity)?;
-    task.sub_tasks.remove(sub_task_index);
-    task.children.remove(child_index);
+    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+    task.delete_sub_task(splice);
     Ok(())
 }
 
@@ -44,12 +38,8 @@ pub(super) fn replace_sub_task(
 ) -> Result<()> {
     let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     let target_identity = sub_task_identity(task, sub_task_index)?;
-    let child_index = find_sub_task_child_index(task, target_identity)?;
-    let new_children = sub_task_children(&sub_tasks);
-    task.sub_tasks
-        .splice(sub_task_index..=sub_task_index, sub_tasks);
-    task.children
-        .splice(child_index..=child_index, new_children);
+    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+    task.replace_sub_task(splice, sub_tasks);
     Ok(())
 }
 
@@ -64,18 +54,16 @@ fn find_sub_task_parent_mut(
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.task_number().into(),
         })?;
-    let sub_task_index = task
-        .sub_tasks
-        .iter()
-        .position(|sub_task| sub_task.number == target)
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.into(),
-        })?;
+    let sub_task_index =
+        task.find_sub_task_index(target)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.into(),
+            })?;
     Ok((task, sub_task_index))
 }
 
 fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIdentity> {
-    task.sub_tasks
+    task.sub_tasks()
         .get(sub_task_index)
         .map(|sub_task| sub_task.identity)
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
@@ -83,8 +71,13 @@ fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIden
         })
 }
 
-fn find_sub_task_child_index(task: &TaskEntry, identity: ItemIdentity) -> Result<usize> {
-    task.children
+fn find_sub_task_splice(
+    task: &TaskEntry,
+    sub_task_index: usize,
+    identity: ItemIdentity,
+) -> Result<SubTaskSplice> {
+    let child_index = task
+        .children()
         .iter()
         .position(|child| matches!(child, TaskChild::SubTask(candidate) if *candidate == identity))
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
@@ -92,14 +85,11 @@ fn find_sub_task_child_index(task: &TaskEntry, identity: ItemIdentity) -> Result
                 "sub-task `{}` is missing from task child order",
                 task.number
             ),
-        })
-}
-
-fn sub_task_children(sub_tasks: &[SubTaskEntry]) -> Vec<TaskChild> {
-    sub_tasks
-        .iter()
-        .map(|sub_task| TaskChild::SubTask(sub_task.identity))
-        .collect()
+        })?;
+    Ok(SubTaskSplice {
+        sub_task_index,
+        child_index,
+    })
 }
 
 #[cfg(test)]
@@ -224,9 +214,9 @@ mod tests {
 
         let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
 
-        assert_eq!(task.sub_tasks.len(), 1);
+        assert_eq!(task.sub_tasks().len(), 1);
         let remaining_sub_task = task
-            .sub_tasks
+            .sub_tasks()
             .first()
             .expect("task should keep the remaining sub-task");
         assert_eq!(
@@ -245,7 +235,7 @@ mod tests {
 
     fn assert_sub_task_numbers(task: &TaskEntry, expected: &[&str]) {
         let actual = task
-            .sub_tasks
+            .sub_tasks()
             .iter()
             .map(|sub_task| sub_task.number.to_string())
             .collect::<Vec<_>>();
@@ -254,7 +244,7 @@ mod tests {
 
     fn assert_sub_task_checked_states(task: &TaskEntry, expected: &[bool]) {
         let actual = task
-            .sub_tasks
+            .sub_tasks()
             .iter()
             .map(|sub_task| sub_task.checked)
             .collect::<Vec<_>>();
@@ -264,7 +254,7 @@ mod tests {
 
     fn assert_sub_task_child_identity_alignment(task: &TaskEntry) {
         let sub_task_identities = task
-            .sub_tasks
+            .sub_tasks()
             .iter()
             .map(|sub_task| sub_task.identity)
             .collect::<Vec<_>>();
@@ -272,7 +262,7 @@ mod tests {
     }
 
     fn sub_task_child_identities(task: &TaskEntry) -> Vec<ItemIdentity> {
-        task.children
+        task.children()
             .iter()
             .filter_map(|child| match child {
                 TaskChild::SubTask(identity) => Some(*identity),

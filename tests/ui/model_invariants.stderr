@@ -1,0 +1,10 @@
+error[E0616]: field `sub_tasks` of struct `mapsplice::roadmap::model::TaskEntry` is private
+  --> tests/ui/model_invariants.rs:15:10
+   |
+15 |     task.sub_tasks.clear();
+   |          ^^^^^^^^^ private field
+   |
+help: a method `sub_tasks` also exists, call it with parentheses
+   |
+15 |     task.sub_tasks().clear();
+   |                   ++

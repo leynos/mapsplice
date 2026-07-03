@@ -47,11 +47,17 @@ const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str = concat!(
 );
 
 fn assert_contains(haystack: &str, needle: &str) {
-    assert!(haystack.contains(needle));
+    assert!(
+        haystack.contains(needle),
+        "missing `{needle}` in:\n{haystack}"
+    );
 }
 
 fn assert_not_contains(haystack: &str, needle: &str) {
-    assert!(!haystack.contains(needle));
+    assert!(
+        !haystack.contains(needle),
+        "unexpected `{needle}` in:\n{haystack}"
+    );
 }
 
 fn assert_invalid_roadmap(error: &MapspliceError) {
@@ -66,16 +72,16 @@ fn parse_roadmap_keeps_nested_numbered_sub_tasks_structural() {
     let step = phase.steps.first().expect("phase should have a step");
     let task = step.tasks.first().expect("step should have a task");
     let first_sub_task = task
-        .sub_tasks
+        .sub_tasks()
         .first()
         .expect("task should have a first sub-task");
     let second_sub_task = task
-        .sub_tasks
+        .sub_tasks()
         .get(1)
         .expect("task should have a second sub-task");
 
     assert_eq!(task.body.len(), 0);
-    assert_eq!(task.sub_tasks.len(), 2);
+    assert_eq!(task.sub_tasks().len(), 2);
     assert_eq!(first_sub_task.number.to_string(), "1.1.1.1");
     assert_eq!(second_sub_task.number.to_string(), "1.1.1.2");
 }

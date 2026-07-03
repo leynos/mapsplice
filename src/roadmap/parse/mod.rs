@@ -27,7 +27,15 @@ use super::{
     StepNumber,
     SubTaskNumber,
     TaskNumber,
-    model::{ItemIdentity, MarkdownNodes, SourceId, SubTaskEntry, TaskChild, TaskEntry},
+    model::{
+        ItemIdentity,
+        MarkdownNodes,
+        SourceId,
+        SubTaskEntry,
+        TaskChild,
+        TaskEntry,
+        TaskEntryParts,
+    },
 };
 use crate::error::{MapspliceError, Result};
 
@@ -159,7 +167,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
     let head = parse_checklist_item_head(item, ChecklistKind::Task)?;
     let (number, summary) = parse_task_paragraph(head.paragraph)?;
     let (body, sub_tasks, children) = split_task_children(head.child_body, number, context)?;
-    Ok(TaskEntry {
+    TaskEntry::from_parts(TaskEntryParts {
         identity: ItemIdentity {
             source: context.source,
             anchor: RoadmapAnchor::Task(number),
@@ -182,7 +190,6 @@ fn split_task_children(
     for child in children {
         if let Node::List(list) = child {
             if looks_like_sub_task_list(list) {
-                task_children.flush_body();
                 parse_sub_task_list(list, parent, context, &mut task_children)?;
                 continue;
             }
@@ -192,16 +199,9 @@ fn split_task_children(
                 });
             }
         }
-        task_children
-            .body
-            .push_preserved(child.clone(), context.source_text);
+        task_children.push_body_node(child.clone(), context.source_text);
     }
-    task_children.flush_body();
-    Ok((
-        task_children.body,
-        task_children.sub_tasks,
-        task_children.ordered,
-    ))
+    Ok(task_children.finish())
 }
 
 fn parse_sub_task_list(
@@ -215,22 +215,23 @@ fn parse_sub_task_list(
             message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
         });
     }
-    let expected_start = task_children.sub_tasks.len().saturating_add(1);
+    let expected_start = task_children.next_sub_task_ordinal()?;
     for (offset, node) in list.children.iter().enumerate() {
         let Node::ListItem(item) = node else {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap sub-task lists must contain only list items".to_owned(),
             });
         };
-        let expected_ordinal =
-            u32::try_from(expected_start + offset).map_err(|_| MapspliceError::InvalidRoadmap {
+        let ordinal_offset = u32::try_from(offset).map_err(|_| MapspliceError::InvalidRoadmap {
+            message: "sub-task count exceeds supported numbering range".to_owned(),
+        })?;
+        let expected_ordinal = expected_start.checked_add(ordinal_offset).ok_or_else(|| {
+            MapspliceError::InvalidRoadmap {
                 message: "sub-task count exceeds supported numbering range".to_owned(),
-            })?;
+            }
+        })?;
         let sub_task = parse_sub_task_item(item, parent, expected_ordinal, context)?;
-        task_children
-            .ordered
-            .push(TaskChild::SubTask(sub_task.identity));
-        task_children.sub_tasks.push(sub_task);
+        task_children.push_sub_task(sub_task);
     }
     Ok(())
 }

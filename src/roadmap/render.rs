@@ -74,7 +74,7 @@ fn render_task(task: &TaskEntry) -> Result<String> {
         task.number,
         render_item_summary(&render_inline(task.summary.nodes())?, 4)
     )];
-    for child in &task.children {
+    for child in task.children() {
         match child {
             TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
             TaskChild::SubTask(identity) => {
@@ -95,7 +95,7 @@ const fn checkbox_marker(checked: Option<bool>) -> &'static str {
 }
 
 fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&SubTaskEntry> {
-    task.sub_tasks
+    task.sub_tasks()
         .iter()
         .find(|sub_task| sub_task.identity == identity)
         .ok_or_else(|| MapspliceError::InvalidRoadmap {

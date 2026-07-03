@@ -293,7 +293,7 @@ one seam rather than across duplicated branches.
     branch-independent logic.
   - Success: internal call sites use one helper per concept, public behaviour
     and metrics output remain unchanged, and `make all` passes.
-- [ ] 5.1.4. Encapsulate roadmap mutation invariants.
+- [x] 5.1.4. Encapsulate roadmap mutation invariants.
   - Requires 5.1.1 and 5.1.3.
   - Hide direct mutation of `RenumberPlan` and `TaskChildren` internals behind
     methods that preserve nested-map and ordered-child invariants.

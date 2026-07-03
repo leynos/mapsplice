@@ -88,8 +88,7 @@ fn render_fails_when_task_child_references_missing_sub_task() {
     .expect("roadmap with sub-task should parse");
     let missing_sub_task = parent_task_mut(&mut roadmap)
         .expect("roadmap should contain the parent task")
-        .sub_tasks
-        .remove(0);
+        .remove_sub_task_without_child_update_for_test(0);
 
     let error =
         render_roadmap(&roadmap).expect_err("orphaned sub-task child should fail rendering");

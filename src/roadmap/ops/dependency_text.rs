@@ -361,7 +361,7 @@ mod tests {
         #[case] expected_count: u64,
     ) {
         let mut plan = RenumberPlan::default();
-        plan.insert(
+        plan.record_mapping(
             SourceId::Target,
             parse_anchor("2.1.1").expect("old test anchor should parse"),
             parse_anchor("1.1.1").expect("new test anchor should parse"),
