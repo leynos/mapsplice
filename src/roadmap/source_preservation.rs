@@ -1,6 +1,6 @@
 //! Source-span helpers for preserving unchanged roadmap Markdown.
 
-use markdown::mdast::Node;
+use markdown::{mdast::Node, unist::Position};
 
 /// Copy source for an unchanged node, preserving leading indentation.
 ///
@@ -10,13 +10,31 @@ use markdown::mdast::Node;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use markdown::{ParseOptions, mdast::Node, to_mdast};
+/// # use mapsplice::doctest_support::original_node_source;
+///
 /// let source = "  - [ ] 1.1.1. Nested task.\n";
-/// let node = parse_first_list_node(source)?;
-/// assert_eq!(original_node_source(&node, source), Some(source.to_owned()));
+/// let tree = to_mdast(source, &ParseOptions::gfm())?;
+/// let Node::Root(root) = &tree else {
+///     unreachable!("markdown documents parse into root nodes");
+/// };
+/// let node = root.children.first().expect("root should contain the list");
+///
+/// assert_eq!(
+///     original_node_source(node, source),
+///     Some("  - [ ] 1.1.1. Nested task.".to_owned())
+/// );
+/// # Ok::<(), markdown::message::Message>(())
 /// ```
-pub(crate) fn original_node_source(node: &Node, source: &str) -> Option<String> {
-    let position = node.position()?;
+#[must_use]
+pub fn original_node_source(node: &Node, source: &str) -> Option<String> {
+    original_position_source(node.position()?, source)
+}
+
+/// Copy source for an unchanged span, preserving leading indentation.
+#[must_use]
+pub(crate) fn original_position_source(position: &Position, source: &str) -> Option<String> {
     let prefix = source.get(..position.start.offset)?;
     let start = prefix.rfind('\n').map_or(0, |index| index + 1);
     source.get(start..position.end.offset).map(str::to_owned)

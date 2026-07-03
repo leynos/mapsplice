@@ -50,15 +50,41 @@ jobs:
           cargo binstall --no-confirm merman-cli@${{ env.MERMAN_CLI_VERSION }}
       - name: Mermaid diagrams
         run: make nixie
+      - name: Cache Markdown formatter tools
+        id: cache-markdown-formatters
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: ~/.local/share/mapsplice/markdown-formatters
+          key: markdown-formatters-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.MDTABLEFIX_GIT_REV }}-${{ env.MARKDOWNLINT_CLI2_VERSION }}
       - name: Install Markdown formatter tools
+        env:
+          MARKDOWNLINT_CLI2_VERSION: ${{ env.MARKDOWNLINT_CLI2_VERSION }}
+          MDTABLEFIX_GIT_REV: ${{ env.MDTABLEFIX_GIT_REV }}
         run: |
-          cargo install \
-            --git https://github.com/leynos/mdtablefix \
-            --rev "${{ env.MDTABLEFIX_GIT_REV }}" \
-            --locked \
-            --force \
-            mdtablefix
-          npm install --global "markdownlint-cli2@${{ env.MARKDOWNLINT_CLI2_VERSION }}"
+          set -euo pipefail
+
+          formatter_root="$HOME/.local/share/mapsplice/markdown-formatters"
+          cargo_root="$formatter_root/cargo"
+          npm_root="$formatter_root/npm"
+
+          mkdir -p "$cargo_root/bin" "$npm_root/bin"
+          export PATH="$cargo_root/bin:$npm_root/bin:$PATH"
+          echo "$cargo_root/bin" >> "$GITHUB_PATH"
+          echo "$npm_root/bin" >> "$GITHUB_PATH"
+
+          if [ ! -x "$cargo_root/bin/mdtablefix" ]; then
+            cargo install \
+              --git https://github.com/leynos/mdtablefix \
+              --rev "$MDTABLEFIX_GIT_REV" \
+              --locked \
+              --force \
+              --root "$cargo_root" \
+              mdtablefix
+          fi
+          if [ ! -x "$npm_root/bin/markdownlint-cli2" ]; then
+            npm install --global --prefix "$npm_root" \
+              "markdownlint-cli2@$MARKDOWNLINT_CLI2_VERSION"
+          fi
           mdtablefix --version
           markdownlint-cli2 --version
       - name: Cache Whitaker installation

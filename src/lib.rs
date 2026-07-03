@@ -6,6 +6,13 @@ mod fs;
 pub mod observability;
 mod roadmap;
 
+#[doc(hidden)]
+pub mod doctest_support {
+    //! Hidden helpers used by documentation examples.
+
+    pub use crate::roadmap::source_preservation::original_node_source;
+}
+
 use camino::Utf8PathBuf;
 pub use error::{MapspliceError, Result};
 use fs::{read_utf8, rewrite_utf8};

@@ -98,14 +98,14 @@ pub(super) fn rewrite_dependencies(
         rewrite_markdown_nodes(&mut phase.body, phase.identity.source, &mut context)?;
         rewrite_markdown_nodes(&mut phase.trailing, phase.identity.source, &mut context)?;
         for step in &mut phase.steps {
-            let before_step = context.rewrite_count;
             rewrite_markdown_nodes(&mut step.title, step.identity.source, &mut context)?;
             rewrite_markdown_nodes(&mut step.body, step.identity.source, &mut context)?;
             rewrite_markdown_nodes(&mut step.trailing, step.identity.source, &mut context)?;
+            let before_tasks = context.rewrite_count;
             for task in &mut step.tasks {
                 rewrite_task_entry(task, &mut context)?;
             }
-            if context.rewrite_count > before_step {
+            if context.rewrite_count > before_tasks {
                 step.clear_task_list_source();
             }
         }

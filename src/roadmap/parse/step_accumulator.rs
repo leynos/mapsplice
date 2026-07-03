@@ -8,7 +8,7 @@ use crate::{
     roadmap::{
         StepNumber,
         model::{ItemIdentity, MarkdownNodes, SourceId, StepSection},
-        source_preservation::original_node_source,
+        source_preservation::original_position_source,
     },
 };
 
@@ -69,10 +69,11 @@ impl<'source> StepAccumulator<'source> {
         let mut tasks = parse_task_list(list, self.source, self.source_text)?;
         validate_tasks_belong_to_step(current.number, &tasks)?;
         if current.tasks.is_empty() {
-            current.set_task_list_source(original_node_source(
-                &Node::List(list.clone()),
-                self.source_text,
-            ));
+            current.set_task_list_source(
+                list.position
+                    .as_ref()
+                    .and_then(|position| original_position_source(position, self.source_text)),
+            );
         } else {
             current.clear_task_list_source();
         }

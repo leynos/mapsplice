@@ -1,6 +1,7 @@
 //! Shared assertion helpers for integration tests.
 
 /// Assert that `haystack` contains `needle`.
+#[track_caller]
 pub fn assert_contains(haystack: &str, needle: &str) {
     assert!(
         haystack.contains(needle),

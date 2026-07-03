@@ -41,12 +41,14 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
             ));
             blocks.extend(render_markdown_nodes(&step.body, 0)?);
             if !step.tasks.is_empty() {
-                let rendered_tasks =
-                    render_tasks(step.tasks.iter().collect::<Vec<_>>().as_slice())?;
-                blocks.push(step.task_list_source().map_or_else(
-                    || rendered_tasks,
-                    |source| trim_preserved_task_source(source).to_owned(),
-                ));
+                let tasks = step.tasks.iter().collect::<Vec<_>>();
+                let rendered_tasks = if let Some(source) = step.task_list_source() {
+                    validate_tasks_for_render(&tasks)?;
+                    trim_preserved_task_source(source).to_owned()
+                } else {
+                    render_tasks(&tasks)?
+                };
+                blocks.push(rendered_tasks);
             }
             blocks.extend(render_markdown_nodes(&step.trailing, 0)?);
         }
@@ -60,7 +62,6 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     })
 }
 
-/// Render a list of roadmap tasks as Markdown checklist lines.
 fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
     tasks
         .iter()
@@ -68,8 +69,25 @@ fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
         .collect::<Result<Vec<_>>>()
         .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
 }
-
-/// Render one roadmap task and any nested body blocks.
+fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
+    tasks
+        .iter()
+        .try_for_each(|task| validate_task_for_render(task))
+}
+fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
+    render_inline(task.summary.nodes())?;
+    task.children().iter().try_for_each(|child| match child {
+        TaskChild::Body(body) => render_nested_body(body, 4).map(drop),
+        TaskChild::SubTask(identity) => {
+            validate_sub_task_for_render(find_sub_task_for_child(task, *identity)?)
+        }
+    })
+}
+fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
+    render_inline(sub_task.summary.nodes())?;
+    render_nested_body(&sub_task.body, 8)?;
+    Ok(())
+}
 fn render_task(task: &TaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {}{}. {}",
