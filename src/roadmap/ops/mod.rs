@@ -15,7 +15,6 @@ use super::{
     RoadmapItemLevel,
     StepNumber,
     TaskNumber,
-    fragment_level,
     model::{PhaseSection, StepSection},
 };
 use crate::error::{MapspliceError, Result};
@@ -101,7 +100,7 @@ pub fn apply_command(
 
 fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragment>) -> Result<()> {
     let fragment_document = required_fragment("append", fragment)?;
-    let found = fragment_level(&fragment_document);
+    let found = fragment_document.level();
     let RoadmapFragment::Phase(phases) = fragment_document else {
         return Err(MapspliceError::AppendLevelMismatch {
             expected: RoadmapItemLevel::Phase,
@@ -149,13 +148,7 @@ fn insert_phases(
     after: bool,
     phases: Vec<PhaseSection>,
 ) -> Result<()> {
-    let index = roadmap
-        .phases
-        .iter()
-        .position(|phase| phase.number == target)
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.into(),
-        })?;
+    let index = find_phase_index(roadmap, target)?;
     roadmap.phases.splice(
         index + usize::from(after)..index + usize::from(after),
         phases,
@@ -194,11 +187,7 @@ fn insert_tasks(
 fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result<()> {
     match anchor {
         RoadmapAnchor::Phase(target) => {
-            let index = roadmap
-                .phases
-                .iter()
-                .position(|phase| phase.number == target)
-                .ok_or(MapspliceError::AnchorNotFound { anchor })?;
+            let index = find_phase_index(roadmap, target)?;
             roadmap.phases.remove(index);
         }
         RoadmapAnchor::Step(target) => {
@@ -227,11 +216,7 @@ fn replace_anchor(
 
     match (anchor, fragment_document) {
         (RoadmapAnchor::Phase(target), RoadmapFragment::Phase(phases)) => {
-            let index = roadmap
-                .phases
-                .iter()
-                .position(|phase| phase.number == target)
-                .ok_or(MapspliceError::AnchorNotFound { anchor })?;
+            let index = find_phase_index(roadmap, target)?;
             roadmap.phases.splice(index..=index, phases);
             Ok(())
         }
@@ -274,6 +259,16 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
             found,
         })
     }
+}
+
+fn find_phase_index(roadmap: &RoadmapDocument, target: PhaseNumber) -> Result<usize> {
+    roadmap
+        .phases
+        .iter()
+        .position(|phase| phase.number == target)
+        .ok_or(MapspliceError::AnchorNotFound {
+            anchor: target.into(),
+        })
 }
 
 fn find_step_parent_mut(

@@ -173,11 +173,13 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let rendered = render_roadmap(&roadmap)?;
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
-        observability::record_dependency_rewrites(dependency_rewrites);
         observability::record_in_place_rewrite();
+    }
+    observability::record_dependency_rewrites(dependency_rewrites);
+
+    if request.global.in_place {
         Ok(RunOutcome::in_place(request.target))
     } else {
-        observability::record_dependency_rewrites(dependency_rewrites);
         Ok(RunOutcome::stdout(rendered))
     }
 }

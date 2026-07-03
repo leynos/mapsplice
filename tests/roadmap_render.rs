@@ -260,3 +260,43 @@ fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspac
     );
     Ok(())
 }
+
+#[rstest]
+#[case::checked_task("- [x] 1.1.1. Checked task.")]
+#[case::unchecked_task("- [ ] 1.1.2. Unchecked task.")]
+#[case::checked_sub_task("  - [x] 1.1.2.1. Checked sub-task.")]
+#[case::unchecked_sub_task("  - [ ] 1.1.2.2. Unchecked sub-task.")]
+#[case::ordinary_list_item("- [x] Preamble checklist body.")]
+fn render_preserves_checkbox_markers(
+    workspace: TestResult<Workspace>,
+    #[case] expected: &str,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "- [x] Preamble checklist body.\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [x] 1.1.1. Checked task.\n",
+            "- [ ] 1.1.2. Unchecked task.\n",
+            "  - [x] 1.1.2.1. Checked sub-task.\n",
+            "  - [ ] 1.1.2.2. Unchecked sub-task.\n",
+        ))
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(PHASE_FRAGMENT)
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "append",
+        test_workspace.target.as_str(),
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("append command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, expected);
+    Ok(())
+}

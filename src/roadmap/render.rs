@@ -68,13 +68,9 @@ fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
 
 /// Render one roadmap task and any nested body blocks.
 fn render_task(task: &TaskEntry) -> Result<String> {
-    let checkbox = match task.checked {
-        Some(true) => "[x] ",
-        Some(false) => "[ ] ",
-        None => "",
-    };
     let mut parts = vec![format!(
-        "- {checkbox}{}. {}",
+        "- {}{}. {}",
+        checkbox_marker(task.checked),
         task.number,
         render_item_summary(&render_inline(task.summary.nodes())?, 4)
     )];
@@ -90,6 +86,14 @@ fn render_task(task: &TaskEntry) -> Result<String> {
     Ok(parts.join("\n"))
 }
 
+const fn checkbox_marker(checked: Option<bool>) -> &'static str {
+    match checked {
+        Some(true) => "[x] ",
+        Some(false) => "[ ] ",
+        None => "",
+    }
+}
+
 fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&SubTaskEntry> {
     task.sub_tasks
         .iter()
@@ -103,14 +107,10 @@ fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&
 }
 
 fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
-    let checkbox = match sub_task.checked {
-        Some(true) => "[x] ",
-        Some(false) => "[ ] ",
-        None => "",
-    };
     let prefix = " ".repeat(indent);
     let mut parts = vec![format!(
-        "{prefix}- {checkbox}{}. {}",
+        "{prefix}- {}{}. {}",
+        checkbox_marker(sub_task.checked),
         sub_task.number,
         render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
@@ -263,11 +263,7 @@ fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32)
     let prefix = if ordered {
         format!("{ordinal}. ")
     } else {
-        match item.checked {
-            Some(true) => "- [x] ".to_owned(),
-            Some(false) => "- [ ] ".to_owned(),
-            None => "- ".to_owned(),
-        }
+        format!("- {}", checkbox_marker(item.checked))
     };
 
     let first = item

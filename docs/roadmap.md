@@ -286,7 +286,7 @@ one seam rather than across duplicated branches.
   - Success: task, sub-task, and step fragment parsing exercise shared
     validation machinery and all fragment-level behavioural tests pass without
     diagnostic drift.
-- [ ] 5.1.3. Collapse duplicated lookup and rendering helpers.
+- [x] 5.1.3. Collapse duplicated lookup and rendering helpers.
   - Requires 5.1.1.
   - Single-source phase lookup, checkbox marker rendering, fragment-level
     routing, and dependency-rewrite recording where the current code repeats
