@@ -1,4 +1,4 @@
 interface:
   display_name: "Mapsplice"
   short_description: "Use the current mapsplice roadmap-editing CLI safely."
-  default_prompt: "Use mapsplice to make a structural roadmap edit."
+  default_prompt: "Use mapsplice append, insert, delete, or replace, and choose the matching --in-place flow when the edit should be applied directly."

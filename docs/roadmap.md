@@ -490,8 +490,9 @@ surface of automated writes.
   - Requires 7.1.2 and 7.1.3.
   - Record dry-run reports from real roadmap updates and classify whether
     guided manual renames are rare, cheap, or repeatedly error-prone.
-  - Success: maintainers have enough evidence to proceed with, defer, or
-    reject one-command apply automation.
+  - Success: proceed only if at least three dry-run reports show recurring
+    manual pain; defer if reports are mixed or too sparse; reject if the
+    reports show the manual flow is usually cheap and correct.
 
 - [ ] 7.2.2. Specify apply preconditions before any mutation.
 
