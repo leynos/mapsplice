@@ -52,7 +52,7 @@ jobs:
         run: make nixie
       - name: Cache Markdown formatter tools
         id: cache-markdown-formatters
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.local/share/mapsplice/markdown-formatters
           key: markdown-formatters-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.MDTABLEFIX_GIT_REV }}-${{ env.MARKDOWNLINT_CLI2_VERSION }}
@@ -88,7 +88,7 @@ jobs:
           markdownlint-cli2 --version
       - name: Cache Whitaker installation
         id: cache-whitaker
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: |
             ~/.cargo/bin/whitaker-installer
