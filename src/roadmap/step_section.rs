@@ -8,9 +8,7 @@ impl StepSection {
     pub(crate) fn task_list_source(&self) -> Option<&str> { self.task_list_source.as_deref() }
 
     /// Preserve the original task list source when parsing an unchanged step.
-    pub(crate) fn set_task_list_source(&mut self, source: Option<String>) {
-        self.task_list_source = source;
-    }
+    pub(crate) fn set_task_list_source(&mut self, s: Option<String>) { self.task_list_source = s; }
 
     /// Clear preserved task list source after semantic task changes.
     pub(crate) fn clear_task_list_source(&mut self) { self.task_list_source = None; }
