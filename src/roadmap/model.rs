@@ -4,7 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use markdown::mdast::Node;
 
-use super::{RoadmapAnchor, RoadmapItemLevel, StepNumber, SubTaskNumber, TaskNumber};
+use super::{
+    RoadmapAnchor,
+    RoadmapItemLevel,
+    StepNumber,
+    SubTaskNumber,
+    TaskNumber,
+    source_preservation::original_node_source,
+};
 use crate::error::{MapspliceError, Result};
 
 #[cfg(test)]
@@ -63,6 +70,8 @@ pub struct StepSection {
     pub body: MarkdownNodes,
     /// Ordered tasks within the step.
     pub tasks: Vec<TaskEntry>,
+    /// Exact original task list source while every task remains unchanged.
+    pub(crate) task_list_source: Option<String>,
     /// Blocks after the last task.
     pub trailing: MarkdownNodes,
 }
@@ -328,12 +337,7 @@ fn validate_task_children(parts: &TaskEntryParts) -> Result<()> {
 }
 
 /// Copy the exact source span for an unchanged Markdown node.
-fn original_block(node: &Node, source: &str) -> Option<String> {
-    let position = node.position()?;
-    let prefix = source.get(..position.start.offset)?;
-    let start = prefix.rfind('\n').map_or(0, |index| index + 1);
-    source.get(start..position.end.offset).map(str::to_owned)
-}
+fn original_block(n: &Node, s: &str) -> Option<String> { original_node_source(n, s) }
 
 impl Default for RoadmapDocument {
     fn default() -> Self { Self::new() }

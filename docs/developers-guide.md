@@ -102,13 +102,22 @@ Property tests should construct valid inputs rather than filter invalid data
 after generation. Any shrunk failure should be promoted to a named regression
 test when it captures a real bug.
 
+Task-list source preservation has a separate internal boundary from ordinary
+Markdown-node source preservation. `src/roadmap/source_preservation.rs`
+extracts source spans, while `StepSection::task_list_source` stores the exact
+source for the first parsed task list in an unchanged step. Render validates
+the task model before reusing that source, and mutation or dependency-rewrite
+code must call `StepSection::clear_task_list_source` whenever the task list
+itself changes.
+
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in
 `src/roadmap/ops/dependency_text.rs`. Unit tests cover the classifier branches,
 behavioural tests cover unresolved valid references, invalid version-like
 tokens, mapped rewrites, and scoped preservation through the compiled binary.
 Property tests cover generated invalid dependency tokens, incidental numeric
-text, and scoped reference preservation beside mapped `Requires` references.
+text, scoped reference preservation beside mapped `Requires` references, and
+append preservation across generated task-list shapes.
 
 ## 7. Local tooling
 

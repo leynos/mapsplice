@@ -1,5 +1,7 @@
 //! `rstest` coverage for roadmap rendering preservation behaviour.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/phase.rs"]
 mod phase_support;
 #[path = "support/roadmap_workspace.rs"]
@@ -7,13 +9,18 @@ mod workspace_support;
 
 use std::io;
 
+use assertions::assert_contains;
 use mapsplice::run_from_args;
 use phase_support::PHASE_FRAGMENT;
 use rstest::rstest;
 use workspace_support::{TestResult, Workspace, workspace};
 
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(haystack.contains(needle));
+struct SubTaskSpliceCase<'a> {
+    command: &'a str,
+    fragment: Option<&'a str>,
+    args: &'a [&'a str],
+    expected: &'a str,
+    stale: &'a str,
 }
 
 fn assert_ordered(haystack: &str, first: &str, second: &str, third: &str) -> TestResult {
@@ -258,6 +265,73 @@ fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspac
             "    Body after.",
         ),
     );
+    Ok(())
+}
+
+#[rstest]
+#[case::insert(
+    SubTaskSpliceCase {
+        command: "insert",
+        fragment: Some("  - [ ] 1.1.1.1. Inserted sub-task.\n"),
+        args: &["1.1.1.1", "--after"],
+        expected: "  - [ ] 1.1.1.2. Inserted sub-task.",
+        stale: "  - [x] 1.1.1.2. Deleted sub-task.",
+    }
+)]
+#[case::delete(
+    SubTaskSpliceCase {
+        command: "delete",
+        fragment: None,
+        args: &["1.1.1.2"],
+        expected: "  - [ ] 1.1.1.1. Kept sub-task.",
+        stale: "  - [x] 1.1.1.2. Deleted sub-task.",
+    }
+)]
+#[case::replace(
+    SubTaskSpliceCase {
+        command: "replace",
+        fragment: Some("  - [ ] 1.1.1.1. Replacement sub-task.\n"),
+        args: &["1.1.1.2"],
+        expected: "  - [ ] 1.1.1.2. Replacement sub-task.",
+        stale: "  - [x] 1.1.1.2. Deleted sub-task.",
+    }
+)]
+#[serial_test::serial(cli_env)]
+fn render_sub_task_splices_do_not_reuse_preserved_task_list_source(
+    workspace: TestResult<Workspace>,
+    #[case] case: SubTaskSpliceCase<'_>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Parent task.\n",
+            "  - [ ] 1.1.1.1. Kept sub-task.\n",
+            "  - [x] 1.1.1.2. Deleted sub-task.\n",
+        ))
+        .expect("target should be written");
+    if let Some(fragment_source) = case.fragment {
+        test_workspace
+            .write_fragment(fragment_source)
+            .expect("fragment should be written");
+    }
+
+    let mut command_args = vec!["mapsplice", case.command, test_workspace.target.as_str()];
+    command_args.extend_from_slice(case.args);
+    if case.fragment.is_some() {
+        command_args.push(test_workspace.fragment.as_str());
+    }
+    let outcome = run_from_args(command_args).expect("sub-task splice should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, case.expected);
+    if stdout.contains(case.stale) {
+        return Err(io::Error::other(format!(
+            "rendered roadmap should not reuse stale preserved task list source:\n{stdout}"
+        ))
+        .into());
+    }
     Ok(())
 }
 

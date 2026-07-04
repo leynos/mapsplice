@@ -49,6 +49,9 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
         for (step_index, step) in phase.steps.iter_mut().enumerate() {
             let new_step = StepNumber::new(new_phase, to_number(step_index + 1, "step")?)?;
             plan.record_mapping(step.identity.source, step.identity.anchor, new_step.into());
+            if step.number != new_step {
+                step.clear_task_list_source();
+            }
             step.number = new_step;
 
             for (task_index, task) in step.tasks.iter_mut().enumerate() {
@@ -98,8 +101,12 @@ pub(super) fn rewrite_dependencies(
             rewrite_markdown_nodes(&mut step.title, step.identity.source, &mut context)?;
             rewrite_markdown_nodes(&mut step.body, step.identity.source, &mut context)?;
             rewrite_markdown_nodes(&mut step.trailing, step.identity.source, &mut context)?;
+            let before_tasks = context.rewrite_count;
             for task in &mut step.tasks {
                 rewrite_task_entry(task, &mut context)?;
+            }
+            if context.rewrite_count > before_tasks {
+                step.clear_task_list_source();
             }
         }
     }

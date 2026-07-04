@@ -116,7 +116,10 @@ Untouched gate-clean content remains byte-exact.
 - **F1 — Content preservation.** Every node that the operation does not
   structurally target, and that is not renumbered or reference-rewritten as a
   documented consequence, is preserved exactly: text, formatting, list nesting,
-  tables, and code blocks are unchanged.
+  tables, and code blocks are unchanged. Task lists keep a dedicated
+  preserved-source span so an append can leave untouched existing task lists
+  byte-exact, including loose-list spacing, while still regenerating lists
+  whose tasks, child ordering, numbering, or dependency text changed.
 - **F2 — Minimal diff.** The only changes are the addressed item itself and the
   deterministic consequences of the edit — the renumbering of later items
   (section 6, C2) and the rewriting of dependency references to them (C3).
@@ -198,6 +201,10 @@ inspection.
   should treat any other trailing whitespace change as accidental churn unless
   the fixture name, surrounding test, or nearby rationale makes the fidelity
   case explicit.
+- **Task-list source boundary.** Parser code captures task-list source at the
+  step boundary rather than through ordinary block rendering. Operation code
+  must clear that span when it mutates the list, and renderer code must
+  validate the task model before reusing preserved task-list bytes.
 - **Required coverage.** The corpus must exercise the whole grammar surface
   (preamble; phases, steps, tasks; multi-line task bodies; nested bullets;
   tables; code blocks) and, as adversarial cases, every way collateral

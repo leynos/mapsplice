@@ -1,8 +1,11 @@
 //! Integration tests for ordered sub-task mutation invariants.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/roadmap_workspace.rs"]
 mod workspace_support;
 
+use assertions::assert_contains;
 use mapsplice::run_from_args;
 use rstest::rstest;
 use workspace_support::{TestResult, Workspace, workspace};
@@ -28,13 +31,6 @@ const REPLACEMENT_SUB_TASK_FRAGMENT: &str = concat!(
     "  - [x] 1.1.1.1. Replacement sub-task A.\n",
     "  - [ ] 1.1.1.2. Replacement sub-task B.\n",
 );
-
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(
-        haystack.contains(needle),
-        "missing `{needle}` in:\n{haystack}"
-    );
-}
 
 fn assert_in_order(haystack: &str, needles: &[&str]) {
     let mut remainder = haystack;
