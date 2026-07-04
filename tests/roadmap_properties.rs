@@ -228,6 +228,49 @@ proptest! {
 
 proptest! {
     #![proptest_config(ProptestConfig {
+        cases: 32,
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn append_preserves_generated_untouched_task_lists(
+        spacing in 0usize..3,
+        child_order in 0usize..3,
+        dependency in 0usize..3,
+    ) {
+        let workspace = create_workspace().expect("workspace fixture should initialize");
+        let preserved_phase = preserved_append_phase(spacing, child_order, dependency);
+        workspace
+            .write_target(&format!(
+                "# Example\n\n{preserved_phase}\n## 2. Existing phase two\n\n### 2.1. Existing step two\n\n- [ ] 2.1.1. Existing task two.\n"
+            ))
+            .expect("target should be written");
+        workspace
+            .write_fragment(PHASE_FRAGMENT)
+            .expect("fragment should be written");
+
+        let outcome = run_from_args([
+            "mapsplice",
+            "append",
+            workspace.target.as_str(),
+            workspace.fragment.as_str(),
+        ])
+        .expect("append command should succeed");
+        let stdout = outcome.stdout.unwrap_or_default();
+
+        prop_assert!(
+            stdout.contains(&preserved_phase),
+            "untouched phase changed after append:\nexpected fragment:\n{preserved_phase}\nrendered:\n{stdout}"
+        );
+        prop_assert!(
+            stdout.contains("Requires 3.1.1."),
+            "appended fragment dependency was not renumbered: {stdout}"
+        );
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
         cases: 12,
         .. ProptestConfig::default()
     })]
@@ -278,4 +321,46 @@ fn roadmap_with_dependency_text(text: &str) -> String {
         "# Example\n\n## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. First task.\n\n## 2. \
          Phase two\n\n### 2.1. Step two\n\n- [ ] 2.1.1. Second task. {text}\n"
     )
+}
+
+fn preserved_append_phase(spacing: usize, child_order: usize, dependency: usize) -> String {
+    format!(
+        "## 1. Existing phase\n\n### 1.1. Existing step\n\n{}",
+        preserved_task_list(spacing, child_order, dependency)
+    )
+}
+
+fn preserved_task_list(spacing: usize, child_order: usize, dependency: usize) -> String {
+    let incidental_text = match dependency {
+        0 => "See §1.1.",
+        1 => "Released 1.4.0.",
+        _ => "Count 3.",
+    };
+    match (spacing, child_order) {
+        (0, _) => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n- [ ] 1.1.2. Second existing \
+             task.\n"
+        ),
+        (1, 0) => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n  - [ ] 1.1.1.1. First \
+             sub-task.\n\n- [ ] 1.1.2. Second existing task.\n"
+        ),
+        (1, _) => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n  - [ ] 1.1.1.1. First \
+             sub-task.\n  - [ ] 1.1.1.2. Second sub-task.\n\n- [ ] 1.1.2. Second existing task.\n"
+        ),
+        (_, 0) => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n\n  - Supporting note stays \
+             attached.\n\n- [ ] 1.1.2. Second existing task.\n"
+        ),
+        (_, 1) => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n\n  1. Ordered body item.\n  2. \
+             Second ordered body item.\n\n- [ ] 1.1.2. Second existing task.\n"
+        ),
+        _ => format!(
+            "- [ ] 1.1.1. First existing task. {incidental_text}\n\n  - Supporting note before \
+             sub-tasks.\n\n  - [ ] 1.1.1.1. First sub-task.\n\n- [ ] 1.1.2. Second existing \
+             task.\n"
+        ),
+    }
 }

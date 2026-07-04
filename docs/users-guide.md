@@ -121,6 +121,12 @@ mapsplice append <target> <file-to-append>
 one or more phases, and those phases are appended to the end of the target
 roadmap.
 
+When the target roadmap is gate-clean, `append` preserves untouched existing
+task lists byte-for-byte, including deliberate blank lines and nested body
+spacing. Task lists are regenerated only when the operation changes that list,
+for example by renumbering, replacing, deleting, inserting tasks, or rewriting
+dependency text inside the list.
+
 ### `insert`
 
 ```bash
