@@ -53,6 +53,47 @@ rather than rewriting every number-shaped token.
     substring non-match, and multi-id `Requires` lists, each failing before the
     scope fix and passing after.
 
+
+### 1.2. Recognise dependency clauses in every clause position
+
+This step answers whether a `Requires` clause keeps its rewrite guarantee
+regardless of where the grammar allows it to appear: in a body bullet (this
+roadmap's own convention), or hard-wrapped across source lines (the downstream
+convention). A clause the scanner cannot see is silently excluded from
+renumbering — exactly the corruption the tool exists to prevent.
+
+- [ ] 1.2.1. Rewrite dependency clauses in body bullet list items.
+
+  - Requires 1.1.2.
+  - Apply the dependency-reference predicate to task and sub-task body bullet
+    text (`- Requires 1.1.1.`), not only to inline item text, so this
+    repository's own roadmap convention is covered by the rewrite guarantee.
+  - Success: a renumbering edit rewrites a `Requires` reference held in a
+    body bullet, pinned by a regression fixture that fails on the current
+    behaviour, and this roadmap's own clauses survive a dogfooded insert.
+
+- [ ] 1.2.2. Join task continuation lines before dependency-clause scanning.
+
+  - Requires 1.2.1.
+  - Normalize each item's body text (unwrap hard-wrapped continuation lines)
+    before applying the dependency-reference predicate, so a newline between
+    `Requires` and an anchor, or between anchors in one clause, no longer
+    hides references from the rewriter.
+  - Success: a fixture with `Requires` on one line and its anchors on the
+    next, and a fixture with an anchor list split across lines, both rewrite
+    correctly during a renumbering edit, and incidental numbers in wrapped
+    prose remain preserved.
+
+- [ ] 1.2.3. Diagnose `Requires` keywords with no recognisable anchors.
+
+  - Requires 1.2.2.
+  - Report a warning when an item body contains a dependency-clause keyword
+    but the scanner recognises zero anchor tokens for it, so a malformed or
+    unparseable clause is visible at edit time instead of silently inert.
+  - Success: an edit over a roadmap containing an anchor-free `Requires`
+    clause succeeds with a warning naming the item, and a fixture pins the
+    diagnostic text.
+
 ## 2. Model addenda as first-class items
 
 Idea: nested sub-tasks are part of the roadmap structure, not opaque task body
@@ -378,7 +419,26 @@ evidence rather than prose-only terminal text.
   - Success: missing anchors, malformed dependency tokens, missing files, and
     unresolved local heading fragments are reported with stable finding codes.
 
-- [ ] 6.1.3. Render miette-style human diagnostics.
+- [ ] 6.1.3. Detect dependency cycles and self-references.
+
+  - Requires 6.1.2.
+  - Walk the parsed dependency graph and report any cycle, including a task
+    that requires itself, with the full cycle path in the finding.
+  - Success: a roadmap containing `A requires B, B requires A` and a roadmap
+    containing a self-reference each produce an error-severity finding with a
+    stable code, and an acyclic roadmap produces none.
+
+- [ ] 6.1.4. Report advisory dependency-hygiene findings.
+
+  - Requires 6.1.3.
+  - Add note-severity findings for transitively redundant references (an item
+    requires both a prerequisite and something that prerequisite already
+    requires) and for status inconsistencies (a checked item that requires an
+    unchecked item).
+  - Success: fixtures pin both advisory findings with stable codes, neither
+    affects the exit class on its own, and a clean roadmap reports neither.
+
+- [ ] 6.1.5. Render miette-style human diagnostics.
 
   - Requires 6.1.1.
   - Use source spans, labels, help text, and stable diagnostic codes so human
@@ -417,7 +477,18 @@ stdout payloads.
     using `--in-place` without losing the rewritten roadmap body or leaking
     non-JSON bytes.
 
-- [ ] 6.2.3. Publish compact agent context for the CLI.
+- [ ] 6.2.3. Export the parsed roadmap graph as JSON.
+
+  - Requires 6.2.1.
+  - Emit the parsed model — phases, steps, tasks, sub-tasks, checkbox status,
+    and resolved dependency edges — as a schema-versioned JSON document, so
+    agents and downstream tooling can query ready tasks, critical paths, and
+    status consistency without reparsing Markdown.
+  - Success: a documented command produces one JSON document whose anchors,
+    statuses, and dependency edges match the parsed roadmap exactly, pinned by
+    a golden fixture.
+
+- [ ] 6.2.4. Publish compact agent context for the CLI.
 
   - Requires 6.2.1.
   - Add a command or documented output that lists supported commands,
@@ -426,9 +497,9 @@ stdout payloads.
   - Success: the generated context names `validate`, all edit commands, and
     the `--json` contract in a schema-versioned payload.
 
-- [ ] 6.2.4. Package an agent skill for roadmap maintenance.
+- [ ] 6.2.5. Package an agent skill for roadmap maintenance.
 
-  - Requires 6.1.3 and 6.2.3.
+  - Requires 6.1.5 and 6.2.4.
   - Author a skill that tells agents when to run validation, how to prefer
     JSON output, how to interpret miette diagnostics, and when to refuse
     unsafe roadmap edits.
@@ -526,3 +597,72 @@ surface of automated writes.
   - Success: the users' guide and agent skill cover normal dry-run
     renumbering, review-required conflicts, optional apply, and recovery from
     interrupted applies.
+
+## 8. Improve edit-surface ergonomics
+
+Idea: dependency maintenance and structural edits should be small, reviewable
+operations. Editing a clause should not require rewriting a task body, a
+preview should not require shell plumbing, and appending should work at every
+structural level.
+
+
+### 8.1. Edit dependency clauses as first-class operations
+
+This step answers whether a maintainer or agent can change what a task requires
+without touching its prose. Its outcome informs whether large dependency audits
+can land as sequences of minimal, clause-only diffs.
+
+- [ ] 8.1.1. Add `deps set`, `deps add`, and `deps remove` subcommands.
+
+  - Requires 6.2.2.
+  - Rewrite only the target item's dependency clause, validating that every
+    supplied anchor resolves in the parsed roadmap, and leave the rest of the
+    item body byte-identical.
+  - Success: each command edits a single clause, rejects unresolved anchors
+    with a typed error, reports a structured edit summary, and produces no
+    diff outside the clause.
+
+- [ ] 8.1.2. Emit dependency clauses in one canonical form.
+
+  - Requires 8.1.1.
+  - Define the canonical clause shape — a single source line, anchors in
+    ascending order, house list punctuation — and emit it from `deps`
+    commands and from renumbering rewrites of clauses already in canonical
+    form.
+  - Success: fixtures pin the canonical form for one, two, and many anchors,
+    and a renumbering edit does not reflow a canonical clause across lines.
+
+
+### 8.2. Preview and splice flexibility
+
+This step answers whether previewing and appending are first-class rather than
+workflow conventions. Its outcome informs how much shell plumbing the agent
+skill can drop from the safe-edit loop.
+
+- [ ] 8.2.1. Add a `--diff` preview mode to mutating commands.
+
+  - Requires 3.1.2.
+  - Print a unified diff between the target and the would-be result on
+    stdout without writing, as a first-class alternative to redirecting
+    full output and diffing by hand.
+  - Success: append, insert, delete, and replace accept `--diff`, write
+    nothing to disk, and a fixture pins the diff format.
+
+- [ ] 8.2.2. Extend `append` to step and task level.
+
+  - Requires 5.1.2.
+  - Accept an optional parent anchor so a step fragment can be appended to a
+    named phase and a task fragment to a named step, with the same
+    renumbering and reference-rewrite guarantees as `insert`.
+  - Success: appending a step to a phase and a task to a step both renumber
+    nothing, place the new item last, and fail closed when the fragment level
+    does not match the parent anchor.
+
+- [ ] 8.2.3. Preserve untouched-item indentation across splices.
+
+  - Requires 3.1.4.
+  - Stop insert and replace from re-indenting continuation lines of items the
+    edit did not address, so a structural edit produces no formatting churn
+    outside the spliced region.
+  - Success: inserting one task into a large roadmap leaves every other item
+    byte-identical, pinned by a golden fixture.
