@@ -53,7 +53,6 @@ rather than rewriting every number-shaped token.
     substring non-match, and multi-id `Requires` lists, each failing before the
     scope fix and passing after.
 
-
 ### 1.2. Recognise dependency clauses in every clause position
 
 This step answers whether a `Requires` clause keeps its rewrite guarantee
@@ -605,7 +604,6 @@ operations. Editing a clause should not require rewriting a task body, a
 preview should not require shell plumbing, and appending should work at every
 structural level.
 
-
 ### 8.1. Edit dependency clauses as first-class operations
 
 This step answers whether a maintainer or agent can change what a task requires
@@ -631,7 +629,6 @@ can land as sequences of minimal, clause-only diffs.
     form.
   - Success: fixtures pin the canonical form for one, two, and many anchors,
     and a renumbering edit does not reflow a canonical clause across lines.
-
 
 ### 8.2. Preview and splice flexibility
 
