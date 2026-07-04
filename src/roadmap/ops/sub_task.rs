@@ -6,7 +6,7 @@ use crate::{
     roadmap::{
         RoadmapDocument,
         SubTaskNumber,
-        model::{ItemIdentity, SubTaskEntry, SubTaskSplice, TaskChild, TaskEntry},
+        model::{ItemIdentity, StepSection, SubTaskEntry, SubTaskSplice, TaskChild, TaskEntry},
     },
 };
 
@@ -16,18 +16,36 @@ pub(super) fn insert_sub_tasks(
     after: bool,
     sub_tasks: Vec<SubTaskEntry>,
 ) -> Result<()> {
-    let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    let target_identity = sub_task_identity(task, sub_task_index)?;
-    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-    task.insert_sub_tasks(splice, after, sub_tasks);
+    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    {
+        let task = step
+            .tasks
+            .get_mut(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
+        let target_identity = sub_task_identity(task, sub_task_index)?;
+        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+        task.insert_sub_tasks(splice, after, sub_tasks);
+    }
+    step.clear_task_list_source();
     Ok(())
 }
 
 pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumber) -> Result<()> {
-    let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    let target_identity = sub_task_identity(task, sub_task_index)?;
-    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-    task.delete_sub_task(splice);
+    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    {
+        let task = step
+            .tasks
+            .get_mut(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
+        let target_identity = sub_task_identity(task, sub_task_index)?;
+        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+        task.delete_sub_task(splice);
+    }
+    step.clear_task_list_source();
     Ok(())
 }
 
@@ -36,21 +54,30 @@ pub(super) fn replace_sub_task(
     target: SubTaskNumber,
     sub_tasks: Vec<SubTaskEntry>,
 ) -> Result<()> {
-    let (task, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    let target_identity = sub_task_identity(task, sub_task_index)?;
-    let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-    task.replace_sub_task(splice, sub_tasks);
+    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    {
+        let task = step
+            .tasks
+            .get_mut(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
+        let target_identity = sub_task_identity(task, sub_task_index)?;
+        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+        task.replace_sub_task(splice, sub_tasks);
+    }
+    step.clear_task_list_source();
     Ok(())
 }
 
 fn find_sub_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
-) -> Result<(&mut TaskEntry, usize)> {
+) -> Result<(&mut StepSection, usize, usize)> {
     let (step, task_index) = find_task_parent_mut(roadmap, target.task_number())?;
     let task = step
         .tasks
-        .get_mut(task_index)
+        .get(task_index)
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.task_number().into(),
         })?;
@@ -59,7 +86,7 @@ fn find_sub_task_parent_mut(
             .ok_or(MapspliceError::AnchorNotFound {
                 anchor: target.into(),
             })?;
-    Ok((task, sub_task_index))
+    Ok((step, task_index, sub_task_index))
 }
 
 fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIdentity> {
