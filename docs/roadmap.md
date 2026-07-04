@@ -570,8 +570,8 @@ surface of automated writes.
   - Refuse dirty git worktrees unless `--allow-dirty` is supplied, require
     matching dry-run content hashes, destination anchors present in the on-disk
     roadmap, no plan error diagnostics, no path conflicts, and no unresolved
-    `review_needed` diagnostics unless explicitly overridden. Target-state and
-    conflict checks happen before any mutation.
+    `review_needed` diagnostics unless the override is recorded in the JSON
+    report. Target-state and conflict checks happen before any mutation.
   - Success: the design can prove an apply attempt cannot target a phantom
     roadmap state, cannot mutate after a failed preflight check, and can be
     recovered through git if interrupted.
@@ -580,8 +580,11 @@ surface of automated writes.
 
   - Requires 7.2.2.
   - Apply stages, in order: preflight, prepare, rename, rewrite, postflight.
-  - Preflight fails closed before any partial writes if source-hash,
+  - Define rollback and cleanup for failures in `prepare`, `rename`, and
+    `rewrite`, and fail closed before any partial writes if source-hash,
     destination-anchor, or conflict checks fail.
+  - Gate automation on an exhaustive proof, bounded model check, or documented
+    finite-state argument for the full pipeline.
   - Rename ExecPlan files and rewrite only allowlisted live links, titles,
     metadata fields, and current-roadmap references using capability-oriented
     filesystem operations.

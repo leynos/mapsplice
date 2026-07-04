@@ -256,6 +256,24 @@ error[mapsplice::validate::missing_dependency]: dependency 8.2.3 does not resolv
       "mutation": "write",
       "json": true,
       "exit_classes": ["success", "validation", "usage", "io", "internal"]
+    },
+    {
+      "path": ["insert"],
+      "mutation": "write",
+      "json": true,
+      "exit_classes": ["success", "validation", "usage", "io", "internal"]
+    },
+    {
+      "path": ["delete"],
+      "mutation": "write",
+      "json": true,
+      "exit_classes": ["success", "validation", "usage", "io", "internal"]
+    },
+    {
+      "path": ["replace"],
+      "mutation": "write",
+      "json": true,
+      "exit_classes": ["success", "validation", "usage", "io", "internal"]
     }
   ]
 }

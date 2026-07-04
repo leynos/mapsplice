@@ -194,7 +194,7 @@ Apply preflight must require:
 - matching roadmap and ExecPlan content hashes from the dry-run plan;
 - no destination path conflicts;
 - no unresolved `mapsplice::execplans::ambiguous_reference` diagnostics unless
-  an explicit override names the files.
+  the JSON report records an explicit override for those files.
 
 Apply then runs in five stages:
 
