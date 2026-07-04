@@ -45,3 +45,37 @@ pub(crate) fn original_position_source(position: &Position, source: &str) -> Opt
     let start = prefix.rfind('\n').map_or(0, |index| index + 1);
     source.get(start..position.end.offset).map(str::to_owned)
 }
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for exact source-span extraction.
+
+    use markdown::{ParseOptions, mdast::Node, to_mdast};
+
+    use super::original_node_source;
+
+    #[test]
+    fn original_node_source_preserves_leading_indent() {
+        let source = "  - [ ] 1.1.1. Nested task.\n";
+        let tree = to_mdast(source, &ParseOptions::gfm()).expect("source should parse");
+        let Node::Root(root) = &tree else {
+            panic!("markdown documents parse into root nodes");
+        };
+        let node = root.children.first().expect("root should contain the list");
+
+        assert_eq!(
+            original_node_source(node, source),
+            Some("  - [ ] 1.1.1. Nested task.".to_owned())
+        );
+    }
+
+    #[test]
+    fn original_node_source_returns_none_for_missing_position() {
+        let node = Node::Text(markdown::mdast::Text {
+            value: "No position".to_owned(),
+            position: None,
+        });
+
+        assert_eq!(original_node_source(&node, "No position"), None);
+    }
+}
