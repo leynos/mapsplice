@@ -175,6 +175,7 @@ Apply preflight must require:
 
 - a clean git worktree, unless the caller passes an explicit `--allow-dirty`
   escape hatch;
+- no `error` diagnostics in the dry-run plan;
 - a target-state check proving the on-disk roadmap contains the plan's
   destination anchors;
 - matching roadmap and ExecPlan content hashes from the dry-run plan;

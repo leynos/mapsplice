@@ -372,7 +372,9 @@ evidence rather than prose-only terminal text.
 
   - Requires 6.1.1.
   - Validate every `Requires` anchor against the parsed roadmap and validate
-    local Markdown links against headings, files, and fragments.
+    local Markdown links against headings, files, and fragments, with file and
+    fragment resolution confined to the workspace repository root. Link checks
+    must not follow `../` paths that escape that root or external targets.
   - Success: missing anchors, malformed dependency tokens, missing files, and
     unresolved local heading fragments are reported with stable finding codes.
 
@@ -408,12 +410,12 @@ stdout payloads.
 - [ ] 6.2.2. Emit structured edit summaries for mutating commands.
 
   - Requires 6.2.1.
-  - Summarize operation kind, target path, in-place status, output path,
+  - Summarize operation kind, target path, in-place status, rewritten target,
     inserted or removed anchors, renumber mappings, dependency rewrites, and
     emitted artefact hash.
   - Success: append, insert, delete, and replace can be run with `--json`
-    using `--in-place` or `--output <path>` without losing the rewritten
-    roadmap body or leaking non-JSON bytes.
+    using `--in-place` without losing the rewritten roadmap body or leaking
+    non-JSON bytes.
 
 - [ ] 6.2.3. Publish compact agent context for the CLI.
 
@@ -430,8 +432,11 @@ stdout payloads.
   - Author a skill that tells agents when to run validation, how to prefer
     JSON output, how to interpret miette diagnostics, and when to refuse
     unsafe roadmap edits.
-  - Success: the skill is tested against the generated agent context and gives
-    agents a bounded workflow for validate-before-edit and validate-after-edit.
+  - Success: the skill is tested against the generated agent context, requires
+    validate-before-edit and validate-after-edit, directs agents to inspect
+    JSON diagnostics by `code` and `exit_class`, and stops for maintainer
+    judgement on ambiguous links, duplicate anchors, or failed postflight
+    checks.
 
 ## 7. Renumber ExecPlans after roadmap updates
 
@@ -453,8 +458,8 @@ review.
   - Define how task anchors map to `docs/execplans/roadmap-*.md` filenames,
     titles, references, and in-document roadmap citations.
   - See docs/execplan-renumbering-design.md.
-  - Success: fixtures classify matching, missing, duplicate, stale, and
-    manually named ExecPlans without applying changes.
+  - Success: fixtures classify matching, missing, duplicate, conflicting,
+    stale, and manually named ExecPlans without applying changes.
 
 - [ ] 7.1.2. Produce a dry-run renumber plan.
 
@@ -462,7 +467,8 @@ review.
   - Convert a roadmap edit's renumber map into an ExecPlan rename and rewrite
     plan, including conflicts, unchanged files, and review-required cases.
   - Success: `mapsplice` can emit a JSON dry-run plan that lists every proposed
-    rename, content rewrite, skipped file, conflict, and diagnostic.
+    rename, content rewrite, skipped file, conflict, diagnostic, content hash,
+    and destination anchor.
 
 - [ ] 7.1.3. Define history-preservation rules.
 
@@ -490,11 +496,14 @@ surface of automated writes.
 - [ ] 7.2.2. Specify apply preconditions before any mutation.
 
   - Requires 7.2.1.
-  - Require a clean git worktree, matching dry-run content hashes, destination
-    anchors present in the on-disk roadmap, no path conflicts, and no
-    unresolved `review_needed` diagnostics unless explicitly overridden.
+  - Refuse dirty git worktrees unless `--allow-dirty` is supplied, require
+    matching dry-run content hashes, destination anchors present in the on-disk
+    roadmap, no plan error diagnostics, no path conflicts, and no unresolved
+    `review_needed` diagnostics unless explicitly overridden. Target-state and
+    conflict checks happen before any mutation.
   - Success: the design can prove an apply attempt cannot target a phantom
-    roadmap state and can be recovered through git if interrupted.
+    roadmap state, cannot mutate after a failed preflight check, and can be
+    recovered through git if interrupted.
 
 - [ ] 7.2.3. Implement guarded apply only if demand evidence justifies it.
 
