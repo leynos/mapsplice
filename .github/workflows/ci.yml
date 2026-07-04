@@ -77,7 +77,6 @@ jobs:
               --git https://github.com/leynos/mdtablefix \
               --rev "$MDTABLEFIX_GIT_REV" \
               --locked \
-              --force \
               --root "$cargo_root" \
               mdtablefix
           fi

@@ -6,6 +6,7 @@ mod fs;
 pub mod observability;
 mod roadmap;
 
+#[cfg(test)]
 #[doc(hidden)]
 pub mod doctest_support {
     //! Hidden helpers used by documentation examples.

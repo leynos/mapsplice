@@ -12,7 +12,13 @@ use markdown::{mdast::Node, unist::Position};
 ///
 /// ```rust
 /// use markdown::{ParseOptions, mdast::Node, to_mdast};
-/// # use mapsplice::doctest_support::original_node_source;
+/// #
+/// # fn original_node_source(node: &Node, source: &str) -> Option<String> {
+/// #     let position = node.position()?;
+/// #     let prefix = source.get(..position.start.offset)?;
+/// #     let start = prefix.rfind('\n').map_or(0, |index| index + 1);
+/// #     source.get(start..position.end.offset).map(str::to_owned)
+/// # }
 ///
 /// let source = "  - [ ] 1.1.1. Nested task.\n";
 /// let tree = to_mdast(source, &ParseOptions::gfm())?;
