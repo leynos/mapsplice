@@ -508,12 +508,14 @@ surface of automated writes.
 - [ ] 7.2.3. Implement guarded apply only if demand evidence justifies it.
 
   - Requires 7.2.2.
+  - Apply stages, in order: preflight, prepare, rename, rewrite, postflight.
+  - Preflight fails closed before any partial writes if source-hash,
+    destination-anchor, or conflict checks fail.
   - Rename ExecPlan files and rewrite only allowlisted live links, titles,
     metadata fields, and current-roadmap references using capability-oriented
     filesystem operations.
-  - Success: if built, apply fails closed before partial writes on conflicts,
-    preserves historical sections by default, and a second run returns a clear
-    stale-plan diagnostic.
+  - Success: if built, apply preserves historical sections by default, and a
+    second run returns a clear stale-plan diagnostic.
 
 - [ ] 7.2.4. Document operator recovery and agent boundaries.
 

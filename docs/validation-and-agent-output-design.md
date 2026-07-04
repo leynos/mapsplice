@@ -67,13 +67,13 @@ explicitly testing render stability, and it must never emit rewritten Markdown.
 
 Exit classes:
 
-| Code | Class      | Meaning                                            |
-| ---- | ---------- | -------------------------------------------------- |
-| 0    | success    | No validation findings at `error` severity.        |
-| 1    | validation | The roadmap has validation findings or is invalid. |
-| 2    | usage      | The command line or configuration is invalid.      |
-| 3    | io         | A target, linked file, or config file is missing.  |
-| 4    | internal   | A model invariant or unexpected bug was hit.       |
+| Code | Class      | Meaning                                                         |
+| ---- | ---------- | --------------------------------------------------------------- |
+| 0    | success    | No validation findings at `error` severity.                     |
+| 1    | validation | Error-severity findings or unrecoverable invalid roadmap state. |
+| 2    | usage      | The command line or configuration is invalid.                   |
+| 3    | io         | A target, linked file, or config file is missing.               |
+| 4    | internal   | A model invariant or unexpected bug was hit.                    |
 
 This is a deliberate pre-1.0 exit-code break from the current binary, where
 non-clap failures collapse to exit code 1. The new taxonomy must be versioned
@@ -105,7 +105,9 @@ JSON mode writes exactly one success document to stdout and no stderr:
 
 `status` is `ok` when there are no findings. It is `findings` when warnings or
 notes are present but no error-severity finding exists; this remains exit code
-0 so agents can distinguish "valid with advice" from "invalid".
+0 so agents can distinguish "valid with advice" from "invalid". Validation
+findings at `error` severity, or an invalid roadmap state that cannot be
+recovered during validation, map to the validation exit class.
 
 JSON failure writes no stdout and one diagnostic document to stderr:
 
