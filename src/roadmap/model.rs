@@ -337,9 +337,7 @@ fn validate_task_children(parts: &TaskEntryParts) -> Result<()> {
 }
 
 /// Copy the exact source span for an unchanged Markdown node.
-fn original_block(node: &Node, source: &str) -> Option<String> {
-    original_node_source(node, source)
-}
+fn original_block(n: &Node, s: &str) -> Option<String> { original_node_source(n, s) }
 
 impl Default for RoadmapDocument {
     fn default() -> Self { Self::new() }
