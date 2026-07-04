@@ -6,6 +6,13 @@
 - **Scope:** `mapsplice validate`, miette-style human diagnostics, JSON output
   mode for every command, compact agent context, and a roadmap-maintenance
   agent skill.
+- **Audience:** contributors implementing validation and JSON contracts,
+  maintainers reviewing CLI compatibility, and agents consuming structured
+  roadmap evidence.
+- **Precedence:** `docs/roadmap.md` is the source of truth for planned phase 6
+  scope; `docs/users-guide.md` remains the source of truth for currently
+  released command behaviour; `AGENTS.md` governs quality gates, testing rules,
+  and en-GB-oxendict spelling.
 - **Out of scope:** ExecPlan renumbering. That is covered by
   [execplan-renumbering-design.md](execplan-renumbering-design.md).
 
@@ -146,9 +153,12 @@ errors that happen before normal parsing.
 
 The current binary installs tracing on stderr and reports failures through both
 `tracing::error!` and `eprintln!`. JSON mode must replace that behaviour. The
-JSON renderer must suppress stderr tracing, route diagnostic logs to a file
-when explicitly configured, or fold log previews into the JSON diagnostic
-document. It must never emit trace lines beside the JSON document on stderr.
+JSON renderer must suppress stderr tracing, route diagnostic logs to a file or
+other explicitly configured sink, and keep log previews out of diagnostic JSON.
+If JSON output needs to mention that sink, it must use a separately versioned
+field containing only sink identifiers or status that consumers can ignore. It
+must never emit trace lines beside the JSON document on stderr, and it must not
+embed localized trace previews in the main diagnostic payload.
 
 Edit commands need an additional success payload because stdout is already used
 for rewritten Markdown in human mode. JSON mode should return metadata and put
@@ -160,10 +170,13 @@ the artefact in one of two places:
   `artifact.kind = "written_file"` with the output path and content hash.
 
 This keeps
-`mapsplice insert --json --output rewritten.md target.md 2 fragment.md` compact
-and valid JSON while preserving the current human stdout behaviour. A future
-explicit `--include-document` mode may embed the rewritten Markdown in JSON for
-small files, but it is not the default agent contract.
+`mapsplice insert --json --output <path> <target> <anchor> <fragment>` compact
+and valid JSON while preserving the current human stdout behaviour. For example,
+`mapsplice insert --json --output rewritten.md target.md 2 fragment.md` writes
+the rewritten roadmap to `rewritten.md` and reports
+`artifact.kind = "written_file"` in the JSON success document. A future explicit
+`--include-document` mode may embed the rewritten Markdown in JSON for small
+files, but it is not the default agent contract.
 
 ## Validation model
 
@@ -270,6 +283,13 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 - CLI tests pin JSON usage errors that happen before clap completes parsing.
 - CLI tests prove JSON mode suppresses or redirects tracing stderr output.
 - Agent-context fixtures prove that the skill references real commands.
+- Property tests cover span ranges, dependency-token classification, link-root
+  containment, and JSON state transitions. Rust implementation work should use
+  `proptest`; non-Rust ports should use the nearest equivalent such as
+  Hypothesis or fast-check.
+- Any explicit lemma or proof obligation introduced by the implementation must
+  have an exhaustive proof, bounded model check, or documented finite-state
+  argument before the relevant validator or JSON contract is accepted.
 
 ## Rollout
 

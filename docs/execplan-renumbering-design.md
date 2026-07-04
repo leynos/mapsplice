@@ -6,6 +6,13 @@
 - **Scope:** discovering ExecPlan references, producing dry-run renumber plans,
   and defining the preconditions for any future apply engine after a roadmap
   edit renumbers tasks.
+- **Audience:** contributors implementing roadmap maintenance, release
+  maintainers reviewing dry-run evidence, and agents preparing guided ExecPlan
+  renumbering changes.
+- **Precedence:** `docs/roadmap.md` is the source of truth for planned phase 7
+  scope; `docs/validation-and-agent-output-design.md` governs shared JSON
+  diagnostic shape and exit classes; `AGENTS.md` governs quality gates, testing
+  rules, and en-GB-oxendict spelling.
 - **Out of scope:** general Markdown migration, remote link checking, and
   semantic rewriting of historical transcripts. Automated apply is conditional
   follow-on work, not part of the first phase 7 delivery.
@@ -83,6 +90,11 @@ Each discovered ExecPlan is classified as one of:
 | conflict      | The proposed destination path already exists.     |
 | review_needed | The file contains ambiguous live references.      |
 
+The canonical diagnostic code for ambiguous live references is
+`mapsplice::execplans::ambiguous_reference`. The `review_needed` label is a
+planner classification and JSON action state derived from that diagnostic, not
+a separate finding code.
+
 ## Dry-run plan
 
 The dry-run command shape should be:
@@ -157,9 +169,10 @@ Historical references are preserved:
   block is explicitly marked as generated live metadata.
 
 Unrecognised sections default to preserve. Ambiguous references produce
-`review_needed` diagnostics. Any future apply command must skip those files
-unless the user passes an explicit override that is itself recorded in the JSON
-report.
+`mapsplice::execplans::ambiguous_reference` diagnostics with
+`action = "review_needed"` in the JSON plan. Any future apply command must skip
+those files unless the user passes an explicit override that is itself recorded
+in the JSON report.
 
 ## Apply contract
 
@@ -180,7 +193,8 @@ Apply preflight must require:
   destination anchors;
 - matching roadmap and ExecPlan content hashes from the dry-run plan;
 - no destination path conflicts;
-- no `review_needed` diagnostics unless an explicit override names the files.
+- no unresolved `mapsplice::execplans::ambiguous_reference` diagnostics unless
+  an explicit override names the files.
 
 Apply then runs in five stages:
 
@@ -192,10 +206,13 @@ Apply then runs in five stages:
 5. **Postflight:** run validation, link checks, and idempotence checks.
 
 If preflight fails, nothing is written. If prepare fails, temporary files are
-removed. If rename or rewrite fails after a mutation, the user should recover
-from git because the clean-worktree precondition makes every mutation
-reviewable and reversible. The JSON report should still name every completed
-and pending action when the process survives long enough to write it.
+removed. If rename or rewrite fails after a mutation, the default
+clean-worktree flow lets the user recover from git because every mutation is
+reviewable and reversible. When `--allow-dirty` is supplied, the JSON report
+must warn that git recovery may include pre-existing user changes and is not a
+substitute for an operator-owned backup or manual review. The JSON report
+should still name every completed and pending action when the process survives
+long enough to write it.
 
 ## Integration with roadmap edits
 
@@ -233,6 +250,10 @@ Human diagnostics should use miette spans when the finding has a source
 location. JSON diagnostics should include stable codes, severity, path, range,
 help, and related locations.
 
+JSON consumers must key ambiguous-reference skip logic on
+`mapsplice::execplans::ambiguous_reference`; `review_needed` is only the
+planner action telling apply to skip until a maintainer overrides that file.
+
 ## Testing strategy
 
 - Fixture sets cover matching, stale, missing, duplicate, manual, conflicting,
@@ -246,6 +267,13 @@ help, and related locations.
   stale-plan diagnostic.
 - Historical-preservation fixtures prove transcripts and audit evidence remain
   unchanged.
+- Property tests cover anchor mapping, destination-path conflict
+  classification, and live-versus-history transition invariants. Rust
+  implementation work should use `proptest`; non-Rust ports should use the
+  nearest equivalent such as Hypothesis or fast-check.
+- Any explicit lemma or proof obligation introduced by the implementation must
+  have an exhaustive proof, bounded model check, or documented finite-state
+  argument before apply automation can ship.
 
 ## Rollout
 
