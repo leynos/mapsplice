@@ -112,7 +112,7 @@ jobs:
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@7da7c6d89033d13cbb1c64803d108ddca97e69c2
+        uses: leynos/shared-actions/.github/actions/generate-coverage@47aea18960d24f33aedc4782ec6b73e365418313
         with:
           output-path: lcov.info
           format: lcov
