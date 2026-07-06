@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownfmt markdownlint markdownlint-paths nixie typecheck
+.PHONY: help all clean test build release lint fmt check-fmt markdownfmt markdownlint markdownlint-paths nixie typecheck test-workflow-contracts
 
 
 TARGET ?= mapsplice
@@ -52,6 +52,9 @@ test: ## Run tests with warnings treated as errors
 ifeq ($(DOC_TEST_TARGETS),true)
 	RUSTFLAGS="$(RUST_FLAGS)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
 endif
+
+test-workflow-contracts: ## Validate the mutation-testing caller contract
+	uv run --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
 
 target/%/$(TARGET): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
