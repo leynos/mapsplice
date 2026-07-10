@@ -476,7 +476,7 @@ Open issues:
 - Full-repository `make nixie` remained red after retries because unchanged
   Mermaid diagrams timed out. The changed ExecPlan file validates directly
   with `nixie`, but the full repository Mermaid gate needs a follow-up
-  tooling or documentation-gate stabilisation pass.
+  tooling or documentation-gate stabilization pass.
 
 ## Context and Orientation
 

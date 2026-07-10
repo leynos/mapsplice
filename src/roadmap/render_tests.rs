@@ -122,41 +122,52 @@ fn round_trip_fixture_list_covers_required_surfaces() {
 }
 
 #[test]
-fn noop_round_trip_property_holds_for_all_conformant_fixtures() {
+fn noop_round_trip_property_holds_for_all_conformant_fixtures() -> Result<(), String> {
     for fixture_path in conformant_round_trip_fixture_paths()
         .expect("conformant round-trip fixture paths should be discoverable")
     {
-        let source = read_fixture(&fixture_path).unwrap_or_else(|error| {
-            panic!("fixture should be readable as UTF-8: {fixture_path}: {error}");
-        });
-        let roadmap = parse_roadmap(&source).unwrap_or_else(|error| {
-            panic!("fixture should parse as a conformant roadmap: {fixture_path}: {error}");
-        });
-        let rendered = render_roadmap(&roadmap).unwrap_or_else(|error| {
-            panic!("fixture should render after parsing: {fixture_path}: {error}");
-        });
+        let source = read_fixture(&fixture_path).map_err(|error| {
+            format!("fixture should be readable as UTF-8: {fixture_path}: {error}")
+        })?;
+        let roadmap = parse_roadmap(&source).map_err(|error| {
+            format!("fixture should parse as a conformant roadmap: {fixture_path}: {error}")
+        })?;
+        let rendered = render_roadmap(&roadmap).map_err(|error| {
+            format!("fixture should render after parsing: {fixture_path}: {error}")
+        })?;
 
-        assert_eq!(
-            rendered, source,
-            "no-op parse/render drifted for fixture: {fixture_path}"
-        );
+        if rendered != source {
+            return Err(format!(
+                concat!(
+                    "no-op parse/render drifted for fixture {}: ",
+                    "expected {:?}, got {:?}"
+                ),
+                fixture_path, source, rendered
+            ));
+        }
 
-        let rendered_roadmap = parse_roadmap(&rendered).unwrap_or_else(|error| {
-            panic!("rendered fixture should parse again: {fixture_path}: {error}");
-        });
-        let rendered_again = render_roadmap(&rendered_roadmap).unwrap_or_else(|error| {
-            panic!("rendered fixture should render again: {fixture_path}: {error}");
-        });
+        let rendered_roadmap = parse_roadmap(&rendered).map_err(|error| {
+            format!("rendered fixture should parse again: {fixture_path}: {error}")
+        })?;
+        let rendered_again = render_roadmap(&rendered_roadmap).map_err(|error| {
+            format!("rendered fixture should render again: {fixture_path}: {error}")
+        })?;
 
-        assert_eq!(
-            rendered_again, rendered,
-            "second parse/render drifted for fixture: {fixture_path}"
-        );
+        if rendered_again != rendered {
+            return Err(format!(
+                concat!(
+                    "second parse/render drifted for fixture {}: ",
+                    "expected {:?}, got {:?}"
+                ),
+                fixture_path, rendered, rendered_again
+            ));
+        }
 
-        assert_formatter_noop(&fixture_path, &rendered).unwrap_or_else(|error| {
-            panic!("house formatter changed rendered fixture {fixture_path}: {error}");
-        });
+        assert_formatter_noop(&fixture_path, &rendered).map_err(|error| {
+            format!("house formatter changed rendered fixture {fixture_path}: {error}")
+        })?;
     }
+    Ok(())
 }
 
 const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[

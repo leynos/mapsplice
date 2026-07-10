@@ -482,7 +482,7 @@ target roadmap containing this exact parent task block:
 Then run `mapsplice append` with `PHASE_FRAGMENT`, capture stdout, and assert
 that stdout contains that full four-line block byte-for-byte. Keep the existing
 ordering test unless the new exact test fully subsumes it and deleting it is
-the only way to avoid duplicate coverage. Prefer keeping it to minimise churn.
+the only way to avoid duplicate coverage. Prefer keeping it to minimize churn.
 
 Run the new test before any production-code edit:
 

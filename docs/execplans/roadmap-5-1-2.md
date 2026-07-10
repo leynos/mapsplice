@@ -374,7 +374,7 @@ after the refactor and seeing no behavioural drift.
   `mcp__memtrace.list_indexed_repositories -> user cancelled MCP tool call`.
   Impact: this plan records bounded local, `sem`, and locked-source evidence
   instead. This is not a product blocker under the task instructions.
-- Observation: Leta could not initialise in this sandbox. Evidence:
+- Observation: Leta could not initialize in this sandbox. Evidence:
   `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-5-1-2`
   returned `Error: IO error: Read-only file system (os error 30)`. Impact: this
   plan uses precise branch-local source inspection and `sem` entity navigation

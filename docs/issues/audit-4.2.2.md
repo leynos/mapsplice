@@ -356,7 +356,7 @@ function while `:122` calls the method for the same value. Two names for one
 query is redundant and the mixed usage reads as accidental.
 
 **Proposed fix:** drop `fragment_level` and call `.level()` everywhere, or, if
-the free function is kept for the public API, standardise internal call sites
+the free function is kept for the public API, standardize internal call sites
 on one form.
 
 ## Finding 19: Boolean routing probes allocate error strings on every non-match
