@@ -162,7 +162,7 @@ source.
 - [x] (2026-07-03T06:46:31Z) Execution resumed in the assigned worktree. The
   Memtrace MCP call `mcp__memtrace.list_indexed_repositories` again returned
   `user cancelled MCP tool call`; implementation continued with bounded
-  branch-local evidence as authorised by this plan.
+  branch-local evidence as authorized by this plan.
 - [x] (2026-07-03T06:46:31Z) Retried Leta for this execution round. The command
   `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-4-3`
   failed with `Error: IO error: Read-only file system (os error 30)`; bounded
@@ -348,7 +348,7 @@ source.
   Evidence:
   `leta grep "InsertConfig|with_absent_flags_removed|ArgAction|after" "src/cli.rs"`
   found the relevant insert configuration symbols, and `leta show` confirmed
-  the `ArgAction::SetTrue` field and absent-flag normalisation behaviour.
+  the `ArgAction::SetTrue` field and absent-flag normalization behaviour.
   Impact: no ad hoc source search was needed for the reviewed CLI claim.
 
 - Observation: the `scrutineer` recipe is installed but could not run in this
@@ -401,7 +401,7 @@ source.
   `src/subcommand/mod.rs` lines 51-58 merge files in candidate order, lines
   61-79 merge environment variables after files, and lines 118-129 and 165-170
   merge CLI values last through the configured prefix.
-  `src/subcommand/types.rs` lines 23-43 normalise `MAPSPLICE_` to `mapsplice`
+  `src/subcommand/types.rs` lines 23-43 normalize `MAPSPLICE_` to `mapsplice`
   for file paths while preserving the raw prefix for environment names. Impact:
   the plan can state insert precedence as CLI `--after` over
   `MAPSPLICE_CMDS_INSERT_AFTER` over local `./.mapsplice.toml` over XDG
@@ -454,7 +454,7 @@ source.
 
 - Decision: resolve fix round 1 with documentation only. Rationale: the
   reviewed behaviour is already implemented by `ArgAction::SetTrue` and
-  absent-flag normalisation; the blocker is that the users' guide did not state
+  absent-flag normalization; the blocker is that the users' guide did not state
   the one-way command-line override clearly. Date/Author: 2026-07-03 / fix
   round 1 agent.
 
@@ -1052,7 +1052,7 @@ review.
 Round 2 revises the plan around the design-review finding that the previous
 test matrix would deadlock by composing `EnvVarGuard` and `CwdGuard`, or two
 `EnvVarGuard`s, while each held the same non-reentrant `ENV_LOCK`. Work item 1
-now authorises and specifies a single combined `ProcessStateGuard` that acquires
+now authorizes and specifies a single combined `ProcessStateGuard` that acquires
 `ENV_LOCK` once and supports multiple environment mutations plus cwd changes.
 Work items 2 and 3 use that surface for every local-plus-XDG, env-plus-cwd, and
 home-plus-XDG test.

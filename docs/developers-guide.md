@@ -3,6 +3,14 @@
 This guide is for maintainers and contributors changing `mapsplice` internals,
 library APIs, command-line behaviour, tests, or build tooling.
 
+## Spelling policy
+
+Run `make spelling` to enforce en-GB-oxendict prose spelling. The generated
+`typos.toml` starts from the shared estate dictionary, refreshes its untracked
+local cache only when the authority is newer, and then applies the narrow
+repository policy in `typos.local.toml`. Edit the local policy and regenerate
+the configuration rather than changing generated entries by hand.
+
 ## 1. Normative references
 
 The source-of-truth documents for internal changes are:

@@ -168,7 +168,7 @@ Historical references are preserved:
 - fenced code blocks, command output, and quoted review comments unless a
   block is explicitly marked as generated live metadata.
 
-Unrecognised sections default to preserve. Ambiguous references produce
+Unrecognized sections default to preserve. Ambiguous references produce
 `mapsplice::execplans::ambiguous_reference` diagnostics with
 `action = "review_needed"` in the JSON plan. Any future apply command must skip
 those files unless the user passes an explicit override that is itself recorded

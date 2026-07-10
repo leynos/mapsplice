@@ -1,6 +1,12 @@
 target/
 **/*.rs.bk
 __pycache__/
+.coverage
+.pytest_cache/
+.uv-cache/
+.uv-tools/
+.typos-oxendict-base.json
+.typos-oxendict-base.toml
 .grepai/
 .memdb/
 .memtrace/

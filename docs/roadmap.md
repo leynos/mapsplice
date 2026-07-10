@@ -53,7 +53,7 @@ rather than rewriting every number-shaped token.
     substring non-match, and multi-id `Requires` lists, each failing before the
     scope fix and passing after.
 
-### 1.2. Recognise dependency clauses in every clause position
+### 1.2. Recognize dependency clauses in every clause position
 
 This step answers whether a `Requires` clause keeps its rewrite guarantee
 regardless of where the grammar allows it to appear: in a body bullet (this
@@ -83,12 +83,12 @@ renumbering — exactly the corruption the tool exists to prevent.
     correctly during a renumbering edit, and incidental numbers in wrapped
     prose remain preserved.
 
-- [ ] 1.2.3. Diagnose `Requires` keywords with no recognisable anchors.
+- [ ] 1.2.3. Diagnose `Requires` keywords with no recognizable anchors.
 
   - Requires 1.2.2.
   - Report a warning when an item body contains a dependency-clause keyword
-    but the scanner recognises zero anchor tokens for it, so a malformed or
-    unparseable clause is visible at edit time instead of silently inert.
+    but the scanner recognizes zero anchor tokens for it, so a malformed or
+    unparsable clause is visible at edit time instead of silently inert.
   - Success: an edit over a roadmap containing an anchor-free `Requires`
     clause succeeds with a warning naming the item, and a fixture pins the
     diagnostic text.

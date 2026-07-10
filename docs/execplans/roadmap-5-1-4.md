@@ -313,7 +313,7 @@ the now-hidden task child vectors.
   Evidence: both MCP calls returned `user cancelled MCP tool call`.
   Impact: this plan uses bounded branch-local documentation and source evidence
   instead of canonical main-branch Memtrace graph evidence.
-- Observation: Leta could not initialise or list files in this sandbox.
+- Observation: Leta could not initialize or list files in this sandbox.
   Evidence: `leta workspace add` failed with `Read-only file system`; `leta
   files` failed with `Failed to start daemon`.
   Impact: branch-local verification used exact text search and bounded file

@@ -246,7 +246,7 @@ each concept. Public behaviour and public library APIs remain unchanged.
   `deferred coderabbit review: no default network route visible in this sandbox`
   in `/tmp/coderabbit-mapsplice-roadmap-5-1-3-item-4.out`.
 - [x] (2026-07-03T09:23:08Z) Work Item 5: marked `docs/roadmap.md` task
-  5.1.3 complete and finalised this ExecPlan. Final deterministic gate logs:
+  5.1.3 complete and finalized this ExecPlan. Final deterministic gate logs:
   `/tmp/make-all-mapsplice-roadmap-5-1-3-final.out`,
   `/tmp/markdownlint-mapsplice-roadmap-5-1-3-final.out`, and
   `/tmp/nixie-mapsplice-roadmap-5-1-3-final.out`. Final CodeRabbit review was
@@ -734,7 +734,7 @@ make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-5-1-3-item-4.out
 
 Commit after all gates pass.
 
-### Work Item 5: Close roadmap task 5.1.3 and finalise documentation
+### Work Item 5: Close roadmap task 5.1.3 and finalize documentation
 
 Docs and skills to read before editing: `docs/roadmap.md` section 5.1.3;
 `docs/documentation-style-guide.md`; `AGENTS.md`; `execplans`;

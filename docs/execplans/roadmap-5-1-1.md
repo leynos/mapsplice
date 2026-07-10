@@ -215,7 +215,7 @@ implementation.
   `user cancelled MCP tool call`. Impact: this plan records bounded local and
   `sem` evidence instead. This is not a product blocker under the task
   instructions.
-- Observation: Leta could not initialise in this sandbox. Evidence:
+- Observation: Leta could not initialize in this sandbox. Evidence:
   `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-5-1-1`
   returned `Error: IO error: Read-only file system (os error 30)`. Impact: this
   plan uses `sem` plus precise local source inspection. The implementer should
@@ -533,7 +533,7 @@ make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-5-1-1-item-2.out
 
 Commit after all gates pass.
 
-### Work Item 3: Close roadmap task 5.1.1 and finalise documentation
+### Work Item 3: Close roadmap task 5.1.1 and finalize documentation
 
 Docs and skills to read before editing: `docs/roadmap.md` section 5.1.1;
 `docs/documentation-style-guide.md`; `AGENTS.md`; `execplans`;

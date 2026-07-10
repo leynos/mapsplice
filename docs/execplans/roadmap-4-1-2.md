@@ -678,7 +678,7 @@ Scenario: Dangling dependency reference fails in place without rewriting target
 2. Green: add a `TARGET_DANGLING_DEPENDENCY` fixture constant to
    `tests/support/cli.rs`, and add a `#[given]` step that writes it.
 3. Green: update `tests/steps/cli_steps.rs::CliState` so it stores
-   `original_target: String`. Initialise it empty, set it in
+   `original_target: String`. Initialize it empty, set it in
    `CliState::write_target` whenever a fixture is written, and change
    `target_unchanged` to compare `read_target()` with `original_target`.
    This fixes the existing hard-coded comparison with `TARGET_TWO_PHASES`.

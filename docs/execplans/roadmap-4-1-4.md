@@ -616,7 +616,7 @@ not create a commit. If fixture or test drift makes an edit necessary, update
 this plan first, format only the changed Markdown fixture paths that exist,
 and commit that change separately after the gates.
 
-### Work Item 4: Close roadmap task 4.1.4 and finalise plan evidence
+### Work Item 4: Close roadmap task 4.1.4 and finalize plan evidence
 
 Documentation to read before this work item:
 `docs/roadmap.md` section 4.1.4, `docs/mapsplice-design.md` sections 5 and 8,
