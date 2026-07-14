@@ -579,7 +579,7 @@ this shape:
 df12-stash v1 task=3.1.4 kind=<discard|park|keep> reason="<short>"
 ```
 
-## Artifacts and notes
+## Artefacts and notes
 
 Important planning evidence:
 

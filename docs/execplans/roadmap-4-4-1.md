@@ -700,7 +700,7 @@ git stash push -m 'df12-stash v1 task=roadmap-4-4-1 kind=discard reason="unrelat
 If a focused gate fails, read the corresponding `/tmp/...roadmap-4-4-1...out`
 log before rerunning. Rerun only after applying a fix.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence gathered in this worktree:
 

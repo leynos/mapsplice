@@ -1043,7 +1043,7 @@ git stash push -m 'df12-stash v1 task=5.1.2 kind=discard reason="formatter churn
 No destructive commands such as `git reset --hard` or `git checkout -- <path>`
 are part of this plan.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence collected in round 1:
 

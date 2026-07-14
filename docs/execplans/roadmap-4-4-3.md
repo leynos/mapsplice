@@ -1001,7 +1001,7 @@ If scoped Markdown formatting creates unrelated churn, do not commit it. Revert
 only the unrelated files after confirming they were produced by the formatter
 and are not user work.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Important planning evidence:
 

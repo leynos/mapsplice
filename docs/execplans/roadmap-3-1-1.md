@@ -727,7 +727,7 @@ document or Rust file changed by the current work item, fix that file before
 committing. If a gate fails on an unchanged file, record the log path and
 confirm whether the serial `make nixie` recovery is the documented path.
 
-## Artifacts and notes
+## Artefacts and notes
 
 The following transcripts are the planning-round evidence to preserve:
 

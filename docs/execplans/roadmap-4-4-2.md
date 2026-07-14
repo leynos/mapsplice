@@ -646,7 +646,7 @@ the current work item. Do not revert unrelated user changes. After a commit,
 use a new corrective commit rather than rewriting history unless the workflow
 explicitly directs otherwise.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence:
 

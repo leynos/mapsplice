@@ -728,7 +728,7 @@ The implementation is accepted when all of the following are true:
 - Property tests cover generated invalid and incidental token preservation.
 - `make all`, `make markdownlint`, and `make nixie` exit with status 0.
 
-Red-Green-Refactor evidence must be recorded in Progress or Artifacts for each
+Red-Green-Refactor evidence must be recorded in Progress or Artefacts for each
 code work item:
 
 - Red: the focused test command fails for the expected missing classification
@@ -754,7 +754,7 @@ If implementation discovers that a public API must change, stop at the current
 green commit, update this plan's Decision Log with the options, and wait for
 review.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence from 2026-07-01:
 

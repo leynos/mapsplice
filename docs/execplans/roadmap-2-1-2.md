@@ -500,9 +500,9 @@ diagram, record the exact log path and retry once. If it fails twice with the
 same untouched diagram and all code gates pass, stop and ask for review rather
 than marking the work complete silently.
 
-## Artifacts and notes
+## Artefacts and notes
 
-Planning artifacts:
+Planning artefacts:
 
 ```plaintext
 Memtrace list_indexed_repositories: user cancelled MCP tool call

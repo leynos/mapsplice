@@ -667,7 +667,7 @@ uncommitted. Either complete the tolerated fix and commit the passing test plus
 fix together, or leave the worktree uncommitted, update this plan with the
 failing transcript, and stop for plan revision.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Tooling evidence gathered during planning:
 

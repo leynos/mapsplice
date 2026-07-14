@@ -733,7 +733,7 @@ exact command, log path, file, and line evidence in this plan and final output.
 Do not commit while any required gate is failing unless a human explicitly
 approves changing the gate requirement for this task.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Verified local source and command evidence:
 
