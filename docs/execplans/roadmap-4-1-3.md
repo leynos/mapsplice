@@ -583,7 +583,7 @@ If a gate fails, read the `/tmp` log named by the command before rerunning. Only
 rerun after changing something relevant or confirming the prior failure was
 environmental.
 
-## Artifacts and Notes
+## Artefacts and Notes
 
 Planning evidence:
 

@@ -895,7 +895,7 @@ If a gate fails because of an unrelated pre-existing issue, keep the failing
 log in `/tmp`, record the exact command and symptom in this ExecPlan, and
 escalate only after isolating it from the work item.
 
-## Artifacts and Notes
+## Artefacts and Notes
 
 Planning evidence gathered in this round:
 

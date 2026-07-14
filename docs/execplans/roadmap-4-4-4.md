@@ -629,7 +629,7 @@ If a gate fails, inspect the corresponding `/tmp` log first. Re-run a gate only
 after applying a fix. If `/tmp` or the working filesystem fills up, stop and
 escalate.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Current planning evidence:
 

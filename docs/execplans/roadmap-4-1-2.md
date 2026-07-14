@@ -931,7 +931,7 @@ identify it, then park that unrelated churn with the named discard stash above
 or revert only the unrelated formatter output with a path-specific safe
 operation that does not touch user work.
 
-## Artifacts and Notes
+## Artefacts and Notes
 
 Planning evidence:
 

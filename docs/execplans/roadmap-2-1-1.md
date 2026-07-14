@@ -664,7 +664,7 @@ If a red test is recorded in this plan, remove any temporary expected-failure
 marker before committing the passing implementation. The committed state must
 be green.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Locked-library research completed during planning:
 

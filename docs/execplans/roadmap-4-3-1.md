@@ -881,7 +881,7 @@ Do not use a bare `git stash`. Do not discard user changes. If unrelated local
 changes appear, leave them untouched and work only with files required by this
 plan.
 
-## Artifacts and Notes
+## Artefacts and Notes
 
 Planning evidence:
 

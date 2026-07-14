@@ -828,7 +828,7 @@ same scoped rewrite contract. Work item 3 documented the `Requires`-only scope,
 updated the maintainer coverage map, and marked roadmap task 1.1.2 complete.
 The final deterministic gates and CodeRabbit review passed.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence captured in this draft:
 

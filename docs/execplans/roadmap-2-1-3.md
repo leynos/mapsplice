@@ -640,7 +640,7 @@ If a renderer fix is attempted and proves too broad, leave the failing test and
 partial production changes uncommitted, update `Decision Log` with the exact
 tolerance breached, and stop for review.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning pass evidence:
 

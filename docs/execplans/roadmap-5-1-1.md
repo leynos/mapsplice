@@ -647,7 +647,7 @@ churn after confirming it is unrelated, and record the event here.
 If Cargo waits on the shared package-cache lock, wait for the lock to clear. Do
 not create an isolated Cargo cache.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence gathered before this revision:
 

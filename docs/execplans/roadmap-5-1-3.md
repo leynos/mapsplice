@@ -871,9 +871,9 @@ git stash push -m 'df12-stash v1 task=5.1.3 kind=discard reason="unrelated forma
 
 Do not use a bare `git stash`.
 
-## Artifacts and notes
+## Artefacts and notes
 
-Planning artifacts gathered in this round:
+Planning artefacts gathered in this round:
 
 ```plaintext
 mcp__memtrace.list_indexed_repositories -> user cancelled MCP tool call
@@ -898,7 +898,7 @@ Relevant file line counts before implementation:
 217 tests/roadmap_parse.rs
 ```
 
-Work Item 1 implementation artifacts:
+Work Item 1 implementation artefacts:
 
 ```plaintext
 cargo test --test roadmap_render checkbox -- --nocapture
@@ -921,7 +921,7 @@ coderabbit-review-agent
      no default network route visible in this sandbox
 ```
 
-Work Item 2 implementation artifacts:
+Work Item 2 implementation artefacts:
 
 ```plaintext
 cargo test --test roadmap_lookup_rendering phase -- --nocapture
@@ -947,7 +947,7 @@ coderabbit-review-agent
      no default network route visible in this sandbox
 ```
 
-Work Item 3 implementation artifacts:
+Work Item 3 implementation artefacts:
 
 ```plaintext
 cargo test --test roadmap_render checkbox -- --nocapture
@@ -975,7 +975,7 @@ coderabbit-review-agent
      no default network route visible in this sandbox
 ```
 
-Work Item 4 implementation artifacts:
+Work Item 4 implementation artefacts:
 
 ```plaintext
 cargo test --test roadmap_lookup_rendering metrics -- --nocapture
@@ -1004,7 +1004,7 @@ coderabbit-review-agent
      no default network route visible in this sandbox
 ```
 
-Work Item 5 final artifacts:
+Work Item 5 final artefacts:
 
 ```plaintext
 MARKDOWN_PATHS='docs/execplans/roadmap-5-1-3.md docs/roadmap.md' make markdownfmt

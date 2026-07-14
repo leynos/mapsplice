@@ -695,7 +695,7 @@ If formatter churn appears outside the current work item, inspect
 unwanted formatter changes with explicit file paths. Do not use
 `git reset --hard`.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence:
 

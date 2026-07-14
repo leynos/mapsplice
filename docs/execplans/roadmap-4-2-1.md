@@ -729,7 +729,7 @@ If the serial default is flaky, stop and escalate rather than adding retries.
 Inspect the cited diagram as a real Mermaid validation failure only after
 rerunning the serial path once.
 
-## Artifacts and notes
+## Artefacts and notes
 
 Planning evidence gathered before implementation:
 

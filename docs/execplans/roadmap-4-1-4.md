@@ -755,7 +755,7 @@ If `make all` fails for an unrelated pre-existing issue, keep the focused test
 logs, record the failure under `Surprises & Discoveries`, and escalate only if
 the failure cannot be isolated from this task.
 
-## Artifacts and Notes
+## Artefacts and Notes
 
 Planning evidence:
 
