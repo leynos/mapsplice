@@ -3,10 +3,13 @@
 The executable logic lives in the ``leynos/shared-actions`` reusable
 workflow, which carries its own unit and integration tests; mapsplice's
 caller is declarative configuration. These tests parse the caller with
-PyYAML and pin the contract it must uphold, so drift (repointing the pin
-at a branch, widening permissions, or losing the feature-flag
-configuration) fails CI on the pull request rather than surfacing in a
-scheduled or manual run.
+PyYAML and assert that it references the correct reusable workflow at a
+commit SHA, and that other structural properties (permissions, triggers,
+feature-flag configuration) hold, so drift (repointing the pin at a
+branch, widening permissions, or losing the feature-flag configuration)
+fails CI on the pull request rather than surfacing in a scheduled or
+manual run. Dependabot owns the pinned SHA value; these tests do not
+assert which SHA is pinned.
 
 Run via ``make test-workflow-contracts``.
 """
@@ -19,15 +22,6 @@ import yaml
 
 WORKFLOW_PATH = (
     Path(__file__).resolve().parents[2] / ".github" / "workflows" / "mutation-testing.yml"
-)
-
-#: The merge commit of leynos/shared-actions PR #319, the estate-wide
-#: pin for the mutation-cargo reusable workflow. Bump the workflow and
-#: this test together.
-PINNED_SHA = "47aea18960d24f33aedc4782ec6b73e365418313"
-
-EXPECTED_USES = (
-    "leynos/shared-actions/.github/workflows/mutation-cargo.yml@" + PINNED_SHA
 )
 
 #: mapsplice is a single root crate with all mutable source under
@@ -60,8 +54,13 @@ def _mutation_job(workflow: dict[str, object]) -> dict[str, object]:
     return jobs["mutation"]
 
 
-def test_uses_reference_is_pinned_to_the_documented_sha() -> None:
-    """The job must call the shared workflow at the exact documented SHA."""
+def test_uses_reference_is_pinned_to_a_commit_sha() -> None:
+    """The job must call the shared workflow pinned to a commit SHA.
+
+    Dependabot owns the pinned SHA value, so this test asserts the shape
+    of the pin (correct reusable workflow path, full 40-character
+    lowercase hex commit SHA) without asserting which SHA is pinned.
+    """
     uses = _mutation_job(_load()).get("uses")
     assert uses is not None, "jobs.mutation.uses is missing"
     path, _, ref = uses.partition("@")
@@ -75,10 +74,6 @@ def test_uses_reference_is_pinned_to_the_documented_sha() -> None:
     assert all(c in "0123456789abcdef" for c in ref), (
         f"jobs.mutation.uses must pin a lowercase hex commit SHA, "
         f"not a branch or tag: {ref!r}"
-    )
-    assert uses == EXPECTED_USES, (
-        f"jobs.mutation.uses pins {ref!r}; the estate pins {PINNED_SHA!r} — "
-        "bump this test together with the workflow"
     )
 
 
