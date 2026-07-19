@@ -1,5 +1,8 @@
 # mapsplice
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
+https://deepwiki.com/leynos/mapsplice)
+
 *Splice one roadmap into another without spending your afternoon renumbering
 phases, steps, and task dependencies by hand.*
 
