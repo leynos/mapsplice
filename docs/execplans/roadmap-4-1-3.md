@@ -1,9 +1,8 @@
 # Single-Source Parse-Domain Task-Number Validation
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -12,18 +11,20 @@ Status: COMPLETE
 Roadmap task 4.1.3, "Single-source parse-domain task-number validation",
 removes duplicated parser validation for the invariant "a task number must
 belong to its containing step". After this change, target-roadmap parsing and
-step-fragment parsing both call the same parse-domain helper for that invariant,
-while task-fragment sibling validation remains a separate rule with its own
-diagnostic.
+step-fragment parsing both call the same parse-domain helper for that
+invariant, while task-fragment sibling validation remains a separate rule with
+its own diagnostic.
 
 The observable outcome is a small parser refactor whose behaviour does not
 change. Focused parser tests pin the exact target and step-fragment diagnostic:
-`task \`TASK\` does not belong to step \`STEP\``. They also pin that a top-level
+`task \`TASK\` does not belong to step \`STEP\`
+`. They also pin that a top-level
 task fragment with mixed step numbers still reports the sibling-fragment
 message. Every commit that updates this plan formats
-`docs/execplans/roadmap-4-1-3.md` directly and runs the Markdown gates; every
-code commit also runs `make all`, which includes the current Cargo typecheck
-target on`origin/main`.
+`docs
+/execplans/roadmap-4-1-3.md
+` directly and runs the Markdown gates; every code commit also runs `make all
+`, which includes the current Cargo typecheck target on`origin/main`.
 
 ## Constraints
 
@@ -91,37 +92,30 @@ target on`origin/main`.
 ## Risks
 
 - Risk: a helper placed in `src/roadmap/parse/mod.rs` could make the parse
-  module more crowded.
-  Severity: low.
-  Likelihood: medium.
-  Mitigation: add only one small private `pub(super)` helper near the other
-  shared parser helpers. Do not create a new module unless the 400-line file
-  cap or readability forces it.
+  module more crowded. Severity: low. Likelihood: medium. Mitigation: add only
+  one small private `pub(super)` helper near the other shared parser helpers.
+  Do not create a new module unless the 400-line file cap or readability forces
+  it.
 
 - Risk: a shared helper could accidentally replace the task-fragment sibling
-  diagnostic.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: add a focused test for the sibling diagnostic before refactoring,
-  and keep `validate_task_siblings` in `src/roadmap/parse/fragment.rs`.
+  diagnostic. Severity: medium. Likelihood: medium. Mitigation: add a focused
+  test for the sibling diagnostic before refactoring, and keep
+  `validate_task_siblings` in `src/roadmap/parse/fragment.rs`.
 
 - Risk: exact error-text tests can be brittle.
-  Severity: low.
-  Likelihood: medium.
-  Mitigation: roadmap task 4.1.3 explicitly requires unchanged error text, so
-  exact assertions are the desired contract here.
+  Severity: low. Likelihood: medium. Mitigation: roadmap task 4.1.3 explicitly
+  requires unchanged error text, so exact assertions are the desired contract
+  here.
 
 - Risk: Memtrace or Leta evidence may be unavailable in a sub-agent session.
-  Severity: low.
-  Likelihood: high.
-  Mitigation: this planning round records the exact failures and pins the plan
-  to bounded local source windows, `sem` entity output, and focused tests.
+  Severity: low. Likelihood: high. Mitigation: this planning round records the
+  exact failures and pins the plan to bounded local source windows, `sem`
+  entity output, and focused tests.
 
 ## Progress
 
 - [x] (2026-07-02T00:00:00Z) Confirmed the current branch is
-  `roadmap-4-1-3`, so this plan is
-  `docs/execplans/roadmap-4-1-3.md`.
+  `roadmap-4-1-3`, so this plan is `docs/execplans/roadmap-4-1-3.md`.
 - [x] (2026-07-02T00:00:00Z) Loaded the `execplans`, `leta`,
   `memtrace-first`, `rust-router`, `rust-unit-testing`, `rust-errors`, and
   `firecrawl-mcp` skills for this planning round.
@@ -152,17 +146,17 @@ target on`origin/main`.
   `task fragments must contain tasks from one step` and must not be folded into
   the shared helper.
 - [x] (2026-07-02T21:00:00Z) Work item 1: added focused parser diagnostic
-  coverage in `tests/roadmap_parse.rs` for target-roadmap,
-  step-fragment, and task-fragment sibling diagnostics.
+  coverage in `tests/roadmap_parse.rs` for target-roadmap, step-fragment, and
+  task-fragment sibling diagnostics.
 - [x] (2026-07-02T21:00:00Z) Work item 1 red proof: temporarily changed the
   target-roadmap expected message to step `1.2`; the focused test failed with
   left `` task `1.2.1` does not belong to step `1.1` `` and right
   `` task `1.2.1` does not belong to step `1.2` ``. Reverted the mutation
   before continuing.
 - [x] (2026-07-02T21:00:00Z) Work item 1 validation: focused parser command
-  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-1.out`; `make all`
-  passed in `/tmp/make-all-mapsplice-roadmap-4-1-3-item-1.out` with 158
-  nextest tests and doctests passing.
+  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-1.out`; `make all` passed in
+  `/tmp/make-all-mapsplice-roadmap-4-1-3-item-1.out` with 158 nextest tests
+  and doctests passing.
 - [x] (2026-07-02T21:00:00Z) Work item 1 review: `scrutineer` delegation
   failed before running because the host reported
   `usage limit for GPT-5.3-Codex-Spark`; direct CodeRabbit agent invocation
@@ -177,9 +171,9 @@ target on`origin/main`.
   `src/roadmap/parse/mod.rs`, and found caller references in
   `src/roadmap/parse/document.rs` and `src/roadmap/parse/fragment.rs`.
 - [x] (2026-07-02T21:20:00Z) Work item 2 validation: focused parser command
-  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-2.out`; `make all`
-  passed in `/tmp/make-all-mapsplice-roadmap-4-1-3-item-2.out` with 158
-  nextest tests and doctests passing.
+  passed in `/tmp/test-mapsplice-roadmap-4-1-3-item-2.out`; `make all` passed in
+  `/tmp/make-all-mapsplice-roadmap-4-1-3-item-2.out` with 158 nextest tests
+  and doctests passing.
 - [x] (2026-07-02T21:20:00Z) Work item 2 review: direct CodeRabbit agent
   invocation returned deferred with
   `no default network route visible in this sandbox`; no actionable review
@@ -188,8 +182,8 @@ target on`origin/main`.
   in `docs/roadmap.md`, closed this ExecPlan with `Status: COMPLETE`, and
   recorded the final validation evidence.
 - [x] (2026-07-02T21:40:00Z) Final validation: `make all` passed in
-  `/tmp/make-all-mapsplice-roadmap-4-1-3-final-post-plan.out` with 158
-  nextest tests and doctests passing; `make markdownlint` passed in
+  `/tmp/make-all-mapsplice-roadmap-4-1-3-final-post-plan.out` with 158 nextest
+  tests and doctests passing; `make markdownlint` passed in
   `/tmp/markdownlint-mapsplice-roadmap-4-1-3-final-post-plan.out`; `make nixie`
   passed in `/tmp/nixie-mapsplice-roadmap-4-1-3-final-post-plan.out`.
 - [x] (2026-07-02T21:40:00Z) Final review: direct CodeRabbit agent invocation
@@ -199,8 +193,7 @@ target on`origin/main`.
 ## Surprises & Discoveries
 
 - Observation: advisory tools were partially unavailable in this sub-agent
-  session.
-  Evidence: Memtrace and Firecrawl MCP calls returned
+  session. Evidence: Memtrace and Firecrawl MCP calls returned
   `user cancelled MCP tool call`; Leta failed first with a read-only workspace
   setup error, but `leta grep` still returned branch-local parser symbols.
   Impact: the implementation is still feasible because the affected surface is
@@ -209,52 +202,47 @@ target on`origin/main`.
 
 - Observation: the target parser and step-fragment parser duplicate the exact
   same helper body, but task-fragment sibling validation deliberately has a
-  different message.
-  Evidence: `src/roadmap/parse/document.rs` lines 223-235 and
+  different message. Evidence: `src/roadmap/parse/document.rs` lines 223-235 and
   `src/roadmap/parse/fragment.rs` lines 239-251 share the same loop and
   formatted error text; `src/roadmap/parse/fragment.rs` lines 270-283 reports
-  the sibling-only text.
-  Impact: the shared helper should be used only by
+  the sibling-only text. Impact: the shared helper should be used only by
   `DocumentParser::append_task_list` and `append_step_fragment_tasks`.
 
 - Observation: `scrutineer` and CodeRabbit were unavailable for all requested
-  work-item reviews in this sandbox.
-  Evidence: `multi_agent_v1.spawn_agent(agent_type=scrutineer)` returned
-  `usage limit for GPT-5.3-Codex-Spark`; direct
-  `coderabbit-review-agent` returned
+  work-item reviews in this sandbox. Evidence:
+  `multi_agent_v1.spawn_agent(agent_type=scrutineer)` returned
+  `usage limit for GPT-5.3-Codex-Spark`; direct `coderabbit-review-agent`
+  returned
   `deferred coderabbit review: no default network route visible in this sandbox`.
   Impact: deterministic local gates were run directly with `/tmp` logs, and
   CodeRabbit review remains a deferred open issue for supervisor handling.
 
 - Observation: moving the helper into `src/roadmap/parse/mod.rs` brought the
-  file close to the documented line-count limit.
-  Evidence: after formatting, `src/roadmap/parse/mod.rs` is 399 lines.
-  Impact: no new parser module was required, but future parser helpers should
-  consider a small validation submodule before adding more lines to `mod.rs`.
+  file close to the documented line-count limit. Evidence: after formatting,
+  `src/roadmap/parse/mod.rs` is 399 lines. Impact: no new parser module was
+  required, but future parser helpers should consider a small validation
+  submodule before adding more lines to `mod.rs`.
 
 ## Decision Log
 
 - Decision: implement one private parse-domain helper in
   `src/roadmap/parse/mod.rs` with a signature equivalent to
-  `validate_tasks_belong_to_step(step_number, tasks)`.
-  Rationale: both callers already import `StepNumber`, `TaskEntry`, `Result`,
-  and `MapspliceError` through the parse module boundary, and no public API is
-  needed.
-  Date/Author: 2026-07-02, planning agent.
+  `validate_tasks_belong_to_step(step_number, tasks)`. Rationale: both callers
+  already import `StepNumber`, `TaskEntry`, `Result`, and `MapspliceError`
+  through the parse module boundary, and no public API is needed. Date/Author:
+  2026-07-02, planning agent.
 
 - Decision: do not merge `validate_task_siblings` into the new helper.
   Rationale: a top-level task fragment containing mixed step numbers is a
   sibling-fragment error, not a containing-step error, and roadmap task 4.1.3
-  requires unchanged diagnostics.
-  Date/Author: 2026-07-02, planning agent.
+  requires unchanged diagnostics. Date/Author: 2026-07-02, planning agent.
 
 - Decision: use focused unit tests, not new behavioural, property, snapshot, or
-  end-to-end tests, for the shared helper extraction.
-  Rationale: this task changes an internal parser helper while preserving CLI
-  behaviour. `docs/developers-guide.md` section 6 says `rstest` unit tests
-  cover parser behaviour, while BDD and golden tests cover user workflows and
-  render fidelity.
-  Date/Author: 2026-07-02, planning agent.
+  end-to-end tests, for the shared helper extraction. Rationale: this task
+  changes an internal parser helper while preserving CLI behaviour.
+  `docs/developers-guide.md` section 6 says `rstest` unit tests cover parser
+  behaviour, while BDD and golden tests cover user workflows and render
+  fidelity. Date/Author: 2026-07-02, planning agent.
 
 ## Outcomes & Retrospective
 
@@ -323,9 +311,9 @@ External API research is pinned as follows:
 - `markdown` is locked to 1.0.0 in `Cargo.lock`; `Cargo.toml` declares
   `markdown = "1.0.0"`. Local source
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/lib.rs`
-  defines `pub fn to_mdast(value: &str, options: &ParseOptions) ->
-  Result<mdast::Node, message::Message>`, and
-  `configuration.rs` defines `ParseOptions::gfm()` as GitHub Flavoured
+  defines
+  `pub fn to_mdast(value: &str, options: &ParseOptions) -> Result<mdast::Node, message::Message>`,
+  and `configuration.rs` defines `ParseOptions::gfm()` as GitHub Flavoured
   Markdown with task-list support. The docs.rs page
   `https://docs.rs/markdown/1.0.0/markdown/fn.to_mdast.html` identifies
   `to_mdast` as turning Markdown into a syntax tree.
@@ -343,11 +331,10 @@ No work item should rely on unverified external behaviour beyond those APIs.
 
 ### Work item 1: Add focused parser diagnostic coverage
 
-Documentation to read before this work item:
-`docs/roadmap.md` task 4.1.3, `docs/mapsplice-design.md` sections 4, 5, and 8,
-`docs/developers-guide.md` sections 2 and 6, `docs/users-guide.md` "Validation
-rules and failure cases", `AGENTS.md` "Testing", and
-`docs/documentation-style-guide.md` "Spelling".
+Documentation to read before this work item: `docs/roadmap.md` task 4.1.3,
+`docs/mapsplice-design.md` sections 4, 5, and 8, `docs/developers-guide.md`
+sections 2 and 6, `docs/users-guide.md` "Validation rules and failure cases",
+`AGENTS.md` "Testing", and `docs/documentation-style-guide.md` "Spelling".
 
 Skills to load before editing: `rust-router`, then `rust-unit-testing`. Keep
 `rust-errors` in reserve only if the implementation would change error shape;
@@ -367,10 +354,10 @@ Add tests to `tests/roadmap_parse.rs`:
    `- [ ] 9.1.1. First.` and `- [ ] 9.2.1. Second.`. Assert the message equals
    `task fragments must contain tasks from one step`.
 
-Use `#[rstest]` named cases only if the resulting assertion helper stays
-clear. A small local helper such as `invalid_roadmap_message(error)` is
-acceptable if it only extracts the message and returns `&str`; do not hide
-setup or assertions in a broad helper.
+Use `#[rstest]` named cases only if the resulting assertion helper stays clear.
+A small local helper such as `invalid_roadmap_message(error)` is acceptable if
+it only extracts the message and returns `&str`; do not hide setup or
+assertions in a broad helper.
 
 Red proof: before committing, temporarily change one expected diagnostic or
 temporarily change one parser message locally, run the focused command below,
@@ -399,10 +386,10 @@ Commit after the focused validation, `make all`, and the Markdown gates pass.
 
 ### Work item 2: Extract the shared task-belongs-to-step helper
 
-Documentation to read before this work item:
-`docs/mapsplice-design.md` sections 2, 3, 4, and 5; `docs/developers-guide.md`
-sections 2, 3, and 6; `docs/execplans/initial-tool.md` "Decision Log";
-`AGENTS.md` "Rust Specific Guidance"; and `docs/roadmap.md` task 4.1.3.
+Documentation to read before this work item: `docs/mapsplice-design.md`
+sections 2, 3, 4, and 5; `docs/developers-guide.md` sections 2, 3, and 6;
+`docs/execplans/initial-tool.md` "Decision Log"; `AGENTS.md` "Rust Specific
+Guidance"; and `docs/roadmap.md` task 4.1.3.
 
 Skills to load before editing: `rust-router`, `rust-unit-testing`, and
 `rust-errors`. `rust-errors` is needed here only to preserve the existing typed
@@ -430,14 +417,14 @@ pub(super) fn validate_tasks_belong_to_step(
 }
 ```
 
-In `src/roadmap/parse/document.rs`, import the helper from `super`, call it
-from `DocumentParser::append_task_list`, and delete the local
+In `src/roadmap/parse/document.rs`, import the helper from `super`, call it from
+`DocumentParser::append_task_list`, and delete the local
 `validate_task_numbers`.
 
-In `src/roadmap/parse/fragment.rs`, import the helper from `super`, call it
-from `append_step_fragment_tasks`, and delete the local
-`validate_task_numbers`. Leave `validate_task_siblings`,
-`validate_step_siblings`, and `validate_sub_task_siblings` in place.
+In `src/roadmap/parse/fragment.rs`, import the helper from `super`, call it from
+`append_step_fragment_tasks`, and delete the local `validate_task_numbers`.
+Leave `validate_task_siblings`, `validate_step_siblings`, and
+`validate_sub_task_siblings` in place.
 
 Refactor validation:
 
@@ -454,12 +441,11 @@ Acceptance for this item:
 
 - `leta grep "^validate_task_numbers$" "src/roadmap/parse" -k function`
   prints no matches. If Leta fails in the implementation session, use exact
-  text fallback
-  `grep -R -n "fn validate_task_numbers" src/roadmap/parse` and expect no
-  output.
+  text fallback `grep -R -n "fn validate_task_numbers" src/roadmap/parse` and
+  expect no output.
 - `leta grep "^validate_tasks_belong_to_step$" "src/roadmap/parse" -k function`
-  shows the helper definition in `src/roadmap/parse/mod.rs`. If Leta fails,
-  use exact text fallback
+  shows the helper definition in `src/roadmap/parse/mod.rs`. If Leta fails, use
+  exact text fallback
   `grep -R -n "fn validate_tasks_belong_to_step" src/roadmap/parse`.
 - `leta refs validate_tasks_belong_to_step` shows calls from
   `src/roadmap/parse/document.rs` and `src/roadmap/parse/fragment.rs`. If Leta
@@ -474,10 +460,10 @@ Commit this work item after validation passes.
 
 ### Work item 3: Reconcile the roadmap and close the plan
 
-Documentation to read before this work item:
-`docs/roadmap.md` task 4.1.3, `docs/developers-guide.md` section 7,
-`docs/contributing.md` "Development gates", `docs/documentation-style-guide.md`
-"Markdown rules", and `AGENTS.md` "Markdown Guidance".
+Documentation to read before this work item: `docs/roadmap.md` task 4.1.3,
+`docs/developers-guide.md` section 7, `docs/contributing.md` "Development
+gates", `docs/documentation-style-guide.md` "Markdown rules", and `AGENTS.md`
+"Markdown Guidance".
 
 Skills to load before editing: `execplans`. No Rust router skill is needed if
 this item only edits Markdown after the Rust implementation is complete.
@@ -485,8 +471,8 @@ this item only edits Markdown after the Rust implementation is complete.
 Update `docs/roadmap.md` to mark `4.1.3` complete only after work item 2 is
 green and committed. Update this ExecPlan's `Progress`, `Decision Log`, and
 `Outcomes & Retrospective` with the focused-test and gate evidence. Set
-`Status: COMPLETE` only when the task is actually complete and no required
-work remains.
+`Status: COMPLETE` only when the task is actually complete and no required work
+remains.
 
 Format only the Markdown files changed by this work item. If both files are
 edited, run:
@@ -531,8 +517,8 @@ Commit this item after the formatter and final gates pass.
 
 3. Implement work item 2, run focused parser tests, record evidence in this
    plan, run the Leta-first acceptance checks, then run the path-scoped plan
-   formatter commands, `make all`, `make markdownlint`, and `make nixie`
-   before committing.
+   formatter commands, `make all`, `make markdownlint`, and `make nixie` before
+   committing.
 
 4. Implement work item 3, run the path-safe Markdown formatter commands for
    files that exist and were edited, then run `make all`, `make markdownlint`,
@@ -569,8 +555,9 @@ Acceptance behaviour:
 ## Idempotence and Recovery
 
 All work items are safe to retry from a clean working tree. If a mutation-style
-red proof leaves a temporary edit behind, revert only that temporary edit before
-continuing; do not use `git reset --hard` or overwrite unrelated user work.
+red proof leaves a temporary edit behind, revert only that temporary edit
+before continuing; do not use `git reset --hard` or overwrite unrelated user
+work.
 
 If Markdown formatting changes unrelated files, park that churn in a named
 stash before committing:
@@ -579,9 +566,9 @@ stash before committing:
 git stash push -m 'df12-stash v1 task=4.1.3 kind=discard reason="formatter-churn"' -- <paths>
 ```
 
-If a gate fails, read the `/tmp` log named by the command before rerunning. Only
-rerun after changing something relevant or confirming the prior failure was
-environmental.
+If a gate fails, read the `/tmp` log named by the command before rerunning.
+Only rerun after changing something relevant or confirming the prior failure
+was environmental.
 
 ## Artefacts and Notes
 

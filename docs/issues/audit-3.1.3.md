@@ -40,8 +40,8 @@ Tooling notes:
 
 - **Category:** test-gap
 - **Severity:** high
-- **Location:** `docs/roadmap.md`, task 3.1.2; `tests/roadmap_golden/contracts.rs`;
-  `tests/roadmap_properties.rs`
+- **Location:** `docs/roadmap.md`, task 3.1.2;
+  `tests/roadmap_golden/contracts.rs`; `tests/roadmap_properties.rs`
 
 Task 3.1.3 now asserts formatter-stable rendered outputs, but the broader F3
 and C5 contract remains only partially covered. The current tests include a
@@ -69,8 +69,8 @@ the 3.1.3 format-gate helper.
 
 `validate_task_numbers` appears twice with the same loop, the same ownership
 check, and the same error message. One copy validates target-roadmap tasks and
-the other validates step-fragment tasks, but the rule itself is domain-level:
-a task number must belong to its containing step.
+the other validates step-fragment tasks, but the rule itself is domain-level: a
+task number must belong to its containing step.
 
 Keeping the rule duplicated makes future diagnostic, telemetry, or grammar
 changes easy to apply to one parser and forget in the other.
@@ -88,14 +88,14 @@ for the helper so the parser tests do not have to duplicate that branch.
 
 `render_task` treats `TaskChild::SubTask(identity)` as a lookup into
 `task.sub_tasks`, but when the identity is missing it simply emits nothing for
-that child. That converts an internal model inconsistency into silent data
-loss in the rendered roadmap.
+that child. That converts an internal model inconsistency into silent data loss
+in the rendered roadmap.
 
 The parser normally creates both collections together, and sub-task operations
 refresh child ordering, so this is an invariant breach rather than expected
 user input. The renderer is still the fail-closed boundary for emitted bytes;
-dropping content there conflicts with the design's collateral-corruption
-threat model.
+dropping content there conflicts with the design's collateral-corruption threat
+model.
 
 **Proposed fix:** make the lookup explicit and fallible. If a child identity is
 absent from `task.sub_tasks`, return a typed `MapspliceError::InvalidRoadmap`
@@ -108,11 +108,12 @@ child.
 
 - **Category:** docs-gap
 - **Severity:** low
-- **Location:** `src/lib.rs:20`, `src/lib.rs:51`, and `src/roadmap/parse/mod.rs:37`
+- **Location:** `src/lib.rs:20`, `src/lib.rs:51`, and
+  `src/roadmap/parse/mod.rs:37`
 
 `AGENTS.md` requires function documentation to include clear examples. Some
-public APIs meet that bar, such as `parse_anchor`, but key exported APIs such
-as `run_from_args`, `run_request`, and `parse_roadmap` only describe errors.
+public APIs meet that bar, such as `parse_anchor`, but key exported APIs such as
+`run_from_args`, `run_request`, and `parse_roadmap` only describe errors.
 
 These functions are the library entry points listed in the developers' guide.
 Without examples, downstream users and maintainers have to infer argument
@@ -139,8 +140,8 @@ Until task 4.2.2 lands, the guide points maintainers at a command that the
 workflow explicitly tells agents to avoid for narrow documentation changes.
 That makes the documentation source of truth internally inconsistent.
 
-**Proposed fix:** update the developers' guide after or alongside task 4.2.2
-to document the path-scoped formatter and lint commands. If the Makefile target
+**Proposed fix:** update the developers' guide after or alongside task 4.2.2 to
+document the path-scoped formatter and lint commands. If the Makefile target
 does not exist yet, add it under task 4.2.2 and then replace the current
 Markdown-change command block with the scoped workflow.
 

@@ -1,9 +1,8 @@
 # Specify the dependency-reference predicate in code
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -79,8 +78,7 @@ approved by the controlling workflow.
   before editing more files.
 - If a public API signature in `src/lib.rs`, `src/roadmap/mod.rs`, or
   `src/roadmap/anchor.rs` must change, stop for review. The predicate should
-  stay inside the roadmap rewrite module unless a later approved task widens
-  it.
+  stay inside the roadmap rewrite module unless a later approved task widens it.
 - If preserving unresolved valid dependency references conflicts with a
   still-valid product requirement, document the conflict in the Decision Log
   and stop. The current source-of-truth roadmap and design both say unresolved
@@ -98,34 +96,27 @@ approved by the controlling workflow.
 
 - Risk: The current implementation reports `DanglingDependency` for a valid
   unresolved `Requires 99.1.1`, while roadmap task 1.1.1 says that value should
-  remain unchanged when no renumber-plan mapping exists.
-  Severity: high.
-  Likelihood: high.
-  Mitigation: work item 2 changes only the resolution fallback after work item
-  1 has pinned valid, invalid, and incidental classification paths.
+  remain unchanged when no renumber-plan mapping exists. Severity: high.
+  Likelihood: high. Mitigation: work item 2 changes only the resolution
+  fallback after work item 1 has pinned valid, invalid, and incidental
+  classification paths.
 
 - Risk: The current private helper name `is_dependency_anchor` hides that it
-  checks only context, not anchor validity.
-  Severity: medium.
-  Likelihood: high.
+  checks only context, not anchor validity. Severity: medium. Likelihood: high.
   Mitigation: work item 1 introduces one classification function with an
   explicit result type and tests each branch directly.
 
 - Risk: A scanner change could accidentally rewrite section references or
-  semantic versions in later roadmap tasks.
-  Severity: high.
-  Likelihood: medium.
+  semantic versions in later roadmap tasks. Severity: high. Likelihood: medium.
   Mitigation: work items 1 and 3 include adversarial unit and property tests
-  for section sigils, version-like zero components, prose numbers,
-  punctuation, and greedy token consumption.
+  for section sigils, version-like zero components, prose numbers, punctuation,
+  and greedy token consumption.
 
 - Risk: Official external documentation tools can be unavailable in the
-  sandbox.
-  Severity: medium.
-  Likelihood: observed.
-  Mitigation: this planning pass records Firecrawl cancellation and `curl`
-  DNS failure, verifies locked crate behaviour from local registry source, and
-  requires compile, unit, and property tests for every relied-on behaviour.
+  sandbox. Severity: medium. Likelihood: observed. Mitigation: this planning
+  pass records Firecrawl cancellation and `curl` DNS failure, verifies locked
+  crate behaviour from local registry source, and requires compile, unit, and
+  property tests for every relied-on behaviour.
 
 ## Progress
 
@@ -139,12 +130,12 @@ approved by the controlling workflow.
 - [x] (2026-07-01T11:00Z) Read the local source-of-truth documents and the
   existing dependency rewrite code.
 - [x] (2026-07-01T11:00Z) Verified with `leta grep`, `leta show`, and bounded
-  file inspection that `rewrite_text_value` depends on
-  `next_anchor_candidate`, `is_dependency_anchor`, `parse_anchor`,
-  `RenumberPlan::resolve`, and `RenumberPlan::resolve_unique`.
+  file inspection that `rewrite_text_value` depends on `next_anchor_candidate`,
+  `is_dependency_anchor`, `parse_anchor`, `RenumberPlan::resolve`, and
+  `RenumberPlan::resolve_unique`.
 - [x] (2026-07-01T11:00Z) Verified locked crate API details from local Cargo
-  registry source. Official docs content could not be scraped because
-  Firecrawl returned `user cancelled MCP tool call` and `curl` returned
+  registry source. Official docs content could not be scraped because Firecrawl
+  returned `user cancelled MCP tool call` and `curl` returned
   `Could not resolve host: docs.rs`.
 - [x] (2026-07-01T11:00Z) Revised this DRAFT ExecPlan for round 2 design
   review.
@@ -186,23 +177,23 @@ approved by the controlling workflow.
   in this planning session. This is advisory-tool failure, not a product
   blocker.
 - Memtrace was re-attempted during implementation with
-  `list_indexed_repositories`, `list_communities`, and scoped `find_code`.
-  Each call returned `user cancelled MCP tool call`, so implementation used
-  bounded branch-local inspection.
+  `list_indexed_repositories`, `list_communities`, and scoped `find_code`. Each
+  call returned `user cancelled MCP tool call`, so implementation used bounded
+  branch-local inspection.
 - `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-1`
-  first succeeded, but later `leta files src` and `leta refs rewrite_text_value`
-  returned `Error: Failed to start daemon`. `leta grep` and `leta show` still
-  produced bounded symbol results, so branch-local verification used those
-  commands plus exact file inspection.
+  first succeeded, but later `leta files src` and
+  `leta refs rewrite_text_value` returned `Error: Failed to start daemon`.
+  `leta grep` and `leta show` still produced bounded symbol results, so
+  branch-local verification used those commands plus exact file inspection.
 - `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-1`
   returned `Error: IO error: Read-only file system (os error 30)` in this
   implementation session, and subsequent `leta grep` and `leta show` returned
   `Error: Failed to start daemon`.
 - `goose run --recipe /home/leynos/.config/goose/recipes/scrutineer.yaml`
   could not be combined with either `--text` or `--instructions` in this Goose
-  CLI, so the requested `scrutineer` delegation could not be parameterized.
-  The implementation session ran the same sequential gates directly and
-  captured tee logs under `/tmp`.
+  CLI, so the requested `scrutineer` delegation could not be parameterized. The
+  implementation session ran the same sequential gates directly and captured
+  tee logs under `/tmp`.
 - `coderabbit review --agent` was attempted for work item 1 after
   deterministic gates passed. It printed only review context and
   `connecting_to_review_service`, then remained silent until interrupted.
@@ -242,61 +233,54 @@ approved by the controlling workflow.
   unresolved dependency references to remain separate classification paths. A
   result enum such as `DependencyReferenceClassification` lets tests assert
   `Reference(anchor)`, `InvalidDependencyToken`, and `NotDependencyReference`
-  separately while still providing a single predicate entry point.
-  Date/Author: 2026-07-01, planning agent.
+  separately while still providing a single predicate entry point. Date/Author:
+  2026-07-01, planning agent.
 
 - Decision: keep the predicate internal to
-  `src/roadmap/ops/dependency_text.rs` for this task.
-  Rationale: the developers' guide keeps public APIs small, and the current
-  affected surface is the internal rewrite scanner. Later tasks can promote
-  the classifier if another module needs it.
-  Date/Author: 2026-07-01, planning agent.
+  `src/roadmap/ops/dependency_text.rs` for this task. Rationale: the
+  developers' guide keeps public APIs small, and the current affected surface
+  is the internal rewrite scanner. Later tasks can promote the classifier if
+  another module needs it. Date/Author: 2026-07-01, planning agent.
 
 - Decision: do not add a regex or parser dependency.
   Rationale: the existing scanner already consumes ASCII digit and dot tokens
   with byte-boundary helpers, `parse_anchor` already validates canonical
   positive anchor components, and AGENTS.md requires dependency minimality and
-  caret hygiene.
-  Date/Author: 2026-07-01, planning agent.
+  caret hygiene. Date/Author: 2026-07-01, planning agent.
 
 - Decision: unresolved valid dependency references remain unchanged in task
-  1.1.1.
-  Rationale: `docs/mapsplice-design.md` section 7 says an unresolved
+  1.1.1. Rationale: `docs/mapsplice-design.md` section 7 says an unresolved
   dependency reference is left unchanged, and `docs/roadmap.md` task 1.1.1
   explicitly uses `Requires 99.1.1` as the valid unresolved example.
   Date/Author: 2026-07-01, planning agent.
 
 - Decision: use the new classifier from `rewrite_text_value` in work item 1
   while keeping unresolved valid references as `DanglingDependency` until work
-  item 2.
-  Rationale: the focused tests passed with the classifier unused, but Clippy
-  would reject the resulting dead code. Routing through the classifier removes
-  dead-code warnings without changing the unresolved-reference behaviour that
-  work item 2 specifies with a red behavioural test.
+  item 2. Rationale: the focused tests passed with the classifier unused, but
+  Clippy would reject the resulting dead code. Routing through the classifier
+  removes dead-code warnings without changing the unresolved-reference
+  behaviour that work item 2 specifies with a red behavioural test.
   Date/Author: 2026-07-01T11:24Z, implementation agent.
 
 - Decision: preserve valid dependency references when neither source-specific
-  nor unique renumber-plan mappings exist.
-  Rationale: this matches `docs/mapsplice-design.md` section 7 and
-  `docs/roadmap.md` task 1.1.1. The existing `DanglingDependency` type remains
-  available for a later task that reintroduces unresolved-reference reporting
-  with the documented predicate semantics.
-  Date/Author: 2026-07-01T11:52Z, implementation agent.
+  nor unique renumber-plan mappings exist. Rationale: this matches
+  `docs/mapsplice-design.md` section 7 and `docs/roadmap.md` task 1.1.1. The
+  existing `DanglingDependency` type remains available for a later task that
+  reintroduces unresolved-reference reporting with the documented predicate
+  semantics. Date/Author: 2026-07-01T11:52Z, implementation agent.
 
 - Decision: narrow the private `rewrite_text_value` return type and its only
-  caller in `src/roadmap/ops/rewrite.rs`.
-  Rationale: preserving valid unmapped references removed the last error path
-  from `rewrite_text_value`, and `make all` failed Clippy's
-  `unnecessary_wraps` lint. This is a private helper signature, not a public
-  API change, and it keeps lint policy intact without suppressions.
-  Date/Author: 2026-07-01T11:52Z, implementation agent.
+  caller in `src/roadmap/ops/rewrite.rs`. Rationale: preserving valid unmapped
+  references removed the last error path from `rewrite_text_value`, and
+  `make all` failed Clippy's `unnecessary_wraps` lint. This is a private helper
+  signature, not a public API change, and it keeps lint policy intact without
+  suppressions. Date/Author: 2026-07-01T11:52Z, implementation agent.
 
 - Decision: pin external-library behaviour to local registry source plus tests
-  for this plan revision.
-  Rationale: Firecrawl was cancelled by the MCP host, and direct `curl` could
-  not resolve `docs.rs`. Local source is available for the locked resolved
-  crates, and the plan requires compile, unit, behavioural, and property tests
-  to prove every relied-on behaviour in the branch.
+  for this plan revision. Rationale: Firecrawl was cancelled by the MCP host,
+  and direct `curl` could not resolve `docs.rs`. Local source is available for
+  the locked resolved crates, and the plan requires compile, unit, behavioural,
+  and property tests to prove every relied-on behaviour in the branch.
   Date/Author: 2026-07-01, planning agent.
 
 ## Context and orientation
@@ -350,43 +334,43 @@ dependency rewrites and token preservation around rewritten prose.
 ## External library evidence
 
 This task must not lean on unverified library behaviour. Official docs could
-not be scraped in this planning session: Firecrawl returned `user cancelled MCP
-tool call` for the three docs.rs pages, and direct `curl -L --max-time 30`
-returned `curl: (6) Could not resolve host: docs.rs`. Therefore this plan pins
-load-bearing library behaviour to local registry source for the locked
-resolved crates and requires tests to prove each branch.
+not be scraped in this planning session: Firecrawl returned
+`user cancelled MCP tool call` for the three docs.rs pages, and direct
+`curl -L --max-time 30` returned `curl: (6) Could not resolve host: docs.rs`.
+Therefore this plan pins load-bearing library behaviour to local registry
+source for the locked resolved crates and requires tests to prove each branch.
 
 - `markdown = "1.0.0"` is locked as `markdown v1.0.0`.
   Local registry source at
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/mdast.rs`
   lines 168-221 defines `markdown::mdast::Node` and the `Text(Text)` variant.
-  Lines 835-841 define `Text { pub value: String, pub position:
-  Option<Position> }`. This supports continuing to rewrite only
-  `Node::Text` values in `rewrite_node`; `make all` and the behavioural tests
-  pin the crate integration.
+  Lines 835-841 define
+  `Text { pub value: String, pub position: Option<Position> }`. This supports
+  continuing to rewrite only `Node::Text` values in `rewrite_node`; `make all`
+  and the behavioural tests pin the crate integration.
 - `rstest = "0.26.1"` is locked as `rstest v0.26.1`.
   Local registry source at
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rstest-0.26.1/src/lib.rs`
   lines 704-763 documents `#[rstest]` with `#[case]` table tests producing
   independent test cases. Lines 799-818 document named cases such as
-  `#[case::zero_base_case(...)]`. Line 1563 re-exports the `rstest` macro.
-  Work item 1 pins this with compiling named classifier cases.
+  `#[case::zero_base_case(...)]`. Line 1563 re-exports the `rstest` macro. Work
+  item 1 pins this with compiling named classifier cases.
 - `Cargo.toml` declares `proptest = "1.9.0"`, but the caret requirement
-  resolves in `Cargo.lock` and `cargo tree -i proptest` to
-  `proptest v1.11.0`. Local registry source at
+  resolves in `Cargo.lock` and `cargo tree -i proptest` to `proptest v1.11.0`.
+  Local registry source at
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proptest-1.11.0/src/sugar.rs`
   lines 12-21 documents `proptest!` functions with inputs generated from
   strategies. Lines 77-94 document `#![proptest_config(...)]`. Lines 748-806
-  define `prop_assert!` and `prop_assert_eq!` to return
-  `TestCaseError::fail` rather than panic. Work item 3 pins this with property
-  tests using generated inputs and `prop_assert!` or `prop_assert_eq!`.
+  define `prop_assert!` and `prop_assert_eq!` to return `TestCaseError::fail`
+  rather than panic. Work item 3 pins this with property tests using generated
+  inputs and `prop_assert!` or `prop_assert_eq!`.
 
 ## Plan of work
 
 ### Work item 1: Add red classifier tests, then introduce the predicate
 
-Docs to read before editing: `docs/mapsplice-design.md` sections 6, 7, 8, and
-9; `docs/roadmap.md` task 1.1.1; `docs/developers-guide.md` section 6;
+Docs to read before editing: `docs/mapsplice-design.md` sections 6, 7, 8, and 9;
+`docs/roadmap.md` task 1.1.1; `docs/developers-guide.md` section 6;
 `docs/users-guide.md`, "The roadmap shape `mapsplice` expects"; `AGENTS.md`
 Rust Specific Guidance and Testing; and `docs/execplans/initial-tool.md`
 section 4.
@@ -463,8 +447,8 @@ make all 2>&1 | tee /tmp/make-all-wi1-mapsplice-roadmap-1-1-1.out
 Expected result: the first focused command fails after the tests are added and
 before the classifier exists, the second focused command passes after the
 classifier is implemented, the Markdown commands touch only this plan, and all
-repository gates exit with status 0. Commit this work item only after the
-green state and gates.
+repository gates exit with status 0. Commit this work item only after the green
+state and gates.
 
 ### Work item 2: Route rewriting through the classifier and preserve valid unresolved references
 
@@ -472,8 +456,8 @@ Docs to read before editing: `docs/mapsplice-design.md` section 7 resolution
 rules; `docs/roadmap.md` task 1.1.1; `docs/developers-guide.md` section 6;
 `AGENTS.md` Error Handling; and `docs/execplans/initial-tool.md` section 4.
 
-Skills to load: `leta`, `memtrace-first`, `sem`, `rust-router`,
-`rust-errors`, `rust-types-and-apis`, and `rust-unit-testing`.
+Skills to load: `leta`, `memtrace-first`, `sem`, `rust-router`, `rust-errors`,
+`rust-types-and-apis`, and `rust-unit-testing`.
 
 Implementation steps:
 
@@ -535,10 +519,9 @@ make all 2>&1 | tee /tmp/make-all-wi2-mapsplice-roadmap-1-1-1.out
 ```
 
 Expected result: the red `roadmap_ops` command fails before the production
-change for the unresolved-reference expectation, the green command passes
-after implementation, the classifier-focused command still passes, the
-Markdown commands touch only this plan, and all repository gates exit with
-status 0.
+change for the unresolved-reference expectation, the green command passes after
+implementation, the classifier-focused command still passes, the Markdown
+commands touch only this plan, and all repository gates exit with status 0.
 
 ### Work item 3: Add generated preservation coverage for adversarial tokens
 
@@ -608,8 +591,7 @@ repository gates exit with status 0.
 
 Docs to read before editing: `docs/roadmap.md` task 1.1.1,
 `docs/mapsplice-design.md` section 7, `docs/developers-guide.md` section 6,
-`docs/documentation-style-guide.md`, and `AGENTS.md` Documentation
-Maintenance.
+`docs/documentation-style-guide.md`, and `AGENTS.md` Documentation Maintenance.
 
 Skills to load: `en-gb-oxendict-style` and `execplans`. If any Rustdoc example
 is added or changed, also load `rust-router` and `rust-unit-testing`.
@@ -664,8 +646,7 @@ Expected result: all three commands exit with status 0.
 
 ## Concrete steps
 
-Run all commands from
-`/home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-1`.
+Run all commands from `/home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-1`.
 
 Before any implementation edit:
 

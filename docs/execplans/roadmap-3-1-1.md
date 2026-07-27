@@ -1,20 +1,19 @@
 # Assemble grammar-surface and per-contract golden fixtures
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
 ## Purpose / big picture
 
-Roadmap task 3.1.1 is complete when `mapsplice` has a committed
-golden-fixture corpus that proves the supported roadmap grammar surface,
-supported edit operations, and every fidelity or contract guarantee that can be
-shown by deterministic examples. A maintainer should be able to inspect a
-fixture directory, run the focused golden test, and see raw Markdown bytes or
-typed failure outcomes compared exactly.
+Roadmap task 3.1.1 is complete when `mapsplice` has a committed golden-fixture
+corpus that proves the supported roadmap grammar surface, supported edit
+operations, and every fidelity or contract guarantee that can be shown by
+deterministic examples. A maintainer should be able to inspect a fixture
+directory, run the focused golden test, and see raw Markdown bytes or typed
+failure outcomes compared exactly.
 
 This is the first planning-round draft for task 3.1.1. It does not begin
 fixture implementation. Branch-local evidence shows that `origin/main` already
@@ -38,8 +37,8 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 - Keep prose, comments, fixture text, and commit messages in en-GB Oxford
   spelling.
 - Use Memtrace first for canonical main-branch code search and graph context
-  when the MCP server accepts calls. If it rejects or cancels a call, record the
-  exact result and continue with bounded branch-local evidence.
+  when the MCP server accepts calls. If it rejects or cancels a call, record
+  the exact result and continue with bounded branch-local evidence.
 - Use `leta` for branch-local symbol navigation when it works. If it cannot
   start or add the workspace, record the exact failure and fall back to precise
   file inspection for this task.
@@ -126,8 +125,7 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 ## Progress
 
 - [x] (2026-07-02T06:06:18Z) Confirmed the assigned worktree and branch:
-  `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1` on
-  `roadmap-3-1-1`.
+  `/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1` on `roadmap-3-1-1`.
 - [x] (2026-07-02T06:06:18Z) Loaded the required planning, navigation, Rust,
   CLI and prose skills used in this round: `execplans`, `leta`, `sem`,
   `memtrace-first`, `firecrawl-mcp`, `rust-router`, `rust-unit-testing`,
@@ -143,21 +141,20 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 - [x] (2026-07-02T06:06:18Z) Rewrote this ExecPlan as a clean first-round
   DRAFT.
 - [x] (2026-07-02T10:10:00Z) Work item 1: formatted the ExecPlan, ran
-  `make all`, `make markdownlint`, and `make nixie` with tee logs under
-  `/tmp`, recorded the unavailable `scrutineer` and deferred CodeRabbit
-  results, and prepared the plan handoff commit.
+  `make all`, `make markdownlint`, and `make nixie` with tee logs under `/tmp`,
+  recorded the unavailable `scrutineer` and deferred CodeRabbit results, and
+  prepared the plan handoff commit.
 - [x] (2026-07-02T10:27:00Z) Work item 2: added eight golden cases for F1,
   F2, F3/C5, F4, C2, C3, and C4 coverage. The red focused run failed only
-  because the new fixture files were absent; after adding fixtures, the
-  focused golden suite passed with 31 tests, the F4 copied-file formatter diff
-  was empty, and `make all`, `make markdownlint`, and `make nixie` passed.
+  because the new fixture files were absent; after adding fixtures, the focused
+  golden suite passed with 31 tests, the F4 copied-file formatter diff was
+  empty, and `make all`, `make markdownlint`, and `make nixie` passed.
 - [x] (2026-07-02T11:11:00Z) Work item 3: added C6 stdout and in-place
   success fixtures, F5 invalid-roadmap, level-mismatch, and missing-anchor
   failure fixtures, and the compiled-binary missing-anchor `--in-place` BDD
   scenario. The red focused run failed only for the absent new fixtures; after
   adding them, the focused golden suite passed with 36 tests, the focused BDD
-  scenario passed, and `make all`, `make markdownlint`, and `make nixie`
-  passed.
+  scenario passed, and `make all`, `make markdownlint`, and `make nixie` passed.
 - [x] (2026-07-02T11:45:00Z) Work item 4: marked only roadmap task 3.1.1
   complete, ran the completion gates, and recorded final evidence. `make all`
   and `make markdownlint` passed; plain `make nixie` hit an unchanged
@@ -187,31 +184,29 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
   supports typed failure expectations for dangling dependencies, level
   mismatches, and missing anchors.
 - `scrutineer` could not start for the work item 1 gate pass because its fixed
-  model quota was exhausted: `You've hit your usage limit for
+  model quota was exhausted:
+  `You've hit your usage limit for
   GPT-5.3-Codex-Spark. Switch to another model now, or try again at Jul 7th,
-  2026 12:20 PM.` The same deterministic gates were run locally with the
-  planned tee logs.
+  2026 12:20 PM.`
+  The same deterministic gates were run locally with the planned tee logs.
 - CodeRabbit review for work item 1 was deferred by the local wrapper with
-  `deferred coderabbit review: no default network route visible in this
-  sandbox`. This is an open review issue for the supervisor rather than a
-  deterministic gate failure.
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+  This is an open review issue for the supervisor rather than a deterministic
+  gate failure.
 - CodeRabbit review for work item 2 returned the same deferred status:
-  `deferred coderabbit review: no default network route visible in this
-  sandbox`. The deterministic gates passed; the review remains an open
-  supervisor issue.
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+  The deterministic gates passed; the review remains an open supervisor issue.
 - CodeRabbit review for work item 3 returned the same deferred status:
-  `deferred coderabbit review: no default network route visible in this
-  sandbox`. The deterministic gates passed; the review remains an open
-  supervisor issue.
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+  The deterministic gates passed; the review remains an open supervisor issue.
 - Plain `make nixie` for work item 4 timed out while rendering an unchanged
   Mermaid diagram in `docs/rstest-bdd-users-guide.md`. The same diagram passed
   when validated directly, and the documented serial recovery
   `NIXIE='nixie --max-concurrency 1' make nixie` then passed for the full
   repository.
 - CodeRabbit review for work item 4 returned the same deferred status:
-  `deferred coderabbit review: no default network route visible in this
-  sandbox`. The deterministic gates passed; the review remains an open
-  supervisor issue.
+  `deferred coderabbit review: no default network route visible in this sandbox`.
+  The deterministic gates passed; the review remains an open supervisor issue.
 
 ## Decision Log
 
@@ -245,8 +240,8 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
 - Decision: Prove process-level stdout and stderr semantics for fail-closed
   `--in-place` errors through the compiled-binary BDD harness. Rationale: the
   golden harness observes `run_from_args` results and target bytes, while the
-  BDD harness observes real process stdout and stderr. Date/Author:
-  2026-07-02 / Codex.
+  BDD harness observes real process stdout and stderr. Date/Author: 2026-07-02
+  / Codex.
 
 - Decision: Continue work item execution after the `scrutineer` quota failure
   by running the exact deterministic gates locally. Rationale: the delegated
@@ -259,8 +254,7 @@ Roadmap task 3.1.2's generated no-op round-trip property and roadmap task
   places a preamble list before another preamble block needs an extra separator
   that the Markdown fixer collapses. Splitting the constructs keeps the
   rendered fixture representative, golden-comparable, and stable under
-  `mdtablefix` plus `markdownlint-cli2 --fix`. Date/Author: 2026-07-02 /
-  Codex.
+  `mdtablefix` plus `markdownlint-cli2 --fix`. Date/Author: 2026-07-02 / Codex.
 
 - Decision: Move the contract golden tests into
   `tests/roadmap_golden/contracts.rs` while keeping the original operation and
@@ -304,8 +298,8 @@ round-trip property and rendered-output gate sweep.
 a roadmap model, applying one structural operation, renumbering affected items,
 rewriting dependency references, and rendering Markdown. The source of truth
 for command semantics and accepted grammar is `docs/users-guide.md`; the source
-of truth for fidelity guarantees, contract guarantees, and fixture
-requirements is `docs/mapsplice-design.md`.
+of truth for fidelity guarantees, contract guarantees, and fixture requirements
+is `docs/mapsplice-design.md`.
 
 Read these documents before implementation:
 
@@ -314,9 +308,9 @@ Read these documents before implementation:
 - `docs/roadmap.md`: section 3, especially task 3.1.1 and the boundaries with
   tasks 3.1.2 and 3.1.3.
 - `docs/mapsplice-design.md`: sections 2, 4, 5, 6, 7, 8, and 9.
-- `docs/users-guide.md`: `The roadmap shape mapsplice expects`, `Command
-  overview`, `Command details`, `Output modes`, and `Validation rules and
-  failure cases`.
+- `docs/users-guide.md`: `The roadmap shape mapsplice expects`,
+  `Command overview`, `Command details`, `Output modes`, and
+  `Validation rules and failure cases`.
 - `docs/developers-guide.md`: sections 1, 2, 3, 6, and 7.
 - `docs/contributing.md`: `Development gates`.
 - `docs/documentation-style-guide.md`: `Spelling`, `Markdown rules`, and
@@ -410,9 +404,8 @@ work items:
   `phase_step_task_surface`, `multi_line_task_body`, `nested_bullets`,
   `tables_preserved`, `code_blocks_preserved`, and `addendum_body_surface`.
 - Existing C3 reference-rewrite adversarial fixtures and tests:
-  `section_reference`, `version_quantity`,
-  `section_reference_outside_requires`, `substring_non_match`, and
-  `multi_id_requires`.
+  `section_reference`, `version_quantity`, `section_reference_outside_requires`,
+  `substring_non_match`, and `multi_id_requires`.
 
 An implementer must not recreate these cases. If a later gate exposes a defect
 in one of them, fix that defect in the smallest related work item and record
@@ -422,10 +415,11 @@ the reason in `Decision Log`.
 
 ### Work item 1: Format, gate, review, and commit this ExecPlan revision
 
-This item implements `AGENTS.md` `Plans`, `Commands`, `Change Quality &
-Committing`, and `Markdown Guidance`; `docs/developers-guide.md` section 7;
-`docs/contributing.md` `Development gates`; and the `execplans` approval gate.
-It exists solely to keep the approved plan edit out of later fixture commits.
+This item implements `AGENTS.md` `Plans`, `Commands`,
+`Change Quality & Committing`, and `Markdown Guidance`;
+`docs/developers-guide.md` section 7; `docs/contributing.md`
+`Development gates`; and the `execplans` approval gate. It exists solely to
+keep the approved plan edit out of later fixture commits.
 
 Skills to load: `execplans`, `sem`, and `en-gb-oxendict-style`.
 
@@ -453,8 +447,8 @@ git status --short
 
 Run `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` only if plain
 `make nixie` fails solely with an unchanged-document timeout. Commit only after
-plain `make nixie` or the serial recovery passes and `git status --short`
-shows only the intended ExecPlan change before staging.
+plain `make nixie` or the serial recovery passes and `git status --short` shows
+only the intended ExecPlan change before staging.
 
 ### Work item 2: Add remaining per-contract fidelity and reference fixtures
 
@@ -476,7 +470,8 @@ adversarial classes. Add or register only the missing cases below:
   the addressed edit, deterministic renumbering, and dependency-reference
   rewrites.
 - `f3_c5_identity_replace/` replaces a task with byte-identical task Markdown
-  and proves byte-identical stdout through `SuccessOutput::OriginalTargetStdout`.
+  and proves byte-identical stdout through
+  `SuccessOutput::OriginalTargetStdout`.
 - `f4_formatter_stability_smoke/` uses a rendered output that includes a table,
   nested list, code block, and final newline. Its golden test proves rendered
   stdout equals `expected.md`; the validation command below copies that
@@ -529,8 +524,8 @@ sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-contracts.out
 
 Run `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` only if plain
 `make nixie` fails solely with an unchanged-document timeout. Commit only after
-all focused tests, formatters, `make all`, `make markdownlint`, and either
-plain `make nixie` or the serial recovery pass.
+all focused tests, formatters, `make all`, `make markdownlint`, and either plain
+`make nixie` or the serial recovery pass.
 
 ### Work item 3: Add output-mode and fail-closed fixtures
 
@@ -604,15 +599,15 @@ sem diff --format json 2>&1 | tee /tmp/sem-mapsplice-roadmap-3-1-1-output-failur
 
 Run `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` only if plain
 `make nixie` fails solely with an unchanged-document timeout. Commit only after
-all focused tests, formatters, `make all`, `make markdownlint`, and either
-plain `make nixie` or the serial recovery pass.
+all focused tests, formatters, `make all`, `make markdownlint`, and either plain
+`make nixie` or the serial recovery pass.
 
 ### Work item 4: Mark roadmap task 3.1.1 complete
 
 This item implements the documentation completion for `docs/roadmap.md` task
-3.1.1 after work items 1-3 have passed. It follows `AGENTS.md` `Documentation
-Maintenance`, `AGENTS.md` `Markdown Guidance`, and `docs/developers-guide.md`
-section 7.
+3.1.1 after work items 1-3 have passed. It follows `AGENTS.md`
+`Documentation Maintenance`, `AGENTS.md` `Markdown Guidance`, and
+`docs/developers-guide.md` section 7.
 
 Skills to load: `execplans`, `sem`, and `en-gb-oxendict-style`.
 
@@ -714,8 +709,8 @@ The final acceptance criteria for roadmap task 3.1.1 are:
   make nixie 2>&1 | tee /tmp/nixie-mapsplice-roadmap-3-1-1-final.out
   ```
 
-  Run `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` only if
-  plain `make nixie` fails solely with an unchanged-document timeout.
+  Run `NIXIE='nixie --no-sandbox --max-concurrency 1' make nixie` only if plain
+  `make nixie` fails solely with an unchanged-document timeout.
 
 ## Idempotence and recovery
 
@@ -782,32 +777,32 @@ pub(crate) enum GoldenExpectation {
 
 Do not introduce new dependencies. Use the locked versions already present in
 `Cargo.lock`: `markdown 1.0.0`, `rstest 0.26.1`, `rstest-bdd 0.5.0`,
-`rstest-bdd-macros 0.5.0`, `proptest 1.11.0`, and `insta 1.48.0`. Do not add
-new `insta` snapshots for this task.
+`rstest-bdd-macros 0.5.0`, `proptest 1.11.0`, and `insta 1.48.0`. Do not add new
+`insta` snapshots for this task.
 
 ## Revision note
 
 2026-07-02 operator recovery: aligned `docs/roadmap.md` addendum checkboxes
 with the completed addendum work, corrected the active branch/worktree guards
 for `roadmap-3-1-1-addendum`, and reran the adoption evidence from the addendum
-worktree. Fresh gates passed: `make all`,
-`make markdownlint`, `make nixie`, `git diff --check`, and
-`coderabbit review --agent` with zero findings.
+worktree. Fresh gates passed: `make all`, `make markdownlint`, `make nixie`,
+`git diff --check`, and `coderabbit review --agent` with zero findings.
 
 2026-07-02 addendum pass: `mcp__memtrace.list_indexed_repositories` returned
 `user cancelled MCP tool call`, so branch-local verification proceeded with
 Leta, `sem`, and bounded file inspection as permitted by the addendum rules.
 `leta workspace add
-/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1-addendum` succeeded;
-`leta files tests/` returned `Error: Failed to start daemon`, while targeted
-`leta grep` and `leta show` symbol navigation worked.
+/home/leynos/Projects/mapsplice.worktrees/roadmap-3-1-1-addendum`
+succeeded; `leta files tests/` returned `Error: Failed to start daemon`, while
+targeted `leta grep` and `leta show` symbol navigation worked.
 
-2026-07-02 addendum 3.1.1.1 execution: documented the exact fixture
-end-of-file whitespace policy in `docs/mapsplice-design.md`, formatted only
-the touched Markdown files, ran `make all`, `make markdownlint`, and
-`make nixie` successfully, and attempted CodeRabbit review. The configured
-review helper deferred with `deferred coderabbit review: no default network
-route visible in this sandbox`. The `scrutineer` sub-agent was unavailable:
+2026-07-02 addendum 3.1.1.1 execution: documented the exact fixture end-of-file
+whitespace policy in `docs/mapsplice-design.md`, formatted only the touched
+Markdown files, ran `make all`, `make markdownlint`, and `make nixie`
+successfully, and attempted CodeRabbit review. The configured review helper
+deferred with
+`deferred coderabbit review: no default network route visible in this sandbox`.
+The `scrutineer` sub-agent was unavailable:
 `You've hit your usage limit for GPT-5.3-Codex-Spark. Switch to another model
 now, or try again at Jul 7th, 2026 12:20 PM.`
 
@@ -816,14 +811,14 @@ construction into `tests/golden/case.rs`, preserving named golden tests in
 `tests/roadmap_golden.rs` and `tests/roadmap_golden/contracts.rs`. Focused
 `cargo test --workspace --all-targets --all-features --test roadmap_golden`
 passed, `make all` passed, and CodeRabbit review again deferred with
-`deferred coderabbit review: no default network route visible in this
-sandbox`. Later Leta reference queries returned `Error: Failed to start
-daemon`; the change used earlier successful `leta grep` and `leta show`
-results plus bounded file inspection.
+`deferred coderabbit review: no default network route visible in this sandbox`.
+Later Leta reference queries returned `Error: Failed to start daemon`; the
+change used earlier successful `leta grep` and `leta show` results plus bounded
+file inspection.
 
-2026-07-02 work item 1 execution: moved the plan to `IN PROGRESS`, recorded
-the successful deterministic gate evidence, noted the unavailable `scrutineer`
-and deferred CodeRabbit review, and marked the plan handoff work item complete.
+2026-07-02 work item 1 execution: moved the plan to `IN PROGRESS`, recorded the
+successful deterministic gate evidence, noted the unavailable `scrutineer` and
+deferred CodeRabbit review, and marked the plan handoff work item complete.
 
 2026-07-02 work item 2 execution: added eight per-contract golden cases,
 recorded red and green fixture evidence, documented the F4 fixture layout
@@ -836,8 +831,8 @@ split contract tests into `tests/roadmap_golden/contracts.rs`, and noted that
 CodeRabbit review was deferred by the sandbox network state.
 
 2026-07-02 work item 4 execution: marked roadmap task 3.1.1 complete, recorded
-final gate evidence including the successful serial `nixie` recovery, and
-noted that CodeRabbit review was deferred by the sandbox network state.
+final gate evidence including the successful serial `nixie` recovery, and noted
+that CodeRabbit review was deferred by the sandbox network state.
 
 2026-07-02 planning round 1: reset the plan to `DRAFT`, removed prior
 implementation-session status from the plan narrative, and preserved only

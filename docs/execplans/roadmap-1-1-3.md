@@ -1,9 +1,8 @@
 # Pin corruption cases with regression fixtures
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -20,8 +19,8 @@ input-to-expected output comparisons pass, then running the repository gates.
 This plan covers only roadmap task 1.1.3, "Pin the corruption cases with
 regression fixtures." It must not change the dependency-reference semantics
 unless a new fixture exposes a still-valid bug. If a production fix is needed,
-it must be the smallest fix required by the failing fixture and must stay inside
-the reference-rewrite seam already established by tasks 1.1.1 and 1.1.2.
+it must be the smallest fix required by the failing fixture and must stay
+inside the reference-rewrite seam already established by tasks 1.1.1 and 1.1.2.
 
 ## Context and orientation
 
@@ -55,8 +54,7 @@ The documented source of truth is:
   rewrite divergence.
 - `docs/developers-guide.md` sections 2, 3, 6, and 7. Section 6 says
   dependency-reference rewrite coverage is layered around
-  `classify_dependency_reference` in
-  `src/roadmap/ops/dependency_text.rs`.
+  `classify_dependency_reference` in `src/roadmap/ops/dependency_text.rs`.
 - `docs/users-guide.md` sections "The roadmap shape `mapsplice` expects",
   "Worked example", "Output modes", and "Validation rules and failure cases".
 - `docs/documentation-style-guide.md` sections "Spelling", "Markdown rules",
@@ -110,26 +108,27 @@ Error: Failed to start daemon
 
 During the round 2 revision, retrying the combined command
 `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-3
-&& leta files | head -n 200` failed earlier with:
+&& leta files | head -n 200`
+failed earlier with:
 
 ```plaintext
 Error: IO error: Read-only file system (os error 30)
 ```
 
-This is a tooling failure, not a product blocker. At implementation start,
-retry `leta files`, `leta show`, `leta refs`, and `leta calls` for the
-load-bearing symbols above. If the daemon still fails, record the exact failure
-in this plan and use bounded file inspection.
+This is a tooling failure, not a product blocker. At implementation start, retry
+`leta files`, `leta show`, `leta refs`, and `leta calls` for the load-bearing
+symbols above. If the daemon still fails, record the exact failure in this plan
+and use bounded file inspection.
 
 Semantic history was available. `sem log rewrite_text_value --limit 8` showed
 `rewrite_text_value` first appearing in commit `59ed7fb` and later modified in
 commit `7685640`. `sem log classify_dependency_reference --limit 8` showed
 `classify_dependency_reference` added in commit `7685640`. Branch-local
-`git log --oneline --max-count=8` showed `04dba76 Scope dependency reference
-rewrites` at `HEAD` / `origin/main`. For historical context only,
-`git show 59ed7fb:src/roadmap/ops/dependency_text.rs` showed the old
-`rewrite_text_value` returning `Result<(String, u64)>` and raising
-`MapspliceError::DanglingDependency` when an anchor-shaped token in a
+`git log --oneline --max-count=8` showed
+`04dba76 Scope dependency reference rewrites` at `HEAD` / `origin/main`. For
+historical context only, `git show 59ed7fb:src/roadmap/ops/dependency_text.rs`
+showed the old `rewrite_text_value` returning `Result<(String, u64)>` and
+raising `MapspliceError::DanglingDependency` when an anchor-shaped token in a
 `Requires` clause resolved to no mapping. Do not reintroduce that behaviour.
 
 Firecrawl was required for external documentation research, but the attempted
@@ -159,10 +158,10 @@ verified APIs:
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/lib.rs`
   lines 140-164 define `to_mdast(value, options) -> Result<Node, Message>` and
   describe it as turning Markdown into a syntax tree. Local source
-  `markdown-1.0.0/src/mdast.rs` lines 827-842 defines `Text { value:
-  String, position: Option<Position> }`. Therefore fixture tests should
-  exercise the public CLI or existing parse/render boundary, not raw-string
-  replacement.
+  `markdown-1.0.0/src/mdast.rs` lines 827-842 defines
+  `Text { value: String, position: Option<Position> }`. Therefore fixture tests
+  should exercise the public CLI or existing parse/render boundary, not
+  raw-string replacement.
 - `rstest` is locked to `0.26.1`. Local source
   `rstest-0.26.1/src/lib.rs` lines 20-27 says `#[rstest]` supports fixtures,
   input tables and values, and `#[fixture]` marks fixture functions; lines
@@ -171,23 +170,23 @@ verified APIs:
   commands in this plan require exact Cargo test names, so the golden harness
   must use `#[rstest]` fixture injection on standalone test functions named
   exactly after the fixture cases, with a shared private helper for the common
-  logic. Do not put the golden fixture cases behind one parameterized
-  `#[case]` function unless the implementer first records the generated names
-  from `cargo test --test roadmap_golden -- --list` and updates every focused
+  logic. Do not put the golden fixture cases behind one parameterized `#[case]`
+  function unless the implementer first records the generated names from
+  `cargo test --test roadmap_golden -- --list` and updates every focused
   command to those exact generated names.
 - `proptest` is locked to `1.11.0` in `Cargo.lock`, while `Cargo.toml` uses the
   caret requirement `proptest = "1.9.0"`. Local source
   `proptest-1.11.0/src/prelude.rs` lines 23-30 re-exports `Strategy`,
-  `ProptestConfig`, `prop_assert`, `prop_assert_eq`, and `proptest`.
-  Therefore generated preservation tests may continue using the existing
-  `proptest::prelude::*` style, but this task's primary artefact must be
-  named golden fixtures.
+  `ProptestConfig`, `prop_assert`, `prop_assert_eq`, and `proptest`. Therefore
+  generated preservation tests may continue using the existing
+  `proptest::prelude::*` style, but this task's primary artefact must be named
+  golden fixtures.
 - `rstest-bdd` and `rstest-bdd-macros` are locked to `0.5.0`. The docs.rs page
   <https://docs.rs/rstest-bdd/0.5.0/rstest_bdd/> describes `rstest-bdd` as
   exposing helper utilities and the global step registry. Local source
   `rstest-bdd-macros-0.5.0/src/lib.rs` lines 56-140 defines the `#[given]`,
-  `#[when]`, `#[then]`, and `#[scenario]` attribute macros and scenario selector
-  semantics. Therefore any BDD coverage should follow the existing
+  `#[when]`, `#[then]`, and `#[scenario]` attribute macros and scenario
+  selector semantics. Therefore any BDD coverage should follow the existing
   `tests/features/mapsplice.feature` and `tests/steps/cli_steps.rs` pattern.
 
 ## Constraints
@@ -279,102 +278,93 @@ verified APIs:
 
 - Observation: Memtrace was unavailable in planning.
   Evidence: `mcp__memtrace.list_indexed_repositories({})` returned
-  `user cancelled MCP tool call`.
-  Impact: the plan requires a retry, but uses bounded local evidence as the
-  fallback.
+  `user cancelled MCP tool call`. Impact: the plan requires a retry, but uses
+  bounded local evidence as the fallback.
 - Observation: Leta workspace registration succeeded, but the daemon failed
-  when listing files.
-  Evidence: `leta files` returned `Error: Failed to start daemon`.
-  Impact: the plan requires a retry, but allows precise file inspection if the
-  daemon remains unavailable.
+  when listing files. Evidence: `leta files` returned
+  `Error: Failed to start daemon`. Impact: the plan requires a retry, but
+  allows precise file inspection if the daemon remains unavailable.
 - Observation: the round 2 Leta retry failed before listing files because the
-  tool attempted to write in a read-only filesystem location.
-  Evidence: `leta workspace add
+  tool attempted to write in a read-only filesystem location. Evidence:
+  `leta workspace add
   /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-3 && leta files | head
-  -n 200` returned `Error: IO error: Read-only file system (os error 30)`.
-  Impact: this remains an advisory-tool failure and not a product blocker.
+  -n 200`
+  returned `Error: IO error: Read-only file system (os error 30)`. Impact:
+  this remains an advisory-tool failure and not a product blocker.
 - Observation: task 1.1.2 is already at `HEAD` / `origin/main`.
-  Evidence: `git log --oneline --max-count=8` showed `04dba76 Scope dependency
-  reference rewrites` at `HEAD`.
-  Impact: new correct fixtures may pass immediately on current code; the red
-  proof should first use a deliberately wrong expected output.
+  Evidence: `git log --oneline --max-count=8` showed
+  `04dba76 Scope dependency reference rewrites` at `HEAD`. Impact: new correct
+  fixtures may pass immediately on current code; the red proof should first use
+  a deliberately wrong expected output.
 - Observation: design review round 2 found that exact Cargo filters are unsafe
   with one parameterized `#[rstest]` golden test because generated case names
-  do not equal plain fixture names such as `section_reference`.
-  Evidence: the review noted `cargo test --test roadmap_golden -- <case>
-  --exact` could run zero tests if the harness used named `#[case]` values.
-  Impact: this plan now requires standalone exact test functions for the
-  golden cases.
+  do not equal plain fixture names such as `section_reference`. Evidence: the
+  review noted `cargo test --test roadmap_golden -- <case> --exact` could run
+  zero tests if the harness used named `#[case]` values. Impact: this plan now
+  requires standalone exact test functions for the golden cases.
 - Observation: design review round 2 confirmed that
-  `tests/features/mapsplice.feature` is not Markdown.
-  Evidence: direct verification against the feature file failed Markdown rules
-  MD041 and MD013.
+  `tests/features/mapsplice.feature` is not Markdown. Evidence: direct
+  verification against the feature file failed Markdown rules MD041 and MD013.
   Impact: this plan validates Gherkin through the BDD test path and repository
   gates, not direct Markdown formatter or linter commands.
 - Observation: implementation retry of Memtrace failed before repository
-  discovery.
-  Evidence: `mcp__memtrace.list_indexed_repositories({})` returned
-  `user cancelled MCP tool call`.
-  Impact: work item 1 used bounded branch-local inspection and `sem` history
-  evidence rather than Memtrace graph context.
+  discovery. Evidence: `mcp__memtrace.list_indexed_repositories({})` returned
+  `user cancelled MCP tool call`. Impact: work item 1 used bounded branch-local
+  inspection and `sem` history evidence rather than Memtrace graph context.
 - Observation: implementation retry of Leta failed before branch-local file
-  listing.
-  Evidence: `leta workspace add
+  listing. Evidence:
+  `leta workspace add
   /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-3 && leta files | head
-  -n 240` returned `Error: IO error: Read-only file system (os error 30)`.
-  Impact: work item 1 used precise file inspection after recording the
-  advisory-tool failure.
+  -n 240`
+  returned `Error: IO error: Read-only file system (os error 30)`. Impact:
+  work item 1 used precise file inspection after recording the advisory-tool
+  failure.
 - Observation: the checked-in Markdown expected fixture carries the normal
-  storage newline, while `mapsplice` renders standard-output roadmaps without
-  a final newline.
-  Evidence: the red check for `section_reference` showed the rendered output
-  ended at `Requires §2.1, 1.1.1.` while the file-backed expected string had a
-  trailing line feed.
-  Impact: the golden harness removes one storage final line feed from expected
-  fixtures before comparing the rendered stdout bytes.
+  storage newline, while `mapsplice` renders standard-output roadmaps without a
+  final newline. Evidence: the red check for `section_reference` showed the
+  rendered output ended at `Requires §2.1, 1.1.1.` while the file-backed
+  expected string had a trailing line feed. Impact: the golden harness removes
+  one storage final line feed from expected fixtures before comparing the
+  rendered stdout bytes.
 - Observation: CodeRabbit did not complete for work item 1.
   Evidence: `coderabbit review --agent` reported
   `connecting_to_review_service`, then the second attempt exited with status
-  124 after a 90-second timeout and produced no file-level findings.
-  Impact: AI review for this work item is deferred as an open tooling issue;
-  deterministic gates are green.
+  124 after a 90-second timeout and produced no file-level findings. Impact: AI
+  review for this work item is deferred as an open tooling issue; deterministic
+  gates are green.
 - Observation: CodeRabbit did not complete for work item 2.
   Evidence: `coderabbit review --agent` again stopped at
   `connecting_to_review_service` and timed out after 120 seconds without a
-  review payload.
-  Impact: AI review for this work item is deferred as the same open tooling
-  issue; deterministic gates are green.
+  review payload. Impact: AI review for this work item is deferred as the same
+  open tooling issue; deterministic gates are green.
 - Observation: CodeRabbit did not complete for work item 3.
   Evidence: `coderabbit review --agent` stopped at
   `connecting_to_review_service` and timed out after 120 seconds without a
-  review payload.
-  Impact: AI review for this work item is deferred as the same open tooling
-  issue; deterministic gates are green.
+  review payload. Impact: AI review for this work item is deferred as the same
+  open tooling issue; deterministic gates are green.
 - Observation: CodeRabbit did not complete for work item 4.
   Evidence: `coderabbit review --agent` stopped at
   `connecting_to_review_service` and timed out after 30 seconds without a
-  review payload.
-  Impact: AI review for this work item is deferred as the same open tooling
-  issue; deterministic gates are green.
+  review payload. Impact: AI review for this work item is deferred as the same
+  open tooling issue; deterministic gates are green.
 - Observation: post-update `make nixie` retries timed out on untouched guide
-  diagrams after work item 4.
-  Evidence: `/tmp/nixie-mapsplice-roadmap-1-1-3-work-item-4-rerun.out`
-  timed out on `docs/ortho-config-users-guide.md` diagram 1,
+  diagrams after work item 4. Evidence:
+  `/tmp/nixie-mapsplice-roadmap-1-1-3-work-item-4-rerun.out` timed out on
+  `docs/ortho-config-users-guide.md` diagram 1,
   `/tmp/nixie-mapsplice-roadmap-1-1-3-work-item-4-serial.out` timed out on
   `docs/documentation-style-guide.md` diagram 1 even with
   `NIXIE='nixie --max-concurrency 1'`, and
-  `/tmp/nixie-mapsplice-roadmap-1-1-3-work-item-4-mmdc.out` failed because
-  the alternate `mmdc` renderer could not launch its browser process.
-  Impact: the work item changed no guide diagrams; the touched ExecPlan file
-  passed `nixie --no-sandbox docs/execplans/roadmap-1-1-3.md`, so the
-  remaining full-repository Nixie failure is tracked as an unrelated renderer
-  environment issue.
+  `/tmp/nixie-mapsplice-roadmap-1-1-3-work-item-4-mmdc.out` failed because the
+  alternate `mmdc` renderer could not launch its browser process. Impact: the
+  work item changed no guide diagrams; the touched ExecPlan file passed
+  `nixie --no-sandbox docs/execplans/roadmap-1-1-3.md`, so the remaining
+  full-repository Nixie failure is tracked as an unrelated renderer environment
+  issue.
 - Observation: CodeRabbit did not complete for work item 5.
   Evidence: `/tmp/coderabbit-mapsplice-roadmap-1-1-3-final.out` stopped at
   `connecting_to_review_service` and timed out after 120 seconds with exit
-  status 124.
-  Impact: final AI review is deferred as the same open tooling issue; final
-  deterministic gates are green.
+  status 124. Impact: final AI review is deferred as the same open tooling
+  issue; final deterministic gates are green.
 
 ## Decision log
 
@@ -389,21 +379,20 @@ verified APIs:
   Date/Author: 2026-07-01 / planning agent.
 - Decision: keep `proptest` as a backstop, not the primary deliverable.
   Rationale: roadmap task 1.1.3 asks for regression fixtures; generated tests
-  cannot replace named corruption examples.
-  Date/Author: 2026-07-01 / planning agent.
+  cannot replace named corruption examples. Date/Author: 2026-07-01 / planning
+  agent.
 - Decision: use standalone golden test function names instead of a single
-  parameterized `#[rstest]` case table for the fixture corpus.
-  Rationale: Cargo's `--exact` filter must match the generated test name. The
-  design review found that `#[case]` names such as `section_reference` are not
+  parameterized `#[rstest]` case table for the fixture corpus. Rationale:
+  Cargo's `--exact` filter must match the generated test name. The design
+  review found that `#[case]` names such as `section_reference` are not
   guaranteed to be the full exact test names, so standalone functions named
   `section_reference`, `version_quantity`, `substring_non_match`, and
-  `multi_id_requires` are the safer, reviewable command contract.
-  Date/Author: 2026-07-01 / planning agent.
+  `multi_id_requires` are the safer, reviewable command contract. Date/Author:
+  2026-07-01 / planning agent.
 - Decision: do not run Markdown formatters or Markdown linters directly on
-  `tests/features/mapsplice.feature`.
-  Rationale: it is a Gherkin file and currently fails Markdown-only rules; its
-  syntax and behaviour are validated through `cargo test --test behaviour_cli`
-  and the repository gates.
+  `tests/features/mapsplice.feature`. Rationale: it is a Gherkin file and
+  currently fails Markdown-only rules; its syntax and behaviour are validated
+  through `cargo test --test behaviour_cli` and the repository gates.
   Date/Author: 2026-07-01 / planning agent.
 - Decision: keep expected fixtures as Markdown files with the house final
   newline and remove exactly one trailing line feed in the comparison helper.
@@ -416,9 +405,9 @@ verified APIs:
 ### Work item 1: Introduce the exact golden-fixture harness
 
 Read before editing: `AGENTS.md` "Rust Specific Guidance" and "Testing";
-`docs/mapsplice-design.md` sections 5, 6, 7, and 8;
-`docs/developers-guide.md` sections 2 and 6; `docs/users-guide.md` "Worked
-example"; `docs/rust-testing-with-rstest-fixtures.md` sections 1 and 2.
+`docs/mapsplice-design.md` sections 5, 6, 7, and 8; `docs/developers-guide.md`
+sections 2 and 6; `docs/users-guide.md` "Worked example";
+`docs/rust-testing-with-rstest-fixtures.md` sections 1 and 2.
 
 Load skills: `leta`, `rust-router`, `rust-unit-testing`, and
 `en-gb-oxendict-style`. Use the `sem` skill for entity-level history if a
@@ -493,9 +482,8 @@ Commit once the worktree contains only this work item and gates pass.
 ### Work item 2: Add incidental-number preservation fixtures
 
 Read before editing: `docs/mapsplice-design.md` sections 5, 6, 7, and 8,
-especially the fixture-class rows for section-reference and version /
-quantity preservation; `docs/developers-guide.md` section 6; and
-`AGENTS.md` "Testing".
+especially the fixture-class rows for section-reference and version / quantity
+preservation; `docs/developers-guide.md` section 6; and `AGENTS.md` "Testing".
 
 Load skills: `rust-router`, `rust-unit-testing`, and `rust-verification`.
 `proptest` does not need new generated cases unless the named fixtures expose
@@ -508,9 +496,9 @@ Add exact fixture pairs for:
 
 The input should include `Released 1.4.0`, a prose quantity such as `Count 27`,
 and a mapped `Requires 2.1.1` in the same task text. Deleting phase 1 must
-preserve `1.4.0` and `27` while rewriting the dependency to `1.1.1`.
-Add this as a standalone `#[rstest]` test function named exactly
-`version_quantity`, delegating to the same private helper as work item 1.
+preserve `1.4.0` and `27` while rewriting the dependency to `1.1.1`. Add this
+as a standalone `#[rstest]` test function named exactly `version_quantity`,
+delegating to the same private helper as work item 1.
 
 If work item 1 did not use `§2.1` outside a `Requires` clause, add a second
 small pair:
@@ -518,10 +506,10 @@ small pair:
 - `section_reference_outside_requires.input.md`
 - `section_reference_outside_requires.expected.md`
 
-That fixture should prove a design-document section reference in ordinary
-prose survives when a nearby dependency reference is rewritten.
-If this optional pair is added, add it as a standalone `#[rstest]` test
-function named exactly `section_reference_outside_requires`.
+That fixture should prove a design-document section reference in ordinary prose
+survives when a nearby dependency reference is rewritten. If this optional pair
+is added, add it as a standalone `#[rstest]` test function named exactly
+`section_reference_outside_requires`.
 
 Red step: add each case with an intentionally wrong expected output first, run
 the focused test and confirm the exact diff fails, then correct the expected
@@ -578,10 +566,10 @@ paths in both direct formatter commands after the files exist.
 
 ### Work item 3: Add substring and multi-id `Requires` fixtures
 
-Read before editing: `docs/mapsplice-design.md` section 7's greedy
-anchor-token rule and section 8's fixture table; `docs/developers-guide.md`
-section 6; `src/roadmap/ops/dependency_text.rs` if production behaviour still
-needs verification.
+Read before editing: `docs/mapsplice-design.md` section 7's greedy anchor-token
+rule and section 8's fixture table; `docs/developers-guide.md` section 6;
+`src/roadmap/ops/dependency_text.rs` if production behaviour still needs
+verification.
 
 Load skills: `rust-router`, `rust-unit-testing`, and `rust-errors` only if a
 fixture exposes an error-boundary bug.
@@ -675,16 +663,16 @@ Scenario: Delete preserves adversarial reference text while rewriting Requires d
 
 Add matching step definitions in `tests/steps/cli_steps.rs` using the same
 small text as the golden fixtures or by reading the fixture input if that keeps
-the code clearer without adding brittle path assumptions.
-Bind the scenario in `tests/behaviour_cli.rs` with a standalone scenario test
-function named `delete_preserves_adversarial_reference_text`, matching the
-focused filter below.
+the code clearer without adding brittle path assumptions. Bind the scenario in
+`tests/behaviour_cli.rs` with a standalone scenario test function named
+`delete_preserves_adversarial_reference_text`, matching the focused filter
+below.
 
 If the existing property tests do not already cover all generated invalid and
-incidental token families, add one small property in `tests/roadmap_properties.rs`
-that uses generated section/version/prose tokens beside a mapped `Requires`
-reference. Do not use rejection-heavy strategies; construct only valid token
-shapes.
+incidental token families, add one small property in
+`tests/roadmap_properties.rs` that uses generated section/version/prose tokens
+beside a mapped `Requires` reference. Do not use rejection-heavy strategies;
+construct only valid token shapes.
 
 Focused validation:
 
@@ -722,8 +710,8 @@ and "Formatting"; this ExecPlan's `Progress`, `Surprises & Discoveries`,
 `Decision Log`, and `Outcomes & Retrospective`.
 
 Load skills: `en-gb-oxendict-style` and `execplans`. Update this ExecPlan to
-record the implemented fixture paths, commands run, and gate outcomes. Then
-mark `docs/roadmap.md` task 1.1.3 as complete only after all fixture tests and
+record the implemented fixture paths, commands run, and gate outcomes. Then mark
+`docs/roadmap.md` task 1.1.3 as complete only after all fixture tests and
 repository gates pass.
 
 Formatting and final validation:
@@ -744,8 +732,7 @@ possible.
 
 ## Concrete steps
 
-All commands run from
-`/home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-3`.
+All commands run from `/home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-3`.
 
 1. Confirm branch and worktree:
 
@@ -865,8 +852,8 @@ cargo test --test roadmap_golden -- section_reference --exact \
 ```
 
 The deterministic work-item gates passed after replacing panicking assertions
-and `std::fs` fixture reads with fallible result handling and
-capability-scoped file access:
+and `std::fs` fixture reads with fallible result handling and capability-scoped
+file access:
 
 ```bash
 set -o pipefail
@@ -882,9 +869,8 @@ review process did not progress past service connection and timed out on a
 retry. This remains an open review issue for the supervisor rather than a
 fixture implementation failure.
 
-Work item 2 added `version_quantity.input.md` /
-`version_quantity.expected.md` and the optional
-`section_reference_outside_requires.input.md` /
+Work item 2 added `version_quantity.input.md` / `version_quantity.expected.md`
+and the optional `section_reference_outside_requires.input.md` /
 `section_reference_outside_requires.expected.md` fixture pairs. Both red checks
 first kept the old `Requires 2.1.1` dependency in the expected file and failed
 with a stdout diff; the corrected fixtures passed with:
@@ -913,9 +899,9 @@ make nixie | tee /tmp/nixie-mapsplice-roadmap-1-1-3-work-item-2.out
 service and produced no file-level findings.
 
 Work item 4 added one compiled-binary BDD scenario,
-`delete_preserves_adversarial_reference_text`, plus matching `Given` and
-`Then` step definitions. The red check first added only the scenario binding
-and feature text; it failed with `Step not found` for
+`delete_preserves_adversarial_reference_text`, plus matching `Given` and `Then`
+step definitions. The red check first added only the scenario binding and
+feature text; it failed with `Step not found` for
 `Given the target roadmap with adversarial reference text`. After adding the
 step definitions, the focused BDD scenario and the existing generated
 incidental-token property passed:
@@ -955,8 +941,8 @@ diff; recovery on top of `4.1.2` kept this golden fixture focused on invalid
 boundary text with `2.1.1a`, while the behavioural backstop covers the valid
 sub-task case by proving `2.1.1.1` rewrites to `1.1.1.1` as a unit. The
 multi-id red check first left the second moved dependency stale and failed with
-a stdout diff; the corrected fixture rewrites both `Requires` ids exactly
-once. The focused tests passed with:
+a stdout diff; the corrected fixture rewrites both `Requires` ids exactly once.
+The focused tests passed with:
 
 ```bash
 set -o pipefail
@@ -983,8 +969,7 @@ service and produced no file-level findings.
 
 Work item 5 marked `docs/roadmap.md` task 1.1.3 complete after the fixture
 corpus, BDD backstop, property backstop, and deterministic code gates were in
-place.
-Final deterministic validation passed with:
+place. Final deterministic validation passed with:
 
 ```bash
 set -o pipefail
@@ -1022,12 +1007,12 @@ coderabbit review --agent | tee /tmp/coderabbit-mapsplice-roadmap-1-1-3-final.ou
   deferred CodeRabbit review connectivity issue.
 - 2026-07-01: Work item 2 implementation update. The plan now records the
   version/quantity fixture, the ordinary-prose section-reference fixture, their
-  red/green focused tests, deterministic gate results, and repeated
-  CodeRabbit connection timeout.
+  red/green focused tests, deterministic gate results, and repeated CodeRabbit
+  connection timeout.
 - 2026-07-01: Work item 3 implementation update. The plan now records the
   substring non-match fixture, multi-id `Requires` fixture, their red/green
-  focused tests, deterministic gate results, and repeated CodeRabbit
-  connection timeout.
+  focused tests, deterministic gate results, and repeated CodeRabbit connection
+  timeout.
 - 2026-07-01: Work item 4 implementation update. The plan now records the BDD
   scenario backstop, matching step definitions, focused BDD/property test
   evidence, deterministic gate results, and repeated CodeRabbit connection

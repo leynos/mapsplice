@@ -1,9 +1,8 @@
 # Represent addendum sub-tasks in the roadmap model
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: DRAFT
 
@@ -22,8 +21,8 @@ current visible tests include structural sub-task tests and order assertions,
 but `tests/roadmap_render.rs::render_preserves_task_body_and_sub_task_order`
 only checks containment/order and its expected marker contains escaped
 `sub\-task`, so it does not prove source-byte identity. This plan therefore
-makes an exact nested sub-task round-trip fixture a blocking audit result. If no
-existing exact fixture proves the behaviour, the implementer must record red
+makes an exact nested sub-task round-trip fixture a blocking audit result. If
+no existing exact fixture proves the behaviour, the implementer must record red
 evidence in this ExecPlan, then land the smallest regression test and any
 required implementation fix together in one green, gated commit.
 
@@ -85,54 +84,44 @@ required implementation fix together in one green, gated commit.
 ## Risks
 
 - Risk: The roadmap task text may be partly behind the implementation, so a
-  stale plan could ask for duplicate model work.
-  Severity: high.
-  Likelihood: already observed.
-  Mitigation: work item 1 starts with `sem`, Memtrace when available, and
-  `leta` evidence proving the current model surface before any code edit.
+  stale plan could ask for duplicate model work. Severity: high. Likelihood:
+  already observed. Mitigation: work item 1 starts with `sem`, Memtrace when
+  available, and `leta` evidence proving the current model surface before any
+  code edit.
 
 - Risk: The code may expose sub-task symbols but still fail the exact
-  byte-identity success condition.
-  Severity: high.
-  Likelihood: high, because current visible tests assert containment/order and
-  include escaped `sub\-task` expected strings.
-  Mitigation: work item 1 requires an exact existing fixture or explicit red
-  evidence, and work item 2 combines the missing regression and fix in one
-  green commit if needed.
+  byte-identity success condition. Severity: high. Likelihood: high, because
+  current visible tests assert containment/order and include escaped
+  `sub\-task` expected strings. Mitigation: work item 1 requires an exact
+  existing fixture or explicit red evidence, and work item 2 combines the
+  missing regression and fix in one green commit if needed.
 
 - Risk: Public documentation remains inconsistent after the code accepts
-  fourth-level anchors.
-  Severity: high.
-  Likelihood: high.
-  Mitigation: work item 3 updates `docs/developers-guide.md`,
-  `docs/users-guide.md`, `docs/mapsplice-design.md`, and `docs/roadmap.md`
-  after exact behaviour is proven.
+  fourth-level anchors. Severity: high. Likelihood: high. Mitigation: work item
+  3 updates `docs/developers-guide.md`, `docs/users-guide.md`,
+  `docs/mapsplice-design.md`, and `docs/roadmap.md` after exact behaviour is
+  proven.
 
 - Risk: A documentation update could accidentally claim that roadmap tasks
-  2.1.2 or 2.1.3 are complete.
-  Severity: medium.
-  Likelihood: medium.
+  2.1.2 or 2.1.3 are complete. Severity: medium. Likelihood: medium.
   Mitigation: mark or describe only 2.1.1 unless a separate audited task
   explicitly authorizes later roadmap items.
 
 - Risk: Memtrace, Firecrawl, or `leta` daemons can be unavailable in the
-  sandbox.
-  Severity: medium.
-  Likelihood: observed.
-  Mitigation: record failures with command transcripts and use locked local
-  source, official docs URLs, `sem`, bounded file inspection, exact text search,
-  and repository gates as fallback evidence.
+  sandbox. Severity: medium. Likelihood: observed. Mitigation: record failures
+  with command transcripts and use locked local source, official docs URLs,
+  `sem`, bounded file inspection, exact text search, and repository gates as
+  fallback evidence.
 
 ## Progress
 
 - [x] (2026-06-30) Read `AGENTS.md` and confirmed the branch is
-  `roadmap-2-1-1`, so this plan belongs at
-  `docs/execplans/roadmap-2-1-1.md`.
+  `roadmap-2-1-1`, so this plan belongs at `docs/execplans/roadmap-2-1-1.md`.
 - [x] (2026-06-30) Loaded `execplans`, `leta`, `rust-router`, `sem`,
   `firecrawl-mcp`, and `en-gb-oxendict-style` for this planning pass.
 - [x] (2026-06-30) Read the existing round-2 plan and the visible source docs:
-  `docs/roadmap.md`, `docs/mapsplice-design.md`,
-  `docs/developers-guide.md`, `docs/users-guide.md`, and `Makefile`.
+  `docs/roadmap.md`, `docs/mapsplice-design.md`, `docs/developers-guide.md`,
+  `docs/users-guide.md`, and `Makefile`.
 - [x] (2026-06-30) Verified that `docs/roadmap.md` task 2.1.1 success requires
   first-class sub-task items and source-byte-identical render output for nested
   `8.2.3.1`-style items.
@@ -140,8 +129,8 @@ required implementation fix together in one green, gated commit.
   sub-task tests but do not, from inspection alone, prove exact no-op nested
   sub-task round-trip identity.
 - [x] (2026-06-30) Work item 1 audited the model surface and test evidence:
-  first-class sub-task model support exists, but no exact nested sub-task
-  no-op fixture exists yet.
+  first-class sub-task model support exists, but no exact nested sub-task no-op
+  fixture exists yet.
 - [x] (2026-06-30) Work item 2 added the exact nested sub-task no-op fixture
   and fixed renderer spacing, continuation indentation, and plain hyphen
   escaping so the fixture passes.
@@ -157,9 +146,9 @@ required implementation fix together in one green, gated commit.
   rendering them byte-identically to the source.
 - `tests/roadmap_render.rs::render_preserves_task_body_and_sub_task_order`
   asserts that body text and a nested sub-task marker appear in order after an
-  append command, but it does not assert the full no-op output equals the input.
-  Its expected marker is `Nested sub\\-task`, which is evidence that renderer
-  escaping may differ from source bytes.
+  append command, but it does not assert the full no-op output equals the
+  input. Its expected marker is `Nested sub\\-task`, which is evidence that
+  renderer escaping may differ from source bytes.
 - `tests/roadmap_sub_tasks.rs` covers structural parsing, renumbering,
   dependency rewriting, deletion, and malformed nested-list rejection, but the
   visible assertions are containment checks rather than exact no-op fixture
@@ -187,11 +176,11 @@ required implementation fix together in one green, gated commit.
   graph context was unavailable for work item 1.
 - `leta workspace add` was retried with `LETA_HOME` and `XDG_DATA_HOME` under
   `/tmp`, but still failed with `Read-only file system (os error 30)`.
-  Branch-local verification therefore used bounded inspection of the named
-  Rust files plus focused tests.
+  Branch-local verification therefore used bounded inspection of the named Rust
+  files plus focused tests.
 - `sem diff --from origin/main --to HEAD --format json` reported only the
-  added ExecPlan before implementation; no pre-existing semantic code delta
-  was present.
+  added ExecPlan before implementation; no pre-existing semantic code delta was
+  present.
 - `TaskEntry` owns ordered first-class `SubTaskEntry` values through
   `sub_tasks: Vec<SubTaskEntry>` and preserves interleaved task body/sub-task
   order through `children: Vec<TaskChild>`.
@@ -214,9 +203,9 @@ required implementation fix together in one green, gated commit.
   `connecting_to_review_service` and no review result. This is recorded as a
   deferred review issue rather than code feedback.
 - Work item 2 red evidence:
-  `roadmap::render::tests::exact_nested_sub_task_round_trip` failed because
-  the renderer emitted `Body before.` without task indentation, inserted a
-  blank line before the nested sub-task, and escaped `Nested sub-task` as
+  `roadmap::render::tests::exact_nested_sub_task_round_trip` failed because the
+  renderer emitted `Body before.` without task indentation, inserted a blank
+  line before the nested sub-task, and escaped `Nested sub-task` as
   `Nested sub\\-task`.
 - The exact fixture belongs in `src/roadmap/render.rs` because the public API
   exports parsing but not a no-op render helper. Keeping the test inside the
@@ -251,8 +240,7 @@ required implementation fix together in one green, gated commit.
   unrelated environment/tool timeout rather than a sub-task model regression.
 - Work item 2 CodeRabbit review was attempted once, but the CLI again remained
   at `connecting_to_review_service` and produced no review result or actionable
-  findings:
-  `/tmp/scrutineer-coderabbit-wi2-mapsplice-roadmap-2-1-1.out`.
+  findings: `/tmp/scrutineer-coderabbit-wi2-mapsplice-roadmap-2-1-1.out`.
 - Work item 3 updates `docs/developers-guide.md` and `docs/users-guide.md` to
   document fourth-level addendum sub-task anchors, updates
   `docs/mapsplice-design.md` to remove the stale D2 "Addenda not modelled"
@@ -263,8 +251,7 @@ required implementation fix together in one green, gated commit.
   `/tmp/scrutineer-nixie-wi3-mapsplice-roadmap-2-1-1.out`.
 - Work item 3 CodeRabbit review was attempted once, but the CLI again remained
   at `connecting_to_review_service` and produced no review result or actionable
-  findings:
-  `/tmp/scrutineer-coderabbit-wi3-mapsplice-roadmap-2-1-1.out`.
+  findings: `/tmp/scrutineer-coderabbit-wi3-mapsplice-roadmap-2-1-1.out`.
 - After recording the work item 3 CodeRabbit outcome, `make all` and
   `make markdownlint` passed via scrutineer again. `make nixie` then hit
   intermittent timeouts in untouched Mermaid diagrams before passing on a
@@ -278,30 +265,26 @@ required implementation fix together in one green, gated commit.
 - Decision: Treat exact nested sub-task round-trip identity as a blocking
   acceptance criterion, not an inferred consequence of symbol presence.
   Rationale: roadmap task 2.1.1 names byte-identical rendering as success, and
-  current visible tests do not prove that property.
-  Date/Author: 2026-06-30, planning agent.
+  current visible tests do not prove that property. Date/Author: 2026-06-30,
+  planning agent.
 
 - Decision: Do not include a standalone red-test commit.
   Rationale: the standing instruction forbids standalone committed red-test
   work items. If the audit finds no exact fixture, the plan records red
   evidence first, then combines the regression and implementation in one green,
-  gated commit.
-  Date/Author: 2026-06-30, planning agent.
+  gated commit. Date/Author: 2026-06-30, planning agent.
 
 - Decision: Put all final ExecPlan and roadmap status edits before path-scoped
   Markdown formatting and before `make all`, `make markdownlint`, and
-  `make nixie`.
-  Rationale: a status edit after final gates would be an ungated Markdown
-  change.
-  Date/Author: 2026-06-30, planning agent.
+  `make nixie`. Rationale: a status edit after final gates would be an ungated
+  Markdown change. Date/Author: 2026-06-30, planning agent.
 
 - Decision: Do not rely on `markdown 1.0.0` for source-byte-preserving render
-  output.
-  Rationale: the locked crate source confirms `markdown::to_mdast` parses into
-  mdast nodes and exposes list/list-item structure, but the project renderer is
-  responsible for emitted bytes. Any byte-identity claim must be pinned by an
-  exact fixture test, not by an assumption about the external parser.
-  Date/Author: 2026-06-30, planning agent.
+  output. Rationale: the locked crate source confirms `markdown::to_mdast`
+  parses into mdast nodes and exposes list/list-item structure, but the project
+  renderer is responsible for emitted bytes. Any byte-identity claim must be
+  pinned by an exact fixture test, not by an assumption about the external
+  parser. Date/Author: 2026-06-30, planning agent.
 
 - Decision: Proceed to work item 2.
   Rationale: work item 1 confirmed the first-class model surface but found no
@@ -313,21 +296,20 @@ required implementation fix together in one green, gated commit.
   Rationale: deterministic gates passed, CodeRabbit did not produce actionable
   review findings or a rate-limit wait time, and the only service output was a
   connection status. The unresolved review is tracked here and in the final
-  open issues list.
-  Date/Author: 2026-06-30, implementation agent.
+  open issues list. Date/Author: 2026-06-30, implementation agent.
 
 - Decision: Keep the exact no-op fixture as a renderer module unit test.
   Rationale: integration tests cannot call the internal renderer directly, and
   adding a public no-op render helper would broaden the library API for test
   evidence. The module unit test exercises `parse_roadmap` and `render_roadmap`
-  together while keeping the API unchanged.
-  Date/Author: 2026-06-30, implementation agent.
+  together while keeping the API unchanged. Date/Author: 2026-06-30,
+  implementation agent.
 
 - Decision: Stop escaping ordinary hyphens in rendered plain text.
   Rationale: source-byte fidelity requires `sub-task` to render as `sub-task`,
   not `sub\\-task`. Hyphens inside inline text are not list markers and do not
-  need escaping in the supported renderer context.
-  Date/Author: 2026-06-30, implementation agent.
+  need escaping in the supported renderer context. Date/Author: 2026-06-30,
+  implementation agent.
 
 ## Context and orientation
 
@@ -362,8 +344,9 @@ symbols by exact local inspection:
 The locked external parser dependency is `markdown 1.0.0` in `Cargo.lock`.
 Local source
 `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/lib.rs`
-defines `to_mdast(value: &str, options: &ParseOptions) -> Result<mdast::Node,
-message::Message>`. Local source
+defines
+`to_mdast(value: &str, options: &ParseOptions) -> Result<mdast::Node, message::Message>`.
+Local source
 `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/mdast.rs`
 defines `Node::List(List)`, `List { children, ordered, start, spread }`, and
 `ListItem { children, spread, checked }`. Official docs URLs to verify when
@@ -376,8 +359,8 @@ Firecrawl or browser access is available are
 ### Work item 1: Audit first-class sub-task model and exact round-trip proof
 
 Documentation to read: `AGENTS.md`; `docs/roadmap.md` task 2.1.1;
-`docs/mapsplice-design.md` sections 4, 6, 8, and 9;
-`docs/developers-guide.md` sections 2, 3, and 6; `docs/contributing.md`.
+`docs/mapsplice-design.md` sections 4, 6, 8, and 9; `docs/developers-guide.md`
+sections 2, 3, and 6; `docs/contributing.md`.
 
 Skills to load: `execplans`, `leta`, `sem`, `rust-router`,
 `rust-types-and-apis`, `rust-unit-testing`, `firecrawl-mcp`, and
@@ -465,9 +448,9 @@ Documentation to read: `AGENTS.md`; `docs/mapsplice-design.md` sections 5, 6,
 and 8; `docs/developers-guide.md` sections 2 and 6;
 `docs/rust-testing-with-rstest-fixtures.md`; `docs/contributing.md`.
 
-Skills to load: `execplans`, `leta`, `sem`, `rust-router`,
-`rust-unit-testing`, `rust-types-and-apis`, and `en-gb-oxendict-style`. If the
-fix touches renderer error handling, also load `rust-errors`.
+Skills to load: `execplans`, `leta`, `sem`, `rust-router`, `rust-unit-testing`,
+`rust-types-and-apis`, and `en-gb-oxendict-style`. If the fix touches renderer
+error handling, also load `rust-errors`.
 
 Skip this work item only if work item 1 identified and ran an existing exact
 nested sub-task no-op fixture. Otherwise, add the smallest exact regression.
@@ -488,10 +471,11 @@ The preferred shape is a named `rstest` in `tests/roadmap_render.rs` or
 ```
 
 The test must perform a no-op render path that exercises parser plus renderer
-and then assert `assert_eq!(rendered, source)`. If the current public API has no
-direct no-op render helper, use the narrowest existing CLI or library path that
-can prove a no-op render. If no such path exists, add a small test-only helper
-or public-neutral internal helper rather than broadening the CLI contract.
+and then assert `assert_eq!(rendered, source)`. If the current public API has
+no direct no-op render helper, use the narrowest existing CLI or library path
+that can prove a no-op render. If no such path exists, add a small test-only
+helper or public-neutral internal helper rather than broadening the CLI
+contract.
 
 Red evidence before implementation:
 
@@ -507,9 +491,9 @@ short failure excerpt in this ExecPlan before applying the implementation fix.
 Make the smallest code change required to satisfy the exact fixture. Likely
 surfaces, to be verified with `leta` and Memtrace before editing, are
 `src/roadmap/render.rs::render_task`, `src/roadmap/render.rs::render_sub_task`,
-and the parse/render value objects in `src/roadmap/model.rs`. Do not change
-the accepted grammar unless section 4 of the design document is wrong and the
-task is escalated.
+and the parse/render value objects in `src/roadmap/model.rs`. Do not change the
+accepted grammar unless section 4 of the design document is wrong and the task
+is escalated.
 
 Green and commit gates:
 
@@ -542,8 +526,8 @@ Skills to load: `execplans`, `sem`, `leta`, `code-review`,
 needed if this work item remains documentation-only.
 
 Update `docs/developers-guide.md` section 3 so `parse_anchor` is documented as
-accepting canonical positive anchors `8`, `8.2`, `8.2.3`, and `8.2.3.1`, and
-so the public API section mentions fourth-level sub-task anchors only to the
+accepting canonical positive anchors `8`, `8.2`, `8.2.3`, and `8.2.3.1`, and so
+the public API section mentions fourth-level sub-task anchors only to the
 extent the current exported API exposes them.
 
 Update `docs/users-guide.md` so the roadmap shape and anchor list describe
@@ -675,8 +659,8 @@ Locked-library research completed during planning:
   `mdast::Node`.
 - Local source
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markdown-1.0.0/src/mdast.rs`
-  defines `Node::List(List)`, `List` fields `children`, `ordered`, `start`,
-  and `spread`, and `ListItem` fields `children`, `spread`, and `checked`.
+  defines `Node::List(List)`, `List` fields `children`, `ordered`, `start`, and
+  `spread`, and `ListItem` fields `children`, `spread`, and `checked`.
 - Official docs to verify when web tooling is available:
   `https://docs.rs/markdown/1.0.0/markdown/fn.to_mdast.html` and
   `https://docs.rs/markdown/1.0.0/markdown/mdast/index.html`.
@@ -685,9 +669,10 @@ Branch-local evidence collected during planning:
 
 - `docs/roadmap.md` lines for task 2.1.1 require first-class sub-task items and
   byte-identical rendering.
-- `tests/roadmap_render.rs` contains `render_preserves_task_body_and_sub_task_order`,
-  which checks containment/order and expects escaped `sub\\-task`; it is not an
-  exact source-byte identity assertion.
+- `tests/roadmap_render.rs` contains
+  `render_preserves_task_body_and_sub_task_order`, which checks
+  containment/order and expects escaped `sub\\-task`; it is not an exact
+  source-byte identity assertion.
 - `tests/roadmap_sub_tasks.rs` contains structural parser, renumber, delete,
   dependency-rewrite, and malformed nested-list tests.
 - `docs/developers-guide.md`, `docs/users-guide.md`, and
@@ -703,8 +688,8 @@ fixture exercises a parser-plus-renderer no-op path and asserts byte-identical
 output for a nested fourth-level checklist item.
 
 Work item 2 filled that proof gap with
-`roadmap::render::tests::exact_nested_sub_task_round_trip`. The initial red
-run failed on task body indentation, extra blank spacing, and escaped hyphen
+`roadmap::render::tests::exact_nested_sub_task_round_trip`. The initial red run
+failed on task body indentation, extra blank spacing, and escaped hyphen
 output. The renderer now preserves the nested sub-task fixture byte-for-byte
 and the focused render and sub-task suites pass.
 

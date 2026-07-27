@@ -1,21 +1,20 @@
 # Fail Closed on Renderer Model-Invariant Breaches
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
 ## Purpose / Big Picture
 
-Roadmap task 4.1.4, "Fail closed on renderer model-invariant breaches",
-hardens the final rendering boundary without regressing supported sub-task
-operations. A parsed task stores addendum sub-tasks in two coordinated fields:
-`TaskEntry.sub_tasks` owns the `SubTaskEntry` values, and
-`TaskEntry.children` stores the original child order with
-`TaskChild::SubTask(ItemIdentity)` references. If a child reference points at a
-missing sub-task, the renderer currently omits it silently.
+Roadmap task 4.1.4, "Fail closed on renderer model-invariant breaches", hardens
+the final rendering boundary without regressing supported sub-task operations.
+A parsed task stores addendum sub-tasks in two coordinated fields:
+`TaskEntry.sub_tasks` owns the `SubTaskEntry` values, and `TaskEntry.children`
+stores the original child order with `TaskChild::SubTask(ItemIdentity)`
+references. If a child reference points at a missing sub-task, the renderer
+currently omits it silently.
 
 This plan must first repair the supported public operation that can create that
 inconsistency today: `mapsplice delete <4-level-anchor>` routes through
@@ -70,9 +69,9 @@ Observable success is:
   sub-task anchors are public, failed validation leaves in-place targets
   unchanged, and no roadmap body is emitted on failure.
 - Preserve the accepted initial-tool decisions in
-  `docs/execplans/initial-tool.md`: constrained roadmap grammar,
-  mdast-driven parsing, a roadmap intermediate representation, and a
-  deterministic renderer rather than a general Markdown writer.
+  `docs/execplans/initial-tool.md`: constrained roadmap grammar, mdast-driven
+  parsing, a roadmap intermediate representation, and a deterministic renderer
+  rather than a general Markdown writer.
 - Do not add external dependencies. Use the locked crates already in
   `Cargo.lock`.
 - Keep every Rust source file under 400 lines and keep module-level `//!`
@@ -105,8 +104,8 @@ Observable success is:
   file is needed, or if the net implementation exceeds 160 changed lines
   excluding living ExecPlan evidence.
 - Stop and escalate if preserving public sub-task delete semantics requires
-  changing `src/lib.rs::run_request`; the current source renders before
-  writing in-place.
+  changing `src/lib.rs::run_request`; the current source renders before writing
+  in-place.
 - Stop and escalate if a focused model, renderer, or golden test still fails
   for the same reason after three implementation attempts.
 - Stop and escalate if `make all` fails for an unrelated pre-existing issue
@@ -118,43 +117,35 @@ Observable success is:
 ## Risks
 
 - Risk: adding the renderer guard before fixing `delete_sub_task` would regress
-  a supported public operation.
-  Severity: high.
-  Likelihood: high if the order is changed.
-  Mitigation: Work Item 1 fixes `delete_sub_task` first and reruns the existing
-  public sub-task delete regression before Work Item 2 adds the renderer guard.
+  a supported public operation. Severity: high. Likelihood: high if the order
+  is changed. Mitigation: Work Item 1 fixes `delete_sub_task` first and reruns
+  the existing public sub-task delete regression before Work Item 2 adds the
+  renderer guard.
 
 - Risk: the model-consistency test could accidentally assert rendered output
-  instead of the in-memory invariant.
-  Severity: medium.
-  Likelihood: medium.
+  instead of the in-memory invariant. Severity: medium. Likelihood: medium.
   Mitigation: the red test must inspect `TaskEntry.children` and
   `TaskEntry.sub_tasks` after `apply_command`, before `render_roadmap` can mask
   the orphan.
 
 - Risk: a renderer unit test may construct an impossible public state after
-  Work Item 1.
-  Severity: low.
-  Likelihood: high by design.
-  Mitigation: document it as defence-in-depth coverage. Build the inconsistent
-  model by parsing valid input and then deleting only the `SubTaskEntry`; do
-  not claim the public CLI can still create this state after Work Item 1.
+  Work Item 1. Severity: low. Likelihood: high by design. Mitigation: document
+  it as defence-in-depth coverage. Build the inconsistent model by parsing
+  valid input and then deleting only the `SubTaskEntry`; do not claim the
+  public CLI can still create this state after Work Item 1.
 
 - Risk: the existing golden F5 in-place test could be mistaken for new
-  invariant coverage.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: Work Item 3 is verification only. It records that
-  `f5_render_failure_in_place` already uses an unsupported inline image to
-  trigger `InvalidRoadmap`, proving the public no-write/no-output contract but
-  not the private missing-child invariant.
+  invariant coverage. Severity: medium. Likelihood: medium. Mitigation: Work
+  Item 3 is verification only. It records that `f5_render_failure_in_place`
+  already uses an unsupported inline image to trigger `InvalidRoadmap`, proving
+  the public no-write/no-output contract but not the private missing-child
+  invariant.
 
 - Risk: advisory graph tooling may be unavailable in a sub-agent session.
-  Severity: low.
-  Likelihood: high.
-  Mitigation: this planning round records exact failures and pins the plan to
-  bounded local source windows, Leta where available, `sem diff`, and focused
-  tests. Implementers should retry Memtrace and Leta before editing.
+  Severity: low. Likelihood: high. Mitigation: this planning round records
+  exact failures and pins the plan to bounded local source windows, Leta where
+  available, `sem diff`, and focused tests. Implementers should retry Memtrace
+  and Leta before editing.
 
 ## Progress
 
@@ -181,8 +172,7 @@ Observable success is:
 - [x] (2026-07-02T17:17:37Z) Reviewed governing docs:
   `AGENTS.md`, `docs/mapsplice-design.md`, `docs/developers-guide.md`,
   `docs/users-guide.md`, `docs/roadmap.md`,
-  `docs/documentation-style-guide.md`, and
-  `docs/execplans/initial-tool.md`.
+  `docs/documentation-style-guide.md`, and `docs/execplans/initial-tool.md`.
 - [x] (2026-07-02T17:17:37Z) Verified the review blockers against current
   branch-local source and tests.
 - [x] (2026-07-02T17:17:37Z) Revised this plan for round 2.
@@ -219,10 +209,10 @@ Observable success is:
   network route; evidence is in
   `/tmp/coderabbit-renderer-invariant-mapsplice-roadmap-4-1-4.out`.
 - [x] (2026-07-02T17:43:35Z) Work Item 3 verified existing public in-place
-  render-failure coverage. `cargo test --test roadmap_golden
-  f5_render_failure_in_place` passed, confirming the existing
-  `InvalidRoadmap` render-failure fixture leaves the in-place target
-  unchanged without source or fixture edits.
+  render-failure coverage.
+  `cargo test --test roadmap_golden f5_render_failure_in_place` passed,
+  confirming the existing `InvalidRoadmap` render-failure fixture leaves the
+  in-place target unchanged without source or fixture edits.
 - [x] (2026-07-02T17:43:35Z) Scrutineer ran the Work Item 3 deterministic
   gate. `make all` passed with evidence in
   `/tmp/make-all-golden-verification-mapsplice-roadmap-4-1-4.out`.
@@ -231,8 +221,8 @@ Observable success is:
   network route; evidence is in
   `/tmp/coderabbit-golden-verification-mapsplice-roadmap-4-1-4.out`.
 - [x] (2026-07-02T17:46:00Z) Work Item 4 marked
-  `docs/roadmap.md` task 4.1.4 complete. Final validation, CodeRabbit
-  review, and close-out evidence were completed in this close-out round.
+  `docs/roadmap.md` task 4.1.4 complete. Final validation, CodeRabbit review,
+  and close-out evidence were completed in this close-out round.
 - [x] (2026-07-02T17:49:18Z) Final deterministic gates passed. `make all`
   passed in `/tmp/final-make-all-mapsplice-roadmap-4-1-4.out`,
   `make markdownlint` passed in
@@ -245,75 +235,71 @@ Observable success is:
 ## Surprises & Discoveries
 
 - Observation: Memtrace MCP tools were exposed but unusable in this host
-  session.
-  Evidence: `mcp__memtrace.list_indexed_repositories` returned
-  `user cancelled MCP tool call`.
-  Impact: Memtrace canonical main-branch graph context could not be used in
-  this planning round. The plan records a retry step before implementation and
-  uses bounded branch-local evidence for the draft.
+  session. Evidence: `mcp__memtrace.list_indexed_repositories` returned
+  `user cancelled MCP tool call`. Impact: Memtrace canonical main-branch graph
+  context could not be used in this planning round. The plan records a retry
+  step before implementation and uses bounded branch-local evidence for the
+  draft.
 
 - Observation: Firecrawl was exposed but unusable in this host session.
   Evidence: `mcp__firecrawl.firecrawl_scrape` for
   `https://docs.rs/thiserror/2.0.18/thiserror/` returned
-  `user cancelled MCP tool call`.
-  Impact: official web documentation could not be retrieved through
-  Firecrawl. This plan therefore avoids any new external-library behaviour and
-  cites local locked crate source for the already-used `thiserror` and
-  `rstest` APIs.
+  `user cancelled MCP tool call`. Impact: official web documentation could not
+  be retrieved through Firecrawl. This plan therefore avoids any new
+  external-library behaviour and cites local locked crate source for the
+  already-used `thiserror` and `rstest` APIs.
 
 - Observation: Leta direct symbol lookup worked, but a later reference/call
-  graph command failed.
-  Evidence: `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-4` succeeded, and
-  `leta show` returned source for key symbols; `leta refs delete_sub_task &&
+  graph command failed. Evidence:
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-4`
+  succeeded, and `leta show` returned source for key symbols;
+  `leta refs delete_sub_task &&
   leta refs render_task && leta calls --to delete_sub_task && leta calls --to
-  render_task` failed with `Error: Failed to start daemon`.
-  Impact: branch-local verification used successful Leta symbol output and
-  bounded source windows for exact line evidence.
+  render_task`
+  failed with `Error: Failed to start daemon`. Impact: branch-local
+  verification used successful Leta symbol output and bounded source windows
+  for exact line evidence.
 
 - Observation: the reviewer's primary blocker is valid in current source.
   Evidence: `src/roadmap/ops/sub_task.rs::delete_sub_task` lines 31-35 remove
   from `task.sub_tasks` only. `src/roadmap/ops/mod.rs::delete_anchor` lines
   194-217 routes `RoadmapAnchor::SubTask` to `delete_sub_task`. In contrast,
   `insert_sub_tasks` and `replace_sub_task` splice both `task.sub_tasks` and
-  `task.children`.
-  Impact: the first implementation item must fix `delete_sub_task`; otherwise
-  the renderer guard would break supported `mapsplice delete <sub-task>`.
+  `task.children`. Impact: the first implementation item must fix
+  `delete_sub_task`; otherwise the renderer guard would break supported
+  `mapsplice delete <sub-task>`.
 
 - Observation: the reviewer's secondary blocker is valid in current tests.
   Evidence: `tests/roadmap_golden/contracts.rs::f5_render_failure_in_place`
   already asserts `ExpectedError::InvalidRoadmap` and
   `FailureOutput::InPlaceTargetUnchanged`; the fixture target contains
-  `![unsupported](unsupported.png)`, which triggers render-time invalid
-  roadmap handling independently of the missing-child invariant.
-  Impact: the golden F5 case is verification, not new coverage, and this plan
-  no longer mandates a no-op commit for it.
+  `![unsupported](unsupported.png)`, which triggers render-time invalid roadmap
+  handling independently of the missing-child invariant. Impact: the golden F5
+  case is verification, not new coverage, and this plan no longer mandates a
+  no-op commit for it.
 
 - Observation: `sem diff --format json` reported a clean worktree before this
-  round-2 plan edit.
-  Evidence: the summary was `fileCount:0` and `total:0`.
+  round-2 plan edit. Evidence: the summary was `fileCount:0` and `total:0`.
   Impact: the plan revision started from a clean branch.
 
 - Observation: in the implementation session, Leta could not initialize the
-  worktree.
-  Evidence: `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-4` returned
-  `Error: IO error: Read-only file system (os error 30)`, and later
-  `leta show delete_sub_task` returned `Error: Failed to start daemon`.
-  Impact: branch-local verification used bounded source inspection and focused
-  tests, as permitted by the plan's advisory-tool fallback.
+  worktree. Evidence:
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-4`
+  returned `Error: IO error: Read-only file system (os error 30)`, and later
+  `leta show delete_sub_task` returned `Error: Failed to start daemon`. Impact:
+  branch-local verification used bounded source inspection and focused tests,
+  as permitted by the plan's advisory-tool fallback.
 
 - Observation: CodeRabbit could not run in this sandbox.
   Evidence: the review command returned
-  `deferred coderabbit review: no default network route visible in this
-  sandbox`.
+  `deferred coderabbit review: no default network route visible in this sandbox`.
   Impact: Work Items 1 through 4 have no actionable AI-review findings, but
   the deferred CodeRabbit reviews remain an open issue for a network-enabled
   supervisor or relaunch environment.
 
 - Observation: final Mermaid validation had one transient timeout on an
-  untouched document, then passed without edits.
-  Evidence: `/tmp/final-nixie-mapsplice-roadmap-4-1-4.out` timed out rendering
+  untouched document, then passed without edits. Evidence:
+  `/tmp/final-nixie-mapsplice-roadmap-4-1-4.out` timed out rendering
   `docs/ortho-config-users-guide.md` diagram 1. A focused retry, captured in
   `/tmp/final-nixie-retry-mapsplice-roadmap-4-1-4.out`, passed all diagrams.
   Impact: no out-of-scope documentation edit was made. The final gate state is
@@ -322,35 +308,31 @@ Observable success is:
 ## Decision Log
 
 - Decision: fix the public sub-task delete model inconsistency before adding
-  the renderer fail-closed guard.
-  Rationale: `docs/mapsplice-design.md` C1 and C4 plus `docs/users-guide.md`
-  document addendum sub-tasks as first-class, addressable items. Failing closed
-  in the renderer without fixing `delete_sub_task` would turn a supported
-  operation into `InvalidRoadmap`.
+  the renderer fail-closed guard. Rationale: `docs/mapsplice-design.md` C1 and
+  C4 plus `docs/users-guide.md` document addendum sub-tasks as first-class,
+  addressable items. Failing closed in the renderer without fixing
+  `delete_sub_task` would turn a supported operation into `InvalidRoadmap`.
   Date/Author: 2026-07-02, planning agent.
 
 - Decision: keep the renderer guard as defence-in-depth reachable through a
-  private unit test, not through the public CLI after Work Item 1.
-  Rationale: after `delete_sub_task` removes the matching child reference, the
+  private unit test, not through the public CLI after Work Item 1. Rationale:
+  after `delete_sub_task` removes the matching child reference, the
   missing-child inconsistency should no longer be reachable through normal
   `mapsplice delete <sub-task>`. The renderer still must fail closed if future
-  code constructs an inconsistent model.
-  Date/Author: 2026-07-02, planning agent.
+  code constructs an inconsistent model. Date/Author: 2026-07-02, planning
+  agent.
 
 - Decision: use `MapspliceError::InvalidRoadmap` for the renderer invariant
-  breach.
-  Rationale: `docs/developers-guide.md` section 3 requires typed public errors,
-  `src/error.rs` already exposes `InvalidRoadmap { message }`, and
+  breach. Rationale: `docs/developers-guide.md` section 3 requires typed public
+  errors, `src/error.rs` already exposes `InvalidRoadmap { message }`, and
   `rust-errors` favours typed recoverable errors over panics at library
-  boundaries.
-  Date/Author: 2026-07-02, planning agent.
+  boundaries. Date/Author: 2026-07-02, planning agent.
 
 - Decision: treat `f5_render_failure_in_place` as an existing public contract
-  verification checkpoint, not a required change.
-  Rationale: the test and fixture already exist and already assert the
-  in-place target remains unchanged on `InvalidRoadmap`. Requiring a commit
-  there would mislabel existing coverage as new work.
-  Date/Author: 2026-07-02, planning agent.
+  verification checkpoint, not a required change. Rationale: the test and
+  fixture already exist and already assert the in-place target remains
+  unchanged on `InvalidRoadmap`. Requiring a commit there would mislabel
+  existing coverage as new work. Date/Author: 2026-07-02, planning agent.
 
 - Decision: do not add a property test for this task.
   Rationale: `rust-verification` and `proptest` route property testing to
@@ -426,21 +408,20 @@ Locked-library research is pinned as follows:
 
 ### Work Item 1: Restore sub-task delete model consistency
 
-Documentation to read before this work item:
-`AGENTS.md` "Rust Specific Guidance", "Testing", and "Error Handling";
-`docs/mapsplice-design.md` sections 2, 4, 5, 6, and 8;
-`docs/developers-guide.md` sections 2, 3, and 6;
-`docs/users-guide.md` "The roadmap shape `mapsplice` expects", "`delete`",
-and "Output modes"; `docs/roadmap.md` task 4.1.4.
+Documentation to read before this work item: `AGENTS.md` "Rust Specific
+Guidance", "Testing", and "Error Handling"; `docs/mapsplice-design.md` sections
+2, 4, 5, 6, and 8; `docs/developers-guide.md` sections 2, 3, and 6;
+`docs/users-guide.md` "The roadmap shape `mapsplice` expects", "`delete`", and
+"Output modes"; `docs/roadmap.md` task 4.1.4.
 
-Skills to load before editing: `memtrace-first`, `leta`, `sem`,
-`rust-router`, `rust-errors`, and `rust-unit-testing`. Retry Memtrace
+Skills to load before editing: `memtrace-first`, `leta`, `sem`, `rust-router`,
+`rust-errors`, and `rust-unit-testing`. Retry Memtrace
 `list_indexed_repositories` and, if `repo_id: "mapsplice"` is available, use
-`find_symbol` for `delete_sub_task`, `delete_anchor`, `find_sub_task_child_index`,
-and `apply_command`, then use `get_symbol_context`, `get_impact`, and
-`get_timeline` before editing. If Memtrace or Leta fails with the host-session
-errors recorded above, continue with bounded local source inspection and record
-the failure in this plan.
+`find_symbol` for `delete_sub_task`, `delete_anchor`,
+`find_sub_task_child_index`, and `apply_command`, then use `get_symbol_context`,
+`get_impact`, and `get_timeline` before editing. If Memtrace or Leta fails
+with the host-session errors recorded above, continue with bounded local source
+inspection and record the failure in this plan.
 
 Red test:
 
@@ -448,8 +429,7 @@ Red test:
    `#[cfg(test)]`, for example
    `delete_sub_task_removes_matching_child_reference`.
 2. Parse a minimal roadmap with one task and two nested sub-tasks, then call
-   `apply_command` or the private `delete_sub_task` path to delete
-   `1.1.1.1`.
+   `apply_command` or the private `delete_sub_task` path to delete `1.1.1.1`.
 3. Inspect the parent task before rendering. Assert:
    `task.sub_tasks.len() == 1`; `task.children` contains exactly one
    `TaskChild::SubTask`; and that remaining child identity equals the remaining
@@ -486,8 +466,8 @@ cargo test --test roadmap_sub_tasks delete_sub_task_renumbers_later_sub_tasks \
 make all | tee /tmp/make-all-delete-model-mapsplice-roadmap-4-1-4.out
 ```
 
-If this work item updates this ExecPlan with evidence before committing,
-format the changed plan file and run Markdown gates:
+If this work item updates this ExecPlan with evidence before committing, format
+the changed plan file and run Markdown gates:
 
 ```bash
 mdtablefix docs/execplans/roadmap-4-1-4.md
@@ -501,16 +481,15 @@ gates pass.
 
 ### Work Item 2: Add renderer defence-in-depth for orphaned sub-task children
 
-Documentation to read before this work item:
-`docs/roadmap.md` task 4.1.4; `docs/mapsplice-design.md` sections 5 F5 and 6
-C4/C6; `docs/developers-guide.md` sections 2, 3, and 6; `docs/users-guide.md`
+Documentation to read before this work item: `docs/roadmap.md` task 4.1.4;
+`docs/mapsplice-design.md` sections 5 F5 and 6 C4/C6;
+`docs/developers-guide.md` sections 2, 3, and 6; `docs/users-guide.md`
 "Validation rules and failure cases"; `AGENTS.md` "Error Handling".
 
-Skills to load before editing: `memtrace-first`, `leta`, `sem`,
-`rust-router`, `rust-errors`, and `rust-unit-testing`. Retry Memtrace for
-`render_task`, `render_roadmap`, and `MapspliceError`; use
-`get_symbol_context`, `get_impact`, and `get_timeline` before editing if
-available.
+Skills to load before editing: `memtrace-first`, `leta`, `sem`, `rust-router`,
+`rust-errors`, and `rust-unit-testing`. Retry Memtrace for `render_task`,
+`render_roadmap`, and `MapspliceError`; use `get_symbol_context`, `get_impact`,
+and `get_timeline` before editing if available.
 
 Red test:
 
@@ -569,8 +548,8 @@ cargo test --test roadmap_sub_tasks delete_sub_task_renumbers_later_sub_tasks \
 make all | tee /tmp/make-all-renderer-invariant-mapsplice-roadmap-4-1-4.out
 ```
 
-If this work item updates this ExecPlan with evidence before committing,
-format the changed plan file and run Markdown gates:
+If this work item updates this ExecPlan with evidence before committing, format
+the changed plan file and run Markdown gates:
 
 ```bash
 mdtablefix docs/execplans/roadmap-4-1-4.md
@@ -584,11 +563,10 @@ gates pass.
 
 ### Work Item 3: Verify existing public in-place render-failure coverage
 
-Documentation to read before this work item:
-`docs/mapsplice-design.md` section 5 F5 and section 6 C6,
-`docs/users-guide.md` "Output modes" and "Validation rules and failure cases",
-`docs/developers-guide.md` section 6, `docs/roadmap.md` task 4.1.4, and
-`AGENTS.md` "Testing".
+Documentation to read before this work item: `docs/mapsplice-design.md` section
+5 F5 and section 6 C6, `docs/users-guide.md` "Output modes" and "Validation
+rules and failure cases", `docs/developers-guide.md` section 6,
+`docs/roadmap.md` task 4.1.4, and `AGENTS.md` "Testing".
 
 Skills to load before verification: `rust-router`, `rust-errors`, and
 `rust-unit-testing`.
@@ -611,17 +589,17 @@ make all | tee /tmp/make-all-golden-verification-mapsplice-roadmap-4-1-4.out
 ```
 
 Expected result: both commands pass with no source or fixture edits. If this
-checkpoint requires only verification, record the pass in `Progress` and do
-not create a commit. If fixture or test drift makes an edit necessary, update
-this plan first, format only the changed Markdown fixture paths that exist,
-and commit that change separately after the gates.
+checkpoint requires only verification, record the pass in `Progress` and do not
+create a commit. If fixture or test drift makes an edit necessary, update this
+plan first, format only the changed Markdown fixture paths that exist, and
+commit that change separately after the gates.
 
 ### Work Item 4: Close roadmap task 4.1.4 and finalize plan evidence
 
-Documentation to read before this work item:
-`docs/roadmap.md` section 4.1.4, `docs/mapsplice-design.md` sections 5 and 8,
-`docs/developers-guide.md` sections 6 and 7,
-`docs/documentation-style-guide.md`, and `AGENTS.md` "Markdown Guidance".
+Documentation to read before this work item: `docs/roadmap.md` section 4.1.4,
+`docs/mapsplice-design.md` sections 5 and 8, `docs/developers-guide.md`
+sections 6 and 7, `docs/documentation-style-guide.md`, and `AGENTS.md`
+"Markdown Guidance".
 
 Skills to load before editing: `execplans`, `sem`, and `rust-router` only if
 code evidence needs interpretation. Use `sem diff --format json` to record the
@@ -633,8 +611,8 @@ Update living documents:
    3 have passed their gates.
 2. Update this ExecPlan's `Progress`, `Surprises & Discoveries`,
    `Decision Log`, and `Outcomes & Retrospective` with concise evidence:
-   focused red failures, focused green passes, golden verification,
-   `make all`, `make markdownlint`, and `make nixie`.
+   focused red failures, focused green passes, golden verification, `make all`,
+   `make markdownlint`, and `make nixie`.
 3. Set `Status: COMPLETE` only after every required gate passes and the final
    commit is ready.
 
@@ -710,8 +688,8 @@ make markdownlint | tee /tmp/final-markdownlint-mapsplice-roadmap-4-1-4.out
 make nixie | tee /tmp/final-nixie-mapsplice-roadmap-4-1-4.out
 ```
 
-`make all` is required because it includes `check-fmt`, `lint`, `typecheck`,
-and `test` on current `origin/main`. `make markdownlint` and `make nixie` are
+`make all` is required because it includes `check-fmt`, `lint`, `typecheck`, and
+`test` on current `origin/main`. `make markdownlint` and `make nixie` are
 required because this plan and `docs/roadmap.md` are Markdown changes.
 
 Acceptance criteria:
@@ -816,8 +794,8 @@ TaskChild::SubTask(identity) => {
 }
 ```
 
-The implementation must replace this branch with a fallible lookup after
-Work Item 1 is complete.
+The implementation must replace this branch with a fallible lookup after Work
+Item 1 is complete.
 
 ## Interfaces and Dependencies
 
@@ -846,8 +824,8 @@ fn render_task(task: &TaskEntry) -> Result<String>
 
 When `task.children` contains `TaskChild::SubTask(identity)` and no matching
 `SubTaskEntry` exists in `task.sub_tasks`, `render_task` returns
-`Err(MapspliceError::InvalidRoadmap { message })`. The message must include
-the parent task number and the missing child reference context.
+`Err(MapspliceError::InvalidRoadmap { message })`. The message must include the
+parent task number and the missing child reference context.
 
 The public workflow keeps this existing ordering in `src/lib.rs::run_request`:
 parse, apply operation, render, then write in-place only after rendering

@@ -1,9 +1,8 @@
 # Encapsulate roadmap mutation invariants
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -24,10 +23,10 @@ riskier than necessary:
 After this change, maintainers should mutate those structures through small
 methods that preserve the nested-map and ordered-child invariants. Users should
 observe no CLI, rendering, diagnostic, metrics, or public command behaviour
-change. The observable proof is that existing roadmap operations still
-renumber task bodies, sub-tasks, and dependency references exactly as before,
-while compile-time coverage prevents external callers from directly mutating
-the now-hidden task child vectors.
+change. The observable proof is that existing roadmap operations still renumber
+task bodies, sub-tasks, and dependency references exactly as before, while
+compile-time coverage prevents external callers from directly mutating the
+now-hidden task child vectors.
 
 ## Constraints
 
@@ -46,8 +45,8 @@ the now-hidden task child vectors.
   (normative reference)": phases, steps, tasks, and addendum sub-tasks keep the
   same accepted grammar.
 - Preserve `docs/mapsplice-design.md` section 5, "Fidelity guarantees",
-  especially F1 content preservation, F2 minimal diff, F3 round-trip
-  stability, F4 gate-clean output, and F5 fail-closed behaviour.
+  especially F1 content preservation, F2 minimal diff, F3 round-trip stability,
+  F4 gate-clean output, and F5 fail-closed behaviour.
 - Preserve `docs/mapsplice-design.md` section 6, "Functional and contract
   guarantees", especially C1 operations, C2 contiguous renumbering, C3
   dependency-reference rewriting, C4 first-class addendum sub-tasks, C5
@@ -63,17 +62,16 @@ the now-hidden task child vectors.
   `run_from_args`, `run_request`, `parse_roadmap`, `parse_fragment`,
   `parse_anchor`, and `metrics_snapshot` available with the same signatures.
 - Follow `docs/developers-guide.md` section 6, "Verification layers": use
-  `rstest` unit tests for finite operation and model matrices, `rstest-bdd`
-  for user workflows already covered by feature scenarios, `proptest` for
-  generated dependency-renumber behaviour, `trybuild` for public compile-time
-  API compatibility, and `insta` only for stable large artefacts.
+  `rstest` unit tests for finite operation and model matrices, `rstest-bdd` for
+  user workflows already covered by feature scenarios, `proptest` for generated
+  dependency-renumber behaviour, `trybuild` for public compile-time API
+  compatibility, and `insta` only for stable large artefacts.
 - Follow `docs/developers-guide.md` section 7, "Local tooling": run Rust gates
   before committing code and use path-scoped Markdown maintenance for Markdown
   changes.
 - Follow `docs/users-guide.md`, "The roadmap shape `mapsplice` expects",
-  "Command overview", "Output modes", and "Validation rules and failure
-  cases". This task must not change accepted command syntax or user-facing
-  output modes.
+  "Command overview", "Output modes", and "Validation rules and failure cases".
+  This task must not change accepted command syntax or user-facing output modes.
 - Follow `docs/documentation-style-guide.md`: prose uses en-GB Oxford spelling,
   sentence-case headings, fenced code languages, and 80-column wrapping.
 - Follow `docs/execplans/initial-tool.md` decisions: model splice operations
@@ -107,17 +105,16 @@ the now-hidden task child vectors.
   `parse_fragment`, `parse_anchor`, or `metrics_snapshot` signatures would need
   to change.
 - The planned implementation may touch only these files unless a focused test
-  proves a necessary adjacent change:
-  `docs/execplans/roadmap-5-1-4.md`, `docs/roadmap.md`,
-  `src/roadmap/model.rs`, `src/roadmap/parse/task_children.rs`,
-  `src/roadmap/parse/mod.rs`, `src/roadmap/ops/sub_task.rs`,
-  `src/roadmap/ops/rewrite.rs`, `src/roadmap/render.rs`,
-  `src/roadmap/ops/dependency_text.rs`, `src/roadmap/render_tests.rs`,
-  `tests/compile_time.rs`, `tests/ui/public_api.rs`,
-  `tests/ui/model_invariants.rs`, `tests/ui/model_invariants.stderr`,
-  `tests/roadmap_properties.rs`, `tests/roadmap_sub_tasks.rs`,
-  `tests/roadmap_sub_task_invariants.rs`, and focused test-support modules
-  needed by those tests.
+  proves a necessary adjacent change: `docs/execplans/roadmap-5-1-4.md`,
+  `docs/roadmap.md`, `src/roadmap/model.rs`,
+  `src/roadmap/parse/task_children.rs`, `src/roadmap/parse/mod.rs`,
+  `src/roadmap/ops/sub_task.rs`, `src/roadmap/ops/rewrite.rs`,
+  `src/roadmap/render.rs`, `src/roadmap/ops/dependency_text.rs`,
+  `src/roadmap/render_tests.rs`, `tests/compile_time.rs`,
+  `tests/ui/public_api.rs`, `tests/ui/model_invariants.rs`,
+  `tests/ui/model_invariants.stderr`, `tests/roadmap_properties.rs`,
+  `tests/roadmap_sub_tasks.rs`, `tests/roadmap_sub_task_invariants.rs`, and
+  focused test-support modules needed by those tests.
 - Stop and escalate if exact rendered Markdown changes in any existing golden,
   BDD, or CLI behaviour test.
 - Stop and escalate if making `TaskEntry` fields private would require
@@ -146,8 +143,8 @@ the now-hidden task child vectors.
   tests to inspect through them rather than through public fields.
 - Risk: moving sub-task splice logic into `TaskEntry` methods could change the
   error selected for a corrupt model with a missing child reference. Severity:
-  medium. Likelihood: medium. Mitigation: pin the existing
-  `InvalidRoadmap` messages before changing the splice code.
+  medium. Likelihood: medium. Mitigation: pin the existing `InvalidRoadmap`
+  messages before changing the splice code.
 - Risk: `RenumberPlan` encapsulation could alter ambiguous cross-source
   dependency resolution. Severity: medium. Likelihood: low. Mitigation: add
   model-level unit tests for source-local lookup, unique cross-source lookup,
@@ -164,13 +161,12 @@ the now-hidden task child vectors.
 ## Progress
 
 - [x] (2026-07-03T10:34:32Z) Confirmed the current branch is
-  `roadmap-5-1-4`, so this plan is
-  `docs/execplans/roadmap-5-1-4.md`.
+  `roadmap-5-1-4`, so this plan is `docs/execplans/roadmap-5-1-4.md`.
 - [x] (2026-07-03T10:34:32Z) Loaded planning, navigation, Rust design, testing,
   verification, semantic-history, Firecrawl, and commit-message guidance:
   `execplans`, `leta`, `rust-router`, `rust-types-and-apis`,
-  `rust-unit-testing`, `rust-verification`, `proptest`, `firecrawl-mcp`,
-  `sem`, and `commit-message`.
+  `rust-unit-testing`, `rust-verification`, `proptest`, `firecrawl-mcp`, `sem`,
+  and `commit-message`.
 - [x] (2026-07-03T10:34:32Z) Memtrace discovery failed twice with
   `mcp__memtrace.list_indexed_repositories -> user cancelled MCP tool call`.
   Per task instructions, this is recorded as a tooling failure and is not a
@@ -185,9 +181,10 @@ the now-hidden task child vectors.
   `mcp__firecrawl.firecrawl_scrape` returning `user cancelled MCP tool call`
   for the `rstest`, `proptest`, and `trybuild` docs.rs URLs. Locked local crate
   source is cited below instead, and load-bearing behaviour is pinned by tests.
-- [x] (2026-07-03T10:34:32Z) Used `sem diff --from origin/main --to HEAD
-  --format json` to confirm this planning branch had no code changes before
-  drafting the ExecPlan.
+- [x] (2026-07-03T10:34:32Z) Used
+      `sem diff --from origin/main --to HEAD --format json` to confirm this
+      planning branch had no code changes before
+      drafting the ExecPlan.
 - [x] (2026-07-03T10:34:32Z) Drafted the first-round ExecPlan.
 - [x] (2026-07-03T11:00:00Z) Started the approved implementation session on
   branch `roadmap-5-1-4`.
@@ -201,26 +198,26 @@ the now-hidden task child vectors.
   `parse_sub_task_list`; `leta refs RenumberPlan` failed with
   `Error: Failed to start daemon`.
 - [x] (2026-07-03T11:15:18Z) Work Item 1: Pin current mutation-invariant
-  behaviour.
-  Added `RenumberPlan` model tests for source-local, unique cross-source,
-  ambiguous cross-source, and missing source-local lookup; added
+  behaviour. Added `RenumberPlan` model tests for source-local, unique
+  cross-source, ambiguous cross-source, and missing source-local lookup; added
   `tests/roadmap_sub_task_invariants.rs` to pin insert, delete, and replace
   body-order and dependency-rewrite behaviour without pushing
   `tests/roadmap_sub_tasks.rs` over 400 lines.
 - [x] (2026-07-03T11:15:18Z) Work Item 1 red proof: temporarily changed the
-  expected inserted sub-task text to `Unexpected sub-task`; `cargo test --test
+  expected inserted sub-task text to `Unexpected sub-task`;
+  `cargo test --test
   roadmap_sub_tasks insert_sub_task_preserves_interleaved_body_order
-  -- --nocapture` failed with the missing expected text, then the temporary
-  mutation was reverted.
+  -- --nocapture`
+  failed with the missing expected text, then the temporary mutation was
+  reverted.
 - [x] (2026-07-03T11:15:18Z) Work Item 1 focused validation passed:
   `cargo test --test roadmap_sub_tasks -- --nocapture`,
   `cargo test --test roadmap_sub_task_invariants -- --nocapture`,
   `cargo test --test roadmap_properties -- --nocapture`, and
   `cargo test roadmap::model`.
 - [x] (2026-07-03T11:15:18Z) Work Item 1 deterministic gates passed via
-  scrutineer after formatting and lint fixes: `make all`,
-  `make markdownlint`, and `make nixie`. Logs:
-  `/tmp/make-all-mapsplice-roadmap-5-1-4-item-1.out`,
+  scrutineer after formatting and lint fixes: `make all`, `make markdownlint`,
+  and `make nixie`. Logs: `/tmp/make-all-mapsplice-roadmap-5-1-4-item-1.out`,
   `/tmp/markdownlint-mapsplice-roadmap-5-1-4-item-1.out`, and
   `/tmp/nixie-mapsplice-roadmap-5-1-4-item-1.out`.
 - [x] (2026-07-03T11:15:18Z) Work Item 1 CodeRabbit review was attempted via
@@ -232,13 +229,13 @@ the now-hidden task child vectors.
   seam to `record_mapping`, then updated renumbering, dependency-text tests,
   and model tests to use that method.
 - [x] (2026-07-03T11:21:45Z) Work Item 2 red proof: after renaming the method
-  but before updating callers, `cargo test
-  roadmap::ops::dependency_text::tests -- --nocapture` failed with
+  but before updating callers,
+  `cargo test roadmap::ops::dependency_text::tests -- --nocapture` failed with
   `no method named insert found for struct RenumberPlan` in the stale call
   sites.
 - [x] (2026-07-03T11:21:45Z) Work Item 2 focused validation passed:
-  `cargo test roadmap::model`, `cargo test
-  roadmap::ops::dependency_text::tests -- --nocapture`, and
+  `cargo test roadmap::model`,
+  `cargo test roadmap::ops::dependency_text::tests -- --nocapture`, and
   `cargo test --test roadmap_properties -- --nocapture`.
 - [x] (2026-07-03T11:21:45Z) Work Item 2 deterministic gate passed via
   scrutineer: `make all`. Log:
@@ -252,7 +249,8 @@ the now-hidden task child vectors.
   through `push_body_node`, `push_sub_task`, `next_sub_task_ordinal`, and
   `finish`.
 - [x] (2026-07-03T11:29:13Z) Work Item 3 red proof: after making the
-  accumulator fields private but before updating parser call sites, `cargo
+  accumulator fields private but before updating parser call sites,
+  `cargo
   test --test roadmap_sub_tasks
   parse_roadmap_keeps_nested_numbered_sub_tasks_structural -- --nocapture`
   failed with private-field errors for `body`, `sub_tasks`, and `ordered`.
@@ -268,11 +266,10 @@ the now-hidden task child vectors.
   default network route. Log:
   `/tmp/coderabbit-mapsplice-roadmap-5-1-4-item-3.out`.
 - [x] (2026-07-03T12:25:00Z) Work Item 4: Route sub-task splices through
-  `TaskEntry` methods. Made `TaskEntry::sub_tasks` and
-  `TaskEntry::children` private, added read-only accessors plus
-  invariant-preserving splice methods, routed render, rewrite, parser, and
-  sub-task operations through those seams, and added compile-time coverage in
-  `tests/ui/model_invariants.rs`.
+  `TaskEntry` methods. Made `TaskEntry::sub_tasks` and `TaskEntry::children`
+  private, added read-only accessors plus invariant-preserving splice methods,
+  routed render, rewrite, parser, and sub-task operations through those seams,
+  and added compile-time coverage in `tests/ui/model_invariants.rs`.
 - [x] (2026-07-03T12:25:00Z) Work Item 4 red proof: before field privacy, the
   new `trybuild` compile-fail fixture reported
   `Expected test case to fail to compile, but it succeeded`. After field
@@ -284,9 +281,8 @@ the now-hidden task child vectors.
   `cargo test --test roadmap_properties -- --nocapture`, and
   `cargo test --test roadmap_render -- --nocapture`.
 - [x] (2026-07-03T12:25:00Z) Work Item 4 deterministic gates passed via
-  scrutineer after format and Clippy fixes: `make all`, `make markdownlint`,
-  and `make nixie`. Logs:
-  `/tmp/make-all-mapsplice-roadmap-5-1-4.out`,
+  scrutineer after format and Clippy fixes: `make all`, `make markdownlint`, and
+  `make nixie`. Logs: `/tmp/make-all-mapsplice-roadmap-5-1-4.out`,
   `/tmp/markdownlint-mapsplice-roadmap-5-1-4.out`, and
   `/tmp/nixie-mapsplice-roadmap-5-1-4.out`.
 - [x] (2026-07-03T12:25:00Z) Work Item 4 CodeRabbit review was attempted via
@@ -309,44 +305,39 @@ the now-hidden task child vectors.
 ## Surprises & discoveries
 
 - Observation: Memtrace was present in deferred tool metadata, but the host
-  session cancelled `list_indexed_repositories` twice.
-  Evidence: both MCP calls returned `user cancelled MCP tool call`.
-  Impact: this plan uses bounded branch-local documentation and source evidence
-  instead of canonical main-branch Memtrace graph evidence.
+  session cancelled `list_indexed_repositories` twice. Evidence: both MCP calls
+  returned `user cancelled MCP tool call`. Impact: this plan uses bounded
+  branch-local documentation and source evidence instead of canonical
+  main-branch Memtrace graph evidence.
 - Observation: Leta could not initialize or list files in this sandbox.
-  Evidence: `leta workspace add` failed with `Read-only file system`; `leta
-  files` failed with `Failed to start daemon`.
-  Impact: branch-local verification used exact text search and bounded file
-  inspection for this planning round.
+  Evidence: `leta workspace add` failed with `Read-only file system`;
+  `leta files` failed with `Failed to start daemon`. Impact: branch-local
+  verification used exact text search and bounded file inspection for this
+  planning round.
 - Observation: Firecrawl docs.rs scraping was unavailable in this session.
   Evidence: scrapes for `rstest` 0.26.1, `proptest` 1.11.0, and `trybuild`
-  1.0.117 all returned `user cancelled MCP tool call`.
-  Impact: the plan cites locked local crate source and requires tests for
-  load-bearing behaviour rather than relying on unchecked external docs.
+  1.0.117 all returned `user cancelled MCP tool call`. Impact: the plan cites
+  locked local crate source and requires tests for load-bearing behaviour
+  rather than relying on unchecked external docs.
 - Observation: `Cargo.toml` specifies `trybuild = "1.0.114"`, while
-  `Cargo.lock` currently pins `trybuild` 1.0.117.
-  Evidence: `Cargo.lock` lines for `trybuild` report version 1.0.117.
-  Impact: compile-fail test workflow in this plan is pinned to the locked
-  1.0.117 source.
+  `Cargo.lock` currently pins `trybuild` 1.0.117. Evidence: `Cargo.lock` lines
+  for `trybuild` report version 1.0.117. Impact: compile-fail test workflow in
+  this plan is pinned to the locked 1.0.117 source.
 - Observation: Memtrace was still unavailable in the implementation session.
   Evidence: two `mcp__memtrace.list_indexed_repositories` calls returned
-  `user cancelled MCP tool call`.
-  Impact: implementation uses branch-local Leta where available plus bounded
-  source and test inspection.
+  `user cancelled MCP tool call`. Impact: implementation uses branch-local Leta
+  where available plus bounded source and test inspection.
 - Observation: Leta availability improved after the planning round but was not
-  complete.
-  Evidence: `leta workspace add` and `leta files src/roadmap` succeeded;
-  `leta refs RenumberPlan` returned `Error: Failed to start daemon`.
+  complete. Evidence: `leta workspace add` and `leta files src/roadmap`
+  succeeded; `leta refs RenumberPlan` returned `Error: Failed to start daemon`.
   Impact: symbol bodies came from Leta, while reference-style checks use
   focused source inspection.
 - Observation: Work Item 1 needed a focused new integration test file to keep
-  existing files within the repository line-count rule.
-  Evidence: placing the interleaved-body matrix in `tests/roadmap_sub_tasks.rs`
-  would have made that file 417 lines; moving the matrix to
-  `tests/roadmap_sub_task_invariants.rs` keeps the original file at 272 lines
-  and the new file at 160 lines.
-  Impact: the plan's allowed file list now includes the focused integration
-  test file.
+  existing files within the repository line-count rule. Evidence: placing the
+  interleaved-body matrix in `tests/roadmap_sub_tasks.rs` would have made that
+  file 417 lines; moving the matrix to `tests/roadmap_sub_task_invariants.rs`
+  keeps the original file at 272 lines and the new file at 160 lines. Impact:
+  the plan's allowed file list now includes the focused integration test file.
 - Observation: CodeRabbit review could not run in this sandbox.
   Evidence: `/tmp/coderabbit-mapsplice-roadmap-5-1-4-item-1.out` contains
   `{"type":"status","phase":"deferred","status":"deferred coderabbit review:
@@ -366,30 +357,27 @@ the now-hidden task child vectors.
   Impact: Work Item 3 carries the same deferred-review open issue, with
   deterministic gates green.
 - Observation: `TaskChildren::next_sub_task_ordinal` must be called once per
-  sub-task list, before the parser pushes that list's sub-tasks.
-  Evidence: recomputing from the growing accumulator inside the loop made the
-  second sub-task in a list expect ordinal 3 and failed
+  sub-task list, before the parser pushes that list's sub-tasks. Evidence:
+  recomputing from the growing accumulator inside the loop made the second
+  sub-task in a list expect ordinal 3 and failed
   `parse_roadmap_keeps_nested_numbered_sub_tasks_structural` with
-  `sub-task '1.1.1.2' is not in document order`.
-  Impact: `parse_sub_task_list` now snapshots the starting ordinal before the
-  loop and applies checked offsets for list-local siblings.
+  `sub-task '1.1.1.2' is not in document order`. Impact: `parse_sub_task_list`
+  now snapshots the starting ordinal before the loop and applies checked
+  offsets for list-local siblings.
 - Observation: `trybuild` can leave a generated coordination lock that makes
-  later compile-time test runs appear to hang before case output.
-  Evidence: after a timed-out compile-time run, no Cargo or rustc process held
-  the lock, manual Cargo against `target/tests/trybuild/mapsplice/Cargo.toml`
-  produced the expected `E0616`, and removing
-  `target/tests/trybuild/mapsplice/.lock` let `trybuild` write
-  `wip/model_invariants.stderr`.
-  Impact: the checked-in compile-fail fixture is stable, and stale generated
-  trybuild locks are treated as local test artefacts rather than product
-  failures.
+  later compile-time test runs appear to hang before case output. Evidence:
+  after a timed-out compile-time run, no Cargo or rustc process held the lock,
+  manual Cargo against `target/tests/trybuild/mapsplice/Cargo.toml` produced
+  the expected `E0616`, and removing `target/tests/trybuild/mapsplice/.lock` let
+  `trybuild` write `wip/model_invariants.stderr`. Impact: the checked-in
+  compile-fail fixture is stable, and stale generated trybuild locks are
+  treated as local test artefacts rather than product failures.
 - Observation: Work Item 4 needed model-owned argument structs to satisfy the
-  repository's strict Clippy policy.
-  Evidence: `make all` failed with `missing_const_for_fn` and
-  `too_many_arguments` on the first `TaskEntry` constructor and splice method
-  shapes.
-  Impact: `TaskEntryParts` and `SubTaskSplice` now carry parser construction
-  state and paired splice indices without exposing the underlying vectors.
+  repository's strict Clippy policy. Evidence: `make all` failed with
+  `missing_const_for_fn` and `too_many_arguments` on the first `TaskEntry`
+  constructor and splice method shapes. Impact: `TaskEntryParts` and
+  `SubTaskSplice` now carry parser construction state and paired splice indices
+  without exposing the underlying vectors.
 - Observation: CodeRabbit review remained unavailable for Work Item 4.
   Evidence: `/tmp/coderabbit-mapsplice-roadmap-5-1-4-item-4.out` contains
   `{"type":"status","phase":"deferred","status":"deferred coderabbit review:
@@ -406,66 +394,57 @@ the now-hidden task child vectors.
 ## Decision log
 
 - Decision: keep the task behaviour-preserving and avoid grammar, diagnostic,
-  CLI, metrics, and rendered-output changes.
-  Rationale: roadmap task 5.1.4 is consolidation work in roadmap section 5,
-  not a user-facing feature.
+  CLI, metrics, and rendered-output changes. Rationale: roadmap task 5.1.4 is
+  consolidation work in roadmap section 5, not a user-facing feature.
   Date/Author: 2026-07-03T10:34:32Z, Codex.
 - Decision: use compile-time proof for hidden task child mutation rather than
-  relying only on source review.
-  Rationale: the success criterion says callers cannot bypass
-  invariant-preserving methods. `trybuild::TestCases::compile_fail` is already
-  a locked dev dependency, and compile-fail coverage makes field privacy
-  observable.
-  Date/Author: 2026-07-03T10:34:32Z, Codex.
+  relying only on source review. Rationale: the success criterion says callers
+  cannot bypass invariant-preserving methods.
+  `trybuild::TestCases::compile_fail` is already a locked dev dependency, and
+  compile-fail coverage makes field privacy observable. Date/Author:
+  2026-07-03T10:34:32Z, Codex.
 - Decision: encapsulate `TaskChildren` first at the parser accumulator seam,
-  then route sub-task splice mutation through `TaskEntry` methods.
-  Rationale: parser construction and splice operations both maintain the same
+  then route sub-task splice mutation through `TaskEntry` methods. Rationale:
+  parser construction and splice operations both maintain the same
   ordered-child invariant, but the changes can be made as separate, gate-clean
-  commits.
-  Date/Author: 2026-07-03T10:34:32Z, Codex.
+  commits. Date/Author: 2026-07-03T10:34:32Z, Codex.
 - Decision: cite locked local crate source where Firecrawl official-doc checks
   were cancelled, and require focused tests for load-bearing behaviour.
   Rationale: the task requires verified mechanisms. Local crate source plus
   red/green tests is stronger than unchecked memory of external API behaviour.
   Date/Author: 2026-07-03T10:34:32Z, Codex.
 - Decision: place the Work Item 1 interleaved sub-task mutation matrix in
-  `tests/roadmap_sub_task_invariants.rs`.
-  Rationale: the existing `tests/roadmap_sub_tasks.rs` file would exceed the
-  400-line code-file limit with the new matrix. A focused integration test file
-  preserves the same behavioural coverage without creating a long file.
-  Date/Author: 2026-07-03T11:15:18Z, Codex.
+  `tests/roadmap_sub_task_invariants.rs`. Rationale: the existing
+  `tests/roadmap_sub_tasks.rs` file would exceed the 400-line code-file limit
+  with the new matrix. A focused integration test file preserves the same
+  behavioural coverage without creating a long file. Date/Author:
+  2026-07-03T11:15:18Z, Codex.
 - Decision: pin the current replace-with-multiple-sub-tasks dependency mapping
-  as-is.
-  Rationale: replacing `1.1.1.2` with two sub-tasks currently rewrites
+  as-is. Rationale: replacing `1.1.1.2` with two sub-tasks currently rewrites
   references to `1.1.1.3`, the final replacement item. Roadmap task 5.1.4 is a
   behaviour-preserving invariant refactor, so Work Item 1 records that current
-  behaviour rather than changing it.
-  Date/Author: 2026-07-03T11:15:18Z, Codex.
+  behaviour rather than changing it. Date/Author: 2026-07-03T11:15:18Z, Codex.
 - Decision: rename `RenumberPlan::insert` to
-  `RenumberPlan::record_mapping`.
-  Rationale: `record_mapping` describes the domain operation and avoids
-  suggesting callers can manipulate the nested map as a generic collection.
-  Date/Author: 2026-07-03T11:21:45Z, Codex.
+  `RenumberPlan::record_mapping`. Rationale: `record_mapping` describes the
+  domain operation and avoids suggesting callers can manipulate the nested map
+  as a generic collection. Date/Author: 2026-07-03T11:21:45Z, Codex.
 - Decision: keep list-local sub-task ordinal offsets in `parse_sub_task_list`
-  rather than in `TaskChildren::push_sub_task`.
-  Rationale: the accumulator owns the current starting ordinal, but each mdast
-  list supplies its own sibling offset. Keeping the offset calculation beside
-  the loop preserves the existing document-order diagnostic and avoids storing
-  temporary list state in `TaskChildren`.
-  Date/Author: 2026-07-03T11:29:13Z, Codex.
+  rather than in `TaskChildren::push_sub_task`. Rationale: the accumulator owns
+  the current starting ordinal, but each mdast list supplies its own sibling
+  offset. Keeping the offset calculation beside the loop preserves the existing
+  document-order diagnostic and avoids storing temporary list state in
+  `TaskChildren`. Date/Author: 2026-07-03T11:29:13Z, Codex.
 - Decision: introduce `TaskEntryParts` and `SubTaskSplice` instead of keeping
-  the initial index-heavy method signatures.
-  Rationale: these small domain structs avoid Clippy argument-count failures,
-  make parser construction and paired splice locations explicit, and still
-  preserve the invariant that callers cannot mutate `sub_tasks` and
-  `children` directly.
-  Date/Author: 2026-07-03T12:25:00Z, Codex.
+  the initial index-heavy method signatures. Rationale: these small domain
+  structs avoid Clippy argument-count failures, make parser construction and
+  paired splice locations explicit, and still preserve the invariant that
+  callers cannot mutate `sub_tasks` and `children` directly. Date/Author:
+  2026-07-03T12:25:00Z, Codex.
 - Decision: validate parser-created task child identity consistency inside
-  `TaskEntry::from_parts`.
-  Rationale: moving parser construction behind the model seam is a good place
-  to reject mismatched structural sub-task identities before rendering or
-  mutation operations observe an inconsistent task.
-  Date/Author: 2026-07-03T12:25:00Z, Codex.
+  `TaskEntry::from_parts`. Rationale: moving parser construction behind the
+  model seam is a good place to reject mismatched structural sub-task
+  identities before rendering or mutation operations observe an inconsistent
+  task. Date/Author: 2026-07-03T12:25:00Z, Codex.
 
 ## Context and orientation
 
@@ -477,12 +456,13 @@ state is:
   ordered mixture of body blocks and sub-task identities. Rendering walks
   `children`, and each `TaskChild::SubTask` must resolve to exactly one
   `SubTaskEntry` by identity.
-- `RenumberPlan` stores a public `by_source:
-  BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>`. Existing methods
-  already resolve source-local mappings and unique cross-source mappings.
+- `RenumberPlan` stores a public
+  `by_source: BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>`.
+  Existing methods already resolve source-local mappings and unique
+  cross-source mappings.
 - `TaskChildren` in `src/roadmap/parse/task_children.rs` is the parser-side
-  accumulator for `body`, `sub_tasks`, and `ordered`. `src/roadmap/parse/mod.rs`
-  currently pushes into those fields directly.
+  accumulator for `body`, `sub_tasks`, and `ordered`.
+  `src/roadmap/parse/mod.rs` currently pushes into those fields directly.
 - `src/roadmap/ops/sub_task.rs` currently computes a sub-task index and child
   index, then separately splices or removes from `task.sub_tasks` and
   `task.children`.
@@ -521,8 +501,8 @@ The source evidence gathered in this planning round:
   `proptest`.
 - Local locked `serial_test` 3.5.0 source
   `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serial_test-3.5.0/src/lib.rs`
-  lines 28-31 document serial execution guarantees and lines 151-152
-  re-export `serial`.
+  lines 28-31 document serial execution guarantees and lines 151-152 re-export
+  `serial`.
 - Local locked `trybuild` 1.0.117 source
   `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/trybuild-1.0.117/src/lib.rs`
   lines 112-129 document the `wip` and `TRYBUILD=overwrite` stderr workflow,
@@ -538,8 +518,7 @@ The source evidence gathered in this planning round:
 
 This commit adds focused tests before changing production code. It implements
 the proof obligations from `docs/mapsplice-design.md` sections 5, 6, and 8;
-`docs/developers-guide.md` sections 2 and 6; and
-`docs/roadmap.md` task 5.1.4.
+`docs/developers-guide.md` sections 2 and 6; and `docs/roadmap.md` task 5.1.4.
 
 Skills to load for this work item: `rust-router`, `rust-unit-testing`,
 `rust-verification`, `proptest`, `leta`, `sem`, and `execplans`.
@@ -604,8 +583,8 @@ Pin roadmap mutation invariants
 
 This commit hides the nested renumber-map field and routes construction through
 the existing method seam. It implements `docs/mapsplice-design.md` C2 and C3,
-`docs/developers-guide.md` section 2's domain boundary, and
-`docs/roadmap.md` task 5.1.4's nested-map invariant.
+`docs/developers-guide.md` section 2's domain boundary, and `docs/roadmap.md`
+task 5.1.4's nested-map invariant.
 
 Skills to load for this work item: `rust-router`, `rust-types-and-apis`,
 `rust-unit-testing`, `leta`, `sem`, and `execplans`.
@@ -622,8 +601,8 @@ In `src/roadmap/model.rs`:
   needs it. Do not expose the nested map by reference.
 
 In `src/roadmap/ops/rewrite.rs` and `src/roadmap/ops/dependency_text.rs`,
-replace direct construction calls with the chosen method name. No caller may
-use `by_source` directly after this work item.
+replace direct construction calls with the chosen method name. No caller may use
+`by_source` directly after this work item.
 
 Red proof: after making the field private but before updating all call sites,
 run `cargo test roadmap::ops::dependency_text::tests -- --nocapture` and
@@ -682,10 +661,12 @@ In `src/roadmap/parse/mod.rs`, route `split_task_children` and
 `parse_sub_task_list` through those methods. Do not push to `TaskChildren`
 fields directly.
 
-Red proof: make the fields private first and run `cargo test --test
+Red proof: make the fields private first and run
+`cargo test --test
 roadmap_sub_tasks parse_roadmap_keeps_nested_numbered_sub_tasks_structural
--- --nocapture`; confirm compilation fails at direct parser field access. Then
-replace the call sites and rerun focused tests.
+-- --nocapture`;
+confirm compilation fails at direct parser field access. Then replace the call
+sites and rerun focused tests.
 
 Focused validation commands:
 
@@ -713,9 +694,8 @@ Encapsulate task-child parsing
 
 This commit hides direct mutation of the parallel sub-task and ordered-child
 vectors behind invariant-preserving methods on `TaskEntry`. It implements
-`docs/mapsplice-design.md` C4 and F5, `docs/developers-guide.md` sections 2
-and 6, and `docs/roadmap.md` task 5.1.4's "callers cannot bypass" success
-criterion.
+`docs/mapsplice-design.md` C4 and F5, `docs/developers-guide.md` sections 2 and
+6, and `docs/roadmap.md` task 5.1.4's "callers cannot bypass" success criterion.
 
 Skills to load for this work item: `rust-router`, `rust-types-and-apis`,
 `rust-unit-testing`, `rust-verification`, `proptest`, `leta`, `sem`, and
@@ -730,22 +710,50 @@ In `src/roadmap/model.rs`:
   task methods;
 - add `TaskEntry::children(&self) -> &[TaskChild]` only for renderer or tests
   that need read-only ordered children;
-- add `TaskEntry::find_sub_task_index(&self, target: SubTaskNumber) ->
-  Option<usize>`;
-- add `TaskEntry::insert_sub_tasks(&mut self, sub_task_index: usize,
-  child_index: usize, after: bool, sub_tasks: Vec<SubTaskEntry>)`;
-- add `TaskEntry::delete_sub_task(&mut self, sub_task_index: usize,
-  child_index: usize)`;
-- add `TaskEntry::replace_sub_task(&mut self, sub_task_index: usize,
-  child_index: usize, sub_tasks: Vec<SubTaskEntry>)`;
+- add
+  `TaskEntry::find_sub_task_index(&self, target: SubTaskNumber) -> Option<usize>`;
+- add:
+
+  ```rust
+  TaskEntry::insert_sub_tasks(
+      &mut self,
+      sub_task_index: usize,
+      child_index: usize,
+      after: bool,
+      sub_tasks: Vec<SubTaskEntry>,
+  )
+  ```
+
+- add:
+
+  ```rust
+  TaskEntry::delete_sub_task(
+      &mut self,
+      sub_task_index: usize,
+      child_index: usize,
+  )
+  ```
+
+- add:
+
+  ```rust
+  TaskEntry::replace_sub_task(
+      &mut self,
+      sub_task_index: usize,
+      child_index: usize,
+      sub_tasks: Vec<SubTaskEntry>,
+  )
+  ```
+
 - ensure those methods build `TaskChild::SubTask` values from the inserted
   sub-task identities internally. No external caller should pass both
   `Vec<SubTaskEntry>` and a parallel `Vec<TaskChild>`.
 
 If the method signatures above feel too index-heavy during implementation, do
-not invent a broad abstraction. Keep index discovery in `src/roadmap/ops/sub_task.rs`
-and keep the actual vector mutation inside `TaskEntry`; the invariant being
-encapsulated is the paired mutation, not target lookup.
+not invent a broad abstraction. Keep index discovery in
+`src/roadmap/ops/sub_task.rs` and keep the actual vector mutation inside
+`TaskEntry`; the invariant being encapsulated is the paired mutation, not
+target lookup.
 
 In `src/roadmap/ops/sub_task.rs`, replace the direct `task.sub_tasks` and
 `task.children` mutations with these methods. Preserve the existing
@@ -1015,15 +1023,15 @@ Completed roadmap task 5.1.4 as five atomic commits:
 `RenumberPlan` no longer exposes its nested source map for direct mutation.
 `TaskChildren` no longer exposes parser accumulator vectors. `TaskEntry`
 sub-task and ordered-child vectors are private and are mutated through
-model-owned methods that update both structures together. Compile-time
-coverage now proves external callers cannot clear `TaskEntry::sub_tasks`
-directly, and focused runtime tests cover task-body order, sub-task order, and
-dependency rewrite behaviour.
+model-owned methods that update both structures together. Compile-time coverage
+now proves external callers cannot clear `TaskEntry::sub_tasks` directly, and
+focused runtime tests cover task-body order, sub-task order, and dependency
+rewrite behaviour.
 
-Final validation passed through scrutineer for Work Item 5:
-`make all`, `make markdownlint`, and `make nixie` all exited 0. CodeRabbit
-review was attempted for every work item and deferred each time because this
-sandbox has no default network route; no CodeRabbit findings were produced.
+Final validation passed through scrutineer for Work Item 5: `make all`,
+`make markdownlint`, and `make nixie` all exited 0. CodeRabbit review was
+attempted for every work item and deferred each time because this sandbox has
+no default network route; no CodeRabbit findings were produced.
 
 ## Revision note
 

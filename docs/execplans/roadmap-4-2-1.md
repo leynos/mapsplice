@@ -1,9 +1,8 @@
 # Make Mermaid Validation Deterministic
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -20,8 +19,8 @@ After this change, maintainers can run `make nixie` and get repeatable
 validation on the existing Markdown corpus. Implementation found that locked
 `nixie-cli` 1.1.0 still timed out because its per-diagram timeout is hard-coded
 to 30 seconds. The Makefile therefore keeps the `make nixie` target name but
-validates tracked Markdown directly with `merman-cli`, one file at a time,
-using `NIXIE_MAX_CONCURRENCY ?= 1` as the default renderer job cap and
+validates tracked Markdown directly with `merman-cli`, one file at a time, using
+`NIXIE_MAX_CONCURRENCY ?= 1` as the default renderer job cap and
 `NIXIE_RENDERER_THREADS ?= 1` as the renderer thread cap.
 
 Observable success is:
@@ -75,40 +74,32 @@ Stop and escalate if any threshold below is reached:
 ## Risks
 
 - Risk: `NIXIE_MAX_CONCURRENCY=2` might be misunderstood as raising 2-CPU CI
-  from serial validation to two renderer workers.
-  Severity: high.
-  Likelihood: medium.
-  Mitigation: Work Item 1 now defaults to `NIXIE_MAX_CONCURRENCY ?= 1` after
-  repeated `NIXIE_MAX_CONCURRENCY=2` and default runs timed out under the
+  from serial validation to two renderer workers. Severity: high. Likelihood:
+  medium. Mitigation: Work Item 1 now defaults to `NIXIE_MAX_CONCURRENCY ?= 1`
+  after repeated `NIXIE_MAX_CONCURRENCY=2` and default runs timed out under the
   sanctioned gate runner. Contributors can still override the cap explicitly
   for comparison.
 
 - Risk: a dry-run Makefile test can become brittle if the target command is
-  legitimately refactored.
-  Severity: low.
-  Likelihood: medium.
-  Mitigation: assert the behavioural contract, not the whole recipe line. The
-  dry-run output must contain the configured `MERMAN` executable,
-  `RAYON_NUM_THREADS`, `-j`, and the selected value.
+  legitimately refactored. Severity: low. Likelihood: medium. Mitigation:
+  assert the behavioural contract, not the whole recipe line. The dry-run
+  output must contain the configured `MERMAN` executable, `RAYON_NUM_THREADS`,
+  `-j`, and the selected value.
 
 - Risk: Rust test assertions in `Result`-returning tests can trip the denied
-  `clippy::panic_in_result_fn` lint.
-  Severity: high.
-  Likelihood: high without explicit instruction.
-  Mitigation: Work Item 1 requires every `assert!`, `assert_eq!`, and similar
-  assertion macro to live in `()`-returning helper functions, matching
-  `tests/roadmap_config.rs::assert_contains`,
+  `clippy::panic_in_result_fn` lint. Severity: high. Likelihood: high without
+  explicit instruction. Mitigation: Work Item 1 requires every `assert!`,
+  `assert_eq!`, and similar assertion macro to live in `()`-returning helper
+  functions, matching `tests/roadmap_config.rs::assert_contains`,
   `tests/roadmap_config.rs::assert_equal`, and
-  `tests/roadmap_config.rs::assert_configuration_error`. The
-  `Result`-returning `#[rstest]` bodies may use `?` for fallible setup and then
-  call those helpers.
+  `tests/roadmap_config.rs::assert_configuration_error`. The `Result`-returning
+  `#[rstest]` bodies may use `?` for fallible setup and then call those helpers.
 
 - Risk: `make nixie` scans fixture Markdown as well as documentation Markdown.
-  Severity: low.
-  Likelihood: confirmed.
-  Mitigation: do not narrow the gate in this task. The roadmap success
-  criterion is the existing repository gate path, so this plan keeps discovery
-  scope unchanged and only bounds renderer concurrency.
+  Severity: low. Likelihood: confirmed. Mitigation: do not narrow the gate in
+  this task. The roadmap success criterion is the existing repository gate
+  path, so this plan keeps discovery scope unchanged and only bounds renderer
+  concurrency.
 
 ## Progress
 
@@ -117,8 +108,8 @@ Stop and escalate if any threshold below is reached:
 - [x] (2026-07-02T22:50:50Z) Drafted the round-1 plan and gathered initial
   local evidence for the uncapped timeout and capped passes.
 - [x] (2026-07-03T00:00:00Z) Loaded `execplans`, `leta`,
-  `firecrawl-mcp`, `rust-router`, `rust-unit-testing`, `sem`,
-  `commit-message`, `memtrace-first`, and `en-gb-oxendict-style`.
+  `firecrawl-mcp`, `rust-router`, `rust-unit-testing`, `sem`, `commit-message`,
+  `memtrace-first`, and `en-gb-oxendict-style`.
 - [x] (2026-07-03T00:00:00Z) Confirmed branch `roadmap-4-2-1` and current
   worktree `/home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1`.
 - [x] (2026-07-03T00:00:00Z) Retried Memtrace and Firecrawl. Both MCP calls
@@ -146,84 +137,78 @@ Stop and escalate if any threshold below is reached:
 - [x] (2026-07-02T23:53:29Z) Work Item 1 committed as `8055896` with subject
   `Stabilize Mermaid validation gate`.
 - [x] (2026-07-02T23:53:29Z) Work Item 2: Document the deterministic Mermaid
-  gate and close roadmap task 4.2.1. Deterministic gates passed in
-  `scrutineer` logs
-  `/tmp/wi2-final-mapsplice-roadmap-4-2-1-make-all.out`,
+  gate and close roadmap task 4.2.1. Deterministic gates passed in `scrutineer`
+  logs `/tmp/wi2-final-mapsplice-roadmap-4-2-1-make-all.out`,
   `/tmp/wi2-final-mapsplice-roadmap-4-2-1-markdownlint.out`,
   `/tmp/wi2-final-mapsplice-roadmap-4-2-1-nixie.out`, and
-  `/tmp/wi2-final-mapsplice-roadmap-4-2-1-nixie-concurrency-1.out`.
-  CodeRabbit was deferred because the sandbox had no default network route.
+  `/tmp/wi2-final-mapsplice-roadmap-4-2-1-nixie-concurrency-1.out`. CodeRabbit
+  was deferred because the sandbox had no default network route.
 
 ## Surprises & Discoveries
 
 - Observation: Memtrace was exposed through tool discovery, but the required
-  first call failed.
-  Evidence: `mcp__memtrace.list_indexed_repositories` returned
-  `user cancelled MCP tool call`.
-  Impact: this plan records the failure and uses bounded local source, docs,
-  and command evidence instead. This is not a product blocker.
+  first call failed. Evidence: `mcp__memtrace.list_indexed_repositories`
+  returned `user cancelled MCP tool call`. Impact: this plan records the
+  failure and uses bounded local source, docs, and command evidence instead.
+  This is not a product blocker.
 
 - Observation: Firecrawl was exposed through tool discovery but could not
-  fetch official `nixie-cli` documentation in this session.
-  Evidence: `mcp__firecrawl.firecrawl_search` for
+  fetch official `nixie-cli` documentation in this session. Evidence:
+  `mcp__firecrawl.firecrawl_search` for
   `site:github.com/leynos/nixie --max-concurrency nixie-cli` returned
-  `user cancelled MCP tool call`.
-  Impact: this plan cites locked installed source, installed package metadata,
-  and direct official web reads. This is not a product blocker.
+  `user cancelled MCP tool call`. Impact: this plan cites locked installed
+  source, installed package metadata, and direct official web reads. This is
+  not a product blocker.
 
 - Observation: Leta is available in this planning session.
-  Evidence: `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1` returned
-  `Added workspace:
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1`.
+  Evidence:
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1`
+  returned
+  `Added workspace: /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1`.
   Impact: implementation should use Leta for branch-local Rust test navigation.
   If it fails later, record the exact failure and continue with bounded file
   inspection.
 
 - Observation: `nixie --version` is not a supported way to identify the
-  installed `nixie-cli` version.
-  Evidence: `nixie --version` returned argparse usage and
-  `error: unrecognized arguments: --version`.
-  Impact: use the locked CI workflow value, the installed
-  `nixie_cli-1.1.0.dist-info/METADATA`, and the installed source path as the
-  version evidence.
+  installed `nixie-cli` version. Evidence: `nixie --version` returned argparse
+  usage and `error: unrecognized arguments: --version`. Impact: use the locked
+  CI workflow value, the installed `nixie_cli-1.1.0.dist-info/METADATA`, and
+  the installed source path as the version evidence.
 
 - Observation: locked `nixie-cli` clamps explicit values as a ceiling, not as a
-  floor.
-  Evidence: running the installed tool interpreter printed:
-  `1 1 1`, `2 1 1`, `4 2 3`, `6 2 5`, and `24 2 23` for
+  floor. Evidence: running the installed tool interpreter printed: `1 1 1`,
+  `2 1 1`, `4 2 3`, `6 2 5`, and `24 2 23` for
   `(cpu_count, resolve_max_concurrency(2), resolve_max_concurrency(None))`.
   Impact: `NIXIE_MAX_CONCURRENCY ?= 2` keeps 2-CPU private CI serial while
   capping 4-CPU public CI at 2 instead of the uncapped default 3.
 
 - Observation: this sandbox reports 24 online processors, even though the
   roadmap failure was reproduced on the documented six-core development host.
-  Evidence: `nproc` and `getconf _NPROCESSORS_ONLN` both returned `24`.
-  Impact: this is useful extra evidence that uncapped local concurrency can be
-  far above the CI runner count, but the design does not rely on this sandbox
-  count.
+  Evidence: `nproc` and `getconf _NPROCESSORS_ONLN` both returned `24`. Impact:
+  this is useful extra evidence that uncapped local concurrency can be far
+  above the CI runner count, but the design does not rely on this sandbox count.
 
 - Observation: Memtrace was unavailable during implementation.
   Evidence: `mcp__memtrace.list_indexed_repositories` returned
-  `user cancelled MCP tool call`.
-  Impact: implementation used bounded branch-local file inspection for the
-  Makefile, Rust integration test, and documentation updates.
+  `user cancelled MCP tool call`. Impact: implementation used bounded
+  branch-local file inspection for the Makefile, Rust integration test, and
+  documentation updates.
 
 - Observation: Leta was unavailable during implementation.
-  Evidence: both `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1` and the same
-  command with sandbox-local `XDG_DATA_HOME` and `XDG_CONFIG_HOME` returned
-  `Error: IO error: Read-only file system (os error 30)`.
-  Impact: implementation used bounded file inspection instead of semantic
-  branch-local navigation.
+  Evidence: both
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-2-1`
+  and the same command with sandbox-local `XDG_DATA_HOME` and `XDG_CONFIG_HOME`
+  returned `Error: IO error: Read-only file system (os error 30)`. Impact:
+  implementation used bounded file inspection instead of semantic branch-local
+  navigation.
 
 - Observation: `nixie-cli` 1.1.0 remained nondeterministic after adding
-  `--max-concurrency`.
-  Evidence: `scrutineer` gate logs repeatedly showed `make nixie` or
-  `NIXIE_MAX_CONCURRENCY=1 make nixie` timing out in unchanged diagrams, while
-  direct `merman-cli` Markdown validation passed on the same files.
-  Impact: Work Item 1 changed the `make nixie` target to direct `merman-cli`
-  validation while preserving the target name and concurrency controls.
+  `--max-concurrency`. Evidence: `scrutineer` gate logs repeatedly showed
+  `make nixie` or `NIXIE_MAX_CONCURRENCY=1 make nixie` timing out in unchanged
+  diagrams, while direct `merman-cli` Markdown validation passed on the same
+  files. Impact: Work Item 1 changed the `make nixie` target to direct
+  `merman-cli` validation while preserving the target name and concurrency
+  controls.
 
 - Observation: CodeRabbit could not run in this sandbox.
   Evidence: `/tmp/coderabbit-wi1-mapsplice-roadmap-4-2-1.out` contained
@@ -235,51 +220,48 @@ Stop and escalate if any threshold below is reached:
 - Observation: CodeRabbit remained unavailable for Work Item 2.
   Evidence: `/tmp/coderabbit-wi2-mapsplice-roadmap-4-2-1.out` contained
   `{"type":"status","phase":"deferred","status":"deferred coderabbit review:
-  no default network route visible in this sandbox"}` and exited 124.
-  Impact: Work Item 2 records the review as deferred infrastructure, with no
-  actionable CodeRabbit findings available.
+  no default network route visible in this sandbox"}`
+  and exited 124. Impact: Work Item 2 records the review as deferred
+  infrastructure, with no actionable CodeRabbit findings available.
 
 - Observation: the final post-CodeRabbit `scrutineer` spawn hit the agent
-  thread limit.
-  Evidence: spawning `scrutineer` returned `agent thread limit reached`.
-  Impact: the implementation agent ran the same sequential deterministic gates
-  directly with `tee` logs under `/tmp/wi2-precommit-mapsplice-roadmap-4-2-1-*`.
+  thread limit. Evidence: spawning `scrutineer` returned
+  `agent thread limit reached`. Impact: the implementation agent ran the same
+  sequential deterministic gates directly with `tee` logs under
+  `/tmp/wi2-precommit-mapsplice-roadmap-4-2-1-*`.
 
 ## Decision Log
 
 - Decision: Initially use `nixie-cli`'s existing `--max-concurrency` option
-  rather than
-  wrapping `nixie` in a custom script or changing diagram content.
-  Rationale: locked `nixie-cli` 1.1.0 implements the exact control needed.
-  Its source creates an `asyncio.Semaphore` from `resolve_max_concurrency`, and
+  rather than wrapping `nixie` in a custom script or changing diagram content.
+  Rationale: locked `nixie-cli` 1.1.0 implements the exact control needed. Its
+  source creates an `asyncio.Semaphore` from `resolve_max_concurrency`, and
   emits results in file and diagram order. This decision was superseded during
   Work Item 1 after `nixie-cli`'s fixed per-diagram timeout continued to fail
-  under the sanctioned gate runner.
-  Date/Author: 2026-07-02 / planning agent.
+  under the sanctioned gate runner. Date/Author: 2026-07-02 / planning agent.
 
 - Decision: Supersede the planned `nixie-cli` invocation with direct
   `merman-cli` Markdown validation under the existing `make nixie` target.
   Rationale: locked `nixie-cli` 1.1.0 hard-codes a 30-second per-diagram
-  timeout. Under `scrutineer`, unchanged diagrams timed out repeatedly even
-  with `--max-concurrency 1`, while direct `merman-cli` Markdown validation
-  over the same files passed consistently and uses the CI-installed renderer.
+  timeout. Under `scrutineer`, unchanged diagrams timed out repeatedly even with
+  `--max-concurrency 1`, while direct `merman-cli` Markdown validation over
+  the same files passed consistently and uses the CI-installed renderer.
   Date/Author: 2026-07-02 / implementation agent.
 
 - Decision: Initially default the Makefile to `NIXIE_MAX_CONCURRENCY ?= 2`.
   Rationale: locked `nixie-cli` clamps explicit values to
   `max(1, cpu_count - 1)`. Therefore cap 2 resolves to 1 on a 2-CPU private
-  `ubuntu-latest` runner, to 2 on a 4-CPU public `ubuntu-latest` runner, and
-  to 2 on the development host. This was superseded during Work Item 1 after
-  the sanctioned gate runner reproduced timeouts with a cap of 2.
-  Date/Author: 2026-07-03 / planning agent.
+  `ubuntu-latest` runner, to 2 on a 4-CPU public `ubuntu-latest` runner, and to
+  2 on the development host. This was superseded during Work Item 1 after the
+  sanctioned gate runner reproduced timeouts with a cap of 2. Date/Author:
+  2026-07-03 / planning agent.
 
 - Decision: Default the Makefile to `NIXIE_MAX_CONCURRENCY ?= 1` and
-  `NIXIE_RENDERER_THREADS ?= 1`.
-  Rationale: the planned default of 2 continued to produce renderer timeouts
-  after serial runs had passed. The serial default is the only setting that
-  satisfied the repository gate under the sanctioned gate runner. Explicit
-  overrides remain available for comparison.
-  Date/Author: 2026-07-02 / implementation agent.
+  `NIXIE_RENDERER_THREADS ?= 1`. Rationale: the planned default of 2 continued
+  to produce renderer timeouts after serial runs had passed. The serial default
+  is the only setting that satisfied the repository gate under the sanctioned
+  gate runner. Explicit overrides remain available for comparison. Date/Author:
+  2026-07-02 / implementation agent.
 
 - Decision: Pin the Makefile contract with a Rust dry-run integration test.
   Rationale: invoking real renderers inside the normal Rust test suite would
@@ -289,47 +271,46 @@ Stop and escalate if any threshold below is reached:
   Date/Author: 2026-07-02 / planning agent.
 
 - Decision: Require all assertion macros in the new Rust test to live in
-  `()`-returning helper functions.
-  Rationale: this repository denies `clippy::panic_in_result_fn`; existing
-  integration tests avoid the lint by keeping assertion macros out of
-  `Result`-returning test bodies.
-  Date/Author: 2026-07-03 / planning agent.
+  `()`-returning helper functions. Rationale: this repository denies
+  `clippy::panic_in_result_fn`; existing integration tests avoid the lint by
+  keeping assertion macros out of `Result`-returning test bodies. Date/Author:
+  2026-07-03 / planning agent.
 
 - Decision: Keep renderer selection unchanged.
   Rationale: `nixie-cli` 1.1.0 `auto` mode prefers `merman-cli` and falls back
   to the Node-based renderer when needed. The failure and fix are about process
-  concurrency, not renderer semantics.
-  Date/Author: 2026-07-02 / planning agent.
+  concurrency, not renderer semantics. Date/Author: 2026-07-02 / planning agent.
 
 - Decision: Iterate over tracked Markdown files with `git ls-files '*.md'`.
   Rationale: this preserves the existing tracked corpus while avoiding
   repository-wide formatter churn and untracked local scratch files. Each
   Markdown file gets a fresh renderer invocation and a shared temporary
-  artefact directory that is removed by a shell trap.
-  Date/Author: 2026-07-02 / implementation agent.
+  artefact directory that is removed by a shell trap. Date/Author: 2026-07-02 /
+  implementation agent.
 
 ## Outcomes & Retrospective
 
-Work Item 1 is committed as `8055896` (`Stabilize Mermaid validation gate`).
-It changed `Makefile` and added `tests/makefile_nixie.rs`. The focused dry-run
+Work Item 1 is committed as `8055896` (`Stabilize Mermaid validation gate`). It
+changed `Makefile` and added `tests/makefile_nixie.rs`. The focused dry-run
 integration test passed with four cases in
 `/tmp/test-green6-makefile-nixie-mapsplice-roadmap-4-2-1.out`. `scrutineer`
 confirmed `make all`, `make markdownlint`, default `make nixie`, and
 `NIXIE_MAX_CONCURRENCY=1 make nixie` all passed in
-`/tmp/wi1-merman-final-mapsplice-roadmap-4-2-1-*.out` and again before commit
-in `/tmp/wi1-precommit-mapsplice-roadmap-4-2-1-*.out`. CodeRabbit review was
+`/tmp/wi1-merman-final-mapsplice-roadmap-4-2-1-*.out` and again before commit in
+`/tmp/wi1-precommit-mapsplice-roadmap-4-2-1-*.out`. CodeRabbit review was
 deferred because no default network route was visible in the sandbox.
 
 Work Item 2 documents the implemented deterministic Mermaid gate in
 `docs/developers-guide.md` and `docs/contributing.md`, then marks only roadmap
 task 4.2.1 complete in `docs/roadmap.md`. `scrutineer` confirmed `make all`,
-`make markdownlint`, default `make nixie`, and `NIXIE_MAX_CONCURRENCY=1 make
-nixie` all passed in `/tmp/wi2-final-mapsplice-roadmap-4-2-1-*.out`.
-CodeRabbit review was deferred because no default network route was visible in
-the sandbox. After recording the CodeRabbit deferral, the final `scrutineer`
-spawn failed because the agent thread limit was reached, so the implementation
-agent ran the same sequential gates directly in
-`/tmp/wi2-precommit-mapsplice-roadmap-4-2-1-*.out`; all passed.
+`make markdownlint`, default `make nixie`, and
+`NIXIE_MAX_CONCURRENCY=1 make nixie` all passed in
+`/tmp/wi2-final-mapsplice-roadmap-4-2-1-*.out`. CodeRabbit review was deferred
+because no default network route was visible in the sandbox. After recording
+the CodeRabbit deferral, the final `scrutineer` spawn failed because the agent
+thread limit was reached, so the implementation agent ran the same sequential
+gates directly in `/tmp/wi2-precommit-mapsplice-roadmap-4-2-1-*.out`; all
+passed.
 
 ## Context and orientation
 
@@ -351,8 +332,8 @@ nixie: ## Validate Mermaid diagrams
 
 The CI workflow in `.github/workflows/ci.yml` uses `runs-on: ubuntu-latest`,
 sets `NIXIE_CLI_VERSION: '1.1.0'`, installs `nixie-cli==1.1.0`, installs
-`merman-cli@0.8.0-alpha.2`, and runs `make nixie`. Work Item 1 keeps the
-target name but now uses the installed `merman-cli` renderer directly because
+`merman-cli@0.8.0-alpha.2`, and runs `make nixie`. Work Item 1 keeps the target
+name but now uses the installed `merman-cli` renderer directly because
 `nixie-cli`'s internal timeout remained flaky under gate-runner load.
 
 The official GitHub-hosted runner reference says `ubuntu-latest` Linux runners
@@ -429,11 +410,11 @@ Read before starting: `AGENTS.md` "Commands", "Markdown Guidance", "Rust
 Specific Guidance" and "Testing"; `docs/roadmap.md` task 4.2.1;
 `docs/developers-guide.md` sections 6 and 7; `docs/mapsplice-design.md`
 sections 5 and 8; `.github/workflows/ci.yml`; the verified `nixie-cli` 1.1.0
-source and metadata paths listed in "Context and orientation"; and
-`Cargo.toml` lints.
+source and metadata paths listed in "Context and orientation"; and `Cargo.toml`
+lints.
 
-Skills to load: `memtrace-first`, `leta`, `rust-router`,
-`rust-unit-testing`, `sem`, and `commit-message`.
+Skills to load: `memtrace-first`, `leta`, `rust-router`, `rust-unit-testing`,
+`sem`, and `commit-message`.
 
 This work item is one independently committable, gate-passable commit.
 
@@ -539,9 +520,9 @@ Tests required for this work item:
 
 Read before starting: `docs/developers-guide.md` sections 1, 6 and 7;
 `docs/contributing.md` "Development gates"; `docs/documentation-style-guide.md`
-"Diagrams and images"; `docs/roadmap.md` task 4.2.1; `AGENTS.md`
-"Documentation Maintenance" and "Markdown Guidance"; and this ExecPlan's
-current "Decision Log".
+"Diagrams and images"; `docs/roadmap.md` task 4.2.1; `AGENTS.md` "Documentation
+Maintenance" and "Markdown Guidance"; and this ExecPlan's current "Decision
+Log".
 
 Skills to load: `en-gb-oxendict-style`, `sem`, and `commit-message`. Load
 `rust-router` only if the documentation work reveals a required Rust test
@@ -552,10 +533,10 @@ commit.
 
 1. Update `docs/developers-guide.md` local tooling guidance to state that
    `make nixie` validates tracked Markdown directly through `merman-cli`, one
-   file at a time, with `NIXIE_MAX_CONCURRENCY` and
-   `NIXIE_RENDERER_THREADS` both defaulting to `1`. Mention that explicit
-   overrides such as `NIXIE_MAX_CONCURRENCY=2 make nixie` are only for local
-   comparison; the serial default is the required gate.
+   file at a time, with `NIXIE_MAX_CONCURRENCY` and `NIXIE_RENDERER_THREADS`
+   both defaulting to `1`. Mention that explicit overrides such as
+   `NIXIE_MAX_CONCURRENCY=2 make nixie` are only for local comparison; the
+   serial default is the required gate.
 2. Update `docs/contributing.md` development gates with the same
    contributor-facing note so contributors know how to reproduce the serial
    path without editing the Makefile.
@@ -823,9 +804,9 @@ with `merman-cli`, one file at a time. The remaining work must document this
 actual contract rather than the original `nixie --max-concurrency` plan.
 
 Round 4 records Work Item 2 completion. The contributor-facing docs now state
-that `make nixie` uses direct `merman-cli` validation with serial defaults,
-the roadmap marks only task 4.2.1 complete, and the ExecPlan records Work
-Item 1 commit and gate evidence.
+that `make nixie` uses direct `merman-cli` validation with serial defaults, the
+roadmap marks only task 4.2.1 complete, and the ExecPlan records Work Item 1
+commit and gate evidence.
 
 Round 5 records final Work Item 2 evidence. Deterministic gates passed after
 the documentation update, and CodeRabbit deferred before review because the

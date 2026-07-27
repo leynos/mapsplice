@@ -678,25 +678,22 @@ to need a public change, stop under the `Interface` tolerance.
   `Read-only file system (os error 30)` and `Failed to start daemon`; Sem
   reported only this branch's ExecPlan addition against `origin/main`.
 - [x] 2026-07-01T14:12:00Z Work item 1: pinned dependency-text scoping at
-  the library boundary.
-  Added dependency-reference classifier, text-rewrite, and operation
-  regressions. The focused red command unexpectedly passed, so no production
-  code was changed for this work item. Focused `dependency_reference`,
-  `make all`, `make markdownlint`, and `make nixie` gates passed before commit.
+  the library boundary. Added dependency-reference classifier, text-rewrite,
+  and operation regressions. The focused red command unexpectedly passed, so no
+  production code was changed for this work item. Focused
+  `dependency_reference`, `make all`, `make markdownlint`, and `make nixie`
+  gates passed before commit.
 - [x] 2026-07-01T14:24:00Z Work item 2: pinned scoped rewriting through CLI
-  and property coverage.
-  Added a BDD scenario through the compiled binary and a generated property for
-  incidental section references, semantic versions, and prose counts beside a
-  mapped `Requires` reference. Focused `scoped_reference` and `make all` gates
-  passed before commit.
+  and property coverage. Added a BDD scenario through the compiled binary and a
+  generated property for incidental section references, semantic versions, and
+  prose counts beside a mapped `Requires` reference. Focused `scoped_reference`
+  and `make all` gates passed before commit.
 - [x] 2026-07-01T14:30:00Z Work item 3: updated user-facing and maintainer
-  documentation.
-  Documented the `Requires`-only rewrite scope, updated the maintainer coverage
-  map, and marked roadmap task 1.1.2 complete.
+  documentation. Documented the `Requires`-only rewrite scope, updated the
+  maintainer coverage map, and marked roadmap task 1.1.2 complete.
 - [x] 2026-07-01T14:10:00Z Work item 4: ran final gates and recorded
-  completion evidence.
-  Final `make all`, `make markdownlint`, `make nixie`, and CodeRabbit review
-  passed; CodeRabbit reported zero findings.
+  completion evidence. Final `make all`, `make markdownlint`, `make nixie`, and
+  CodeRabbit review passed; CodeRabbit reported zero findings.
 
 ## Surprises & Discoveries
 
@@ -708,8 +705,7 @@ to need a public change, stop under the `Interface` tolerance.
 - Observation: Leta partially worked in planning round 2, then failed during
   planning round 3 workspace setup. Evidence:
   `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-1-1-2`
-  succeeded, and
-  `leta grep 'rewrite_text_value|classify_dependency_reference|`
+  succeeded, and `leta grep 'rewrite_text_value|classify_dependency_reference|`
   `rewrite_dependencies' -k function,method --head 50` returned the three
   expected symbols. Later `leta show`, `leta refs`, and `leta calls` attempts
   returned `Error: Failed to start daemon`. In planning rounds 3 and 4,
@@ -954,5 +950,5 @@ Manual completion evidence after the workflow implementation adapter failed:
 
 Final validation completed on 2026-07-01. `make all` reported 84 nextest tests
 passed and 8 doctests passed with 2 ignored. `make markdownlint` reported zero
-errors, `make nixie` validated all diagrams, and CodeRabbit completed with
-zero findings.
+errors, `make nixie` validated all diagrams, and CodeRabbit completed with zero
+findings.

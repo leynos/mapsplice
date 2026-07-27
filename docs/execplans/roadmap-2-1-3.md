@@ -1,9 +1,8 @@
 # Preserve sub-task nesting and indentation on render
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -61,11 +60,11 @@ item as the failing regression test.
 ## Tolerances (exception triggers)
 
 - If `git branch --show-current` is not `roadmap-2-1-3`, stop before editing.
-- Before implementation work starts, `sem diff --from origin/main --to HEAD
-  --format json` may report only the intentional added ExecPlan at
-  `docs/execplans/roadmap-2-1-3.md`. If it reports any source-code delta,
-  roadmap-status delta, or other unexpected file, inspect it and update this
-  plan before editing.
+- Before implementation work starts,
+  `sem diff --from origin/main --to HEAD --format json` may report only the
+  intentional added ExecPlan at `docs/execplans/roadmap-2-1-3.md`. If it
+  reports any source-code delta, roadmap-status delta, or other unexpected
+  file, inspect it and update this plan before editing.
 - If Memtrace or `leta` are unavailable, do not mark this plan blocked. Record
   the exact failure in `Surprises & Discoveries` and continue with bounded
   local evidence.
@@ -83,45 +82,36 @@ item as the failing regression test.
   command and log path in `Decision Log` and stop for review.
 - If formatter churn touches files outside the work item, park or discard it
   with a named stash following the required
-  `df12-stash v1 task=2.1.3 kind=<discard|park|keep> reason="<short>"`
-  format before proceeding.
+  `df12-stash v1 task=2.1.3 kind=<discard|park|keep> reason="<short>"` format
+  before proceeding.
 
 ## Risks
 
 - Risk: Existing unit coverage can pass while the compiled binary still
-  changes nested sub-task indentation during a real command.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: add a CLI-level regression that compares the preserved nested
-  block exactly, not just by containment or ordering.
+  changes nested sub-task indentation during a real command. Severity: medium.
+  Likelihood: medium. Mitigation: add a CLI-level regression that compares the
+  preserved nested block exactly, not just by containment or ordering.
 
 - Risk: A speculative renderer rewrite could break the already passing exact
-  round-trip contract.
-  Severity: high.
-  Likelihood: medium.
-  Mitigation: use the current mechanism unless a focused test fails; only then
-  patch the smallest renderer surface.
+  round-trip contract. Severity: high. Likelihood: medium. Mitigation: use the
+  current mechanism unless a focused test fails; only then patch the smallest
+  renderer surface.
 
 - Risk: The `markdown` crate parses mdast with source positions but does not
-  provide the full Markdown writer this fidelity contract needs.
-  Severity: high.
-  Likelihood: verified.
-  Mitigation: keep using `markdown::to_mdast()` only for parsing and preserve
-  rendering through mapsplice's deterministic renderer and original-block
-  storage.
+  provide the full Markdown writer this fidelity contract needs. Severity:
+  high. Likelihood: verified. Mitigation: keep using `markdown::to_mdast()`
+  only for parsing and preserve rendering through mapsplice's deterministic
+  renderer and original-block storage.
 
 - Risk: Tooling required by the workflow can be unavailable in this sandbox.
-  Severity: medium.
-  Likelihood: observed.
-  Mitigation: record Memtrace, Firecrawl, and Leta failures exactly and rely on
-  locked local source, `sem`, focused tests, and repository gates as fallback
-  evidence.
+  Severity: medium. Likelihood: observed. Mitigation: record Memtrace,
+  Firecrawl, and Leta failures exactly and rely on locked local source, `sem`,
+  focused tests, and repository gates as fallback evidence.
 
 ## Progress
 
 - [x] (2026-07-01T10:58:56Z) Read `AGENTS.md` and confirmed the branch is
-  `roadmap-2-1-3`, so this plan belongs at
-  `docs/execplans/roadmap-2-1-3.md`.
+  `roadmap-2-1-3`, so this plan belongs at `docs/execplans/roadmap-2-1-3.md`.
 - [x] (2026-07-01T10:58:56Z) Loaded `execplans`, `leta`, `sem`,
   `firecrawl-mcp`, `rust-router`, `rust-unit-testing`, `rust-errors`, and
   `rust-types-and-apis` for planning round 1.
@@ -129,10 +119,9 @@ item as the failing regression test.
   `firecrawl-mcp`, `rust-router`, `rust-unit-testing`, `rust-errors`,
   `rust-types-and-apis`, and `en-gb-oxendict-style` for planning round 2.
 - [x] (2026-07-01T10:58:56Z) Read the source-of-truth docs: `docs/roadmap.md`,
-  `docs/mapsplice-design.md`, `docs/developers-guide.md`,
-  `docs/users-guide.md`, `docs/contributing.md`,
-  `docs/documentation-style-guide.md`, `docs/scripting-standards.md`, and
-  `docs/execplans/initial-tool.md`.
+  `docs/mapsplice-design.md`, `docs/developers-guide.md`, `docs/users-guide.md`,
+  `docs/contributing.md`, `docs/documentation-style-guide.md`,
+  `docs/scripting-standards.md`, and `docs/execplans/initial-tool.md`.
 - [x] (2026-07-01T10:58:56Z) Planning round 1 verified that
   `sem diff --from origin/main --to HEAD --format json` reported no semantic
   delta, and `HEAD` equalled `origin/main` at `b502142`.
@@ -145,9 +134,11 @@ item as the failing regression test.
   `make markdownlint`, and `make nixie`.
 - [x] (2026-07-01T10:58:56Z) Verified focused baseline tests:
   `cargo test --workspace --all-targets --all-features
-  exact_nested_sub_task_round_trip` passed, and
+  exact_nested_sub_task_round_trip`
+  passed, and
   `cargo test --workspace --all-targets --all-features --test roadmap_render
-  render_preserves_task_body_and_sub_task_order` passed.
+  render_preserves_task_body_and_sub_task_order`
+  passed.
 - [x] (2026-07-01T11:19:48Z) Work item 1 reconfirmed that the branch is
   `roadmap-2-1-3`, the semantic branch delta remains the intentional
   ExecPlan-only addition, the exact nested unit test passes, the current
@@ -164,16 +155,15 @@ item as the failing regression test.
   Deterministic gates passed after an import-order formatting fix and a
   transient `make nixie` retry. CodeRabbit again stalled at
   `connecting_to_review_service` and emitted no actionable findings. A
-  post-plan-update gate rerun also passed after additional transient `make
-  nixie` retries.
+  post-plan-update gate rerun also passed after additional transient
+  `make nixie` retries.
 - [x] (2026-07-01T12:17:01Z) Work item 3 marked only roadmap task 2.1.3
-  complete in `docs/roadmap.md` and updated this ExecPlan with final
-  validation evidence. Adjacent tasks 2.1.2, 3.1.1, 3.1.2, and 3.1.3 remain
-  incomplete.
+  complete in `docs/roadmap.md` and updated this ExecPlan with final validation
+  evidence. Adjacent tasks 2.1.2, 3.1.1, 3.1.2, and 3.1.3 remain incomplete.
 - [x] (2026-07-01T12:33:47Z) Work item 3 deterministic gates passed:
-  `make all`, `make markdownlint`, and `make nixie`. CodeRabbit again stalled
-  at `connecting_to_review_service`, emitted no findings payload, and exited
-  via interrupt status 130.
+  `make all`, `make markdownlint`, and `make nixie`. CodeRabbit again stalled at
+  `connecting_to_review_service`, emitted no findings payload, and exited via
+  interrupt status 130.
 
 ## Surprises & discoveries
 
@@ -194,10 +184,10 @@ item as the failing regression test.
   `Error: Failed to start daemon`. Branch-local verification used exact text
   search and bounded local source inspection for this planning revision.
 - The locked `markdown` crate version is 1.0.0. Its local source exposes
-  `markdown::to_mdast(value: &str, options: &ParseOptions)` in
-  `src/lib.rs`, and its mdast nodes carry position data via `mdast.rs` and
-  `unist::Position`. The crate source and crate-level docs describe parsing,
-  HTML output, and mdast access, not a load-bearing Markdown writer API.
+  `markdown::to_mdast(value: &str, options: &ParseOptions)` in `src/lib.rs`,
+  and its mdast nodes carry position data via `mdast.rs` and `unist::Position`.
+  The crate source and crate-level docs describe parsing, HTML output, and
+  mdast access, not a load-bearing Markdown writer API.
 - The locked `insta` version is 1.48.0, but task 2.1.3 does not need it:
   exact `assert_eq!` string comparisons are clearer and avoid snapshot review
   workflow for a small Markdown block.
@@ -212,32 +202,32 @@ item as the failing regression test.
   `user cancelled MCP tool call`, so canonical-main graph context remained
   unavailable and branch-local evidence was bounded to `sem`, local source
   inspection, and focused tests.
-- During implementation work item 1, `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-2-1-3` failed with
-  `Error: IO error: Read-only file system (os error 30)`, and `leta show
-  render_task`, `leta show render_sub_task`, and `leta show indent_block`
-  each failed with `Error: Failed to start daemon`.
+- During implementation work item 1,
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-2-1-3`
+  failed with `Error: IO error: Read-only file system (os error 30)`, and
+  `leta show render_task`, `leta show render_sub_task`, and
+  `leta show indent_block` each failed with `Error: Failed to start daemon`.
 - `make nixie` timed out once in scrutineer's first work item 1 gate run while
   rendering `docs/rstest-bdd-users-guide.md` diagram 1. A local retry and a
-  scrutineer rerun both passed without documentation edits, so this was
-  treated as transient gate flakiness rather than source drift.
+  scrutineer rerun both passed without documentation edits, so this was treated
+  as transient gate flakiness rather than source drift.
 - CodeRabbit work item 1 review attempt 1 exited with status 130 after
   logging only `review_context` and
   `{"type":"status","phase":"connecting","status":"connecting_to_review_service"}`.
   Retry 1 produced the same connection-phase output and no completion payload,
   rate-limit message, or actionable finding.
 - During implementation work item 2, Memtrace `find_symbol` for `render_task`
-  with repo id `mapsplice` returned `user cancelled MCP tool call`. Leta
-  `show` commands for `render_task`, `render_sub_task`, and `indent_block`
-  again failed with `Error: Failed to start daemon`.
+  with repo id `mapsplice` returned `user cancelled MCP tool call`. Leta `show`
+  commands for `render_task`, `render_sub_task`, and `indent_block` again
+  failed with `Error: Failed to start daemon`.
 - Work item 2 first deterministic gate run failed `make all` at
   `cargo fmt --all -- --check` because `tests/roadmap_render.rs` import order
   needed `use workspace_support::{TestResult, Workspace, workspace};`. The
   exact import-order fix made `make check-fmt` pass.
 - Work item 2 `make nixie` timed out once on
-  `docs/rstest-bdd-users-guide.md` diagram 1 during a scrutineer rerun. A
-  local retry and final scrutineer rerun passed without edits, matching the
-  work item 1 transient diagram-render behaviour.
+  `docs/rstest-bdd-users-guide.md` diagram 1 during a scrutineer rerun. A local
+  retry and final scrutineer rerun passed without edits, matching the work item
+  1 transient diagram-render behaviour.
 - After the final work item 2 ExecPlan update, `make nixie` timed out once on
   `docs/ortho-config-users-guide.md` diagram 1 and once locally on
   `docs/rstest-bdd-users-guide.md` diagram 1. A second local retry and a final
@@ -257,62 +247,57 @@ item as the failing regression test.
 
 - Decision: Do not prescribe a renderer rewrite in the initial plan.
   Rationale: The current exact nested sub-task round-trip unit test passes on
-  the assigned branch. Planning round 2 distinguishes the intentional
-  plan-only branch delta from unexpected code deltas; rewriting a passing
-  mechanism would add risk without evidence.
-  Date/Author: 2026-07-01T10:58:56Z / planning agent.
+  the assigned branch. Planning round 2 distinguishes the intentional plan-only
+  branch delta from unexpected code deltas; rewriting a passing mechanism would
+  add risk without evidence. Date/Author: 2026-07-01T10:58:56Z / planning agent.
 
 - Decision: Treat the current branch delta as plan-only until implementation
-  starts.
-  Rationale: The design review identified stale baseline evidence. Current
-  `HEAD` is `db53e09`, `origin/main` is `b502142`, and `sem diff --from
-  origin/main --to HEAD --format json` shows the added ExecPlan. Work item 1
-  now explicitly verifies that any extra source or roadmap-status delta is
-  unexpected and must be resolved before implementation.
-  Date/Author: 2026-07-01T11:34:00Z / planning agent.
+  starts. Rationale: The design review identified stale baseline evidence.
+  Current `HEAD` is `db53e09`, `origin/main` is `b502142`, and
+  `sem diff --from origin/main --to HEAD --format json` shows the added
+  ExecPlan. Work item 1 now explicitly verifies that any extra source or
+  roadmap-status delta is unexpected and must be resolved before
+  implementation. Date/Author: 2026-07-01T11:34:00Z / planning agent.
 
 - Decision: Prove the user-facing surface with an exact CLI-level regression
-  before marking roadmap task 2.1.3 complete.
-  Rationale: `docs/mapsplice-design.md` section 8 requires golden comparison
-  for render fidelity end to end, and the current integration test checks
-  ordering rather than exact block identity.
-  Date/Author: 2026-07-01T10:58:56Z / planning agent.
+  before marking roadmap task 2.1.3 complete. Rationale:
+  `docs/mapsplice-design.md` section 8 requires golden comparison for render
+  fidelity end to end, and the current integration test checks ordering rather
+  than exact block identity. Date/Author: 2026-07-01T10:58:56Z / planning agent.
 
 - Decision: Use local deterministic rendering rather than any external
-  Markdown writer.
-  Rationale: `docs/execplans/initial-tool.md` decisions require a constrained
-  roadmap renderer, and the locked `markdown` crate source verifies parsing and
-  mdast support but no full Markdown writer API that satisfies F1, F3, and C4.
-  Date/Author: 2026-07-01T10:58:56Z / planning agent.
+  Markdown writer. Rationale: `docs/execplans/initial-tool.md` decisions
+  require a constrained roadmap renderer, and the locked `markdown` crate
+  source verifies parsing and mdast support but no full Markdown writer API
+  that satisfies F1, F3, and C4. Date/Author: 2026-07-01T10:58:56Z / planning
+  agent.
 
 - Decision: Proceed past work item 1 with a deferred CodeRabbit review issue.
   Rationale: Deterministic gates are green and CodeRabbit emitted no review
   payload on two attempts, only the connection-phase status
   `connecting_to_review_service`. There was no rate-limit backoff directive to
-  obey and no actionable feedback to fix.
-  Date/Author: 2026-07-01T11:56:25Z / implementation agent.
+  obey and no actionable feedback to fix. Date/Author: 2026-07-01T11:56:25Z /
+  implementation agent.
 
 - Decision: Keep work item 2 test-only after the new CLI regression passed on
-  the baseline.
-  Rationale: The new exact block test proved the user-facing append workflow
-  preserves nested sub-task indentation without changing renderer code. Editing
-  production code after that pass would violate the plan's minimal-change
-  direction.
-  Date/Author: 2026-07-01T12:12:48Z / implementation agent.
+  the baseline. Rationale: The new exact block test proved the user-facing
+  append workflow preserves nested sub-task indentation without changing
+  renderer code. Editing production code after that pass would violate the
+  plan's minimal-change direction. Date/Author: 2026-07-01T12:12:48Z /
+  implementation agent.
 
 - Decision: Mark only roadmap task 2.1.3 complete.
   Rationale: Work item 2 supplied the missing CLI-level proof and the final
   status work is scoped to the render-indentation task. The adjacent renumber
   and fixture-corpus tasks depend on separate roadmap work and remain
-  unchecked.
-  Date/Author: 2026-07-01T12:17:01Z / implementation agent.
+  unchecked. Date/Author: 2026-07-01T12:17:01Z / implementation agent.
 
 - Decision: Leave CodeRabbit review deferred for the supervisor.
   Rationale: All deterministic gates pass and every CodeRabbit attempt across
   the three work items stalled at `connecting_to_review_service` without a
   rate-limit backoff directive or actionable review payload. There is no local
-  code or documentation finding to address.
-  Date/Author: 2026-07-01T12:33:47Z / implementation agent.
+  code or documentation finding to address. Date/Author: 2026-07-01T12:33:47Z /
+  implementation agent.
 
 ## Outcomes & retrospective
 
@@ -329,18 +314,16 @@ because the review service did not advance beyond the connection phase.
 
 Work item 2 added the exact CLI-level regression without production-code
 changes. The new test passed immediately, proving the existing renderer already
-preserves the full four-line nested parent task block byte-for-byte through
-the compiled append workflow. Work item 2 deterministic gates are green after
-the formatting fix and transient `make nixie` retry; CodeRabbit review is
-deferred because the review service did not advance beyond the connection
-phase.
+preserves the full four-line nested parent task block byte-for-byte through the
+compiled append workflow. Work item 2 deterministic gates are green after the
+formatting fix and transient `make nixie` retry; CodeRabbit review is deferred
+because the review service did not advance beyond the connection phase.
 
 Work item 3 completed the roadmap status update by checking only task 2.1.3 in
 `docs/roadmap.md`. Final gate evidence is recorded below after path-specific
-Markdown formatting and repository validation.
-The ExecPlan is complete with all three work items committed or ready to
-commit, deterministic gates green, and CodeRabbit review deferred because the
-service connection did not complete.
+Markdown formatting and repository validation. The ExecPlan is complete with
+all three work items committed or ready to commit, deterministic gates green,
+and CodeRabbit review deferred because the service connection did not complete.
 
 ## Context and orientation
 
@@ -393,22 +376,22 @@ The relevant implementation surface is small:
 
 ### Work item 1: Reconfirm render-fidelity mechanism and tool availability
 
-This is an evidence and plan-update work item. It implements
-`AGENTS.md` "Core tenets", `AGENTS.md` "Branches", `AGENTS.md` "Commands",
-`docs/mapsplice-design.md` sections 4, 5, 6, and 8,
-`docs/developers-guide.md` sections 2 and 6, and the initial-tool ExecPlan
-decision to render only the supported roadmap grammar deterministically.
+This is an evidence and plan-update work item. It implements `AGENTS.md` "Core
+tenets", `AGENTS.md` "Branches", `AGENTS.md` "Commands",
+`docs/mapsplice-design.md` sections 4, 5, 6, and 8, `docs/developers-guide.md`
+sections 2 and 6, and the initial-tool ExecPlan decision to render only the
+supported roadmap grammar deterministically.
 
 Read and cite these documents before editing: `AGENTS.md`, `docs/roadmap.md`,
 `docs/mapsplice-design.md`, `docs/developers-guide.md`, `docs/users-guide.md`,
 `docs/contributing.md`, `docs/documentation-style-guide.md`,
 `docs/scripting-standards.md`, and `docs/execplans/initial-tool.md`.
 
-Load these skills: `execplans`, `leta`, `sem`, `firecrawl-mcp`,
-`rust-router`, `rust-unit-testing`, `rust-errors`, and
-`rust-types-and-apis`. Use `rust-router` to confirm that
-`rust-unit-testing` is the only Rust follow-on skill needed unless the focused
-renderer tests fail and force production-code work.
+Load these skills: `execplans`, `leta`, `sem`, `firecrawl-mcp`, `rust-router`,
+`rust-unit-testing`, `rust-errors`, and `rust-types-and-apis`. Use
+`rust-router` to confirm that `rust-unit-testing` is the only Rust follow-on
+skill needed unless the focused renderer tests fail and force production-code
+work.
 
 Run the tool and baseline checks from the assigned worktree:
 
@@ -440,8 +423,8 @@ confirm `#[rstest]` remains available. For `insta` 1.48.0, record that this
 task deliberately avoids snapshot review because exact string equality is
 load-bearing and small.
 
-Update only `docs/execplans/roadmap-2-1-3.md` with any new evidence. Format
-and gate the changed Markdown file:
+Update only `docs/execplans/roadmap-2-1-3.md` with any new evidence. Format and
+gate the changed Markdown file:
 
 ```sh
 mdtablefix docs/execplans/roadmap-2-1-3.md \
@@ -465,8 +448,8 @@ for the compiled workflow surface.
 
 Read `tests/roadmap_render.rs`, `tests/support/roadmap_workspace.rs`,
 `src/roadmap/render.rs`, and `src/roadmap/render_text.rs`. Use `leta show` and
-`leta refs` for `render_task`, `render_sub_task`, and `indent_block` if Leta
-is available; otherwise use bounded local inspection and record the fallback.
+`leta refs` for `render_task`, `render_sub_task`, and `indent_block` if Leta is
+available; otherwise use bounded local inspection and record the fallback.
 
 Add a new `#[rstest]` test in `tests/roadmap_render.rs` named
 `render_preserves_nested_sub_task_block_exactly`. The test should write a
@@ -529,21 +512,20 @@ make nixie 2>&1 | tee /tmp/make-nixie-wi2-mapsplice-roadmap-2-1-3.out
 ```
 
 Commit message if this is test-only: `Prove sub-task render indentation`.
-Commit message if a renderer fix was required: `Preserve sub-task render indentation`.
+Commit message if a renderer fix was required:
+`Preserve sub-task render indentation`.
 
 ### Work item 3: Update roadmap status and final validation evidence
 
-This is the documentation status work item. It implements
-`docs/roadmap.md` task 2.1.3, `docs/mapsplice-design.md` F4 gate-clean output,
-`AGENTS.md` "Markdown Guidance", and
-`docs/documentation-style-guide.md` spelling, headings, wrapping, and Markdown
-rules.
+This is the documentation status work item. It implements `docs/roadmap.md`
+task 2.1.3, `docs/mapsplice-design.md` F4 gate-clean output, `AGENTS.md`
+"Markdown Guidance", and `docs/documentation-style-guide.md` spelling,
+headings, wrapping, and Markdown rules.
 
 Update `docs/roadmap.md` to mark only task 2.1.3 as complete after work item 2
-passes. Do not mark 2.1.2, 3.1.1, 3.1.2, or 3.1.3 complete from this work
-item. Update this ExecPlan's `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` with the final validation
-evidence.
+passes. Do not mark 2.1.2, 3.1.1, 3.1.2, or 3.1.3 complete from this work item.
+Update this ExecPlan's `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` with the final validation evidence.
 
 Format only the changed Markdown files. At this point both paths definitely
 exist:
@@ -603,14 +585,16 @@ renderer behaviour already passes at the unit level. The required method is:
 
 - Red or baseline command:
   `cargo test --workspace --all-targets --all-features --test roadmap_render
-  render_preserves_nested_sub_task_block_exactly`. If the newly added test
-  passes before production-code edits, record that as baseline evidence and do
-  not alter production code. If it fails, record the failure as red evidence.
+  render_preserves_nested_sub_task_block_exactly`.
+  If the newly added test passes before production-code edits, record that as
+  baseline evidence and do not alter production code. If it fails, record the
+  failure as red evidence.
 - Green command:
   rerun the same focused integration test after the minimal renderer fix, if a
   fix was required.
 - Refactor command:
-  rerun `cargo test --workspace --all-targets --all-features
+  rerun
+  `cargo test --workspace --all-targets --all-features
   exact_nested_sub_task_round_trip`,
   `cargo test --workspace --all-targets --all-features --test roadmap_render`,
   and `make all`.
@@ -811,8 +795,8 @@ roadmap status.
 
 Planning round 2 revision: corrected stale baseline evidence by distinguishing
 current `HEAD` `db53e09` from `origin/main` `b502142`, recorded that the
-intentional branch delta is the added ExecPlan, added the repeated Firecrawl and
-Leta failures, and updated work item 2 so any ExecPlan evidence update is
+intentional branch delta is the added ExecPlan, added the repeated Firecrawl
+and Leta failures, and updated work item 2 so any ExecPlan evidence update is
 followed by path-specific Markdown formatting plus `make markdownlint` and
 `make nixie` before commit.
 
@@ -825,8 +809,8 @@ Work item 1 gate revision: recorded the deterministic gate rerun success, the
 transient `make nixie` timeout and successful retries, and the deferred
 CodeRabbit review issue caused by repeated connection-phase stalls.
 
-Work item 2 evidence revision: recorded the new CLI-level exact nested
-sub-task block regression and its baseline pass without production-code edits.
+Work item 2 evidence revision: recorded the new CLI-level exact nested sub-task
+block regression and its baseline pass without production-code edits.
 
 Work item 2 gate revision: recorded the rustfmt import-order fix, the final
 deterministic gate success, the transient `make nixie` timeout and retry, and
@@ -836,10 +820,8 @@ Work item 2 post-plan gate revision: recorded the additional `make nixie`
 timeouts on unchanged Mermaid diagrams and the final successful local and
 scrutineer reruns before committing the work item.
 
-Work item 3 status revision: marked the ExecPlan complete, checked only
-roadmap task 2.1.3, and recorded that adjacent roadmap tasks remain
-incomplete.
+Work item 3 status revision: marked the ExecPlan complete, checked only roadmap
+task 2.1.3, and recorded that adjacent roadmap tasks remain incomplete.
 
 Work item 3 review revision: recorded the final deterministic gate success and
-the third deferred CodeRabbit review caused by the same connection-phase
-stall.
+the third deferred CodeRabbit review caused by the same connection-phase stall.

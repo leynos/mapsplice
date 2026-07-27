@@ -1,22 +1,21 @@
 # Bring Public API Rustdoc Examples up to Project Standard
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
 ## Purpose / Big Picture
 
-Roadmap task 4.3.1, "Bring public API Rustdoc examples up to project
-standard", makes the small public library surface understandable and executable
-from the documentation itself. The developers' guide names the public entry
-points in `docs/developers-guide.md` section 3. The roadmap task body requires
-compact executable examples for the public APIs listed there, while its
-success line spotlights `run_from_args`, `run_request`, and `parse_roadmap`.
-`parse_anchor` and `metrics_snapshot` already have executable examples, so the
-remaining documentation gap in that public API list is `parse_fragment`.
+Roadmap task 4.3.1, "Bring public API Rustdoc examples up to project standard",
+makes the small public library surface understandable and executable from the
+documentation itself. The developers' guide names the public entry points in
+`docs/developers-guide.md` section 3. The roadmap task body requires compact
+executable examples for the public APIs listed there, while its success line
+spotlights `run_from_args`, `run_request`, and `parse_roadmap`. `parse_anchor`
+and `metrics_snapshot` already have executable examples, so the remaining
+documentation gap in that public API list is `parse_fragment`.
 
 After this plan is implemented, a maintainer can open the generated Rust
 documentation for those APIs and see examples that compile and run as doctests.
@@ -62,15 +61,15 @@ Observable success is:
   imply that non-`Requires` numeric text is rewritten, that malformed input is
   guessed at, or that in-place output writes before success.
 - Implement `docs/roadmap.md` task 4.3.1 exactly: add compact executable
-  Rustdoc examples for the public APIs listed in the developers' guide,
-  keeping filesystem-heavy flows isolated to temporary paths. The named
-  success APIs are `run_from_args`, `run_request`, and `parse_roadmap`; the
-  full section-3 gap also includes `parse_fragment`, because `parse_anchor` and
-  `metrics_snapshot` already have executable examples.
+  Rustdoc examples for the public APIs listed in the developers' guide, keeping
+  filesystem-heavy flows isolated to temporary paths. The named success APIs are
+  `run_from_args`, `run_request`, and `parse_roadmap`; the full section-3 gap
+  also includes `parse_fragment`, because `parse_anchor` and `metrics_snapshot`
+  already have executable examples.
 - Preserve `docs/developers-guide.md` section 2: `src/main.rs` remains the
   binary adapter, `src/lib.rs` remains the application workflow, `src/cli.rs`
-  remains command-line parsing and configuration, and `src/roadmap` remains
-  the domain layer.
+  remains command-line parsing and configuration, and `src/roadmap` remains the
+  domain layer.
 - Preserve `docs/developers-guide.md` section 3: public APIs return typed
   `MapspliceError` values; opaque reports stay outside the library API.
 - Preserve `docs/developers-guide.md` section 6: verification stays layered;
@@ -128,40 +127,33 @@ Observable success is:
 ## Risks
 
 - Risk: doctests that write files can collide when rustdoc runs examples in
-  parallel.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: use `tempfile::tempdir()` in filesystem examples and keep every
-  target and fragment under the returned `TempDir`.
+  parallel. Severity: medium. Likelihood: medium. Mitigation: use
+  `tempfile::tempdir()` in filesystem examples and keep every target and
+  fragment under the returned `TempDir`.
 
 - Risk: examples become too large and obscure the public API being taught.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: follow `docs/rust-doctest-dry-guide.md` sections 2.2, 2.3, and
-  2.4: show the API call and assertion, hide temporary-file setup and fallible
-  boilerplate with Rustdoc `#` hidden lines.
+  Severity: medium. Likelihood: medium. Mitigation: follow
+  `docs/rust-doctest-dry-guide.md` sections 2.2, 2.3, and 2.4: show the API
+  call and assertion, hide temporary-file setup and fallible boilerplate with
+  Rustdoc `#` hidden lines.
 
 - Risk: examples use `.expect()` or `.unwrap()` because that is shorter than
-  propagating errors.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: every doctest must use a hidden `fn main() -> Result<(), Box<dyn
-  std::error::Error>>` and `?` for fallible setup and API calls.
+  propagating errors. Severity: medium. Likelihood: medium. Mitigation: every
+  doctest must use a hidden
+  `fn main() -> Result<(), Box<dyn std::error::Error>>` and `?` for fallible
+  setup and API calls.
 
 - Risk: the examples accidentally test private implementation details.
-  Severity: low.
-  Likelihood: medium.
-  Mitigation: keep application-boundary examples in `src/lib.rs` and parser
-  examples on the public source items re-exported by `src/lib.rs`. Rustdoc
-  compiles doctests as external users, so private access will fail.
+  Severity: low. Likelihood: medium. Mitigation: keep application-boundary
+  examples in `src/lib.rs` and parser examples on the public source items
+  re-exported by `src/lib.rs`. Rustdoc compiles doctests as external users, so
+  private access will fail.
 
 - Risk: Cargo or Rustdoc behaviour differs from assumptions.
-  Severity: medium.
-  Likelihood: low.
-  Mitigation: this plan pins load-bearing behaviour to official Cargo/Rustdoc
-  documentation and locked local crate sources in "Interfaces and
-  dependencies"; the implementation gates run `cargo test --doc --workspace
-  --all-features`.
+  Severity: medium. Likelihood: low. Mitigation: this plan pins load-bearing
+  behaviour to official Cargo/Rustdoc documentation and locked local crate
+  sources in "Interfaces and dependencies"; the implementation gates run
+  `cargo test --doc --workspace --all-features`.
 
 ## Progress
 
@@ -169,8 +161,8 @@ Observable success is:
   `/home/leynos/Projects/mapsplice.worktrees/roadmap-4-3-1` and branch
   `roadmap-4-3-1`.
 - [x] (2026-07-02T18:23:24Z) Loaded required skills: `execplans`, `leta`,
-  `memtrace-first`, `sem`, `firecrawl-mcp`, `rust-router`,
-  `rust-unit-testing`, and `rust-types-and-apis`.
+  `memtrace-first`, `sem`, `firecrawl-mcp`, `rust-router`, `rust-unit-testing`,
+  and `rust-types-and-apis`.
 - [x] (2026-07-02T18:23:24Z) Confirmed the working tree was clean with
   `git status --short`, and `sem diff --format json` reported zero changed
   entities.
@@ -199,8 +191,8 @@ Observable success is:
   source support for `tempfile::tempdir()` and `camino::Utf8PathBuf`.
 - [x] (2026-07-02T18:23:24Z) Drafted this first-round ExecPlan.
 - [x] (2026-07-02T18:38:06Z) Revised this second-round ExecPlan after
-  design review found that the first draft incorrectly omitted
-  `parse_fragment` from the developers' guide section-3 public API scope.
+  design review found that the first draft incorrectly omitted `parse_fragment`
+  from the developers' guide section-3 public API scope.
 - [x] (2026-07-02T18:55:53Z) Treated the df12-build workflow instruction to
   execute this approved ExecPlan as implementation approval.
 - [x] (2026-07-02T18:55:53Z) Work Item 1: added the `parse_roadmap` doctest,
@@ -209,223 +201,210 @@ Observable success is:
   the expected task number, and passed
   `/tmp/cargo-test-doc-parse_roadmap-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T18:55:53Z) Work Item 1: ran the full doctest suite in
-  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 8 doctests passed and
-  2 configuration merge examples remained intentionally ignored.
+  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 8 doctests passed and 2
+  configuration merge examples remained intentionally ignored.
 - [x] (2026-07-02T18:55:53Z) Work Item 1: `scrutineer` ran `make all` and it
-  passed with log
-  `/tmp/make-all-parse-roadmap-mapsplice-roadmap-4-3-1.out`.
+  passed with log `/tmp/make-all-parse-roadmap-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T18:55:53Z) Work Item 1: `scrutineer` attempted CodeRabbit
   with log `/tmp/coderabbit-parse-roadmap-mapsplice-roadmap-4-3-1.out`; the
-  review was deferred because the sandbox has no visible default network
-  route.
+  review was deferred because the sandbox has no visible default network route.
 - [x] (2026-07-02T19:01:09Z) Work Item 1: formatted this ExecPlan with
   `mdtablefix` and `markdownlint-cli2 --fix`; `scrutineer` ran
   `make markdownlint`, which passed with log
   `/tmp/make-markdownlint-work-item-1-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:01:09Z) Work Item 1: validated this ExecPlan directly
-  with `nixie --no-sandbox docs/execplans/roadmap-4-3-1.md`, which passed
-  with log `/tmp/nixie-execplan-work-item-1-mapsplice-roadmap-4-3-1.out`.
+  with `nixie --no-sandbox docs/execplans/roadmap-4-3-1.md`, which passed with
+  log `/tmp/nixie-execplan-work-item-1-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:05:41Z) Work Item 2: added the `parse_fragment` doctest,
   observed the red assertion failure in
   `/tmp/cargo-test-doc-parse_fragment-red-mapsplice-roadmap-4-3-1.out`, fixed
   the expected task number, and passed
   `/tmp/cargo-test-doc-parse_fragment-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:05:41Z) Work Item 2: ran the full doctest suite in
-  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 9 doctests passed and
-  2 configuration merge examples remained intentionally ignored.
+  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 9 doctests passed and 2
+  configuration merge examples remained intentionally ignored.
 - [x] (2026-07-02T19:05:41Z) Work Item 2: `scrutineer` ran `make all` and it
-  passed with log
-  `/tmp/make-all-parse-fragment-mapsplice-roadmap-4-3-1.out`.
+  passed with log `/tmp/make-all-parse-fragment-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:05:41Z) Work Item 2: `scrutineer` attempted CodeRabbit
   with log `/tmp/coderabbit-parse-fragment-mapsplice-roadmap-4-3-1.out`; the
-  review was deferred because the sandbox has no visible default network
-  route.
+  review was deferred because the sandbox has no visible default network route.
 - [x] (2026-07-02T19:09:14Z) Work Item 3: added the `run_request` doctest,
   observed the red rendered-output assertion failure in
-  `/tmp/cargo-test-doc-run_request-red-mapsplice-roadmap-4-3-1.out`, fixed
-  the appended phase number, and passed
+  `/tmp/cargo-test-doc-run_request-red-mapsplice-roadmap-4-3-1.out`, fixed the
+  appended phase number, and passed
   `/tmp/cargo-test-doc-run_request-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:09:14Z) Work Item 3: ran the full doctest suite in
-  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 10 doctests passed and
-  2 configuration merge examples remained intentionally ignored.
+  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 10 doctests passed and 2
+  configuration merge examples remained intentionally ignored.
 - [x] (2026-07-02T19:09:14Z) Work Item 3: `scrutineer` ran `make all` and it
   passed with log `/tmp/make-all-run-request-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:09:14Z) Work Item 3: `scrutineer` attempted CodeRabbit
   with log `/tmp/coderabbit-run-request-mapsplice-roadmap-4-3-1.out`; the
-  review was deferred because the sandbox has no visible default network
-  route.
+  review was deferred because the sandbox has no visible default network route.
 - [x] (2026-07-02T19:12:36Z) Work Item 4: added the `run_from_args` doctest,
   observed the red rendered-output assertion failure in
   `/tmp/cargo-test-doc-run_from_args-red-mapsplice-roadmap-4-3-1.out`, fixed
   the inserted/original phase renumbering assertions, and passed
   `/tmp/cargo-test-doc-run_from_args-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:12:36Z) Work Item 4: ran the full doctest suite in
-  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 11 doctests passed and
-  2 configuration merge examples remained intentionally ignored.
+  `/tmp/cargo-test-doc-mapsplice-roadmap-4-3-1.out`; 11 doctests passed and 2
+  configuration merge examples remained intentionally ignored.
 - [x] (2026-07-02T19:12:36Z) Work Item 4: `scrutineer` ran `make all` and it
   passed with log `/tmp/make-all-run-from-args-mapsplice-roadmap-4-3-1.out`.
 - [x] (2026-07-02T19:12:36Z) Work Item 4: `scrutineer` attempted CodeRabbit
   with log `/tmp/coderabbit-run-from-args-mapsplice-roadmap-4-3-1.out`; the
-  review was deferred because the sandbox has no visible default network
-  route.
+  review was deferred because the sandbox has no visible default network route.
 - [x] (2026-07-02T19:13:40Z) Work Item 5: marked
   `docs/roadmap.md` task 4.3.1 complete, set this ExecPlan to complete, and
   prepared final evidence for the roadmap/plan completion commit.
 - [x] (2026-07-02T19:16:47Z) Work Item 5: `scrutineer` ran final
-  `make markdownlint`, `make nixie`, and `make all`. `make markdownlint`
-  passed with log `/tmp/make-markdownlint-mapsplice-roadmap-4-3-1.out`;
-  `make all` passed with log
-  `/tmp/make-all-final-mapsplice-roadmap-4-3-1.out`; `make nixie` failed with
-  unchanged Mermaid timeouts recorded in
+  `make markdownlint`, `make nixie`, and `make all`. `make markdownlint` passed
+  with log `/tmp/make-markdownlint-mapsplice-roadmap-4-3-1.out`; `make all`
+  passed with log `/tmp/make-all-final-mapsplice-roadmap-4-3-1.out`;
+  `make nixie` failed with unchanged Mermaid timeouts recorded in
   `/tmp/make-nixie-mapsplice-roadmap-4-3-1.out`.
 
 ## Surprises & Discoveries
 
 - Observation: Memtrace and Firecrawl tools were discoverable, but their first
-  MCP calls were cancelled by the host session.
-  Evidence: `mcp__memtrace.list_indexed_repositories` and
+  MCP calls were cancelled by the host session. Evidence:
+  `mcp__memtrace.list_indexed_repositories` and
   `mcp__firecrawl.firecrawl_scrape` each returned
-  `user cancelled MCP tool call`.
-  Impact: the implementation must retry those advisory tools, but this plan is
-  not blocked; local docs, official web docs, and bounded source inspection
-  provide enough evidence.
+  `user cancelled MCP tool call`. Impact: the implementation must retry those
+  advisory tools, but this plan is not blocked; local docs, official web docs,
+  and bounded source inspection provide enough evidence.
 
 - Observation: the installed Leta CLI differs from the skill examples and later
-  daemon starts failed.
-  Evidence: `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-3-1` failed during
-  round 2 with `Error: IO error: Read-only file system (os error 30)`, and
+  daemon starts failed. Evidence:
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-3-1`
+  failed during round 2 with
+  `Error: IO error: Read-only file system (os error 30)`, and
   `leta files docs/` failed with `Error: Failed to start daemon`. The
   first-round attempt also recorded `leta grep --help` without a `-d/--docs`
-  flag and later daemon failures.
-  Impact: the implementation should retry Leta before editing, then fall back
-  to bounded source inspection if the same daemon failure recurs.
+  flag and later daemon failures. Impact: the implementation should retry Leta
+  before editing, then fall back to bounded source inspection if the same
+  daemon failure recurs.
 
 - Observation: `src/lib.rs` already re-exports the relevant public APIs and is
-  far below the 400-line limit.
-  Evidence: `leta grep ".*" "src/lib.rs" --json` reported `run_from_args`,
-  `run_request`, and `RunOutcome`; bounded inspection of `src/lib.rs` showed
-  the public re-exports for `parse_roadmap` and `parse_fragment`.
-  Impact: the application-boundary examples can live in `src/lib.rs`, while
-  the `parse_roadmap` and `parse_fragment` examples should live on the source
-  items that `src/lib.rs` re-exports.
+  far below the 400-line limit. Evidence: `leta grep ".*" "src/lib.rs" --json`
+  reported `run_from_args`, `run_request`, and `RunOutcome`; bounded inspection
+  of `src/lib.rs` showed the public re-exports for `parse_roadmap` and
+  `parse_fragment`. Impact: the application-boundary examples can live in
+  `src/lib.rs`, while the `parse_roadmap` and `parse_fragment` examples should
+  live on the source items that `src/lib.rs` re-exports.
 
 - Observation: the first-round plan's scope claim was too narrow and
-  inaccurate.
-  Evidence: `docs/developers-guide.md` section 3 lists `parse_fragment` as a
-  public library API, `docs/roadmap.md` task 4.3.1 scopes the work to "the
-  public APIs listed in the developers' guide", and branch-local inspection of
-  `src/roadmap/parse/fragment.rs::parse_fragment` showed no `# Examples`
-  section. `grep -R "# Examples" -n src` found only examples in `src/cli.rs`,
-  while bounded inspection confirmed `parse_anchor` and `metrics_snapshot`
-  already have examples despite not being returned by that exact grep command.
-  Impact: this plan now adds a dedicated `parse_fragment` work item. The
-  roadmap success line remains a minimum success spotlight for
-  `run_from_args`, `run_request`, and `parse_roadmap`, not permission to omit
-  the remaining developers' guide section-3 gap.
+  inaccurate. Evidence: `docs/developers-guide.md` section 3 lists
+  `parse_fragment` as a public library API, `docs/roadmap.md` task 4.3.1 scopes
+  the work to "the public APIs listed in the developers' guide", and
+  branch-local inspection of `src/roadmap/parse/fragment.rs::parse_fragment`
+  showed no `# Examples` section. `grep -R "# Examples" -n src` found only
+  examples in `src/cli.rs`, while bounded inspection confirmed `parse_anchor`
+  and `metrics_snapshot` already have examples despite not being returned by
+  that exact grep command. Impact: this plan now adds a dedicated
+  `parse_fragment` work item. The roadmap success line remains a minimum
+  success spotlight for `run_from_args`, `run_request`, and `parse_roadmap`,
+  not permission to omit the remaining developers' guide section-3 gap.
 
 - Observation: Work Item 1's `parse_roadmap` example pushed
-  `src/roadmap/parse/mod.rs` over the 400-line project limit.
-  Evidence: `git show HEAD:src/roadmap/parse/mod.rs | wc -l` reported 399
-  lines before the item, and `wc -l src/roadmap/parse/mod.rs` reported 420
-  lines after the first formatted example.
-  Impact: the item kept changes within `src/roadmap/parse/mod.rs` by making
-  the example more compact and extracting the duplicated paragraph-number
-  parsing into `parse_numbered_paragraph`; the file is now exactly 400 lines.
+  `src/roadmap/parse/mod.rs` over the 400-line project limit. Evidence:
+  `git show HEAD:src/roadmap/parse/mod.rs | wc -l` reported 399 lines before
+  the item, and `wc -l src/roadmap/parse/mod.rs` reported 420 lines after the
+  first formatted example. Impact: the item kept changes within
+  `src/roadmap/parse/mod.rs` by making the example more compact and extracting
+  the duplicated paragraph-number parsing into `parse_numbered_paragraph`; the
+  file is now exactly 400 lines.
 
 - Observation: CodeRabbit could not run for Work Item 1 in this sandbox.
-  Evidence: `/tmp/coderabbit-parse-roadmap-mapsplice-roadmap-4-3-1.out`
-  contains `{"type":"status","phase":"deferred","status":"deferred
-  coderabbit review: no default network route visible in this sandbox"}` and
-  the review command exited 124.
-  Impact: deterministic gates are green, but the AI review remains a deferred
-  open issue for the supervisor because the host session lacks network access.
+  Evidence: `/tmp/coderabbit-parse-roadmap-mapsplice-roadmap-4-3-1.out` contains
+  `{"type":"status","phase":"deferred","status":"deferred
+  coderabbit review: no default network route visible in this sandbox"}`
+  and the review command exited 124. Impact: deterministic gates are green,
+  but the AI review remains a deferred open issue for the supervisor because
+  the host session lacks network access.
 
 - Observation: full-repository `make nixie` could not complete after Work Item
-  1 because unchanged Mermaid diagrams timed out.
-  Evidence: `/tmp/make-nixie-work-item-1-mapsplice-roadmap-4-3-1.out` timed
-  out on `docs/ortho-config-users-guide.md`,
+  1 because unchanged Mermaid diagrams timed out. Evidence:
+  `/tmp/make-nixie-work-item-1-mapsplice-roadmap-4-3-1.out` timed out on
+  `docs/ortho-config-users-guide.md`,
   `/tmp/make-nixie-work-item-1-rerun-mapsplice-roadmap-4-3-1.out` timed out on
   `docs/ortho-config-users-guide.md` and `docs/rstest-bdd-users-guide.md`, and
   the documented serial recovery
-  `/tmp/make-nixie-work-item-1-serial-mapsplice-roadmap-4-3-1.out` timed out
-  on `docs/mapsplice-design.md`. The changed ExecPlan file passed direct
+  `/tmp/make-nixie-work-item-1-serial-mapsplice-roadmap-4-3-1.out` timed out on
+  `docs/mapsplice-design.md`. The changed ExecPlan file passed direct
   validation in `/tmp/nixie-execplan-work-item-1-mapsplice-roadmap-4-3-1.out`.
   Impact: the changed Markdown has been validated, but full-repository Mermaid
-  validation remains an open tooling issue unrelated to this work item's
-  source or plan edits.
+  validation remains an open tooling issue unrelated to this work item's source
+  or plan edits.
 
 - Observation: CodeRabbit could not run for Work Item 2 in this sandbox.
   Evidence: `/tmp/coderabbit-parse-fragment-mapsplice-roadmap-4-3-1.out`
-  contains `{"type":"status","phase":"deferred","status":"deferred
-  coderabbit review: no default network route visible in this sandbox"}` and
-  the review command exited 124.
-  Impact: deterministic gates are green, but the AI review remains a deferred
-  open issue for the supervisor because the host session lacks network access.
+  contains
+  `{"type":"status","phase":"deferred","status":"deferred
+  coderabbit review: no default network route visible in this sandbox"}`
+  and the review command exited 124. Impact: deterministic gates are green,
+  but the AI review remains a deferred open issue for the supervisor because
+  the host session lacks network access.
 
 - Observation: CodeRabbit could not run for Work Item 3 in this sandbox.
-  Evidence: `/tmp/coderabbit-run-request-mapsplice-roadmap-4-3-1.out`
-  contains `{"type":"status","phase":"deferred","status":"deferred
-  coderabbit review: no default network route visible in this sandbox"}` and
-  the review command exited 124.
-  Impact: deterministic gates are green, but the AI review remains a deferred
-  open issue for the supervisor because the host session lacks network access.
+  Evidence: `/tmp/coderabbit-run-request-mapsplice-roadmap-4-3-1.out` contains
+  `{"type":"status","phase":"deferred","status":"deferred
+  coderabbit review: no default network route visible in this sandbox"}`
+  and the review command exited 124. Impact: deterministic gates are green,
+  but the AI review remains a deferred open issue for the supervisor because
+  the host session lacks network access.
 
 - Observation: CodeRabbit could not run for Work Item 4 in this sandbox.
-  Evidence: `/tmp/coderabbit-run-from-args-mapsplice-roadmap-4-3-1.out`
-  contains `{"type":"status","phase":"deferred","status":"deferred
-  coderabbit review: no default network route visible in this sandbox"}` and
-  the review command exited 124.
-  Impact: deterministic gates are green, but the AI review remains a deferred
-  open issue for the supervisor because the host session lacks network access.
+  Evidence: `/tmp/coderabbit-run-from-args-mapsplice-roadmap-4-3-1.out` contains
+  `{"type":"status","phase":"deferred","status":"deferred
+  coderabbit review: no default network route visible in this sandbox"}`
+  and the review command exited 124. Impact: deterministic gates are green,
+  but the AI review remains a deferred open issue for the supervisor because
+  the host session lacks network access.
 
 ## Decision Log
 
 - Decision: add `run_from_args` and `run_request` examples in `src/lib.rs`,
   add the `parse_roadmap` example on its source item in
   `src/roadmap/parse/mod.rs`, and add the `parse_fragment` example on its
-  source item in `src/roadmap/parse/fragment.rs`.
-  Rationale: `docs/developers-guide.md` section 3 presents the public library
-  API through the crate surface. `src/lib.rs` owns the application boundary,
-  while `parse_roadmap` and `parse_fragment` are authored and documented in
-  roadmap parse modules before being re-exported. This keeps each example on
-  the item Rustdoc documents while still teaching the downstream-user path
-  Rustdoc tests.
-  Date/Author: 2026-07-02T18:38:06Z / Codex.
+  source item in `src/roadmap/parse/fragment.rs`. Rationale:
+  `docs/developers-guide.md` section 3 presents the public library API through
+  the crate surface. `src/lib.rs` owns the application boundary, while
+  `parse_roadmap` and `parse_fragment` are authored and documented in roadmap
+  parse modules before being re-exported. This keeps each example on the item
+  Rustdoc documents while still teaching the downstream-user path Rustdoc
+  tests. Date/Author: 2026-07-02T18:38:06Z / Codex.
 
 - Decision: use existing `tempfile = 3.27.0` for examples that write target
-  and fragment files.
-  Rationale: the roadmap task requires filesystem-heavy flows to be isolated to
-  temporary paths. Cargo official docs say dev-dependencies are used for
-  compiling tests, examples, and benchmarks, and the locked `tempfile` source
-  plus docs.rs docs state that temporary directories are automatically deleted
-  when `TempDir` is destroyed.
+  and fragment files. Rationale: the roadmap task requires filesystem-heavy
+  flows to be isolated to temporary paths. Cargo official docs say
+  dev-dependencies are used for compiling tests, examples, and benchmarks, and
+  the locked `tempfile` source plus docs.rs docs state that temporary
+  directories are automatically deleted when `TempDir` is destroyed.
   Date/Author: 2026-07-02T18:23:24Z / Codex.
 
 - Decision: do not add property, snapshot, BDD, or integration tests for this
-  task.
-  Rationale: the changed behaviour is public documentation executability. The
-  doctests themselves are the correct tests because Rustdoc compiles examples
-  as external users. Existing unit, BDD, property, snapshot, and compile-time
-  suites remain covered by `make all`.
-  Date/Author: 2026-07-02T18:23:24Z / Codex.
+  task. Rationale: the changed behaviour is public documentation executability.
+  The doctests themselves are the correct tests because Rustdoc compiles
+  examples as external users. Existing unit, BDD, property, snapshot, and
+  compile-time suites remain covered by `make all`. Date/Author:
+  2026-07-02T18:23:24Z / Codex.
 
 - Decision: use a temporary red step for each doctest rather than committing a
-  failing test.
-  Rationale: the "test" and the documentation improvement are the same code
-  block. To preserve Red-Green-Refactor without leaving bad examples, each work
-  item first introduces the doctest with one deliberately wrong assertion,
-  runs the focused doctest to observe failure, then corrects the assertion and
-  commits only the passing example.
-  Date/Author: 2026-07-02T18:23:24Z / Codex.
+  failing test. Rationale: the "test" and the documentation improvement are the
+  same code block. To preserve Red-Green-Refactor without leaving bad examples,
+  each work item first introduces the doctest with one deliberately wrong
+  assertion, runs the focused doctest to observe failure, then corrects the
+  assertion and commits only the passing example. Date/Author:
+  2026-07-02T18:23:24Z / Codex.
 
 - Decision: keep Work Item 1 within the 400-line file limit by compacting the
   doctest and extracting a same-file `parse_numbered_paragraph` helper.
   Rationale: `src/roadmap/parse/mod.rs` started at 399 lines. Adding a
   conventional multi-assertion example alone breached AGENTS.md's file-size
   limit. The helper removes duplicated task and sub-task paragraph parsing
-  without changing public API shape, grammar, or diagnostics.
-  Date/Author: 2026-07-02T18:55:53Z / Codex.
+  without changing public API shape, grammar, or diagnostics. Date/Author:
+  2026-07-02T18:55:53Z / Codex.
 
 ## Outcomes & Retrospective
 
@@ -468,22 +447,22 @@ Final gate evidence:
 Open issues:
 
 - CodeRabbit review was attempted for each code work item and deferred each
-  time because the sandbox has no visible default network route. The exact
-  logs are `/tmp/coderabbit-parse-roadmap-mapsplice-roadmap-4-3-1.out`,
+  time because the sandbox has no visible default network route. The exact logs
+  are `/tmp/coderabbit-parse-roadmap-mapsplice-roadmap-4-3-1.out`,
   `/tmp/coderabbit-parse-fragment-mapsplice-roadmap-4-3-1.out`,
   `/tmp/coderabbit-run-request-mapsplice-roadmap-4-3-1.out`, and
   `/tmp/coderabbit-run-from-args-mapsplice-roadmap-4-3-1.out`.
 - Full-repository `make nixie` remained red after retries because unchanged
-  Mermaid diagrams timed out. The changed ExecPlan file validates directly
-  with `nixie`, but the full repository Mermaid gate needs a follow-up
-  tooling or documentation-gate stabilization pass.
+  Mermaid diagrams timed out. The changed ExecPlan file validates directly with
+  `nixie`, but the full repository Mermaid gate needs a follow-up tooling or
+  documentation-gate stabilization pass.
 
 ## Context and Orientation
 
-The repository is a single Rust package named `mapsplice`. The library target
-is `src/lib.rs`, and `Cargo.toml` marks that target as `doc = true`,
-`doctest = true`, and `test = true` according to `cargo metadata --locked
---no-deps`.
+The repository is a single Rust package named `mapsplice`. The library target is
+`src/lib.rs`, and `Cargo.toml` marks that target as `doc = true`,
+`doctest = true`, and `test = true` according to
+`cargo metadata --locked --no-deps`.
 
 The public API map relevant to this task is:
 
@@ -540,10 +519,9 @@ Documentation and ADRs to read before editing:
 - `docs/developers-guide.md`, sections 3 and 6.
 - `docs/users-guide.md`, "The roadmap shape `mapsplice` expects".
 - `docs/execplans/initial-tool.md`, sections "Scope and grammar assumptions"
-  and "Proposed implementation" item 2, plus the Decision Log entries
-  "treat the supported roadmap syntax as a constrained document grammar" and
-  "model splice operations against a roadmap-specific intermediate
-  representation".
+  and "Proposed implementation" item 2, plus the Decision Log entries "treat
+  the supported roadmap syntax as a constrained document grammar" and "model
+  splice operations against a roadmap-specific intermediate representation".
 - `docs/rust-doctest-dry-guide.md`, sections 2.1 through 2.4.
 
 Skills to load before editing:
@@ -596,10 +574,9 @@ Documentation and ADRs to read before editing:
 - `docs/users-guide.md`, "The roadmap shape `mapsplice` expects" and
   "Command details".
 - `docs/execplans/initial-tool.md`, sections "Scope and grammar assumptions"
-  and "Proposed implementation" item 2, plus the Decision Log entries
-  "treat the supported roadmap syntax as a constrained document grammar" and
-  "model splice operations against a roadmap-specific intermediate
-  representation".
+  and "Proposed implementation" item 2, plus the Decision Log entries "treat
+  the supported roadmap syntax as a constrained document grammar" and "model
+  splice operations against a roadmap-specific intermediate representation".
 - `docs/rust-doctest-dry-guide.md`, sections 2.1 through 2.4.
 
 Skills to load before editing:
@@ -638,8 +615,16 @@ The example must:
 - create a `TempDir`;
 - create UTF-8 `target.md` and `fragment.md` paths with `Utf8PathBuf`;
 - write a target roadmap and a phase-level fragment;
-- build `CliRequest { global: GlobalOptions { in_place: false }, target,
-  command: CommandKind::Append { fragment } }`;
+- build:
+
+  ```rust
+  CliRequest {
+      global: GlobalOptions { in_place: false },
+      target,
+      command: CommandKind::Append { fragment },
+  }
+  ```
+
 - call `run_request(request)?`;
 - assert `outcome.written_path.is_none()`;
 - extract `outcome.stdout.as_deref()` using `ok_or_else`, not `unwrap` or
@@ -784,8 +769,7 @@ Tests:
 
 - Run final documentation gates:
   `make markdownlint 2>&1 | tee /tmp/make-markdownlint-mapsplice-roadmap-4-3-1.out`
-  and
-  `make nixie 2>&1 | tee /tmp/make-nixie-mapsplice-roadmap-4-3-1.out`.
+  and `make nixie 2>&1 | tee /tmp/make-nixie-mapsplice-roadmap-4-3-1.out`.
 - Run final repository gate:
   `make all 2>&1 | tee /tmp/make-all-final-mapsplice-roadmap-4-3-1.out`.
 
@@ -900,8 +884,7 @@ Official and locked-source behaviour verified:
 - Rustdoc official documentation says documentation examples are extracted and
   run as tests; regular doctests pass when they compile and run without
   panicking; hidden `#` lines are compiled but not rendered; and examples using
-  `?` can hide a `main` that returns `Result`.
-  Source:
+  `?` can hide a `main` that returns `Result`. Source:
   <https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html>.
 - Cargo official documentation says `cargo test` compiles and executes
   documentation tests, `--doc` tests only library documentation, and doctest
@@ -923,8 +906,8 @@ Official and locked-source behaviour verified:
   <https://docs.rs/camino/1.2.2/camino/struct.Utf8PathBuf.html>.
 - The locked local source for `camino` 1.2.2 at
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/camino-1.2.2/src/lib.rs`
-  shows `Utf8PathBuf(PathBuf)`, `from_path_buf`, `From<String> for
-  Utf8PathBuf`, and `AsRef<Path> for Utf8PathBuf`.
+  shows `Utf8PathBuf(PathBuf)`, `from_path_buf`,
+  `From<String> for Utf8PathBuf`, and `AsRef<Path> for Utf8PathBuf`.
 
 ## Interfaces and Dependencies
 
@@ -971,8 +954,8 @@ Do not use:
   The revision corrects the inaccurate scope evidence, explains that the
   roadmap task body covers every developers' guide section-3 public API, adds
   `parse_fragment` as the remaining section-3 API without an executable
-  example, and decomposes the work into four code commits plus one
-  roadmap/plan completion commit.
+  example, and decomposes the work into four code commits plus one roadmap/plan
+  completion commit.
 - 2026-07-02T19:13:40Z: Completed implementation. Added executable public API
   Rustdoc examples for `parse_roadmap`, `parse_fragment`, `run_request`, and
   `run_from_args`; marked roadmap task 4.3.1 complete; recorded green

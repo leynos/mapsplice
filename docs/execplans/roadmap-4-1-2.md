@@ -1,9 +1,8 @@
 # Report Unresolved Dependency References
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -53,9 +52,8 @@ the dangling dependency anchor on standard error, standard output is empty, and
   `MapspliceError::DanglingDependency` variant, or a change to the accepted
   roadmap grammar.
 - The planned implementation may touch at most these twelve source, test, and
-  documentation files:
-  `docs/execplans/roadmap-4-1-2.md`, `docs/mapsplice-design.md`,
-  `docs/roadmap.md`, `docs/users-guide.md`,
+  documentation files: `docs/execplans/roadmap-4-1-2.md`,
+  `docs/mapsplice-design.md`, `docs/roadmap.md`, `docs/users-guide.md`,
   `src/roadmap/ops/dependency_text.rs`, `src/roadmap/ops/rewrite.rs`,
   `tests/behaviour_cli.rs`, `tests/features/mapsplice.feature`,
   `tests/roadmap_ops.rs`, `tests/roadmap_properties.rs`,
@@ -75,53 +73,45 @@ the dangling dependency anchor on standard error, standard output is empty, and
 
 - Risk: `docs/mapsplice-design.md` section 7 currently says an unresolved
   dependency reference is left unchanged, while roadmap task 4.1.2 requires it
-  to be reported.
-  Severity: medium.
-  Likelihood: high.
-  Mitigation: update the design and users' guide in work item 4 so valid
-  unresolved `Requires` references become a fail-closed diagnostic, while
-  invalid tokens and incidental numbers remain preserved.
+  to be reported. Severity: medium. Likelihood: high. Mitigation: update the
+  design and users' guide in work item 4 so valid unresolved `Requires`
+  references become a fail-closed diagnostic, while invalid tokens and
+  incidental numbers remain preserved.
 
 - Risk: making `dependency_text::rewrite_text_value` return an error directly
-  could make low-level text scanning own operation-level policy.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: use a small internal report type that contains the rewritten
-  value, rewrite count, and unresolved valid anchors; let
+  could make low-level text scanning own operation-level policy. Severity:
+  medium. Likelihood: medium. Mitigation: use a small internal report type that
+  contains the rewritten value, rewrite count, and unresolved valid anchors; let
   `rewrite_dependencies` convert the first unresolved anchor into
   `MapspliceError::DanglingDependency`.
 
 - Risk: a dangling reference in `--in-place` mode might be detected too late,
-  after the file is rewritten.
-  Severity: high.
-  Likelihood: low.
-  Mitigation: keep the existing staged clone flow in
+  after the file is rewritten. Severity: high. Likelihood: low. Mitigation:
+  keep the existing staged clone flow in
   `src/roadmap/ops/mod.rs::apply_command`; detect dangling dependencies before
   `*roadmap = staged`, rendering, and filesystem writes.
 
 - Risk: property-test behaviour could be misdescribed if the plan cites the
-  caret floor in `Cargo.toml` instead of the locked crate.
-  Severity: medium.
-  Likelihood: medium.
-  Mitigation: pin all proptest claims to locked `proptest` 1.11.0 in
-  `Cargo.lock` and the local cargo registry source, and let the new project
-  property test be the behavioural contract.
+  caret floor in `Cargo.toml` instead of the locked crate. Severity: medium.
+  Likelihood: medium. Mitigation: pin all proptest claims to locked `proptest`
+  1.11.0 in `Cargo.lock` and the local cargo registry source, and let the new
+  project property test be the behavioural contract.
 
 ## Progress
 
 - [x] (2026-07-01T15:18:33Z) Read `AGENTS.md`,
-  `docs/mapsplice-design.md`, `docs/developers-guide.md`,
-  `docs/users-guide.md`, `docs/contributing.md`,
-  `docs/documentation-style-guide.md`, and the roadmap entry for 4.1.2.
+  `docs/mapsplice-design.md`, `docs/developers-guide.md`, `docs/users-guide.md`,
+  `docs/contributing.md`, `docs/documentation-style-guide.md`, and the roadmap
+  entry for 4.1.2.
 - [x] (2026-07-01T15:18:33Z) Checked branch-local source and tests for
   dependency rewriting, error reporting, behavioural scenarios, and property
   tests.
 - [x] (2026-07-01T15:18:33Z) Verified locked crate behaviour from local Cargo
   registry source after Firecrawl was unavailable.
 - [x] (2026-07-01T16:06:00Z) Revised the draft after design review round 2:
-  split internal reporting from API propagation, made the BDD failure
-  in-place, fixed the target-unchanged assertion plan, and corrected the
-  locked proptest version.
+  split internal reporting from API propagation, made the BDD failure in-place,
+  fixed the target-unchanged assertion plan, and corrected the locked proptest
+  version.
 - [x] (2026-07-01T18:42:00Z) Revised the draft after design review round 4:
   replaced the contradictory eight-file tolerance with an explicit planned
   twelve-file surface and an escalation trigger for unplanned expansion.
@@ -137,9 +127,9 @@ the dangling dependency anchor on standard error, standard output is empty, and
   reconcile documentation.
 - [x] (2026-07-01T16:02:15Z) Work item 1 Red: focused
   `make test TEST_FLAGS='--workspace --all-targets --all-features
-  dependency_reference'` failed as expected because the new unit tests read
-  `DependencyRewriteReport` fields while `rewrite_text_value` still returned
-  `(String, u64)`. Evidence:
+  dependency_reference'`
+  failed as expected because the new unit tests read `DependencyRewriteReport`
+  fields while `rewrite_text_value` still returned `(String, u64)`. Evidence:
   `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-1-red.out`.
 - [x] (2026-07-01T16:02:15Z) Work item 1 Green: added
   `DependencyRewriteReport`, collected unresolved valid `Requires` anchors in
@@ -160,8 +150,9 @@ the dangling dependency anchor on standard error, standard output is empty, and
   `130` after interruption and no review payload.
 - [x] (2026-07-01T16:20:30Z) Work item 2 Red: focused
   `make test TEST_FLAGS='--workspace --all-targets --all-features
-  unresolved_dependency_reference_is_reported'` failed as expected because the
-  append command still succeeded and preserved `Requires 99.1.1.`. Evidence:
+  unresolved_dependency_reference_is_reported'`
+  failed as expected because the append command still succeeded and preserved
+  `Requires 99.1.1.`. Evidence:
   `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-2-red.out`.
 - [x] (2026-07-01T16:20:30Z) Work item 2 Green: `rewrite_dependencies`
   aggregates unresolved valid dependency anchors during Markdown traversal and
@@ -173,8 +164,7 @@ the dangling dependency anchor on standard error, standard output is empty, and
 - [x] (2026-07-01T16:23:39Z) Work item 2 Refactor: replaced the extra
   recursive traversal parameter with `DependencyRewriteContext` after Clippy
   reported `too_many_arguments`. The focused public API test remained green.
-  Evidence:
-  `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-2-rerun.out`.
+  Evidence: `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-2-rerun.out`.
 - [x] (2026-07-01T16:29:26Z) Work item 2 deterministic gates: after replacing
   the wrong-variant `panic!` path with an error return, scrutineer reported
   `make all`, `make markdownlint`, and `make nixie` green. Evidence:
@@ -189,9 +179,10 @@ the dangling dependency anchor on standard error, standard output is empty, and
   interruption and no review payload.
 - [x] (2026-07-01T16:32:44Z) Work item 3 Red: focused
   `make test TEST_FLAGS='--workspace --all-targets --all-features
-  dangling_dependency'` failed as expected because the new BDD scenario had no
-  step for `Given the target roadmap with a dangling dependency reference`.
-  Evidence: `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-3-red.out`.
+  dangling_dependency'`
+  failed as expected because the new BDD scenario had no step for
+  `Given the target roadmap with a dangling dependency reference`. Evidence:
+  `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-3-red.out`.
 - [x] (2026-07-01T16:32:44Z) Work item 3 Green: added the dangling dependency
   CLI fixture, in-place append action, stderr assertion, and dynamic
   original-target tracking for unchanged-file checks. The focused
@@ -199,10 +190,10 @@ the dangling dependency anchor on standard error, standard output is empty, and
   below the 400-line cap at 316 lines. Evidence:
   `/tmp/test-mapsplice-roadmap-4-1-2-4-1-2-item-3.out`.
 - [x] (2026-07-01T16:48:51Z) Work item 3 deterministic gates: after replacing
-  the `to_owned()` assignment with `clone_into`, scrutineer reported
-  `make all` and `make markdownlint` green. `make nixie` timed out twice on
-  an untouched `docs/ortho-config-users-guide.md` Mermaid diagram, then passed
-  unchanged on the next retry. Evidence:
+  the `to_owned()` assignment with `clone_into`, scrutineer reported `make all`
+  and `make markdownlint` green. `make nixie` timed out twice on an untouched
+  `docs/ortho-config-users-guide.md` Mermaid diagram, then passed unchanged on
+  the next retry. Evidence:
   `/tmp/make-all-mapsplice-roadmap-4-1-2-4-1-2-item-3-rerun.out`,
   `/tmp/markdownlint-mapsplice-roadmap-4-1-2-4-1-2-item-3-rerun.out`, and
   `/tmp/nixie-mapsplice-roadmap-4-1-2-4-1-2-item-3-rerun-nixie2.out`.
@@ -241,98 +232,91 @@ the dangling dependency anchor on standard error, standard output is empty, and
   `MapspliceError::DanglingDependency` with class `dangling_dependency`, and
   `src/roadmap/ops/mod.rs::apply_command` already stages edits on a clone.
   Evidence: branch-local inspection found the variant in `src/error.rs` and
-  `apply_command` assigns `*roadmap = staged` only after
-  `rewrite_dependencies` succeeds.
-  Impact: implementation should activate the existing diagnostic instead of
-  introducing a second error type or changing the public API shape.
+  `apply_command` assigns `*roadmap = staged` only after `rewrite_dependencies`
+  succeeds. Impact: implementation should activate the existing diagnostic
+  instead of introducing a second error type or changing the public API shape.
 
 - Observation: current branch-local tests still preserve unresolved valid
-  dependency references.
-  Evidence: `tests/roadmap_ops.rs::unresolved_dependency_reference_is_preserved`
-  expects `Requires 99.1.1.` to survive an append; unit coverage in
-  `src/roadmap/ops/dependency_text.rs` preserves the same case.
-  Impact: implementation must replace the preservation expectation with
-  diagnostic expectations at the correct layers.
+  dependency references. Evidence:
+  `tests/roadmap_ops.rs::unresolved_dependency_reference_is_preserved` expects
+  `Requires 99.1.1.` to survive an append; unit coverage in
+  `src/roadmap/ops/dependency_text.rs` preserves the same case. Impact:
+  implementation must replace the preservation expectation with diagnostic
+  expectations at the correct layers.
 
 - Observation: `tests/steps/cli_steps.rs::target_unchanged` compares only with
   `TARGET_TWO_PHASES`, but a dangling scenario needs a different target text.
   Evidence: branch-local inspection showed `target_unchanged` hard-codes
   `TARGET_TWO_PHASES`, while a dangling fixture must contain
-  `Requires 99.1.1.`.
-  Impact: work item 3 must make `CliState` remember the original target text
-  on every `write_target`, so unchanged assertions compare against the actual
-  fixture used by the scenario.
+  `Requires 99.1.1.`. Impact: work item 3 must make `CliState` remember the
+  original target text on every `write_target`, so unchanged assertions compare
+  against the actual fixture used by the scenario.
 
 - Observation: advisory tools were unavailable in this planning session.
   Evidence: Memtrace `list_indexed_repositories` returned
-  `user cancelled MCP tool call`; `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2` returned
-  `Error: IO error: Read-only file system (os error 30)`; a retry with
+  `user cancelled MCP tool call`;
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2`
+  returned `Error: IO error: Read-only file system (os error 30)`; a retry with
   scratch state under `/tmp/mapsplice-leta-home` returned the same read-only
-  filesystem error; Firecrawl `firecrawl_scrape` for the official docs pages
-  for `proptest` 1.11.0, `thiserror` 2.0.18, `markdown` 1.0.0, and
-  `rstest-bdd` 0.5.0 returned `user cancelled MCP tool call`.
-  Impact: this plan uses bounded branch-local source inspection and Cargo
-  registry source as fallback evidence. This is not a blocker.
+  filesystem error; Firecrawl `firecrawl_scrape` for the official docs pages for
+  `proptest` 1.11.0, `thiserror` 2.0.18, `markdown` 1.0.0, and `rstest-bdd`
+  0.5.0 returned `user cancelled MCP tool call`. Impact: this plan uses bounded
+  branch-local source inspection and Cargo registry source as fallback
+  evidence. This is not a blocker.
 
 - Observation: Memtrace repository discovery remained unavailable in the
-  implementation session.
-  Evidence: `list_indexed_repositories` returned `user cancelled MCP tool
-  call` before work item 1 edits began.
-  Impact: implementation continues with bounded branch-local Leta and file
-  evidence, as permitted by this plan.
+  implementation session. Evidence: `list_indexed_repositories` returned
+  `user cancelled MCP tool call` before work item 1 edits began. Impact:
+  implementation continues with bounded branch-local Leta and file evidence, as
+  permitted by this plan.
 
 - Observation: Leta was partially available in the implementation session.
-  Evidence: `leta workspace add
-  /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2` returned
-  `Workspace already added`, and `leta show rewrite_text_value`,
-  `leta show rewrite_dependencies`, `leta show rewrite_node`, and `leta show
-  apply_command` succeeded. A later `leta show MapspliceError && leta refs
-  DanglingDependency -n 2` command returned `Error: Failed to start daemon`.
-  Impact: symbol navigation was used for the rewrite path; bounded file
-  inspection was used only for the missed error enum context.
+  Evidence:
+  `leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2`
+  returned `Workspace already added`, and `leta show rewrite_text_value`,
+  `leta show rewrite_dependencies`, `leta show rewrite_node`, and
+  `leta show apply_command` succeeded. A later
+  `leta show MapspliceError && leta refs DanglingDependency -n 2` command
+  returned `Error: Failed to start daemon`. Impact: symbol navigation was used
+  for the rewrite path; bounded file inspection was used only for the missed
+  error enum context.
 
 - Observation: CodeRabbit review was unavailable for work item 1.
   Evidence: `coderabbit review --agent` produced only
   `connecting_to_review_service` in
   `/tmp/coderabbit-mapsplice-roadmap-4-1-2-item-1.out`; scrutineer reported
-  exit status `130` after interrupting the non-terminating run.
-  Impact: this is recorded as a deferred-review open issue. Deterministic
-  gates were green before the attempt, and no actionable review payload was
-  returned.
+  exit status `130` after interrupting the non-terminating run. Impact: this is
+  recorded as a deferred-review open issue. Deterministic gates were green
+  before the attempt, and no actionable review payload was returned.
 
 - Observation: CodeRabbit review was unavailable for work item 2.
   Evidence: `coderabbit review --agent` again produced only
   `connecting_to_review_service` in
   `/tmp/coderabbit-mapsplice-roadmap-4-1-2-item-2.out`; scrutineer reported
-  exit status `130` after interrupting the non-terminating run.
-  Impact: this is recorded as a deferred-review open issue. Deterministic
-  gates were green before the attempt, and no actionable review payload was
-  returned.
+  exit status `130` after interrupting the non-terminating run. Impact: this is
+  recorded as a deferred-review open issue. Deterministic gates were green
+  before the attempt, and no actionable review payload was returned.
 
 - Observation: CodeRabbit review was unavailable for work item 3.
   Evidence: `coderabbit review --agent` again produced only
   `connecting_to_review_service` in
   `/tmp/coderabbit-mapsplice-roadmap-4-1-2-item-3.out`; scrutineer reported
-  exit status `130` after interrupting the non-terminating run.
-  Impact: this is recorded as a deferred-review open issue. Deterministic
-  gates were green before the attempt, and no actionable review payload was
-  returned.
+  exit status `130` after interrupting the non-terminating run. Impact: this is
+  recorded as a deferred-review open issue. Deterministic gates were green
+  before the attempt, and no actionable review payload was returned.
 
 - Observation: CodeRabbit review was unavailable for work item 4.
   Evidence: `coderabbit review --agent` again produced only
   `connecting_to_review_service` in
   `/tmp/coderabbit-mapsplice-roadmap-4-1-2-item-4.out`; scrutineer reported
-  exit status `130` after interrupting the non-terminating run.
-  Impact: this is recorded as a deferred-review open issue. Deterministic
-  gates were green before the attempt, and no actionable review payload was
-  returned.
+  exit status `130` after interrupting the non-terminating run. Impact: this is
+  recorded as a deferred-review open issue. Deterministic gates were green
+  before the attempt, and no actionable review payload was returned.
 
 - Observation: `make nixie` intermittently times out on untouched guide
-  diagrams.
-  Evidence: during work items 2, 3, and 4, `nixie` timeouts alternated between
-  `docs/rstest-bdd-users-guide.md` and `docs/ortho-config-users-guide.md`, but
-  retries passed without file changes.
+  diagrams. Evidence: during work items 2, 3, and 4, `nixie` timeouts
+  alternated between `docs/rstest-bdd-users-guide.md` and
+  `docs/ortho-config-users-guide.md`, but retries passed without file changes.
   Impact: untouched diagram timeouts are treated as transient gate noise when
   an immediate retry passes and no planned file needs to change.
 
@@ -340,67 +324,63 @@ the dangling dependency anchor on standard error, standard output is empty, and
 
 - Decision: Treat roadmap task 4.1.2 as the newer contract for valid
   unresolved `Requires` anchors, and update design and user documentation
-  during this task.
-  Rationale: `docs/roadmap.md` explicitly requires surfacing dangling
-  dependencies; keeping the older "left unchanged" sentence would make the
-  implementation and documentation disagree.
-  Date/Author: 2026-07-01T15:18:33Z / planning agent.
+  during this task. Rationale: `docs/roadmap.md` explicitly requires surfacing
+  dangling dependencies; keeping the older "left unchanged" sentence would make
+  the implementation and documentation disagree. Date/Author:
+  2026-07-01T15:18:33Z / planning agent.
 
 - Decision: Keep `Blocks` out of scope.
   Rationale: `docs/mapsplice-design.md` section 7 says only `Requires` is a
   dependency context today and `Blocks` is a future grammar extension; current
-  tests assert `Blocks 2.1.1.` is ignored.
-  Date/Author: 2026-07-01T15:18:33Z / planning agent.
+  tests assert `Blocks 2.1.1.` is ignored. Date/Author: 2026-07-01T15:18:33Z /
+  planning agent.
 
 - Decision: Split internal text reporting from library-boundary propagation.
   Rationale: work item 1 must be atomic and gate-passable by testing only the
   private/internal rewrite report; work item 2 then adds the API-level
   `MapspliceError::DanglingDependency` diagnostic and propagation through
-  `rewrite_dependencies` and `apply_command`.
-  Date/Author: 2026-07-01T16:06:00Z / planning agent.
+  `rewrite_dependencies` and `apply_command`. Date/Author: 2026-07-01T16:06:00Z
+  / planning agent.
 
 - Decision: The BDD diagnostic must run the dangling command with
-  `--in-place`.
-  Rationale: the user-visible contract includes write safety, and a
-  stdout-mode failure alone does not prove the target file is protected.
+  `--in-place`. Rationale: the user-visible contract includes write safety, and
+  a stdout-mode failure alone does not prove the target file is protected.
   Date/Author: 2026-07-01T16:06:00Z / planning agent.
 
 - Decision: Pin proptest research to locked `proptest` 1.11.0, not the
-  `Cargo.toml` caret floor `1.9.0`.
-  Rationale: `Cargo.lock` resolves `proptest` 1.11.0, and load-bearing
-  behaviour must match the actual locked source used by tests.
-  Date/Author: 2026-07-01T16:06:00Z / planning agent.
+  `Cargo.toml` caret floor `1.9.0`. Rationale: `Cargo.lock` resolves `proptest`
+  1.11.0, and load-bearing behaviour must match the actual locked source used
+  by tests. Date/Author: 2026-07-01T16:06:00Z / planning agent.
 
 - Decision: Set the autonomous scope tolerance to the explicit planned
-  twelve-file surface rather than an eight-file cap.
-  Rationale: the work items already require twelve named files to cover unit,
-  library, CLI behavioural, property, design, user-guide, roadmap, and living
-  ExecPlan evidence. An eight-file tolerance would force an implementer either
-  to violate the plan or stop before completing the required coverage. The new
-  tolerance preserves bounded scope by escalating on any thirteenth file or
-  unplanned file.
+  twelve-file surface rather than an eight-file cap. Rationale: the work items
+  already require twelve named files to cover unit, library, CLI behavioural,
+  property, design, user-guide, roadmap, and living ExecPlan evidence. An
+  eight-file tolerance would force an implementer either to violate the plan or
+  stop before completing the required coverage. The new tolerance preserves
+  bounded scope by escalating on any thirteenth file or unplanned file.
   Date/Author: 2026-07-01T18:42:00Z / planning agent.
 
 ## Outcomes & Retrospective
 
 Roadmap task 4.1.2 is implemented across four gate-passable commits:
-`7f5a343 Report internal dangling references`, `1310063 Report dangling
-dependencies`, `5ee826b Cover dangling CLI failures`, and the final work item
-4 commit. Valid unresolved `Requires` anchors now surface as
-`MapspliceError::DanglingDependency`; the CLI reports the dangling anchor on
-standard error, emits no standard output on failure, and preserves the target
-in `--in-place` mode.
+`7f5a343 Report internal dangling references`,
+`1310063 Report dangling dependencies`, `5ee826b Cover dangling CLI failures`,
+and the final work item 4 commit. Valid unresolved `Requires` anchors now
+surface as `MapspliceError::DanglingDependency`; the CLI reports the dangling
+anchor on standard error, emits no standard output on failure, and preserves
+the target in `--in-place` mode.
 
-The property suite now generates valid positive dangling `Requires` anchors
-and asserts the typed error. Existing coverage still preserves invalid tokens,
+The property suite now generates valid positive dangling `Requires` anchors and
+asserts the typed error. Existing coverage still preserves invalid tokens,
 incidental numeric text, section references, semantic versions, and ignored
 `Blocks` clauses. The design, users' guide, and roadmap now agree that valid
 unresolved dependency references fail closed.
 
-Deterministic gates were green for each work item before commit. CodeRabbit
-was attempted once per work item after deterministic gates were green, but all
-four runs stalled at `connecting_to_review_service` and were interrupted with
-exit status `130`; no actionable review payload was returned.
+Deterministic gates were green for each work item before commit. CodeRabbit was
+attempted once per work item after deterministic gates were green, but all four
+runs stalled at `connecting_to_review_service` and were interrupted with exit
+status `130`; no actionable review payload was returned.
 
 ## Context and Orientation
 
@@ -421,8 +401,9 @@ The relevant pipeline is:
    distinguishes `Reference`, `InvalidDependencyToken`, and
    `NotDependencyReference`. A `Reference` is a valid `Requires` anchor token;
    today, if the renumber plan cannot resolve it, the token is preserved.
-5. `src/error.rs` already provides `MapspliceError::DanglingDependency {
-   anchor: RoadmapAnchor }` and the diagnostic class `dangling_dependency`.
+5. `src/error.rs` already provides
+   `MapspliceError::DanglingDependency { anchor: RoadmapAnchor }` and the
+   diagnostic class `dangling_dependency`.
 
 Important terms:
 
@@ -452,11 +433,11 @@ Important terms:
   and
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rstest-bdd-macros-0.5.0/src/lib.rs`.
 - `Cargo.lock` resolves `proptest` 1.11.0 while `Cargo.toml` declares the caret
-  floor `proptest = "1.9.0"`. Locked `proptest` 1.11.0 exposes `pub mod
-  prelude`, the `proptest!` macro, `prop_assert!`, `prop_assert_eq!`,
+  floor `proptest = "1.9.0"`. Locked `proptest` 1.11.0 exposes
+  `pub mod prelude`, the `proptest!` macro, `prop_assert!`, `prop_assert_eq!`,
   `Config::with_cases`, default `cases: 256`, `PROPTEST_CASES`, and default
-  failure persistence via `FileFailurePersistence::SourceParallel(
-  "proptest-regressions")`. Verified in
+  failure persistence via
+  `FileFailurePersistence::SourceParallel( "proptest-regressions")`. Verified in
   `/home/leynos/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proptest-1.11.0/src/lib.rs`,
   `src/prelude.rs`, `src/sugar.rs`, `src/test_runner/config.rs`, and
   `src/test_runner/failure_persistence/file.rs`. Official docs retrieval via
@@ -474,26 +455,24 @@ Important terms:
 
 ### Work Item 1: Introduce Internal Dangling-Reference Reporting
 
-Docs to read before starting:
-`docs/mapsplice-design.md` sections 5, 6, 7, and 8;
-`docs/developers-guide.md` sections 3 and 6; `AGENTS.md` "Rust Specific
+Docs to read before starting: `docs/mapsplice-design.md` sections 5, 6, 7, and
+8; `docs/developers-guide.md` sections 3 and 6; `AGENTS.md` "Rust Specific
 Guidance", "Testing", and "Error Handling".
 
 Skills to load before starting: `leta`, `rust-router`, `rust-errors`,
-`rust-unit-testing`, and `en-gb-oxendict-style`. If source-code search or
-graph tools are available, start with Memtrace `list_indexed_repositories`,
+`rust-unit-testing`, and `en-gb-oxendict-style`. If source-code search or graph
+tools are available, start with Memtrace `list_indexed_repositories`,
 `find_code`, `find_symbol`, `get_symbol_context`, and `get_impact` for
 `rewrite_text_value`, `rewrite_dependencies`, and `MapspliceError`.
 
 Implement Red-Green-Refactor in one gate-passable commit:
 
 1. Red: in `src/roadmap/ops/dependency_text.rs`, replace the unit expectation
-   named
-   `dependency_reference_preserves_unresolved_valid_reference` with an
+   named `dependency_reference_preserves_unresolved_valid_reference` with an
    internal-report expectation. The red test calls `rewrite_text_value` with
-   `Requires 99.1.1.` and an empty `RenumberPlan`, and expects:
-   the returned value is still `Requires 99.1.1.`, `rewrite_count == 0`, and
-   the report contains exactly the parsed anchor `99.1.1`.
+   `Requires 99.1.1.` and an empty `RenumberPlan`, and expects: the returned
+   value is still `Requires 99.1.1.`, `rewrite_count == 0`, and the report
+   contains exactly the parsed anchor `99.1.1`.
 2. Red: keep or add unit coverage proving `Requires 1.4.0`, section
    references, prose numbers, and `Blocks 2.1.1.` are not returned as
    unresolved references.
@@ -563,8 +542,7 @@ Acceptance for this item:
 
 ### Work Item 2: Propagate Dangling References Through the Library Boundary
 
-Docs to read before starting:
-`docs/mapsplice-design.md` sections 5, 6, and 7;
+Docs to read before starting: `docs/mapsplice-design.md` sections 5, 6, and 7;
 `docs/developers-guide.md` sections 2, 3, and 6; `AGENTS.md` "Error Handling".
 
 Skills to load before starting: `leta`, `rust-router`, `rust-errors`,
@@ -649,14 +627,13 @@ Acceptance for this item:
 
 ### Work Item 3: Add CLI Behavioural In-Place Failure Coverage
 
-Docs to read before starting:
-`docs/users-guide.md` "Output modes" and "Validation rules and failure cases";
-`docs/mapsplice-design.md` sections 5, 6, and 7;
-`docs/developers-guide.md` section 6; `AGENTS.md` "Testing".
+Docs to read before starting: `docs/users-guide.md` "Output modes" and
+"Validation rules and failure cases"; `docs/mapsplice-design.md` sections 5, 6,
+and 7; `docs/developers-guide.md` section 6; `AGENTS.md` "Testing".
 
 Skills to load before starting: `leta`, `rust-router`, `rust-errors`,
-`rust-unit-testing`, `domain-cli-and-daemons`, and `en-gb-oxendict-style`.
-Use `sem diff` before commit to review the entity-level change.
+`rust-unit-testing`, `domain-cli-and-daemons`, and `en-gb-oxendict-style`. Use
+`sem diff` before commit to review the entity-level change.
 
 Implement Red-Green-Refactor in one gate-passable commit:
 
@@ -680,8 +657,8 @@ Scenario: Dangling dependency reference fails in place without rewriting target
 3. Green: update `tests/steps/cli_steps.rs::CliState` so it stores
    `original_target: String`. Initialize it empty, set it in
    `CliState::write_target` whenever a fixture is written, and change
-   `target_unchanged` to compare `read_target()` with `original_target`.
-   This fixes the existing hard-coded comparison with `TARGET_TWO_PHASES`.
+   `target_unchanged` to compare `read_target()` with `original_target`. This
+   fixes the existing hard-coded comparison with `TARGET_TWO_PHASES`.
 4. Green: add `#[when("I try to append the phase fragment in place")]` that
    runs `["--in-place", "append", target, fragment]`.
 5. Green: add `#[then("stderr mentions dangling dependency anchor 99.1.1")]`
@@ -743,10 +720,9 @@ Acceptance for this item:
 
 ### Work Item 4: Add Generated Coverage and Reconcile Documentation
 
-Docs to read before starting:
-`docs/mapsplice-design.md` sections 7, 8, 9, and 10;
-`docs/users-guide.md` "Worked example", "Output modes", and
-"Validation rules and failure cases"; `docs/developers-guide.md` section 6;
+Docs to read before starting: `docs/mapsplice-design.md` sections 7, 8, 9, and
+10; `docs/users-guide.md` "Worked example", "Output modes", and "Validation
+rules and failure cases"; `docs/developers-guide.md` section 6;
 `docs/roadmap.md` task 4.1.2; `docs/documentation-style-guide.md`.
 
 Skills to load before starting: `leta`, `rust-router`, `rust-errors`,
@@ -760,8 +736,8 @@ Implement Red-Green-Refactor in one gate-passable commit:
 1. Red: add a property to `tests/roadmap_properties.rs` that generates valid
    positive anchors not present in the generated roadmap, places them in
    `Requires`, and expects `run_from_args` to return
-   `MapspliceError::DanglingDependency`. Construct valid anchors directly;
-   do not use `prop_assume!` to filter a broad invalid domain.
+   `MapspliceError::DanglingDependency`. Construct valid anchors directly; do
+   not use `prop_assume!` to filter a broad invalid domain.
 2. Green: if the property exposes gaps in the previous work items, fix only
    those gaps in `dependency_text` or `rewrite.rs`.
 3. Refactor: update `docs/mapsplice-design.md` section 7 so unresolved valid
@@ -826,8 +802,7 @@ Acceptance for this item:
 
 ## Concrete Steps
 
-All commands run from
-`/home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2`.
+All commands run from `/home/leynos/Projects/mapsplice.worktrees/roadmap-4-1-2`.
 
 Before implementing any work item:
 
@@ -860,8 +835,7 @@ For every work item, follow this commit discipline:
    formatter commands listed in work item 4 on those exact files too.
 5. Run `sem diff` to inspect the entity-level change.
 6. Run the full code gate `make all` before committing every work item,
-   including work items 1, 2, and 3. Do not defer this gate to the final
-   commit.
+   including work items 1, 2, and 3. Do not defer this gate to the final commit.
 7. Run `make markdownlint` and `make nixie` before committing every work item
    whose commit includes this ExecPlan or any other Markdown file.
 8. Commit the single logical unit only after all required gates pass, using an
@@ -904,8 +878,8 @@ The final implementation is accepted when:
 - The new property proves generated valid unresolved dependency anchors report
   dangling dependencies.
 - Existing tests still prove scoped preservation for invalid tokens, section
-  references, semantic versions, prose numbers, addendum references, and
-  ignored `Blocks` clauses.
+  references, semantic versions, prose numbers, addendum references, and ignored
+  `Blocks` clauses.
 
 Red-Green-Refactor evidence must be recorded in this plan as implementation
 proceeds. Each work item records:
@@ -917,10 +891,10 @@ proceeds. Each work item records:
 
 ## Idempotence and Recovery
 
-All implementation steps are source edits and tests; they are safe to rerun.
-If a focused test fails after a partial edit, inspect the `/tmp` log named by
-that work item and continue in the same worktree. Do not stash unless required
-to park unrelated generated churn, and if stashing is required use:
+All implementation steps are source edits and tests; they are safe to rerun. If
+a focused test fails after a partial edit, inspect the `/tmp` log named by that
+work item and continue in the same worktree. Do not stash unless required to
+park unrelated generated churn, and if stashing is required use:
 
 ```bash
 git stash push -u -m 'df12-stash v1 task=4.1.2 kind=discard reason="park-unrelated-churn"'
@@ -966,8 +940,8 @@ pub(super) struct DependencyRewriteReport {
 }
 ```
 
-The exact struct name may stay private to
-`src/roadmap/ops/dependency_text.rs`, but the behaviour is fixed:
+The exact struct name may stay private to `src/roadmap/ops/dependency_text.rs`,
+but the behaviour is fixed:
 
 - mapped valid dependency references rewrite and increment `rewrite_count`;
 - valid dependency references with no source-local or unique cross-source
@@ -981,8 +955,8 @@ The exact struct name may stay private to
   publishes the staged roadmap only after dependency rewriting succeeds.
 
 Revision note: revised after design review round 2. The plan now makes work
-item 1 internal and independently gate-passable, moves API-level propagation
-to work item 2, requires an explicit `--in-place` BDD failure scenario in work
+item 1 internal and independently gate-passable, moves API-level propagation to
+work item 2, requires an explicit `--in-place` BDD failure scenario in work
 item 3, fixes the target-unchanged assertion by recording original target
 contents, and corrects proptest research from the stale `1.9.0` claim to the
 locked `1.11.0` source and project tests.
@@ -996,10 +970,10 @@ run `mdtablefix docs/execplans/roadmap-4-1-2.md`, then
 `markdownlint-cli2 --fix docs/execplans/roadmap-4-1-2.md`, then the Markdown
 gates `make markdownlint` and `make nixie` before committing.
 
-Revision note: revised after design review round 4. The plan no longer
-contains the contradictory tolerance that stopped at more than eight changed
-source, test, or documentation files while enumerating twelve required files.
-The scope tolerance now names those twelve planned files and escalates only if
-implementation needs a thirteenth file, an unplanned file, or more than 260
-net lines. This keeps the plan implementable as written while preserving a
-clear expansion trigger.
+Revision note: revised after design review round 4. The plan no longer contains
+the contradictory tolerance that stopped at more than eight changed source,
+test, or documentation files while enumerating twelve required files. The scope
+tolerance now names those twelve planned files and escalates only if
+implementation needs a thirteenth file, an unplanned file, or more than 260 net
+lines. This keeps the plan implementable as written while preserving a clear
+expansion trigger.
