@@ -8,7 +8,7 @@ camino = { version = "1.2.2", features = ["serde1"] }
 cap-std = { version = "4.0.2", features = ["fs_utf8"] }
 clap = { version = "4.6.0", features = ["derive"] }
 markdown = "1.0.0"
-ortho_config = "0.8.0"
+ortho_config = "0.9.0"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.18"
 tracing = "0.1.44"
