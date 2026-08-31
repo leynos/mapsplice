@@ -53,17 +53,29 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
                 step.clear_task_list_source();
             }
             step.number = new_step;
-
-            for (task_index, task) in step.tasks.iter_mut().enumerate() {
-                let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
-                plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
-                task.number = new_task;
-                renumber_sub_tasks(task, new_task, &mut plan)?;
-            }
+            renumber_step_tasks(&mut step.tasks, new_step, &mut plan)?;
         }
     }
 
     Ok(plan)
+}
+
+/// Renumber every task in one step and preserve unchanged task source.
+fn renumber_step_tasks(
+    tasks: &mut [TaskEntry],
+    new_step: StepNumber,
+    plan: &mut RenumberPlan,
+) -> Result<()> {
+    for (task_index, task) in tasks.iter_mut().enumerate() {
+        let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
+        plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
+        if task.number != new_task {
+            task.clear_original_source();
+        }
+        task.number = new_task;
+        renumber_sub_tasks(task, new_task, plan)?;
+    }
+    Ok(())
 }
 
 /// Renumber ordered sub-tasks beneath one task.
@@ -72,6 +84,7 @@ fn renumber_sub_tasks(
     new_task: TaskNumber,
     plan: &mut RenumberPlan,
 ) -> Result<()> {
+    let mut descendants_changed = false;
     for (sub_task_index, sub_task) in task.sub_tasks_mut().iter_mut().enumerate() {
         let new_sub_task =
             SubTaskNumber::new(new_task, to_number(sub_task_index + 1, "sub-task")?)?;
@@ -80,7 +93,14 @@ fn renumber_sub_tasks(
             sub_task.identity.anchor,
             new_sub_task.into(),
         );
+        if sub_task.number != new_sub_task {
+            sub_task.clear_original_source();
+            descendants_changed = true;
+        }
         sub_task.number = new_sub_task;
+    }
+    if descendants_changed {
+        task.clear_original_source();
     }
     Ok(())
 }
@@ -121,10 +141,19 @@ fn rewrite_task_entry(
     task: &mut TaskEntry,
     context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
-    rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
-    rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
+    let summary_changed = rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
+    let body_changed = rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
+    if summary_changed || body_changed {
+        task.clear_original_source();
+    }
+    let mut descendant_changed = false;
     for sub_task in task.sub_tasks_mut() {
-        rewrite_sub_task_entry(sub_task, context)?;
+        if rewrite_sub_task_entry(sub_task, context)? {
+            descendant_changed = true;
+        }
+    }
+    if descendant_changed {
+        task.clear_original_source();
     }
     Ok(())
 }
@@ -133,9 +162,16 @@ fn rewrite_task_entry(
 fn rewrite_sub_task_entry(
     sub_task: &mut SubTaskEntry,
     context: &mut DependencyRewriteContext<'_>,
-) -> Result<()> {
-    rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
-    rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)
+) -> Result<bool> {
+    let summary_changed =
+        rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
+    let body_changed =
+        rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)?;
+    let changed = summary_changed || body_changed;
+    if changed {
+        sub_task.clear_original_source();
+    }
+    Ok(changed)
 }
 
 /// Rewrite Markdown nodes and invalidate original snippets only on change.
@@ -143,13 +179,13 @@ fn rewrite_markdown_nodes(
     markdown: &mut MarkdownNodes,
     source: SourceId,
     context: &mut DependencyRewriteContext<'_>,
-) -> Result<()> {
+) -> Result<bool> {
     let before = context.rewrite_count;
     rewrite_nodes(markdown.nodes_mut(), source, context)?;
     if context.rewrite_count > before {
         markdown.clear_original_blocks();
     }
-    Ok(())
+    Ok(context.rewrite_count > before)
 }
 
 /// Rewrite every eligible text node in a node slice.

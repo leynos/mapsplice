@@ -25,6 +25,18 @@ pub(super) fn render_preserved_or_canonical(
     }
 }
 
+/// Render preserved task-item source unless formatting policy requires canonical output.
+pub(super) fn render_preserved_task_or_canonical(
+    original: &str,
+    canonical: impl FnOnce() -> Result<String>,
+) -> Result<String> {
+    if has_unstable_list_marker(original) || has_unstable_code_fence(original) {
+        canonical()
+    } else {
+        Ok(trim_preserved_separator(original).to_owned())
+    }
+}
+
 fn trim_preserved_separator(original: &str) -> &str { original.trim_end_matches('\n') }
 
 fn is_formatter_unstable(node: &Node, original: &str) -> bool {

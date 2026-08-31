@@ -36,6 +36,7 @@ use super::{
         TaskEntry,
         TaskEntryParts,
     },
+    source_preservation::original_position_source,
 };
 use crate::error::{MapspliceError, Result};
 
@@ -176,6 +177,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
         checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
+        original_source: original_item_source(item, context),
         sub_tasks,
         children,
     })
@@ -263,7 +265,18 @@ pub(super) fn parse_sub_task_item_unchecked(
         checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
+        original_source: original_item_source(item, context),
     })
+}
+
+fn original_item_source(item: &ListItem, context: ParseContext<'_>) -> Option<String> {
+    (context.source == SourceId::Target)
+        .then(|| {
+            item.position
+                .as_ref()
+                .and_then(|position| original_position_source(position, context.source_text))
+        })
+        .flatten()
 }
 
 fn validate_sub_task_number(
