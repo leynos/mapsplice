@@ -1,5 +1,8 @@
 //! Unit tests for roadmap render fidelity.
 
+#[path = "render_task_tests.rs"]
+mod task_tests;
+
 use std::process::Command;
 
 use camino::{Utf8Path, Utf8PathBuf};

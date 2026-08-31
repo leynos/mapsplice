@@ -60,6 +60,32 @@ fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn insert_step_preserves_wrapped_tasks(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_step_preserves_wrapped_tasks",
+            GoldenCommand::InsertAfter { anchor: "1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_wrapped_siblings(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_wrapped_siblings",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
