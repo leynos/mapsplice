@@ -7,6 +7,9 @@ mod parse;
 mod render;
 pub(crate) mod source_preservation;
 mod step_section;
+#[cfg(test)]
+#[path = "task_source_tests.rs"]
+mod task_source_tests;
 
 pub use anchor::{
     PhaseNumber,

@@ -1,6 +1,9 @@
 //! Source-span helpers for preserving unchanged roadmap Markdown.
 
-use markdown::{mdast::Node, unist::Position};
+use markdown::{
+    mdast::{List, ListItem, Node},
+    unist::Position,
+};
 
 /// Copy source for an unchanged node, preserving leading indentation.
 ///
@@ -44,6 +47,34 @@ pub(crate) fn original_position_source(position: &Position, source: &str) -> Opt
     let prefix = source.get(..position.start.offset)?;
     let start = prefix.rfind('\n').map_or(0, |index| index + 1);
     source.get(start..position.end.offset).map(str::to_owned)
+}
+
+/// Capture each top-level list item's original source through the next item.
+#[must_use]
+pub(crate) fn task_item_sources(
+    list: &List,
+    items: &[&ListItem],
+    source: &str,
+) -> Vec<Option<String>> {
+    items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let item_position = item.position.as_ref()?;
+            let end = items
+                .get(index + 1)
+                .and_then(|next| next.position.as_ref())
+                .map(|position| position.start.clone())
+                .or_else(|| list.position.as_ref().map(|position| position.end.clone()))?;
+            original_position_source(
+                &Position {
+                    start: item_position.start.clone(),
+                    end,
+                },
+                source,
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]

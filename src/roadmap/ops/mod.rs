@@ -174,10 +174,13 @@ fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
     after: bool,
-    tasks: Vec<super::model::TaskEntry>,
+    mut tasks: Vec<super::model::TaskEntry>,
 ) -> Result<()> {
     let (step, task_index) = find_task_parent_mut(roadmap, target)?;
     step.clear_task_list_source();
+    for task in &mut tasks {
+        task.clear_task_source();
+    }
     step.tasks.splice(
         task_index + usize::from(after)..task_index + usize::from(after),
         tasks,
@@ -227,9 +230,12 @@ fn replace_anchor(
             phase.steps.splice(step_index..=step_index, steps);
             Ok(())
         }
-        (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
+        (RoadmapAnchor::Task(target), RoadmapFragment::Task(mut tasks)) => {
             let (step, task_index) = find_task_parent_mut(roadmap, target)?;
             step.clear_task_list_source();
+            for task in &mut tasks {
+                task.clear_task_source();
+            }
             step.tasks.splice(task_index..=task_index, tasks);
             Ok(())
         }

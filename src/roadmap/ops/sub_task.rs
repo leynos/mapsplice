@@ -27,6 +27,7 @@ pub(super) fn insert_sub_tasks(
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.insert_sub_tasks(splice, after, sub_tasks);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())
@@ -44,6 +45,7 @@ pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumb
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.delete_sub_task(splice);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())
@@ -65,6 +67,7 @@ pub(super) fn replace_sub_task(
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.replace_sub_task(splice, sub_tasks);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())

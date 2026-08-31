@@ -9,11 +9,14 @@ mod render_tests;
 mod table;
 #[path = "render_text.rs"]
 mod text;
+#[path = "render_validation.rs"]
+mod validation;
 
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
 use preservation::render_preserved_or_canonical;
 use table::render_table;
 use text::{escape_markdown, indent_block, render_code_block};
+use validation::validate_tasks_for_render;
 
 use super::{
     RoadmapDocument,
@@ -63,41 +66,30 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
 }
 
 fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
-    tasks
-        .iter()
-        .map(|task| render_task(task))
-        .collect::<Result<Vec<_>>>()
-        .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
-}
-fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
-    tasks
-        .iter()
-        .try_for_each(|task| validate_task_for_render(task))
-}
-fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
-    render_inline(task.summary.nodes())?;
-    task.children().iter().try_for_each(|child| match child {
-        TaskChild::Body(body) => render_nested_body(body, 4).map(drop),
-        TaskChild::SubTask(identity) => {
-            validate_sub_task_for_render(find_sub_task_for_child(task, *identity)?)
+    validate_tasks_for_render(tasks)?;
+    let mut rendered = String::new();
+    for task in tasks {
+        if !rendered.is_empty() && !rendered.ends_with('\n') {
+            rendered.push('\n');
         }
-    })
-}
-fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
-    render_inline(sub_task.summary.nodes())?;
-    render_nested_body(&sub_task.body, 8)?;
-    Ok(())
+        if let Some(source) = task.task_source() {
+            rendered.push_str(source);
+        } else {
+            rendered.push_str(&render_task(task)?);
+        }
+    }
+    Ok(trim_preserved_task_source(&rendered).to_owned())
 }
 fn render_task(task: &TaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {}{}. {}",
         checkbox_marker(task.checked),
         task.number,
-        render_item_summary(&render_inline(task.summary.nodes())?, 4)
+        render_item_summary(&render_inline(task.summary.nodes())?, 2)
     )];
     for child in task.children() {
         match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
+            TaskChild::Body(body) => parts.extend(render_nested_body(body, 2)?),
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2)?);
@@ -137,7 +129,7 @@ fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
         sub_task.number,
         render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
-    let body_blocks = render_nested_body(&sub_task.body, indent + 4)?;
+    let body_blocks = render_nested_body(&sub_task.body, indent + 2)?;
     if !body_blocks.is_empty() {
         parts.push(String::new());
         parts.extend(body_blocks);
