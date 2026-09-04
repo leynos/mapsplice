@@ -7,6 +7,12 @@ use rstest::{fixture, rstest};
 
 use super::golden::{GoldenWorkspace, TestResult, create_workspace};
 
+#[derive(Clone, Copy)]
+struct Fence {
+    character: char,
+    length: usize,
+}
+
 #[fixture]
 fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
@@ -96,9 +102,20 @@ fn scan_markdown_fixture(
 ) -> TestResult {
     let contents = repository.read_to_string(fixture_path)?;
     let lines = contents.lines().collect::<Vec<_>>();
+    let mut open_fence = None;
     for (index, line) in lines.iter().enumerate() {
-        if has_noncanonical_fence(line) {
-            report(fixture_path, index, "non-canonical code fence", findings);
+        if let Some(fence) = open_fence {
+            if closes_fence(line, fence) {
+                open_fence = None;
+            }
+            continue;
+        }
+        if let Some(fence) = fence(line) {
+            if has_noncanonical_fence(line) {
+                report(fixture_path, index, "non-canonical code fence", findings);
+            }
+            open_fence = Some(fence);
+            continue;
         }
         if has_repeated_or_noncontiguous_ordered_marker(&lines, index) {
             report(
@@ -121,6 +138,24 @@ fn scan_markdown_fixture(
         }
     }
     Ok(())
+}
+
+fn fence(line: &str) -> Option<Fence> {
+    let trimmed = line.trim_start();
+    let character = trimmed.chars().next()?;
+    matches!(character, '`' | '~').then_some(())?;
+    let length = trimmed
+        .chars()
+        .take_while(|candidate| *candidate == character)
+        .count();
+    (length >= 3).then_some(Fence { character, length })
+}
+
+fn closes_fence(line: &str, opening: Fence) -> bool {
+    let trimmed = line.trim_start();
+    let remainder = trimmed.trim_start_matches(opening.character);
+    let length = trimmed.len() - remainder.len();
+    length >= opening.length && remainder.trim().is_empty()
 }
 
 fn report(path: &Utf8Path, index: usize, label: &str, findings: &mut Vec<String>) {

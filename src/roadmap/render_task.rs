@@ -35,6 +35,20 @@ fn preserve_task_separator(task: &TaskEntry, original: &str, rendered: String) -
     }
 }
 
+fn preserve_sub_task_separator(
+    sub_task: &SubTaskEntry,
+    original: &str,
+    rendered: String,
+) -> String {
+    if rendered == trim_preserved_task_source(original)
+        && sub_task_requires_trailing_separator(sub_task)
+    {
+        format!("{rendered}\n")
+    } else {
+        rendered
+    }
+}
+
 fn task_requires_trailing_separator(task: &TaskEntry) -> bool {
     task.children().last().is_some_and(|child| match child {
         TaskChild::Body(body) => markdown_requires_trailing_separator(body),
@@ -100,9 +114,10 @@ pub(super) fn find_sub_task_for_child(
 fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     if let Some(original) = sub_task.original_source() {
         validate_sub_task_for_render(sub_task)?;
-        return render_preserved_task_or_canonical(original, || {
+        let preserved = render_preserved_task_or_canonical(original, || {
             render_sub_task_canonical(sub_task, indent)
-        });
+        })?;
+        return Ok(preserve_sub_task_separator(sub_task, original, preserved));
     }
     render_sub_task_canonical(sub_task, indent)
 }
