@@ -2,7 +2,7 @@
 
 use markdown::{
     mdast::{List, ListItem, Node},
-    unist::Position,
+    unist::{Point, Position},
 };
 
 /// Copy source for an unchanged node, preserving leading indentation.
@@ -49,6 +49,15 @@ pub(crate) fn original_position_source(position: &Position, source: &str) -> Opt
     source.get(start..position.end.offset).map(str::to_owned)
 }
 
+/// Return a position point at the beginning of its source line.
+fn line_start(position: &Position, source: &str) -> Option<Point> {
+    let mut start = position.start.clone();
+    let prefix = source.get(..start.offset)?;
+    start.offset = prefix.rfind('\n').map_or(0, |index| index + 1);
+    start.column = 1;
+    Some(start)
+}
+
 /// Capture each top-level list item's original source through the next item.
 #[must_use]
 pub(crate) fn task_item_sources(
@@ -64,7 +73,7 @@ pub(crate) fn task_item_sources(
             let end = items
                 .get(index + 1)
                 .and_then(|next| next.position.as_ref())
-                .map(|position| position.start.clone())
+                .and_then(|position| line_start(position, source))
                 .or_else(|| list.position.as_ref().map(|position| position.end.clone()))?;
             original_position_source(
                 &Position {
@@ -83,7 +92,7 @@ mod tests {
 
     use markdown::{ParseOptions, mdast::Node, to_mdast};
 
-    use super::original_node_source;
+    use super::{original_node_source, task_item_sources};
 
     #[test]
     fn original_node_source_preserves_leading_indent() {
@@ -108,5 +117,33 @@ mod tests {
         });
 
         assert_eq!(original_node_source(&node, "No position"), None);
+    }
+
+    #[test]
+    fn task_source_stops_before_the_next_marker_indentation() {
+        let source = "  - [ ] 1.1.1. First task.\n  - [ ] 1.1.2. Second task.\n";
+        let tree = to_mdast(source, &ParseOptions::gfm()).expect("source should parse");
+        let Node::Root(root) = &tree else {
+            panic!("markdown documents parse into root nodes");
+        };
+        let Some(Node::List(list)) = root.children.first() else {
+            panic!("source should contain a list");
+        };
+        let items = list
+            .children
+            .iter()
+            .filter_map(|node| match node {
+                Node::ListItem(item) => Some(item),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            task_item_sources(list, &items, source),
+            vec![
+                Some("  - [ ] 1.1.1. First task.\n".to_owned()),
+                Some("  - [ ] 1.1.2. Second task.".to_owned()),
+            ]
+        );
     }
 }
