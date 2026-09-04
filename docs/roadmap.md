@@ -658,7 +658,7 @@ skill can drop from the safe-edit loop.
     nothing, place the new item last, and fail closed when the fragment level
     does not match the parent anchor.
 
-- [ ] 8.2.3. Preserve untouched-item indentation across splices.
+- [x] 8.2.3. Preserve untouched-item indentation across splices.
 
   - Requires 3.1.4.
   - Stop insert and replace from re-indenting continuation lines of items the
