@@ -144,6 +144,11 @@ mapsplice insert docs/roadmap.md 8 new-phase.md
 mapsplice insert --after docs/roadmap.md 8.2.3 new-task.md
 ```
 
+During a structural splice, unchanged target tasks and addendum sub-tasks
+retain their exact source wrapping and indentation, including required blank
+separators around nested bodies. Items whose own number or text changes may be
+rendered canonically.
+
 ### `delete`
 
 ```bash

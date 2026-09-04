@@ -116,7 +116,15 @@ extracts source spans, while `StepSection::task_list_source` stores the exact
 source for the first parsed task list in an unchanged step. Render validates
 the task model before reusing that source, and mutation or dependency-rewrite
 code must call `StepSection::clear_task_list_source` whenever the task list
-itself changes.
+itself changes. Target parsing also captures each task and addendum sub-task's
+list-item source in `TaskEntry::original_source` and
+`SubTaskEntry::original_source`; fragment items do not receive preserved
+source. `src/roadmap/model_task_entry.rs` owns the per-item accessors and
+structural invalidation, while `src/roadmap/render_task.rs` reuses preserved
+source before falling back to canonical rendering. Clear an item only when its
+own number or text changes, or when a structural descendant changes. Preserve
+the source only when it is formatter-stable; otherwise use the canonical
+fallback.
 
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in
