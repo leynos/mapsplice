@@ -86,6 +86,21 @@ fn insert_task_preserves_wrapped_siblings(workspace: TestResult<GoldenWorkspace>
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn insert_task_preserves_fenced_ordered_markers(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_fenced_ordered_markers",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -104,6 +119,19 @@ fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
         &workspace?,
         golden_success_case(
             "insert_sub_task_after",
+            GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_sub_task_preserves_fenced_sibling(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_sub_task_preserves_fenced_sibling",
             GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
             true,
         ),

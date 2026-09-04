@@ -11,6 +11,12 @@ enum ListMarker {
     Unordered,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Fence {
+    character: char,
+    length: usize,
+}
+
 /// Render an unchanged node from preserved source unless policy requires
 /// canonical output.
 pub(super) fn render_preserved_or_canonical(
@@ -48,18 +54,50 @@ fn is_formatter_unstable(node: &Node, original: &str) -> bool {
 }
 
 fn has_unstable_code_fence(original: &str) -> bool {
-    let opener = original.lines().find(|line| !line.trim().is_empty());
-    opener.is_some_and(|line| {
-        let trimmed = line.trim_start();
-        let indent = line.len() - trimmed.len();
-        indent <= 3 && (trimmed.starts_with("~~~") || trimmed.starts_with("````"))
-    })
+    original
+        .lines()
+        .filter_map(fence)
+        .any(|fence| fence.character == '~' || fence.length >= 4)
 }
 
 fn has_unstable_list_marker(original: &str) -> bool {
-    let markers = original.lines().filter_map(list_marker).collect::<Vec<_>>();
+    let mut open_fence = None;
+    let markers = original
+        .lines()
+        .filter_map(|line| {
+            if let Some(fence) = open_fence {
+                if closes_fence(line, fence) {
+                    open_fence = None;
+                }
+                return None;
+            }
+            if let Some(fence) = fence(line) {
+                open_fence = Some(fence);
+                return None;
+            }
+            list_marker(line)
+        })
+        .collect::<Vec<_>>();
     has_repeated_or_noncontiguous_ordered_marker(&markers)
         || has_overindented_nested_marker(&markers)
+}
+
+fn fence(line: &str) -> Option<Fence> {
+    let trimmed = line.trim_start();
+    let character = trimmed.chars().next()?;
+    matches!(character, '`' | '~').then_some(())?;
+    let length = trimmed
+        .chars()
+        .take_while(|candidate| *candidate == character)
+        .count();
+    (length >= 3).then_some(Fence { character, length })
+}
+
+fn closes_fence(line: &str, opening: Fence) -> bool {
+    let trimmed = line.trim_start();
+    let remainder = trimmed.trim_start_matches(opening.character);
+    let length = trimmed.len() - remainder.len();
+    length >= opening.length && remainder.trim().is_empty()
 }
 
 fn has_repeated_or_noncontiguous_ordered_marker(markers: &[(usize, ListMarker)]) -> bool {
@@ -143,6 +181,21 @@ mod tests {
     }
 
     #[test]
+    fn ordered_markers_inside_fenced_bodies_are_formatter_stable() {
+        assert!(!has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  1. first\n  1. second\n  3. third\n  ```"
+        ));
+    }
+
+    #[test]
+    fn ordered_markers_outside_fenced_bodies_are_formatter_unstable() {
+        assert!(has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  1. first\n  1. second\n  ```\n\n  1. first\n  3. \
+             third"
+        ));
+    }
+
+    #[test]
     fn overindented_nested_list_is_formatter_unstable() {
         assert!(has_unstable_list_marker("- parent\n    - child"));
     }
@@ -160,6 +213,16 @@ mod tests {
     #[test]
     fn oversized_backtick_fence_is_formatter_unstable() {
         assert!(has_unstable_code_fence("````rust\nlet answer = 42;\n````"));
+    }
+
+    #[test]
+    fn nested_unstable_fences_are_formatter_unstable() {
+        assert!(has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ~~~rust\n  let answer = 42;\n  ~~~"
+        ));
+        assert!(has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ````rust\n  let answer = 42;\n  ````"
+        ));
     }
 
     #[test]
