@@ -36,6 +36,21 @@ const TWO_SPACE_FRAGMENT: &str = concat!(
     "  before it is inserted.\n",
 );
 
+const INDENTED_TASK_TARGET: &str = concat!(
+    "# Roadmap\n\n",
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "  - [x] 1.1.1. Surviving task.\n",
+    "  - [x] 1.1.2. Deleted task.\n",
+);
+
+const INDENTED_TASK_DELETE_OUTPUT: &str = concat!(
+    "# Roadmap\n\n",
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "  - [x] 1.1.1. Surviving task.\n",
+);
+
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn append_preserves_existing_loose_task_spacing() -> TestResult {
@@ -110,6 +125,31 @@ fn delete_preserves_surviving_two_space_task_source() -> TestResult {
     .unwrap_or_default();
 
     assert_contains(&output, UNTOUCHED_TWO_SPACE_TASK);
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn delete_does_not_leave_next_task_indentation_behind() -> TestResult {
+    let test_workspace = create_workspace()?;
+    test_workspace.write_target(INDENTED_TASK_TARGET)?;
+
+    let output = run_from_args([
+        "mapsplice",
+        "delete",
+        test_workspace.target.as_str(),
+        "1.1.2",
+    ])?
+    .stdout
+    .unwrap_or_default();
+
+    if output != INDENTED_TASK_DELETE_OUTPUT {
+        return Err(format!(
+            "deleting an indented task left unexpected \
+             source:\nexpected:\n{INDENTED_TASK_DELETE_OUTPUT}\nactual:\n{output}"
+        )
+        .into());
+    }
     Ok(())
 }
 
