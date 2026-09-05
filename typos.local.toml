@@ -7,12 +7,23 @@ stems = []
 
 [words]
 # Official names: Azure Architecture Center and GitHub Flavored Markdown.
-accepted = ["Center", "Flavored"]
+# mold: the linker's name, as installed and configured through
+# `-fuse-ld=mold`; it is never the verb.
+accepted = ["Center", "Flavored", "mold"]
 
 [words.corrections]
 
 [patterns]
-ignore = []
+# `color`: the documentation style guide's own example of a US spelling kept
+# inside an API name.
+# flavor = "current_thread": the tokio::test attribute argument, quoted from
+# rstest-bdd's user guide.
+# artifact.kind: a JSON field name in the validation output design.
+ignore = [
+    "`color`",
+    "flavor = \"current_thread\"",
+    "artifact\\.kind",
+]
 
 [files]
 exclude = []
