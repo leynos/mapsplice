@@ -54,10 +54,24 @@ fn is_formatter_unstable(node: &Node, original: &str) -> bool {
 }
 
 fn has_unstable_code_fence(original: &str) -> bool {
-    original
-        .lines()
-        .filter_map(fence)
-        .any(|fence| fence.character == '~' || fence.length >= 4)
+    let mut open_fence = None;
+    original.lines().any(|line| {
+        if let Some(fence) = open_fence {
+            if closes_fence(line, fence) {
+                open_fence = None;
+            }
+            return false;
+        }
+        let Some(fence) = fence(line) else {
+            return false;
+        };
+        if fence.character == '~' || fence.length >= 4 {
+            true
+        } else {
+            open_fence = Some(fence);
+            false
+        }
+    })
 }
 
 fn has_unstable_list_marker(original: &str) -> bool {
@@ -222,6 +236,13 @@ mod tests {
         ));
         assert!(has_unstable_code_fence(
             "- [ ] 1.1.1. Task.\n\n  ````rust\n  let answer = 42;\n  ````"
+        ));
+    }
+
+    #[test]
+    fn canonical_fence_content_is_formatter_stable() {
+        assert!(!has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  ~~~\n  1. code item\n  ```"
         ));
     }
 

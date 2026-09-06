@@ -101,6 +101,21 @@ fn insert_task_preserves_fenced_ordered_markers(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn insert_task_preserves_fence_delimiter_content(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_fence_delimiter_content",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
