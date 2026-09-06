@@ -31,8 +31,10 @@ extend-exclude = [
 locale = "en-gb"
 extend-ignore-re = [
     "(?s)```.*?```",
+    "-fuse-ld=mold",
     "\\brust-analyzer\\b",
     "`color`",
+    "`mold`",
     "artifact\\.kind",
     "flavor = \"current_thread\"",
 ]
@@ -1340,7 +1342,6 @@ extend-ignore-re = [
 "modularizers" = "modularizers"
 "modularizes" = "modularizes"
 "modularizing" = "modularizing"
-"mold" = "mold"
 "monetisable" = "monetizable"
 "monetisation" = "monetization"
 "monetisations" = "monetizations"
