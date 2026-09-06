@@ -17,6 +17,10 @@ use crate::{
     roadmap::model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
 };
 
+/// Render a task from preserved source when stable, otherwise canonically.
+///
+/// Returns an error when canonical rendering encounters invalid Markdown or
+/// an inconsistent structural child sequence.
 pub(super) fn render_task(task: &TaskEntry) -> Result<String> {
     if let Some(original) = task.original_source() {
         validate_task_for_render(task)?;
@@ -27,6 +31,7 @@ pub(super) fn render_task(task: &TaskEntry) -> Result<String> {
     render_task_canonical(task)
 }
 
+/// Restore the separator required after a preserved task's final child.
 fn preserve_task_separator(task: &TaskEntry, original: &str, rendered: String) -> String {
     if rendered == trim_preserved_task_source(original) && task_requires_trailing_separator(task) {
         format!("{rendered}\n")
@@ -35,6 +40,7 @@ fn preserve_task_separator(task: &TaskEntry, original: &str, rendered: String) -
     }
 }
 
+/// Restore the separator required after a preserved sub-task's final body node.
 fn preserve_sub_task_separator(
     sub_task: &SubTaskEntry,
     original: &str,
@@ -49,6 +55,7 @@ fn preserve_sub_task_separator(
     }
 }
 
+/// Return whether a task's final child needs a trailing blank separator.
 fn task_requires_trailing_separator(task: &TaskEntry) -> bool {
     task.children().last().is_some_and(|child| match child {
         TaskChild::Body(body) => markdown_requires_trailing_separator(body),
@@ -60,10 +67,12 @@ fn task_requires_trailing_separator(task: &TaskEntry) -> bool {
     })
 }
 
+/// Return whether a sub-task's final body node needs a trailing separator.
 fn sub_task_requires_trailing_separator(sub_task: &SubTaskEntry) -> bool {
     markdown_requires_trailing_separator(&sub_task.body)
 }
 
+/// Return whether Markdown content ends in a block requiring separation.
 fn markdown_requires_trailing_separator(markdown: &MarkdownNodes) -> bool {
     let paragraph_count = markdown
         .nodes()
@@ -77,6 +86,10 @@ fn markdown_requires_trailing_separator(markdown: &MarkdownNodes) -> bool {
             .is_some_and(|node| matches!(node, Node::Code(_) | Node::List(_) | Node::Table(_)))
 }
 
+/// Render a task canonically, including body nodes and ordered sub-tasks.
+///
+/// Returns an error when the task's structural child sequence references a
+/// missing sub-task.
 fn render_task_canonical(task: &TaskEntry) -> Result<String> {
     let mut parts = vec![format!(
         "- {}{}. {}",
@@ -96,6 +109,10 @@ fn render_task_canonical(task: &TaskEntry) -> Result<String> {
     Ok(parts.join("\n"))
 }
 
+/// Resolve a structural child identity to its corresponding sub-task.
+///
+/// Returns [`MapspliceError::InvalidRoadmap`] when the child sequence refers
+/// to an absent sub-task.
 pub(super) fn find_sub_task_for_child(
     task: &TaskEntry,
     identity: ItemIdentity,
@@ -111,6 +128,9 @@ pub(super) fn find_sub_task_for_child(
         })
 }
 
+/// Render a sub-task from preserved source when stable, otherwise canonically.
+///
+/// Returns an error when canonical rendering encounters invalid Markdown.
 fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     if let Some(original) = sub_task.original_source() {
         validate_sub_task_for_render(sub_task)?;
@@ -122,6 +142,7 @@ fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     render_sub_task_canonical(sub_task, indent)
 }
 
+/// Render a sub-task with the requested indentation and canonical formatting.
 fn render_sub_task_canonical(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
     let prefix = " ".repeat(indent);
     let mut parts = vec![format!(
