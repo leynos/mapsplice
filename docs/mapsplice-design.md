@@ -116,10 +116,11 @@ Untouched gate-clean content remains byte-exact.
 - **F1 — Content preservation.** Every node that the operation does not
   structurally target, and that is not renumbered or reference-rewritten as a
   documented consequence, is preserved exactly: text, formatting, list nesting,
-  tables, and code blocks are unchanged. Task lists keep a dedicated
-  preserved-source span so an append can leave untouched existing task lists
-  byte-exact, including loose-list spacing, while still regenerating lists
-  whose tasks, child ordering, numbering, or dependency text changed.
+  tables, and code blocks are unchanged. Task lists keep a step-level
+  preserved-source span for the fast path and per-task source spans for dirty
+  lists, so an edit can regenerate only tasks whose content, child ordering,
+  numbering, or dependency text changed while leaving untouched tasks
+  byte-exact, including loose-list spacing.
 - **F2 — Minimal diff.** The only changes are the addressed item itself and the
   deterministic consequences of the edit — the renumbering of later items
   (section 6, C2) and the rewriting of dependency references to them (C3).
@@ -232,6 +233,8 @@ inspection.
   process-local; they are diagnostic state, not durable telemetry. Invalidation
   is recorded at mutation points, while preservation and fallback outcomes are
   recorded at the rendering decision.
+  Canonical rendering of invalidated or formatter-unstable task content uses
+  the two-space continuation convention.
 - **Required coverage.** The corpus must exercise the whole grammar surface
   (preamble; phases, steps, tasks; multi-line task bodies; nested bullets;
   tables; code blocks) and, as adversarial cases, every way collateral
