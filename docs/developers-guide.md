@@ -122,8 +122,9 @@ list-item source in `TaskEntry::original_source` and
 `src/roadmap/model_task_entry.rs` owns the per-item accessors and structural
 invalidation, while `src/roadmap/render_task.rs` reuses preserved source before
 falling back to canonical rendering. Clear an item only when its own number or
-text changes, or when a structural descendant changes. Preserve the source only
-when it is formatter-stable; otherwise use the canonical fallback.
+text changes, when dependency-related content changes, or when a structural
+descendant changes. Preserve the source only when it is formatter-stable;
+otherwise use the canonical fallback.
 
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in

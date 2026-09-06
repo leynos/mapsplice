@@ -178,9 +178,7 @@ fn has_repeated_or_noncontiguous_ordered_marker(lines: &[&str], index: usize) ->
     let Some((indent, ordinal)) = ordered_marker(line) else {
         return false;
     };
-    let Some(next) = lines
-        .iter()
-        .skip(index + 1)
+    let Some(next) = fence_filtered_lines(lines, index)
         .find_map(|candidate| ordered_marker_at_indent(candidate, indent))
     else {
         return false;
@@ -212,11 +210,33 @@ fn has_overindented_nested_marker(lines: &[&str], index: usize) -> bool {
     let Some(parent_indent) = unordered_marker(line) else {
         return false;
     };
+    fence_filtered_lines(lines, index)
+        .find_map(unordered_marker)
+        .is_some_and(|child_indent| child_indent > parent_indent + 2)
+}
+
+fn fence_filtered_lines<'a>(
+    lines: &'a [&'a str],
+    index: usize,
+) -> impl Iterator<Item = &'a str> + 'a {
+    let mut open_fence = None;
     lines
         .iter()
         .skip(index + 1)
-        .find_map(|candidate| unordered_marker(candidate))
-        .is_some_and(|child_indent| child_indent > parent_indent + 2)
+        .filter_map(move |candidate_reference| {
+            let candidate = *candidate_reference;
+            if let Some(fence) = open_fence {
+                if closes_fence(candidate, fence) {
+                    open_fence = None;
+                }
+                return None;
+            }
+            if let Some(fence) = fence(candidate) {
+                open_fence = Some(fence);
+                return None;
+            }
+            Some(candidate)
+        })
 }
 
 fn unordered_marker(line: &str) -> Option<usize> {

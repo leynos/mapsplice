@@ -146,7 +146,9 @@ mapsplice insert --after docs/roadmap.md 8.2.3 new-task.md
 
 During a structural splice, unchanged target tasks and addendum sub-tasks
 retain their exact source wrapping and indentation, including required blank
-separators around nested bodies. Items whose own number or text changes may be
+separators around nested bodies. Exact source is reused only while it remains
+formatter-stable. Changes to an item's own number or text, dependency-related
+content, or structural descendants invalidate that source, so the item may be
 rendered canonically.
 
 ### `delete`
