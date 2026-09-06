@@ -12,6 +12,7 @@ use super::{
     TaskEntry,
     TaskEntryParts,
 };
+use crate::observability::{PreservationInvalidationReason, record_preserved_source_invalidation};
 
 impl TaskEntry {
     /// Build a parsed task entry from parser-owned parts.
@@ -34,6 +35,9 @@ impl TaskEntry {
     pub fn sub_tasks(&self) -> &[SubTaskEntry] { &self.sub_tasks }
 
     /// Return mutable sub-tasks for renumbering and dependency rewriting.
+    ///
+    /// Callers must preserve the correspondence between this slice and the
+    /// structural [`TaskChild`] entries held by the task.
     pub(crate) fn sub_tasks_mut(&mut self) -> &mut [SubTaskEntry] { &mut self.sub_tasks }
 
     /// Return the original source while this task remains unchanged.
@@ -41,7 +45,14 @@ impl TaskEntry {
     pub(crate) fn original_source(&self) -> Option<&str> { self.original_source.as_deref() }
 
     /// Clear preserved source after this task or one of its descendants changes.
-    pub(crate) fn clear_original_source(&mut self) { self.original_source = None; }
+    ///
+    /// Records the supplied cause only when a source span was present, so the
+    /// counter measures invalidations rather than mutation attempts.
+    pub(crate) fn clear_original_source(&mut self, reason: PreservationInvalidationReason) {
+        if self.original_source.take().is_some() {
+            record_preserved_source_invalidation(reason);
+        }
+    }
 
     /// Return the original ordered task-child sequence.
     #[must_use]
@@ -62,7 +73,7 @@ impl TaskEntry {
         after: bool,
         sub_tasks: Vec<SubTaskEntry>,
     ) {
-        self.clear_original_source();
+        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
         let new_children = sub_task_children(&sub_tasks);
         let insert_at = splice.sub_task_index + usize::from(after);
         let child_insert_at = splice.child_index + usize::from(after);
@@ -73,14 +84,14 @@ impl TaskEntry {
 
     /// Delete one sub-task while keeping the child order vector aligned.
     pub(crate) fn delete_sub_task(&mut self, splice: SubTaskSplice) {
-        self.clear_original_source();
+        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
         self.sub_tasks.remove(splice.sub_task_index);
         self.children.remove(splice.child_index);
     }
 
     /// Replace one sub-task while keeping the child order vector aligned.
     pub(crate) fn replace_sub_task(&mut self, splice: SubTaskSplice, sub_tasks: Vec<SubTaskEntry>) {
-        self.clear_original_source();
+        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
         let new_children = sub_task_children(&sub_tasks);
         self.sub_tasks
             .splice(splice.sub_task_index..=splice.sub_task_index, sub_tasks);
@@ -88,6 +99,7 @@ impl TaskEntry {
             .splice(splice.child_index..=splice.child_index, new_children);
     }
 
+    /// Remove a sub-task without updating structural children for invariant tests.
     #[cfg(test)]
     pub(crate) fn remove_sub_task_without_child_update_for_test(
         &mut self,
@@ -103,9 +115,16 @@ impl SubTaskEntry {
     pub(crate) fn original_source(&self) -> Option<&str> { self.original_source.as_deref() }
 
     /// Clear preserved source after this sub-task changes.
-    pub(crate) fn clear_original_source(&mut self) { self.original_source = None; }
+    ///
+    /// Records the supplied cause only when a source span was present.
+    pub(crate) fn clear_original_source(&mut self, reason: PreservationInvalidationReason) {
+        if self.original_source.take().is_some() {
+            record_preserved_source_invalidation(reason);
+        }
+    }
 }
 
+/// Build child markers for the supplied sub-task sequence in the same order.
 fn sub_task_children(sub_tasks: &[SubTaskEntry]) -> Vec<TaskChild> {
     sub_tasks
         .iter()
@@ -113,6 +132,10 @@ fn sub_task_children(sub_tasks: &[SubTaskEntry]) -> Vec<TaskChild> {
         .collect()
 }
 
+/// Validate that structural children identify exactly the task's sub-tasks.
+///
+/// Returns [`MapspliceError::InvalidRoadmap`] when either representation is
+/// missing an identity or contains an identity not present in the other.
 fn validate_task_children(parts: &TaskEntryParts) -> Result<()> {
     let sub_task_identities = parts
         .sub_tasks

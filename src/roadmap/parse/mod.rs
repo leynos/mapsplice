@@ -164,6 +164,10 @@ pub(super) fn validate_tasks_belong_to_step(
     Ok(())
 }
 
+/// Parse one task list item, retaining target source for unchanged rendering.
+///
+/// Returns an error when the item is not a valid task or its descendants have
+/// invalid roadmap structure.
 fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
     let head = parse_checklist_item_head(item, ChecklistKind::Task)?;
     let (number, summary) = parse_task_paragraph(head.paragraph)?;
@@ -238,6 +242,9 @@ fn parse_sub_task_list(
     Ok(())
 }
 
+/// Parse and validate one structural sub-task list item.
+///
+/// Returns an error when the checklist shape or expected ordinal is invalid.
 fn parse_sub_task_item(
     item: &ListItem,
     parent: TaskNumber,
@@ -249,6 +256,9 @@ fn parse_sub_task_item(
     Ok(sub_task)
 }
 
+/// Parse a sub-task item without checking its ordinal against its parent.
+///
+/// Returns an error when the checklist shape or Markdown body is invalid.
 pub(super) fn parse_sub_task_item_unchecked(
     item: &ListItem,
     context: ParseContext<'_>,
@@ -269,6 +279,10 @@ pub(super) fn parse_sub_task_item_unchecked(
     })
 }
 
+/// Capture exact target source for a list item, if its parser span is present.
+///
+/// Fragment items intentionally return `None` because their source is new and
+/// must use canonical rendering.
 fn original_item_source(item: &ListItem, context: ParseContext<'_>) -> Option<String> {
     (context.source == SourceId::Target)
         .then(|| {

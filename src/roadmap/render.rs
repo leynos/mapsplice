@@ -64,6 +64,7 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     })
 }
 
+/// Render task entries and join them as one canonical task-list body.
 fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
     tasks
         .iter()
@@ -71,11 +72,16 @@ fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
         .collect::<Result<Vec<_>>>()
         .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
 }
+/// Validate every task before reusing a preserved task-list source.
 fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
     tasks
         .iter()
         .try_for_each(|task| validate_task_for_render(task))
 }
+/// Validate one task's summary, body, and structural child references.
+///
+/// Returns an error when a child is not renderable or references a missing
+/// sub-task.
 fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
     render_inline(task.summary.nodes())?;
     task.children().iter().try_for_each(|child| match child {

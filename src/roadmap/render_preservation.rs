@@ -3,7 +3,14 @@
 use markdown::mdast::Node;
 
 use super::render_block;
-use crate::error::Result;
+use crate::{
+    error::Result,
+    observability::{
+        CanonicalFallbackReason,
+        record_canonical_fallback,
+        record_preserved_source_render,
+    },
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ListMarker {
@@ -36,15 +43,33 @@ pub(super) fn render_preserved_task_or_canonical(
     original: &str,
     canonical: impl FnOnce() -> Result<String>,
 ) -> Result<String> {
-    if has_unstable_list_marker(original) || has_unstable_code_fence(original) {
-        canonical()
+    formatter_fallback_reason(original).map_or_else(
+        || {
+            record_preserved_source_render();
+            Ok(trim_preserved_separator(original).to_owned())
+        },
+        |reason| {
+            record_canonical_fallback(reason);
+            canonical()
+        },
+    )
+}
+
+/// Return the first closed formatter-stability reason requiring canonical output.
+fn formatter_fallback_reason(original: &str) -> Option<CanonicalFallbackReason> {
+    if has_unstable_list_marker(original) {
+        Some(CanonicalFallbackReason::UnstableListMarker)
+    } else if has_unstable_code_fence(original) {
+        Some(CanonicalFallbackReason::UnstableCodeFence)
     } else {
-        Ok(trim_preserved_separator(original).to_owned())
+        None
     }
 }
 
+/// Remove only the separator newlines outside a preserved source span.
 fn trim_preserved_separator(original: &str) -> &str { original.trim_end_matches('\n') }
 
+/// Decide whether a node's preserved source requires canonical rendering.
 fn is_formatter_unstable(node: &Node, original: &str) -> bool {
     match node {
         Node::List(_) => has_unstable_list_marker(original),
@@ -53,6 +78,7 @@ fn is_formatter_unstable(node: &Node, original: &str) -> bool {
     }
 }
 
+/// Detect fence forms whose formatting is not stable under the canonical renderer.
 fn has_unstable_code_fence(original: &str) -> bool {
     let mut open_fence = None;
     original.lines().any(|line| {
@@ -74,6 +100,7 @@ fn has_unstable_code_fence(original: &str) -> bool {
     })
 }
 
+/// Detect ordered or nested list markers that can change during formatting.
 fn has_unstable_list_marker(original: &str) -> bool {
     let mut open_fence = None;
     let markers = original
@@ -96,6 +123,7 @@ fn has_unstable_list_marker(original: &str) -> bool {
         || has_overindented_nested_marker(&markers)
 }
 
+/// Parse a Markdown fence opener from a line, if present.
 fn fence(line: &str) -> Option<Fence> {
     let trimmed = line.trim_start();
     let character = trimmed.chars().next()?;
@@ -107,6 +135,7 @@ fn fence(line: &str) -> Option<Fence> {
     (length >= 3).then_some(Fence { character, length })
 }
 
+/// Return whether a line closes a fence with at least the opener's width.
 fn closes_fence(line: &str, opening: Fence) -> bool {
     let trimmed = line.trim_start();
     let remainder = trimmed.trim_start_matches(opening.character);
@@ -114,6 +143,7 @@ fn closes_fence(line: &str, opening: Fence) -> bool {
     length >= opening.length && remainder.trim().is_empty()
 }
 
+/// Detect adjacent ordered markers that repeat or skip an ordinal.
 fn has_repeated_or_noncontiguous_ordered_marker(markers: &[(usize, ListMarker)]) -> bool {
     markers.windows(2).any(|window| {
         let [
@@ -127,6 +157,7 @@ fn has_repeated_or_noncontiguous_ordered_marker(markers: &[(usize, ListMarker)])
     })
 }
 
+/// Detect nested markers indented beyond the supported canonical layout.
 fn has_overindented_nested_marker(markers: &[(usize, ListMarker)]) -> bool {
     markers.iter().enumerate().any(|(index, (indent, _))| {
         *indent > 0
@@ -141,6 +172,7 @@ fn has_overindented_nested_marker(markers: &[(usize, ListMarker)]) -> bool {
     })
 }
 
+/// Parse a list marker and its leading indentation from a Markdown line.
 fn list_marker(line: &str) -> Option<(usize, ListMarker)> {
     let trimmed = line.trim_start();
     let indent = line.len() - trimmed.len();

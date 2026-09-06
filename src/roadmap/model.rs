@@ -14,6 +14,9 @@ use super::{
 };
 use crate::error::{MapspliceError, Result};
 
+#[cfg(test)]
+#[path = "model_property_tests.rs"]
+mod property_tests;
 #[path = "model_task_entry.rs"]
 mod task_entry;
 #[cfg(test)]
@@ -237,7 +240,7 @@ impl MarkdownNodes {
     pub(crate) fn clear_original_blocks(&mut self) { self.original_blocks.fill(None); }
 }
 
-/// Copy the exact source span for an unchanged Markdown node.
+/// Return the exact source span for a Markdown node when the parser recorded one.
 fn original_block(n: &Node, s: &str) -> Option<String> { original_node_source(n, s) }
 
 impl Default for RoadmapDocument {
