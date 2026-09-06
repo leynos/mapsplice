@@ -45,7 +45,7 @@ pub fn original_node_source(node: &Node, source: &str) -> Option<String> {
 #[must_use]
 pub(crate) fn original_position_source(position: &Position, source: &str) -> Option<String> {
     let prefix = source.get(..position.start.offset)?;
-    let start = prefix.rfind('\n').map_or(0, |index| index + 1);
+    let start = prefix.rfind(['\r', '\n']).map_or(0, |index| index + 1);
     source.get(start..position.end.offset).map(str::to_owned)
 }
 
@@ -53,7 +53,7 @@ pub(crate) fn original_position_source(position: &Position, source: &str) -> Opt
 fn line_start(position: &Position, source: &str) -> Option<Point> {
     let mut start = position.start.clone();
     let prefix = source.get(..start.offset)?;
-    start.offset = prefix.rfind('\n').map_or(0, |index| index + 1);
+    start.offset = prefix.rfind(['\r', '\n']).map_or(0, |index| index + 1);
     start.column = 1;
     Some(start)
 }
