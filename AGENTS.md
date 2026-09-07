@@ -256,9 +256,11 @@ project:
   `typos.local.toml` for narrow repository terminology, then regenerate it with
   `uv run scripts/generate_typos_config.py`; never edit generated entries by
   hand.
-- Quoted APIs and identifiers retain upstream spelling. Put them in backticks
-  or fenced code blocks, which the spelling gate ignores, rather than adding
-  word-level exceptions.
+- Quoted APIs and identifiers retain upstream spelling. Fenced code blocks are
+  ignored by the spelling gate; inline code is checked (the shared policy
+  changed on 2026-08-06, agent-helper-scripts #90), so record each quoted
+  identifier in `typos.local.toml` under `[patterns] ignore`, scoped to the
+  form it appears in, rather than accepting the bare word.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.

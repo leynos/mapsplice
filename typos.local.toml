@@ -12,7 +12,25 @@ accepted = ["Center", "Flavored"]
 [words.corrections]
 
 [patterns]
-ignore = []
+# The shared policy checks inline code since agent-helper-scripts #90, so each
+# quoted identifier that keeps an upstream spelling is listed here, scoped to
+# the form it appears in rather than accepted as a word.
+# `mold` and -fuse-ld=mold: the linker's name, in backticks or in the
+# link-arg that selects it; the common noun stays a spelling error.
+# `color`: the documentation style guide's own example of a US spelling kept
+# inside an API name.
+# flavor = "current_thread": the tokio::test attribute argument, quoted from
+# rstest-bdd's user guide.
+# `artifact.kind = "..."`: a JSON field name in the validation output
+# design, scoped to the backticked field assignment so the common noun is
+# still corrected everywhere else.
+ignore = [
+    "`mold`",
+    "-fuse-ld=mold",
+    "`color`",
+    "flavor = \"current_thread\"",
+    "`artifact\\.kind = \"[a-z_]+\"`",
+]
 
 [files]
 exclude = []
