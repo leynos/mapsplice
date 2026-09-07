@@ -103,6 +103,8 @@ fn has_unstable_code_fence(original: &str) -> bool {
 /// Detect ordered or nested list markers that can change during formatting.
 fn has_unstable_list_marker(original: &str) -> bool {
     let mut open_fence = None;
+    let checklist_indent = checklist_marker_indent(original);
+    let mut previous_line_was_blank = false;
     let markers = original
         .lines()
         .filter_map(|line| {
@@ -116,11 +118,31 @@ fn has_unstable_list_marker(original: &str) -> bool {
                 open_fence = Some(fence);
                 return None;
             }
+            if previous_line_was_blank && is_indented_code_block_line(line, checklist_indent) {
+                previous_line_was_blank = false;
+                return None;
+            }
+            previous_line_was_blank = line.trim().is_empty();
             list_marker(line)
         })
         .collect::<Vec<_>>();
     has_repeated_or_noncontiguous_ordered_marker(&markers)
         || has_overindented_nested_marker(&markers)
+}
+
+/// Return the leading indentation of the first task-list marker in `original`.
+fn checklist_marker_indent(original: &str) -> Option<usize> {
+    original.lines().find_map(|line| {
+        let trimmed = line.trim_start();
+        (trimmed.starts_with("- [ ") || trimmed.starts_with("- [x]"))
+            .then_some(line.len() - trimmed.len())
+    })
+}
+
+/// Return whether a blank-separated line is indented as a task item's code body.
+fn is_indented_code_block_line(line: &str, checklist_indent: Option<usize>) -> bool {
+    let trimmed = line.trim_start();
+    checklist_indent.is_some_and(|indent| line.len() - trimmed.len() >= indent + 10)
 }
 
 /// Parse a Markdown fence opener from a line, if present.
@@ -238,6 +260,13 @@ mod tests {
         assert!(has_unstable_list_marker(
             "- [ ] 1.1.1. Task.\n\n  ```text\n  1. first\n  1. second\n  ```\n\n  1. first\n  3. \
              third"
+        ));
+    }
+
+    #[test]
+    fn ordered_markers_inside_indented_code_blocks_are_formatter_stable() {
+        assert!(!has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n          1. first\n          3. third"
         ));
     }
 

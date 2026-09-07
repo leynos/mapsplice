@@ -29,6 +29,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// snapshot with [`metrics_snapshot`]. Source-preservation counters extend
 /// this public snapshot so callers can observe new outcomes without a metrics
 /// backend; consumers should obtain snapshots rather than construct literals.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MetricsSnapshot {
     /// Failed command count grouped by all error classes.

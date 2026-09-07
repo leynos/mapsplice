@@ -9,10 +9,13 @@ mod golden;
 use golden::{
     GoldenCommand,
     GoldenWorkspace,
+    SuccessOutput,
     TestResult,
     assert_golden_case,
     create_workspace,
+    golden_fixture,
     golden_success_case,
+    golden_success_output_case,
     reference_delete_case,
 };
 use rstest::{fixture, rstest};
@@ -110,6 +113,27 @@ fn insert_task_preserves_fence_delimiter_content(
             "insert_task_preserves_fence_delimiter_content",
             GoldenCommand::InsertAfter { anchor: "1.1.2" },
             true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_indented_code_markers(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_output_case(
+            "insert_task_preserves_indented_code_markers",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+            SuccessOutput::StdoutPreservedSource {
+                expected: golden_fixture(
+                    "insert_task_preserves_indented_code_markers",
+                    "expected.md",
+                ),
+            },
         ),
     )
 }

@@ -1,5 +1,8 @@
 //! Tests for the F1/F4 preservation boundary around accepted Markdown.
 
+#[path = "formatter_boundary_data.rs"]
+mod data;
+
 use camino::Utf8Path;
 use cap_std::{ambient_authority, fs_utf8::Dir};
 use mapsplice::run_from_args;
@@ -45,7 +48,7 @@ fn golden_corpus_has_no_formatter_boundary_surprises() -> TestResult {
 fn gate_clean_loose_list_survives_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
-    assert_noop_replace_preserves_target(&workspace?, gate_clean_loose_list_target())
+    assert_noop_replace_preserves_target(&workspace?, data::gate_clean_loose_list_target())
 }
 
 #[rstest]
@@ -53,20 +56,20 @@ fn gate_clean_loose_list_survives_noop_replace(
 fn gate_clean_indented_code_fence_survives_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
-    assert_noop_replace_preserves_target(&workspace?, gate_clean_indented_code_fence_target())
+    assert_noop_replace_preserves_target(&workspace?, data::gate_clean_indented_code_fence_target())
 }
 
 #[rstest]
 #[case::repeated_ordered_markers(
-    repeated_ordered_markers_target(),
-    repeated_ordered_markers_expected()
+    data::repeated_ordered_markers_target(),
+    data::repeated_ordered_markers_expected()
 )]
 #[case::overindented_nested_list(
-    overindented_nested_list_target(),
-    overindented_nested_list_expected()
+    data::overindented_nested_list_target(),
+    data::overindented_nested_list_expected()
 )]
-#[case::tilde_fence(tilde_fence_target(), canonical_fence_expected())]
-#[case::oversized_backtick_fence(oversized_fence_target(), canonical_fence_expected())]
+#[case::tilde_fence(data::tilde_fence_target(), data::canonical_fence_expected())]
+#[case::oversized_backtick_fence(data::oversized_fence_target(), data::canonical_fence_expected())]
 #[serial_test::serial(cli_env)]
 fn formatter_unstable_input_normalizes_on_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
@@ -117,27 +120,62 @@ fn scan_markdown_fixture(
             open_fence = Some(fence);
             continue;
         }
-        if has_repeated_or_noncontiguous_ordered_marker(&lines, index) {
-            report(
-                fixture_path,
-                index,
-                "repeated or non-contiguous ordered marker",
-                findings,
-            );
-        }
-        if has_overindented_nested_marker(&lines, index) {
-            report(
-                fixture_path,
-                index,
-                "over-indented nested list marker",
-                findings,
-            );
-        }
-        if starts_loose_list_pair(&lines, index) {
-            report(fixture_path, index, "top-level loose list pair", findings);
-        }
+        scan_formatter_boundary_line(&lines, index, fixture_path, findings);
     }
     Ok(())
+}
+
+/// Record boundary findings for one non-fenced Markdown fixture line.
+fn scan_formatter_boundary_line(
+    lines: &[&str],
+    index: usize,
+    fixture_path: &Utf8Path,
+    findings: &mut Vec<String>,
+) {
+    if is_indented_task_code_block_line(lines, index) {
+        return;
+    }
+    if has_repeated_or_noncontiguous_ordered_marker(lines, index) {
+        report(
+            fixture_path,
+            index,
+            "repeated or non-contiguous ordered marker",
+            findings,
+        );
+    }
+    if has_overindented_nested_marker(lines, index) {
+        report(
+            fixture_path,
+            index,
+            "over-indented nested list marker",
+            findings,
+        );
+    }
+    if starts_loose_list_pair(lines, index) {
+        report(fixture_path, index, "top-level loose list pair", findings);
+    }
+}
+
+/// Return whether a blank-separated line is indented as a task item's code body.
+fn is_indented_task_code_block_line(lines: &[&str], index: usize) -> bool {
+    let Some(line) = lines.get(index) else {
+        return false;
+    };
+    let trimmed = line.trim_start();
+    let indent = line.len() - trimmed.len();
+    let previous_line_is_blank = index
+        .checked_sub(1)
+        .and_then(|previous| lines.get(previous))
+        .is_some_and(|previous| previous.trim().is_empty());
+    if indent < 10 || !previous_line_is_blank {
+        return false;
+    }
+    lines.get(..index).is_some_and(|preceding_lines| {
+        preceding_lines.iter().rev().any(|candidate| {
+            let trimmed_candidate = candidate.trim_start();
+            trimmed_candidate.starts_with("- [ ") || trimmed_candidate.starts_with("- [x]")
+        })
+    })
 }
 
 fn fence(line: &str) -> Option<Fence> {
@@ -293,107 +331,4 @@ fn assert_noop_replace_output(
                 .into(),
         )
     }
-}
-
-const fn gate_clean_loose_list_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "- first untouched item\n\n",
-        "- second untouched item\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn gate_clean_indented_code_fence_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        " ```rust\n",
-        " let answer = 42;\n",
-        " ```\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn repeated_ordered_markers_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "1. first item\n",
-        "1. second item\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn repeated_ordered_markers_expected() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "1. first item\n",
-        "2. second item\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn overindented_nested_list_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "- parent item\n",
-        "    - child item\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn overindented_nested_list_expected() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "- parent item\n\n",
-        "  - child item\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn tilde_fence_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "~~~rust\n",
-        "let answer = 42;\n",
-        "~~~\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn oversized_fence_target() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "````rust\n",
-        "let answer = 42;\n",
-        "````\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
-}
-
-const fn canonical_fence_expected() -> &'static str {
-    concat!(
-        "# Roadmap\n\n",
-        "## 1. Phase one\n\n",
-        "```rust\n",
-        "let answer = 42;\n",
-        "```\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Existing task.\n",
-    )
 }

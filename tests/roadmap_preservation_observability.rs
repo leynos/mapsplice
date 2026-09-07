@@ -4,6 +4,7 @@
 mod workspace_support;
 
 use mapsplice::{MetricsSnapshot, metrics_snapshot, run_from_args};
+use rstest::rstest;
 use workspace_support::{TestResult, create_workspace};
 
 /// Verify stable task reuse increments preservation without mutation or
@@ -137,39 +138,47 @@ fn phase_insertion_records_dependency_rewrite_for_unchanged_task() {
     assert_no_canonical_fallback(before, after);
 }
 
-/// Verify list-marker and code-fence instability select their matching
-/// canonical-fallback reason.
-#[test]
+/// Verify each formatter instability records only its own fallback cause.
+#[rstest]
+#[case::list_marker(
+    concat!(
+        "- [ ] 1.1.1. Unstable marker task.\n\n",
+        "  1. First item.\n",
+        "  3. Third item.\n"
+    ),
+    1,
+    0
+)]
+#[case::code_fence(
+    concat!(
+        "- [ ] 1.1.1. Unstable fence task.\n\n",
+        "  ~~~text\n",
+        "  unstable fence\n",
+        "  ~~~\n"
+    ),
+    0,
+    1
+)]
 #[serial_test::serial(cli_env)]
-fn unstable_sources_record_only_their_canonical_fallback_reason() {
+fn unstable_sources_record_only_their_canonical_fallback_reason(
+    #[case] source: &str,
+    #[case] expected_list_fallbacks: u64,
+    #[case] expected_code_fence_fallbacks: u64,
+) {
     assert_fallback_reason(
-        concat!(
-            "- [ ] 1.1.1. Unstable marker task.\n\n",
-            "  1. First item.\n",
-            "  3. Third item.\n"
-        ),
-        CanonicalFallback::ListMarker,
+        source,
+        expected_list_fallbacks,
+        expected_code_fence_fallbacks,
     );
-    assert_fallback_reason(
-        concat!(
-            "- [ ] 1.1.1. Unstable fence task.\n\n",
-            "  ~~~text\n",
-            "  unstable fence\n",
-            "  ~~~\n"
-        ),
-        CanonicalFallback::CodeFence,
-    );
-}
-
-#[derive(Clone, Copy)]
-enum CanonicalFallback {
-    ListMarker,
-    CodeFence,
 }
 
 /// Assert that exactly the expected canonical-fallback reason is recorded for
 /// a generated unstable task source.
-fn assert_fallback_reason(source: &str, expected: CanonicalFallback) {
+fn assert_fallback_reason(
+    source: &str,
+    expected_list_fallbacks: u64,
+    expected_code_fence_fallbacks: u64,
+) {
     let before = metrics_snapshot();
     let target = format!(
         "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n- [ ] 1.1.2. Anchor task.\n"
@@ -192,16 +201,8 @@ fn assert_fallback_reason(source: &str, expected: CanonicalFallback) {
         before.canonical_fallbacks_unstable_code_fence,
         after.canonical_fallbacks_unstable_code_fence,
     );
-    match expected {
-        CanonicalFallback::ListMarker => {
-            assert_eq!(list_fallbacks, 1);
-            assert_eq!(fence_fallbacks, 0);
-        }
-        CanonicalFallback::CodeFence => {
-            assert_eq!(list_fallbacks, 0);
-            assert_eq!(fence_fallbacks, 1);
-        }
-    }
+    assert_eq!(list_fallbacks, expected_list_fallbacks);
+    assert_eq!(fence_fallbacks, expected_code_fence_fallbacks);
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
         1

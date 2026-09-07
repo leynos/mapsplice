@@ -93,6 +93,34 @@ proptest! {
             prop_assert!(first_sub_task.original_source().is_none());
         }
     }
+
+    /// Check that an identity dependency mapping leaves preserved task source intact.
+    #[test]
+    fn identity_dependency_mappings_preserve_original_source(task_label in "[a-z]{1,12}") {
+        let source = identity_dependency_roadmap(&task_label);
+        let mut roadmap = parse_roadmap(&source).expect("generated roadmap should parse");
+        let original_source = parent_task(&roadmap)?
+            .original_source()
+            .map(str::to_owned)
+            .expect("target task should retain parsed source");
+        let fragment = parse_fragment(concat!(
+            "### 9.1. Inserted step\n\n",
+            "- [ ] 9.1.1. Inserted task.\n"
+        ))
+        .expect("generated step fragment should parse");
+
+        apply_command(
+            &mut roadmap,
+            RoadmapOperation::Insert {
+                anchor: parse_anchor("1.1").expect("step anchor should parse"),
+                after: true,
+            },
+            Some(fragment),
+        )
+        .expect("identity-mapping insertion should succeed");
+
+        prop_assert_eq!(parent_task(&roadmap)?.original_source(), Some(original_source.as_str()));
+    }
 }
 
 /// Build one valid bounded operation and optional fragment for a generated
@@ -212,14 +240,14 @@ fn roadmap_with_sub_tasks(sub_task_count: usize) -> Result<String, std::fmt::Err
 /// Build a two-phase roadmap whose dependency is on the task or its sub-task.
 fn dependency_roadmap(dependency_in_sub_task: bool) -> String {
     let body = if dependency_in_sub_task {
-        "  - [ ] 1.1.1.1. Nested task Requires 1.1.1.\n"
+        "  - [ ] 1.1.1.1. Nested task Requires 2.1.1.\n"
     } else {
         ""
     };
     let summary = if dependency_in_sub_task {
         "Parent task."
     } else {
-        "Parent task Requires 1.1.1."
+        "Parent task Requires 2.1.1."
     };
     format!(
         concat!(
@@ -234,5 +262,18 @@ fn dependency_roadmap(dependency_in_sub_task: bool) -> String {
         ),
         summary = summary,
         body = body,
+    )
+}
+
+/// Build a roadmap whose unchanged dependency receives an identity mapping.
+fn identity_dependency_roadmap(task_label: &str) -> String {
+    format!(
+        concat!(
+            "# Roadmap\n\n",
+            "## 1. Phase\n\n",
+            "### 1.1. Step\n\n",
+            "- [ ] 1.1.1. {task_label} Requires 1.1.1.\n"
+        ),
+        task_label = task_label
     )
 }
