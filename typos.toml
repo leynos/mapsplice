@@ -33,9 +33,9 @@ extend-ignore-re = [
     "(?s)```.*?```",
     "-fuse-ld=mold",
     "\\brust-analyzer\\b",
+    "`artifact\\.kind = \"[a-z_]+\"`",
     "`color`",
     "`mold`",
-    "artifact\\.kind",
     "flavor = \"current_thread\"",
 ]
 

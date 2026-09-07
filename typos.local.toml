@@ -21,13 +21,15 @@ accepted = ["Center", "Flavored"]
 # inside an API name.
 # flavor = "current_thread": the tokio::test attribute argument, quoted from
 # rstest-bdd's user guide.
-# artifact.kind: a JSON field name in the validation output design.
+# `artifact.kind = "..."`: a JSON field name in the validation output
+# design, scoped to the backticked field assignment so the common noun is
+# still corrected everywhere else.
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
     "`color`",
     "flavor = \"current_thread\"",
-    "artifact\\.kind",
+    "`artifact\\.kind = \"[a-z_]+\"`",
 ]
 
 [files]
