@@ -121,6 +121,11 @@ fn strip_heading_prefix(
     Ok((anchor, title))
 }
 
+/// Parse an unordered checklist into source-preserving roadmap tasks.
+///
+/// Each item must be a task list item; its top-level source span is retained
+/// for later verbatim rendering. Returns an error for ordered or non-item lists
+/// and malformed numbering, checklist syntax, or child structure.
 pub(super) fn parse_task_list(
     list: &List,
     source: SourceId,
@@ -172,6 +177,14 @@ pub(super) fn validate_tasks_belong_to_step(
     Ok(())
 }
 
+/// Parse one checklist item into a task entry.
+///
+/// Captures its marker, number, content, and child order. `context` identifies
+/// the source document; `task_source` enables source-preserving rendering.
+///
+/// # Errors
+///
+/// Returns an error for an invalid checklist, number, summary, or child body.
 fn parse_task_item(
     item: &ListItem,
     context: ParseContext<'_>,

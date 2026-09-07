@@ -95,6 +95,13 @@ through standard tracing environment configuration.
 durable metrics; they exist to make failure and rewrite counts inspectable in
 tests and embeddings without adding a metrics backend.
 
+Roadmap task rendering reports the same kind of bounded, process-local
+observability at the task-list boundary. It counts the fixed render states for
+preserved source, canonical output, and preservation fallback, then emits one
+structured debug event for the boundary. The event carries only these stable
+categories and counts: it does not include task text, source paths, or other
+unbounded identifiers, and it does not change rendering decisions or output.
+
 ## 6. Verification layers
 
 The test suite has four layers:

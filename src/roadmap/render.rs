@@ -3,10 +3,15 @@
 #[path = "render_preservation.rs"]
 mod preservation;
 #[cfg(test)]
+#[path = "render_observability_tests.rs"]
+mod render_observability_tests;
+#[cfg(test)]
 #[path = "render_tests.rs"]
 mod render_tests;
 #[path = "render_table.rs"]
 mod table;
+#[path = "render_tasks.rs"]
+mod tasks;
 #[path = "render_text.rs"]
 mod text;
 #[path = "render_validation.rs"]
@@ -15,14 +20,18 @@ mod validation;
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
 use preservation::render_preserved_or_canonical;
 use table::render_table;
+use tasks::render_tasks;
 use text::{escape_markdown, indent_block, render_code_block};
 use validation::validate_tasks_for_render;
 
 use super::{
     RoadmapDocument,
-    model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+    model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskEntry},
 };
-use crate::error::{MapspliceError, Result};
+use crate::{
+    error::{MapspliceError, Result},
+    observability::record_task_render_states,
+};
 
 /// Render a parsed roadmap back to Markdown.
 #[tracing::instrument(skip_all, fields(phases = roadmap.phases.len()))]
@@ -47,7 +56,9 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
                 let tasks = step.tasks.iter().collect::<Vec<_>>();
                 let rendered_tasks = if let Some(source) = step.task_list_source() {
                     validate_tasks_for_render(&tasks)?;
-                    trim_preserved_task_source(source).to_owned()
+                    let rendered = trim_preserved_task_source(source).to_owned();
+                    record_task_render_states(tasks.len() as u64, 0, 0);
+                    rendered
                 } else {
                     render_tasks(&tasks)?
                 };
@@ -63,40 +74,6 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
     } else {
         format!("{rendered}\n")
     })
-}
-
-fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
-    validate_tasks_for_render(tasks)?;
-    let mut rendered = String::new();
-    for task in tasks {
-        if !rendered.is_empty() && !rendered.ends_with('\n') {
-            rendered.push('\n');
-        }
-        if let Some(source) = task.task_source() {
-            rendered.push_str(source);
-        } else {
-            rendered.push_str(&render_task(task)?);
-        }
-    }
-    Ok(trim_preserved_task_source(&rendered).to_owned())
-}
-fn render_task(task: &TaskEntry) -> Result<String> {
-    let mut parts = vec![format!(
-        "- {}{}. {}",
-        checkbox_marker(task.checked),
-        task.number,
-        render_item_summary(&render_inline(task.summary.nodes())?, 2)
-    )];
-    for child in task.children() {
-        match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 2)?),
-            TaskChild::SubTask(identity) => {
-                let sub_task = find_sub_task_for_child(task, *identity)?;
-                parts.push(render_sub_task(sub_task, 2)?);
-            }
-        }
-    }
-    Ok(parts.join("\n"))
 }
 
 fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }
@@ -119,22 +96,6 @@ fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&
                 task.number, identity.anchor
             ),
         })
-}
-
-fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
-    let prefix = " ".repeat(indent);
-    let mut parts = vec![format!(
-        "{prefix}- {}{}. {}",
-        checkbox_marker(sub_task.checked),
-        sub_task.number,
-        render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
-    )];
-    let body_blocks = render_nested_body(&sub_task.body, indent + 2)?;
-    if !body_blocks.is_empty() {
-        parts.push(String::new());
-        parts.extend(body_blocks);
-    }
-    Ok(parts.join("\n"))
 }
 
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
