@@ -1,6 +1,10 @@
 //! Splice operations and anchor-aware mutation helpers.
 
+mod dependency_rewrite;
 mod dependency_text;
+#[cfg(test)]
+#[path = "dependency_text_tests.rs"]
+mod dependency_text_tests;
 mod rewrite;
 mod sub_task;
 
@@ -170,14 +174,28 @@ fn insert_steps(
     Ok(())
 }
 
+/// Insert fragment tasks before or after a task anchor.
+///
+/// `roadmap` is mutated in place at `target`; `after` selects the insertion
+/// side, and `tasks` supplies the already parsed task entries. The containing
+/// step's whole-list source is cleared, while inserted tasks use canonical
+/// rendering because they have no preserved source.
+///
+/// # Errors
+///
+/// Returns an anchor error when `target` is absent or does not identify a task
+/// with an owning step.
 fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
     after: bool,
-    tasks: Vec<super::model::TaskEntry>,
+    mut tasks: Vec<super::model::TaskEntry>,
 ) -> Result<()> {
     let (step, task_index) = find_task_parent_mut(roadmap, target)?;
     step.clear_task_list_source();
+    for task in &mut tasks {
+        task.clear_task_source();
+    }
     step.tasks.splice(
         task_index + usize::from(after)..task_index + usize::from(after),
         tasks,
@@ -207,6 +225,16 @@ fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result
     Ok(())
 }
 
+/// Replace the item identified by an anchor with a parsed fragment.
+///
+/// The fragment level must match the anchor level. Task replacement clears the
+/// containing step's whole-list source and the replacement tasks' preserved
+/// source; other levels delegate to their corresponding splice operation.
+///
+/// # Errors
+///
+/// Returns an error when the fragment is missing, its level differs from the
+/// anchor, or the anchor cannot be found in the roadmap.
 fn replace_anchor(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
@@ -227,9 +255,12 @@ fn replace_anchor(
             phase.steps.splice(step_index..=step_index, steps);
             Ok(())
         }
-        (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
+        (RoadmapAnchor::Task(target), RoadmapFragment::Task(mut tasks)) => {
             let (step, task_index) = find_task_parent_mut(roadmap, target)?;
             step.clear_task_list_source();
+            for task in &mut tasks {
+                task.clear_task_source();
+            }
             step.tasks.splice(task_index..=task_index, tasks);
             Ok(())
         }

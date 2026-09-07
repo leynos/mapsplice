@@ -95,6 +95,13 @@ through standard tracing environment configuration.
 durable metrics; they exist to make failure and rewrite counts inspectable in
 tests and embeddings without adding a metrics backend.
 
+Roadmap task rendering reports the same kind of bounded, process-local
+observability at the task-list boundary. It counts the fixed render states for
+preserved source, canonical output, and preservation fallback, then emits one
+structured debug event for the boundary. The event carries only these stable
+categories and counts: it does not include task text, source paths, or other
+unbounded identifiers, and it does not change rendering decisions or output.
+
 ## 6. Verification layers
 
 The test suite has four layers:
@@ -112,11 +119,20 @@ test when it captures a real bug.
 
 Task-list source preservation has a separate internal boundary from ordinary
 Markdown-node source preservation. `src/roadmap/source_preservation.rs`
-extracts source spans, while `StepSection::task_list_source` stores the exact
-source for the first parsed task list in an unchanged step. Render validates
-the task model before reusing that source, and mutation or dependency-rewrite
-code must call `StepSection::clear_task_list_source` whenever the task list
-itself changes.
+extracts source spans from the parser's top-level list items. Parsing stores
+both the exact source for an unchanged step in `StepSection::task_list_source`
+and each task's source in `TaskEntry::task_source`. The step-level source is
+the fast path when the complete list is unchanged; after a list mutation,
+rendering validates the task model and reuses each preserved task source
+independently, falling back to canonical rendering only for tasks without
+preserved source.
+
+Mutation and rewrite code must invalidate only the affected preservation scope:
+task-level insert, delete, and replace clear the step-level source, while an
+edited, renumbered, or dependency-rewritten task clears its own source. Editing
+a sub-task clears its parent task source because the parent's subtree changed.
+Unchanged sibling tasks retain their source so structural edits do not reformat
+their continuation lines.
 
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in

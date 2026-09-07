@@ -36,6 +36,7 @@ use super::{
         TaskEntry,
         TaskEntryParts,
     },
+    source_preservation::task_item_sources,
 };
 use crate::error::{MapspliceError, Result};
 
@@ -120,6 +121,11 @@ fn strip_heading_prefix(
     Ok((anchor, title))
 }
 
+/// Parse an unordered checklist into source-preserving roadmap tasks.
+///
+/// Each item must be a task list item; its top-level source span is retained
+/// for later verbatim rendering. Returns an error for ordered or non-item lists
+/// and malformed numbering, checklist syntax, or child structure.
 pub(super) fn parse_task_list(
     list: &List,
     source: SourceId,
@@ -135,14 +141,22 @@ pub(super) fn parse_task_list(
         });
     }
 
-    list.children
+    let items = list
+        .children
         .iter()
         .map(|node| match node {
-            Node::ListItem(item) => parse_task_item(item, context),
+            Node::ListItem(item) => Ok(item),
             _ => Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap lists must contain only list items".to_owned(),
             }),
         })
+        .collect::<Result<Vec<_>>>()?;
+    let task_sources = task_item_sources(list, &items, source_text);
+
+    items
+        .into_iter()
+        .zip(task_sources)
+        .map(|(item, task_source)| parse_task_item(item, context, task_source))
         .collect()
 }
 
@@ -163,7 +177,19 @@ pub(super) fn validate_tasks_belong_to_step(
     Ok(())
 }
 
-fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
+/// Parse one checklist item into a task entry.
+///
+/// Captures its marker, number, content, and child order. `context` identifies
+/// the source document; `task_source` enables source-preserving rendering.
+///
+/// # Errors
+///
+/// Returns an error for an invalid checklist, number, summary, or child body.
+fn parse_task_item(
+    item: &ListItem,
+    context: ParseContext<'_>,
+    task_source: Option<String>,
+) -> Result<TaskEntry> {
     let head = parse_checklist_item_head(item, ChecklistKind::Task)?;
     let (number, summary) = parse_task_paragraph(head.paragraph)?;
     let (body, sub_tasks, children) = split_task_children(head.child_body, number, context)?;
@@ -176,6 +202,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
         checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
+        task_source,
         sub_tasks,
         children,
     })

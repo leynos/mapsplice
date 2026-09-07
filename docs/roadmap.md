@@ -658,11 +658,12 @@ skill can drop from the safe-edit loop.
     nothing, place the new item last, and fail closed when the fragment level
     does not match the parent anchor.
 
-- [ ] 8.2.3. Preserve untouched-item indentation across splices.
+- [x] 8.2.3. Preserve untouched-item indentation across splices.
 
   - Requires 3.1.4.
-  - Stop insert and replace from re-indenting continuation lines of items the
-    edit did not address, so a structural edit produces no formatting churn
-    outside the spliced region.
+  - Preserve each unchanged task's source across insert, delete, and replace,
+    so a structural edit produces no formatting churn outside the spliced
+    region. Changed, renumbered, and dependency-rewritten tasks use canonical
+    rendering.
   - Success: inserting one task into a large roadmap leaves every other item
-    byte-identical, pinned by a golden fixture.
+    byte-identical, pinned by golden fixtures for insert, delete, and replace.
