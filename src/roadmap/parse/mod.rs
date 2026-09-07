@@ -36,7 +36,7 @@ use super::{
         TaskEntry,
         TaskEntryParts,
     },
-    source_preservation::original_position_source,
+    source_preservation::{original_position_source, task_item_sources},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -136,14 +136,24 @@ pub(super) fn parse_task_list(
         });
     }
 
-    list.children
+    let items = list
+        .children
         .iter()
         .map(|node| match node {
-            Node::ListItem(item) => parse_task_item(item, context),
+            Node::ListItem(item) => Ok(item),
             _ => Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap lists must contain only list items".to_owned(),
             }),
         })
+        .collect::<Result<Vec<_>>>()?;
+    let sources = (source == SourceId::Target)
+        .then(|| task_item_sources(list, &items, source_text))
+        .unwrap_or_else(|| vec![None; items.len()]);
+
+    items
+        .into_iter()
+        .zip(sources)
+        .map(|(item, original_source)| parse_task_item(item, context, original_source))
         .collect()
 }
 
@@ -168,7 +178,11 @@ pub(super) fn validate_tasks_belong_to_step(
 ///
 /// Returns an error when the item is not a valid task or its descendants have
 /// invalid roadmap structure.
-fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEntry> {
+fn parse_task_item(
+    item: &ListItem,
+    context: ParseContext<'_>,
+    original_source: Option<String>,
+) -> Result<TaskEntry> {
     let head = parse_checklist_item_head(item, ChecklistKind::Task)?;
     let (number, summary) = parse_task_paragraph(head.paragraph)?;
     let (body, sub_tasks, children) = split_task_children(head.child_body, number, context)?;
@@ -181,7 +195,7 @@ fn parse_task_item(item: &ListItem, context: ParseContext<'_>) -> Result<TaskEnt
         checked: head.checked,
         summary: MarkdownNodes::from_nodes(summary),
         body,
-        original_source: original_item_source(item, context),
+        original_source,
         sub_tasks,
         children,
     })

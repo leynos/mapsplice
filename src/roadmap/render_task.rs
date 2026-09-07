@@ -99,11 +99,11 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
         "- {}{}. {}",
         checkbox_marker(task.checked),
         task.number,
-        render_item_summary(&render_inline(task.summary.nodes())?, 4)
+        render_item_summary(&render_inline(task.summary.nodes())?, 2)
     )];
     for child in task.children() {
         match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
+            TaskChild::Body(body) => parts.extend(render_nested_body(body, 2)?),
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2, report)?);
@@ -160,7 +160,7 @@ fn render_sub_task_canonical(sub_task: &SubTaskEntry, indent: usize) -> Result<S
         sub_task.number,
         render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
-    let body_blocks = render_nested_body(&sub_task.body, indent + 4)?;
+    let body_blocks = render_nested_body(&sub_task.body, indent + 2)?;
     if !body_blocks.is_empty() {
         parts.push(String::new());
         parts.extend(body_blocks);

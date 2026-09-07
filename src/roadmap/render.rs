@@ -121,7 +121,7 @@ fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
 fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
     render_inline(task.summary.nodes())?;
     task.children().iter().try_for_each(|child| match child {
-        TaskChild::Body(body) => render_nested_body(body, 4).map(drop),
+        TaskChild::Body(body) => render_nested_body(body, 2).map(drop),
         TaskChild::SubTask(identity) => {
             validate_sub_task_for_render(task::find_sub_task_for_child(task, *identity)?)
         }
@@ -129,7 +129,7 @@ fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
 }
 fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
     render_inline(sub_task.summary.nodes())?;
-    render_nested_body(&sub_task.body, 8)?;
+    render_nested_body(&sub_task.body, 4)?;
     Ok(())
 }
 fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }
