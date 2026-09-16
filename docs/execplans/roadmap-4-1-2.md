@@ -639,32 +639,32 @@ Implement Red-Green-Refactor in one gate-passable commit:
 
 1. Red: add this scenario to `tests/features/mapsplice.feature`:
 
-```gherkin
-Scenario: Dangling dependency reference fails in place without rewriting target
-  Given the target roadmap with a dangling dependency reference
-  And the phase fragment roadmap
-  When I try to append the phase fragment in place
-  Then the command fails
-  And stdout is empty
-  And stderr mentions dangling dependency anchor 99.1.1
-  And the target file remains unchanged
-```
+   ```gherkin
+   Scenario: Dangling dependency reference fails in place without rewriting target
+     Given the target roadmap with a dangling dependency reference
+     And the phase fragment roadmap
+     When I try to append the phase fragment in place
+     Then the command fails
+     And stdout is empty
+     And stderr mentions dangling dependency anchor 99.1.1
+     And the target file remains unchanged
+   ```
 
-1. Red: add the matching `#[scenario]` function in
+2. Red: add the matching `#[scenario]` function in
    `tests/behaviour_cli.rs`.
-2. Green: add a `TARGET_DANGLING_DEPENDENCY` fixture constant to
+3. Green: add a `TARGET_DANGLING_DEPENDENCY` fixture constant to
    `tests/support/cli.rs`, and add a `#[given]` step that writes it.
-3. Green: update `tests/steps/cli_steps.rs::CliState` so it stores
+4. Green: update `tests/steps/cli_steps.rs::CliState` so it stores
    `original_target: String`. Initialize it empty, set it in
    `CliState::write_target` whenever a fixture is written, and change
    `target_unchanged` to compare `read_target()` with `original_target`. This
    fixes the existing hard-coded comparison with `TARGET_TWO_PHASES`.
-4. Green: add `#[when("I try to append the phase fragment in place")]` that
+5. Green: add `#[when("I try to append the phase fragment in place")]` that
    runs `["--in-place", "append", target, fragment]`.
-5. Green: add `#[then("stderr mentions dangling dependency anchor 99.1.1")]`
+6. Green: add `#[then("stderr mentions dangling dependency anchor 99.1.1")]`
    that checks standard error contains
    `dependency anchor \`99.1.1\` was not found in the target roadmap`.
-6. Refactor: keep all new steps in the existing CLI step module. Do not create
+7. Refactor: keep all new steps in the existing CLI step module. Do not create
    a new support layer unless the existing module crosses the 400-line file
    limit from `AGENTS.md`.
 

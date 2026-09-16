@@ -128,9 +128,9 @@ Untouched gate-clean content remains byte-exact.
   non-empty rendered roadmaps end in exactly one final newline. Rendering again
   does not add another final newline.
 - **F4 — Gate-clean output.** Rendered output passes the house Markdown gates
-  (`make markdownlint`) and is stable under the house formatter
-  (`mdformat-all`, which runs `mdtablefix` then `markdownlint-cli2 --fix`): a
-  second formatting pass produces no diff.
+  (`make markdownlint`) and is stable under the house formatter (`make fmt`,
+  which runs `mdtablefix` then `markdownlint-cli2 --fix`): a second formatting
+  pass produces no diff.
 - **F5 — Fail closed.** Malformed input is rejected with a typed, user-facing
   error before any output is produced. `mapsplice` never emits a partially
   rewritten or mangled document, and `--in-place` writes only on success.
@@ -227,7 +227,7 @@ inspection.
   reference resolver in isolation; `rstest-bdd` features cover the CLI surface
   and output modes; golden comparison covers render fidelity end to end.
 - **Round-trip property.** For any conformant document, a no-op edit renders
-  byte-identical output (F3), and a second `mdformat-all` pass produces no diff
+  byte-identical output (F3), and a second `make fmt` pass produces no diff
   (F4).
 - **Regression discipline.** Every fixed defect lands with a fixture that fails
   before the fix and passes after it.

@@ -556,35 +556,35 @@ Implementation:
 2. `ProcessStateGuard` must own one `MutexGuard<'static, ()>` from `ENV_LOCK`
    for its whole lifetime. It must provide methods equivalent to:
 
-```rust
-pub struct ProcessStateGuard { /* lock, saved env, saved cwd */ }
+   ```rust
+   pub struct ProcessStateGuard { /* lock, saved env, saved cwd */ }
 
-impl ProcessStateGuard {
-    pub fn acquire() -> TestResult<Self>;
-    pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) -> TestResult;
-    pub fn remove_env(&mut self, key: &'static str) -> TestResult;
-    pub fn enter_dir(&mut self, path: &Utf8Path) -> TestResult;
-}
-```
+   impl ProcessStateGuard {
+       pub fn acquire() -> TestResult<Self>;
+       pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) -> TestResult;
+       pub fn remove_env(&mut self, key: &'static str) -> TestResult;
+       pub fn enter_dir(&mut self, path: &Utf8Path) -> TestResult;
+   }
+   ```
 
-1. Store each environment key's original value once, even if a test sets the
+3. Store each environment key's original value once, even if a test sets the
    same key twice, so `Drop` restores the pre-test state.
-2. `remove_env` must also store the original value once before removing the
+4. `remove_env` must also store the original value once before removing the
    variable, so tests can prove a configuration source is absent even when the
    invoking shell exported that variable.
-3. Store the original current directory the first time `enter_dir` is called.
+5. Store the original current directory the first time `enter_dir` is called.
    `Drop` restores the directory and environment without panicking.
-4. Add
+6. Add
    `Workspace::enter_root(&self, guard: &mut ProcessStateGuard) -> TestResult`
    so cwd changes use the already-held lock instead of acquiring a second guard.
-5. Add
+7. Add
    `Workspace::write_home_config(&self, contents: &str) -> TestResult<Utf8PathBuf>`
    that writes `home/.mapsplice.toml` under the temporary workspace and
    returns the `home` directory path. This helper must not mutate `HOME`;
    callers set `HOME` through `ProcessStateGuard`.
-6. Migrate existing `tests/roadmap_config.rs` tests that use `EnvVarGuard` or
+8. Migrate existing `tests/roadmap_config.rs` tests that use `EnvVarGuard` or
    `Workspace::enter_root()` to the new `ProcessStateGuard` surface.
-7. Add a helper-focused test named
+9. Add a helper-focused test named
    `process_state_guard_allows_multiple_env_vars_and_cwd` in
    `tests/roadmap_config.rs`. It must set two harmless test environment
    variables and enter the workspace root through one guard, assert the values
@@ -944,12 +944,12 @@ roadmap-4-4-3
    failure to `Surprises & Discoveries` and continue with bounded local
    evidence:
 
-```bash
-leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-4-3
-leta grep "load_global_config|InsertConfig|load_merged_config|ProcessStateGuard" "src/|tests/"
-```
+   ```bash
+   leta workspace add /home/leynos/Projects/mapsplice.worktrees/roadmap-4-4-3
+   leta grep "load_global_config|InsertConfig|load_merged_config|ProcessStateGuard" "src/|tests/"
+   ```
 
-1. Implement the work items in order. Each item ends with gates and a commit.
+2. Implement the work items in order. Each item ends with gates and a commit.
    Do not skip ahead after a failed gate.
 
 ## Validation and acceptance

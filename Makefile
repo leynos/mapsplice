@@ -21,9 +21,17 @@ CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep 
 JQ ?= jq
 DOC_TEST_TARGETS ?= $(shell if command -v $(JQ) >/dev/null 2>&1; then $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | $(JQ) -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null; else echo jq-missing; fi)
 MDLINT ?= markdownlint-cli2
-MDFIX ?= mdtablefix
+# `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
+# Markdown files Git tracks and `--include-untracked` adds the untracked files
+# Git does not ignore, so a new document is formatted before it is staged.
+# Both modes need mdtablefix 0.6.0 or later; CI pins the version at the
+# install-mdtablefix step.
+MDTABLEFIX ?= mdtablefix
+MDTABLEFIX_SELECT = --git --include-untracked
+MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
+MDFIX ?= $(MDTABLEFIX)
 MARKDOWN_PATHS ?=
-MARKDOWN_FORMAT_FLAGS ?= --wrap --renumber --breaks --ellipsis --fences --in-place
+MARKDOWN_FORMAT_FLAGS ?= $(MDTABLEFIX_RULES) --in-place
 MERMAN ?= merman-cli
 NIXIE_RENDERER_THREADS ?= 1
 NIXIE_MAX_CONCURRENCY ?= 1
@@ -76,10 +84,12 @@ typecheck: ## Type-check without building
 
 fmt: ## Format Rust and Markdown sources
 	$(CARGO) fmt $(CARGO_FMT_WORKSPACE_FLAG)
-	mdformat-all
+	$(MDTABLEFIX) --in-place $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
+	$(MDLINT) --fix "**/*.md"
 
 check-fmt: ## Verify formatting
 	$(CARGO) fmt $(CARGO_FMT_WORKSPACE_FLAG) -- --check
+	$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
 
 markdownfmt: ## Format Markdown files listed in MARKDOWN_PATHS
 	$(call require_markdown_paths)
