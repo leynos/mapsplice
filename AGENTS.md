@@ -122,9 +122,13 @@ project:
 
     ```sh
     cargo fmt --workspace -- --check
+    mdtablefix --check --git --include-untracked --wrap --renumber --breaks \
+      --ellipsis --fences
     ```
 
-    validating formatting across the entire workspace without modifying files.
+    validating Rust formatting across the entire workspace, and every tracked
+    Markdown file against the estate Markdown formatting, without modifying
+    files.
   - `make lint` executes:
 
     ```sh
@@ -139,9 +143,9 @@ project:
     cargo test --workspace
     ```
 
-    running the full workspace test suite. Use `make fmt`
-    (`cargo fmt --workspace`) to apply formatting fixes reported by the
-    formatter check.
+    running the full workspace test suite. Use `make fmt` (`cargo fmt
+    --workspace`, then `mdtablefix --in-place` and `markdownlint-cli2 --fix`)
+    to apply formatting fixes reported by the formatter check.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
   silencing them.

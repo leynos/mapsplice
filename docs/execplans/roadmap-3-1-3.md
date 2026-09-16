@@ -643,37 +643,37 @@ and continue with bounded source reads of the same symbols.
 
 1. For formatter research or test debugging, use temporary files only:
 
-```bash
-set -o pipefail
-tmp=$(mktemp -d /tmp/mapsplice-render-gate-XXXXXX)
-cp tests/fixtures/golden/f4_formatter_stability_smoke/expected.md "$tmp/rendered.md"
-mdtablefix --wrap --renumber --breaks --ellipsis --fences --in-place "$tmp/rendered.md" \
-  2>&1 | tee /tmp/mdtablefix-probe-mapsplice-roadmap-3-1-3.out
-markdownlint-cli2 --fix "$tmp/rendered.md" \
-  2>&1 | tee /tmp/markdownlint-fix-probe-mapsplice-roadmap-3-1-3.out
-diff -u tests/fixtures/golden/f4_formatter_stability_smoke/expected.md "$tmp/rendered.md"
-rm -rf "$tmp"
-```
+   ```bash
+   set -o pipefail
+   tmp=$(mktemp -d /tmp/mapsplice-render-gate-XXXXXX)
+   cp tests/fixtures/golden/f4_formatter_stability_smoke/expected.md "$tmp/rendered.md"
+   mdtablefix --wrap --renumber --breaks --ellipsis --fences --in-place "$tmp/rendered.md" \
+     2>&1 | tee /tmp/mdtablefix-probe-mapsplice-roadmap-3-1-3.out
+   markdownlint-cli2 --fix "$tmp/rendered.md" \
+     2>&1 | tee /tmp/markdownlint-fix-probe-mapsplice-roadmap-3-1-3.out
+   diff -u tests/fixtures/golden/f4_formatter_stability_smoke/expected.md "$tmp/rendered.md"
+   rm -rf "$tmp"
+   ```
 
-1. After each work item, format only changed Markdown files. The `ACMR` diff
-filter excludes deleted files, so every formatter argument names a path that
-still exists in the worktree. The formatter and fixer runs are tee-logged with
-deterministic `/tmp` paths for this branch:
+2. After each work item, format only changed Markdown files. The `ACMR` diff
+   filter excludes deleted files, so every formatter argument names a path that
+   still exists in the worktree. The formatter and fixer runs are tee-logged
+   with deterministic `/tmp` paths for this branch:
 
-```bash
-set -o pipefail
-changed_md=/tmp/changed-md-mapsplice-roadmap-3-1-3.list
-git diff --name-only --diff-filter=ACMR -z -- '*.md' > "$changed_md"
-if [ -s "$changed_md" ]; then
-  xargs -0 --no-run-if-empty mdtablefix --wrap --renumber --breaks --ellipsis --fences --in-place \
-    < "$changed_md" 2>&1 | tee /tmp/mdtablefix-mapsplice-roadmap-3-1-3.out
-  xargs -0 --no-run-if-empty markdownlint-cli2 --fix \
-    < "$changed_md" 2>&1 | tee /tmp/markdownlint-fix-mapsplice-roadmap-3-1-3.out
-fi
-```
+   ```bash
+   set -o pipefail
+   changed_md=/tmp/changed-md-mapsplice-roadmap-3-1-3.list
+   git diff --name-only --diff-filter=ACMR -z -- '*.md' > "$changed_md"
+   if [ -s "$changed_md" ]; then
+     xargs -0 --no-run-if-empty mdtablefix --wrap --renumber --breaks --ellipsis --fences --in-place \
+       < "$changed_md" 2>&1 | tee /tmp/mdtablefix-mapsplice-roadmap-3-1-3.out
+     xargs -0 --no-run-if-empty markdownlint-cli2 --fix \
+       < "$changed_md" 2>&1 | tee /tmp/markdownlint-fix-mapsplice-roadmap-3-1-3.out
+   fi
+   ```
 
-1. Run focused validation for the work item, then the full acceptance commands
-before committing.
+3. Run focused validation for the work item, then the full acceptance commands
+   before committing.
 
 ## Validation and acceptance
 

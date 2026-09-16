@@ -459,28 +459,28 @@ Green:
 1. Update `Makefile` with these variables near the existing Markdown tooling
    definitions:
 
-```makefile
-MERMAN ?= merman-cli
-NIXIE_RENDERER_THREADS ?= 1
-NIXIE_MAX_CONCURRENCY ?= 1
-NIXIE_FLAGS ?= -j $(NIXIE_MAX_CONCURRENCY)
-NIXIE_PATHS ?= $(shell git ls-files '*.md')
-```
+   ```makefile
+   MERMAN ?= merman-cli
+   NIXIE_RENDERER_THREADS ?= 1
+   NIXIE_MAX_CONCURRENCY ?= 1
+   NIXIE_FLAGS ?= -j $(NIXIE_MAX_CONCURRENCY)
+   NIXIE_PATHS ?= $(shell git ls-files '*.md')
+   ```
 
-1. Change the `nixie` target to:
+2. Change the `nixie` target to:
 
-```makefile
-nixie: ## Validate Mermaid diagrams
-	set -e; artefacts_dir="$$(mktemp -d)"; trap 'rm -rf "$$artefacts_dir"' EXIT; \
-	for path in $(NIXIE_PATHS); do \
-		RAYON_NUM_THREADS="$(NIXIE_RENDERER_THREADS)" $(MERMAN) $(NIXIE_FLAGS) \
-			-i "$$path" -a "$$artefacts_dir"; \
-	done
-```
+   ```makefile
+   nixie: ## Validate Mermaid diagrams
+   	set -e; artefacts_dir="$$(mktemp -d)"; trap 'rm -rf "$$artefacts_dir"' EXIT; \
+   	for path in $(NIXIE_PATHS); do \
+   		RAYON_NUM_THREADS="$(NIXIE_RENDERER_THREADS)" $(MERMAN) $(NIXIE_FLAGS) \
+   			-i "$$path" -a "$$artefacts_dir"; \
+   	done
+   ```
 
-1. Keep the target name `nixie` so existing CI and contributor commands remain
+3. Keep the target name `nixie` so existing CI and contributor commands remain
    unchanged.
-2. Run the focused test again and expect it to pass:
+4. Run the focused test again and expect it to pass:
 
 ```bash
 cargo test --test makefile_nixie -- --nocapture \
@@ -494,18 +494,18 @@ Refactor and gate:
    conditional.
 2. Run these commands sequentially:
 
-```bash
-make all 2>&1 | tee /tmp/make-all-wi1-mapsplice-roadmap-4-2-1.out
-make markdownlint 2>&1 | tee /tmp/markdownlint-wi1-mapsplice-roadmap-4-2-1.out
-make nixie 2>&1 | tee /tmp/nixie-default-wi1-mapsplice-roadmap-4-2-1.out
-NIXIE_MAX_CONCURRENCY=1 make nixie \
-  2>&1 | tee /tmp/nixie-serial-wi1-mapsplice-roadmap-4-2-1.out
-```
+   ```bash
+   make all 2>&1 | tee /tmp/make-all-wi1-mapsplice-roadmap-4-2-1.out
+   make markdownlint 2>&1 | tee /tmp/markdownlint-wi1-mapsplice-roadmap-4-2-1.out
+   make nixie 2>&1 | tee /tmp/nixie-default-wi1-mapsplice-roadmap-4-2-1.out
+   NIXIE_MAX_CONCURRENCY=1 make nixie \
+     2>&1 | tee /tmp/nixie-serial-wi1-mapsplice-roadmap-4-2-1.out
+   ```
 
-1. Run `sem diff --format json --file-exts .rs .md .toml` and inspect the
+3. Run `sem diff --format json --file-exts .rs .md .toml` and inspect the
    changed entities before committing. If `sem` cannot parse Makefile changes,
    inspect `git diff -- Makefile tests/makefile_nixie.rs`.
-2. Commit only after every command above passes.
+4. Commit only after every command above passes.
 
 Tests required for this work item:
 
@@ -563,17 +563,17 @@ formatter commands rather than passing an unchanged path.
 
 1. Run these gates sequentially:
 
-```bash
-make all 2>&1 | tee /tmp/make-all-wi2-mapsplice-roadmap-4-2-1.out
-make markdownlint 2>&1 | tee /tmp/markdownlint-wi2-mapsplice-roadmap-4-2-1.out
-make nixie 2>&1 | tee /tmp/nixie-default-wi2-mapsplice-roadmap-4-2-1.out
-NIXIE_MAX_CONCURRENCY=1 make nixie \
-  2>&1 | tee /tmp/nixie-serial-wi2-mapsplice-roadmap-4-2-1.out
-```
+   ```bash
+   make all 2>&1 | tee /tmp/make-all-wi2-mapsplice-roadmap-4-2-1.out
+   make markdownlint 2>&1 | tee /tmp/markdownlint-wi2-mapsplice-roadmap-4-2-1.out
+   make nixie 2>&1 | tee /tmp/nixie-default-wi2-mapsplice-roadmap-4-2-1.out
+   NIXIE_MAX_CONCURRENCY=1 make nixie \
+     2>&1 | tee /tmp/nixie-serial-wi2-mapsplice-roadmap-4-2-1.out
+   ```
 
-1. Run `sem diff --format json --file-exts .rs .md .toml` and inspect the
+2. Run `sem diff --format json --file-exts .rs .md .toml` and inspect the
    changed entities before committing.
-2. Commit only after every command above passes.
+3. Commit only after every command above passes.
 
 Tests required for this work item:
 
@@ -617,13 +617,13 @@ been verified in locked local source and official web docs.
    both default bounded and serial Mermaid gates pass.
 3. Before each commit, inspect the diff:
 
-```bash
-git diff --check
-git diff
-git status --short
-```
+   ```bash
+   git diff --check
+   git diff
+   git status --short
+   ```
 
-1. Use the `commit-message` skill. Write the commit message to a file in a
+4. Use the `commit-message` skill. Write the commit message to a file in a
    `mktemp -d` directory and commit with `git commit -F`.
 
 ## Validation and acceptance
