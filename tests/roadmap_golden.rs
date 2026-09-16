@@ -73,6 +73,21 @@ fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn insert_task_preserves_two_space_continuations(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_two_space_continuations",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -99,12 +114,42 @@ fn delete_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn delete_task_preserves_two_space_continuations(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "delete_task_preserves_two_space_continuations",
+            GoldenCommand::Delete { anchor: "1.1.2" },
+            false,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn replace_step(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
         golden_success_case(
             "replace_step",
             GoldenCommand::Replace { anchor: "1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_task_preserves_two_space_continuations(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "replace_task_preserves_two_space_continuations",
+            GoldenCommand::Replace { anchor: "1.1.2" },
             true,
         ),
     )

@@ -35,11 +35,20 @@ pub struct MetricsSnapshot {
     pub in_place_rewrites: u64,
     /// Dependency text replacements completed by the current process.
     pub dependency_rewrites: u64,
+    /// Task items emitted from their preserved source snippets.
+    pub preserved_task_items: u64,
+    /// Task items emitted with canonical rendering.
+    pub canonical_task_items: u64,
+    /// Task items without a reusable preserved source snippet.
+    pub task_source_fallbacks: u64,
 }
 
 static FAILURES: AtomicU64 = AtomicU64::new(0);
 static IN_PLACE_REWRITES: AtomicU64 = AtomicU64::new(0);
 static DEPENDENCY_REWRITES: AtomicU64 = AtomicU64::new(0);
+static PRESERVED_TASK_ITEMS: AtomicU64 = AtomicU64::new(0);
+static CANONICAL_TASK_ITEMS: AtomicU64 = AtomicU64::new(0);
+static TASK_SOURCE_FALLBACKS: AtomicU64 = AtomicU64::new(0);
 
 /// Record one failed command.
 ///
@@ -71,6 +80,26 @@ pub fn record_dependency_rewrites(count: u64) {
     tracing::debug!(count, total, "recorded dependency rewrites");
 }
 
+/// Record aggregate task-list rendering states.
+///
+/// The counters contain only item counts. The debug event deliberately omits
+/// task text and roadmap identifiers so source-fidelity diagnostics remain
+/// bounded.
+pub fn record_task_render_states(preserved: u64, canonical: u64, fallbacks: u64) {
+    let preserved_total = PRESERVED_TASK_ITEMS.fetch_add(preserved, Ordering::Relaxed) + preserved;
+    let canonical_total = CANONICAL_TASK_ITEMS.fetch_add(canonical, Ordering::Relaxed) + canonical;
+    let fallback_total = TASK_SOURCE_FALLBACKS.fetch_add(fallbacks, Ordering::Relaxed) + fallbacks;
+    tracing::debug!(
+        preserved,
+        canonical,
+        fallbacks,
+        preserved_total,
+        canonical_total,
+        fallback_total,
+        "recorded task-list render states"
+    );
+}
+
 /// Return a snapshot of process-local counters.
 ///
 /// # Example
@@ -99,6 +128,9 @@ pub fn metrics_snapshot() -> MetricsSnapshot {
         failures: FAILURES.load(Ordering::Relaxed),
         in_place_rewrites: IN_PLACE_REWRITES.load(Ordering::Relaxed),
         dependency_rewrites: DEPENDENCY_REWRITES.load(Ordering::Relaxed),
+        preserved_task_items: PRESERVED_TASK_ITEMS.load(Ordering::Relaxed),
+        canonical_task_items: CANONICAL_TASK_ITEMS.load(Ordering::Relaxed),
+        task_source_fallbacks: TASK_SOURCE_FALLBACKS.load(Ordering::Relaxed),
     }
 }
 
@@ -113,6 +145,7 @@ mod tests {
         record_dependency_rewrites,
         record_failure,
         record_in_place_rewrite,
+        record_task_render_states,
     };
 
     #[test]
@@ -124,6 +157,7 @@ mod tests {
                     record_failure("test");
                     record_in_place_rewrite();
                     record_dependency_rewrites(2);
+                    record_task_render_states(3, 2, 2);
                 })
             })
             .collect::<Vec<_>>();
@@ -136,5 +170,11 @@ mod tests {
         assert_eq!(after.failures, before.failures + 8);
         assert_eq!(after.in_place_rewrites, before.in_place_rewrites + 8);
         assert_eq!(after.dependency_rewrites, before.dependency_rewrites + 16);
+        assert_eq!(after.preserved_task_items, before.preserved_task_items + 24);
+        assert_eq!(after.canonical_task_items, before.canonical_task_items + 16);
+        assert_eq!(
+            after.task_source_fallbacks,
+            before.task_source_fallbacks + 16
+        );
     }
 }

@@ -247,6 +247,7 @@ pub use observability::{
     record_dependency_rewrites,
     record_failure,
     record_in_place_rewrite,
+    record_task_render_states,
 };
 pub use roadmap::{
     PhaseNumber,

@@ -1,6 +1,13 @@
 //! Dependency-clause text scanning for roadmap anchor rewrites.
 
-use super::super::{model::RenumberPlan, parse_anchor};
+use super::{
+    super::{model::RenumberPlan, parse_anchor},
+    dependency_rewrite::{
+        DependencyRewriteContext,
+        DependencyRewriteState,
+        rewrite_dependency_reference,
+    },
+};
 use crate::roadmap::{RoadmapAnchor, model::SourceId};
 
 /// Classification for an anchor-shaped candidate in a text value.
@@ -28,6 +35,7 @@ pub(super) fn rewrite_text_value(
     let mut rewrite_count = 0;
     let mut unresolved = Vec::new();
     let mut index = 0;
+    let rewrite_context = DependencyRewriteContext { source, plan };
 
     while index < value.len() {
         let Some((start, end)) = next_anchor_candidate(value, index) else {
@@ -49,16 +57,17 @@ pub(super) fn rewrite_text_value(
                 result.push_str(candidate);
             }
             DependencyReferenceClassification::Reference(anchor) => {
-                if let Some(mapped) = plan
-                    .resolve(source, anchor)
-                    .or_else(|| plan.resolve_unique(anchor))
-                {
-                    rewrite_count += 1;
-                    result.push_str(&mapped.to_string());
-                } else {
-                    unresolved.push(anchor);
-                    result.push_str(candidate);
-                }
+                let mut rewrite_state = DependencyRewriteState {
+                    result: &mut result,
+                    rewrite_count: &mut rewrite_count,
+                    unresolved: &mut unresolved,
+                };
+                rewrite_dependency_reference(
+                    &rewrite_context,
+                    anchor,
+                    candidate,
+                    &mut rewrite_state,
+                );
             }
         }
         index = end;

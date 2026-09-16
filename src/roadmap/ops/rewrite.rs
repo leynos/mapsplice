@@ -55,15 +55,28 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
             step.number = new_step;
 
             for (task_index, task) in step.tasks.iter_mut().enumerate() {
-                let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
-                plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
-                task.number = new_task;
-                renumber_sub_tasks(task, new_task, &mut plan)?;
+                renumber_task(task, new_step, task_index, &mut plan)?;
             }
         }
     }
 
     Ok(plan)
+}
+
+/// Renumber one task and its ordered sub-tasks.
+fn renumber_task(
+    task: &mut TaskEntry,
+    new_step: StepNumber,
+    task_index: usize,
+    plan: &mut RenumberPlan,
+) -> Result<()> {
+    let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
+    plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
+    if task.number != new_task {
+        task.clear_task_source();
+    }
+    task.number = new_task;
+    renumber_sub_tasks(task, new_task, plan)
 }
 
 /// Renumber ordered sub-tasks beneath one task.
@@ -121,10 +134,14 @@ fn rewrite_task_entry(
     task: &mut TaskEntry,
     context: &mut DependencyRewriteContext<'_>,
 ) -> Result<()> {
+    let before = context.rewrite_count;
     rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
     rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
     for sub_task in task.sub_tasks_mut() {
         rewrite_sub_task_entry(sub_task, context)?;
+    }
+    if context.rewrite_count > before {
+        task.clear_task_source();
     }
     Ok(())
 }

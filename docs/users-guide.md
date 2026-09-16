@@ -137,6 +137,9 @@ mapsplice insert --after <target> <anchor> <file-to-insert>
 `insert` places sibling content before the addressed anchor by default. Pass
 `--after` to place the fragment after the anchor instead.
 
+Task-level inserts preserve unchanged task source byte-for-byte, including
+continuation-line indentation.
+
 Examples:
 
 ```bash
@@ -153,6 +156,9 @@ mapsplice delete <target> <anchor>
 `delete` removes exactly one addressed phase, step, or task. Any later items at
 the same or deeper levels are renumbered as needed.
 
+Task-level deletes preserve unchanged surviving task source byte-for-byte,
+including continuation-line indentation.
+
 ### `replace`
 
 ```bash
@@ -162,6 +168,12 @@ mapsplice replace <target> <anchor> <file-to-replace-with>
 `replace` removes the addressed item and splices in one or more sibling items
 from the fragment file. Replacing a phase with multiple phases is supported,
 provided the fragment itself contains phases.
+
+Task-level replacements preserve unchanged sibling task source byte-for-byte,
+including continuation-line indentation.
+
+Inserted or replaced tasks, and tasks whose number or dependency reference
+changes, or whose sub-task content is edited, are rendered canonically.
 
 ## Output modes
 

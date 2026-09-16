@@ -14,6 +14,8 @@ use super::{
 };
 use crate::error::{MapspliceError, Result};
 
+#[path = "task_source.rs"]
+mod task_source;
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;
@@ -89,6 +91,8 @@ pub struct TaskEntry {
     pub summary: MarkdownNodes,
     /// Additional blocks nested beneath the task.
     pub body: MarkdownNodes,
+    /// Verbatim source captured for this task during parsing.
+    task_source: Option<String>,
     /// Ordered fourth-level sub-tasks nested beneath this task.
     sub_tasks: Vec<SubTaskEntry>,
     /// Original ordered child sequence beneath this task.
@@ -103,6 +107,7 @@ pub(crate) struct TaskEntryParts {
     pub(crate) checked: Option<bool>,
     pub(crate) summary: MarkdownNodes,
     pub(crate) body: MarkdownNodes,
+    pub(crate) task_source: Option<String>,
     pub(crate) sub_tasks: Vec<SubTaskEntry>,
     pub(crate) children: Vec<TaskChild>,
 }
@@ -231,20 +236,6 @@ impl MarkdownNodes {
 }
 
 impl TaskEntry {
-    /// Build a parsed task entry from parser-owned parts.
-    pub(crate) fn from_parts(parts: TaskEntryParts) -> Result<Self> {
-        validate_task_children(&parts)?;
-        Ok(Self {
-            identity: parts.identity,
-            number: parts.number,
-            checked: parts.checked,
-            summary: parts.summary,
-            body: parts.body,
-            sub_tasks: parts.sub_tasks,
-            children: parts.children,
-        })
-    }
-
     /// Return the structural sub-tasks nested beneath this task.
     #[must_use]
     pub fn sub_tasks(&self) -> &[SubTaskEntry] { &self.sub_tasks }

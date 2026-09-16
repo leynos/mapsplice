@@ -10,6 +10,17 @@ use crate::{
     },
 };
 
+/// Insert parsed sub-tasks before or after a sub-task anchor.
+///
+/// The parent task and containing step are mutated in place. Because the
+/// parent's subtree changes, its preserved task source and the step's
+/// whole-list source are cleared; unaffected sibling task sources remain
+/// available for preservation.
+///
+/// # Errors
+///
+/// Returns an anchor or child-order error when the target or its parent cannot
+/// be resolved.
 pub(super) fn insert_sub_tasks(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
@@ -27,11 +38,22 @@ pub(super) fn insert_sub_tasks(
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.insert_sub_tasks(splice, after, sub_tasks);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())
 }
 
+/// Delete the sub-task identified by `target`.
+///
+/// The parent task is updated in place and its preserved source is cleared so
+/// rendering reflects the changed subtree. The containing step's whole-list
+/// source is also cleared, while unrelated task sources are retained.
+///
+/// # Errors
+///
+/// Returns an anchor or child-order error when the target or its parent cannot
+/// be resolved.
 pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumber) -> Result<()> {
     let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     {
@@ -44,11 +66,22 @@ pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumb
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.delete_sub_task(splice);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())
 }
 
+/// Replace the sub-task identified by `target` with parsed sub-tasks.
+///
+/// The replacement is applied within the parent task. The parent's preserved
+/// source and the containing step's whole-list source are cleared because the
+/// task subtree changed; unaffected siblings retain their source.
+///
+/// # Errors
+///
+/// Returns an anchor or child-order error when the target or its parent cannot
+/// be resolved.
 pub(super) fn replace_sub_task(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
@@ -65,6 +98,7 @@ pub(super) fn replace_sub_task(
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
         task.replace_sub_task(splice, sub_tasks);
+        task.clear_task_source();
     }
     step.clear_task_list_source();
     Ok(())
