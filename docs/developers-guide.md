@@ -5,11 +5,14 @@ library APIs, command-line behaviour, tests, or build tooling.
 
 ## Spelling policy
 
-Run `make spelling` to enforce en-GB-oxendict prose spelling. The generated
-`typos.toml` starts from the shared estate dictionary, refreshes its untracked
-local cache only when the authority is newer, and then applies the narrow
-repository policy in `typos.local.toml`. Edit the local policy and regenerate
-the configuration rather than changing generated entries by hand.
+Run `make spelling` to enforce en-GB-oxendict prose spelling. The gate
+regenerates `typos.toml` on every run from the live shared estate dictionary
+and the `typos.local.toml` overlay, so a word added to the shared dictionary
+needs no change here. Because the dictionary is live, `typos.toml` is never
+drift checked in continuous integration. Add narrow repository-specific
+identifier, API, proper-name, or fixture exceptions to `typos.local.toml`;
+hand-editing `typos.toml` is not supported and any edits are overwritten on the
+next run.
 
 ## 1. Normative references
 

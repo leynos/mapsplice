@@ -255,16 +255,16 @@ project:
 ## Markdown Guidance
 
 - Validate Markdown files using `make markdownlint`. This target also enforces
-  en-GB-oxendict spelling with pinned `typos`.
-- The spelling configuration `typos.toml` is generated. Edit
-  `typos.local.toml` for narrow repository terminology, then regenerate it with
-  `uv run scripts/generate_typos_config.py`; never edit generated entries by
+  en-GB-oxendict spelling.
+- Enforce spelling with `make spelling`. It regenerates `typos.toml` from the
+  live shared dictionary and the `typos.local.toml` overlay on every run, so
+  `typos.toml` is never drift checked in continuous integration. Put narrow
+  repository terminology in `typos.local.toml`; never edit generated entries by
   hand.
 - Quoted APIs and identifiers retain upstream spelling. Fenced code blocks are
-  ignored by the spelling gate; inline code is checked (the shared policy
-  changed on 2026-08-06, agent-helper-scripts #90), so record each quoted
-  identifier in `typos.local.toml` under `[patterns] ignore`, scoped to the
-  form it appears in, rather than accepting the bare word.
+  ignored by the spelling gate, so record each quoted identifier in
+  `typos.local.toml` under `[patterns] ignore`, scoped to the form it appears
+  in, rather than accepting the bare word.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.

@@ -306,7 +306,7 @@ non-empty output.
 
 The existing private renderer tests live in `src/roadmap/render_tests.rs`. They
 currently assert exact nested sub-task round trips and final-newline
-normalization for hand-written examples. The new property extends that coverage
+normalization for handwritten examples. The new property extends that coverage
 from examples to the fixture corpus assembled by roadmap task 3.1.1.
 
 The fixture corpus lives under `tests/fixtures/golden` and
