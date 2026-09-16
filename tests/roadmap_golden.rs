@@ -9,10 +9,13 @@ mod golden;
 use golden::{
     GoldenCommand,
     GoldenWorkspace,
+    SuccessOutput,
     TestResult,
     assert_golden_case,
     create_workspace,
+    golden_fixture,
     golden_success_case,
+    golden_success_output_case,
     reference_delete_case,
 };
 use rstest::{fixture, rstest};
@@ -60,6 +63,83 @@ fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn insert_step_preserves_wrapped_tasks(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_step_preserves_wrapped_tasks",
+            GoldenCommand::InsertAfter { anchor: "1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_wrapped_siblings(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_wrapped_siblings",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_fenced_ordered_markers(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_fenced_ordered_markers",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_fence_delimiter_content(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_task_preserves_fence_delimiter_content",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_indented_code_markers(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_output_case(
+            "insert_task_preserves_indented_code_markers",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+            SuccessOutput::StdoutPreservedSource {
+                expected: golden_fixture(
+                    "insert_task_preserves_indented_code_markers",
+                    "expected.md",
+                ),
+            },
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -78,6 +158,19 @@ fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
         &workspace?,
         golden_success_case(
             "insert_sub_task_after",
+            GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_sub_task_preserves_fenced_sibling(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "insert_sub_task_preserves_fenced_sibling",
             GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
             true,
         ),

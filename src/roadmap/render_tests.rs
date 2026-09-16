@@ -1,5 +1,8 @@
 //! Unit tests for roadmap render fidelity.
 
+#[path = "render_task_tests.rs"]
+mod task_tests;
+
 use std::process::Command;
 
 use camino::{Utf8Path, Utf8PathBuf};
@@ -273,12 +276,15 @@ fn collect_fixture_paths(
     Ok(())
 }
 
+/// Return whether a fixture intentionally lies outside the formatter no-op corpus.
 fn is_excluded_round_trip_fixture(fixture_path: &Utf8Path) -> bool {
+    let path = fixture_path.as_str();
     // F5 fixtures intentionally exercise fail-closed inputs and operations,
-    // so they are not part of the conformant no-op rendering corpus.
-    fixture_path
-        .as_str()
-        .starts_with("tests/fixtures/golden/f5_")
+    // while the indented-code-marker fixture preserves source that the house
+    // formatter rewrites as a Markdown list. Neither belongs in the conformant
+    // no-op rendering corpus.
+    path.starts_with("tests/fixtures/golden/f5_")
+        || path.starts_with("tests/fixtures/golden/insert_task_preserves_indented_code_markers/")
 }
 
 fn read_fixture(fixture_path: &Utf8Path) -> Result<String, String> {

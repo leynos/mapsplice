@@ -51,6 +51,11 @@ pub(crate) enum GoldenExpectation {
 pub(crate) enum SuccessOutput {
     /// Assert command stdout equals the expected fixture.
     Stdout { expected: FixturePath },
+    /// Assert stdout equals the expected fixture without running the formatter gate.
+    ///
+    /// This is reserved for fixtures that deliberately preserve source the
+    /// house formatter cannot represent without changing it.
+    StdoutPreservedSource { expected: FixturePath },
     /// Assert command stdout equals the expected fixture and the target is unchanged.
     StdoutTargetUnchanged { expected: FixturePath },
     /// Assert in-place mode writes the expected fixture to the target with no stdout.

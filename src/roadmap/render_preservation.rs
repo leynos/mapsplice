@@ -3,12 +3,25 @@
 use markdown::mdast::Node;
 
 use super::render_block;
-use crate::error::Result;
+use crate::{
+    error::Result,
+    observability::{
+        CanonicalFallbackReason,
+        record_canonical_fallback,
+        record_preserved_source_render,
+    },
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ListMarker {
     Ordered(u32),
     Unordered,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Fence {
+    character: char,
+    length: usize,
 }
 
 /// Render an unchanged node from preserved source unless policy requires
@@ -25,8 +38,38 @@ pub(super) fn render_preserved_or_canonical(
     }
 }
 
+/// Render preserved task-item source unless formatting policy requires canonical output.
+pub(super) fn render_preserved_task_or_canonical(
+    original: &str,
+    canonical: impl FnOnce() -> Result<String>,
+) -> Result<String> {
+    formatter_fallback_reason(original).map_or_else(
+        || {
+            record_preserved_source_render();
+            Ok(trim_preserved_separator(original).to_owned())
+        },
+        |reason| {
+            record_canonical_fallback(reason);
+            canonical()
+        },
+    )
+}
+
+/// Return the first closed formatter-stability reason requiring canonical output.
+fn formatter_fallback_reason(original: &str) -> Option<CanonicalFallbackReason> {
+    if has_unstable_list_marker(original) {
+        Some(CanonicalFallbackReason::UnstableListMarker)
+    } else if has_unstable_code_fence(original) {
+        Some(CanonicalFallbackReason::UnstableCodeFence)
+    } else {
+        None
+    }
+}
+
+/// Remove only the separator newlines outside a preserved source span.
 fn trim_preserved_separator(original: &str) -> &str { original.trim_end_matches('\n') }
 
+/// Decide whether a node's preserved source requires canonical rendering.
 fn is_formatter_unstable(node: &Node, original: &str) -> bool {
     match node {
         Node::List(_) => has_unstable_list_marker(original),
@@ -35,21 +78,94 @@ fn is_formatter_unstable(node: &Node, original: &str) -> bool {
     }
 }
 
+/// Detect fence forms whose formatting is not stable under the canonical renderer.
 fn has_unstable_code_fence(original: &str) -> bool {
-    let opener = original.lines().find(|line| !line.trim().is_empty());
-    opener.is_some_and(|line| {
-        let trimmed = line.trim_start();
-        let indent = line.len() - trimmed.len();
-        indent <= 3 && (trimmed.starts_with("~~~") || trimmed.starts_with("````"))
+    let mut open_fence = None;
+    original.lines().any(|line| {
+        if let Some(fence) = open_fence {
+            if closes_fence(line, fence) {
+                open_fence = None;
+            }
+            return false;
+        }
+        let Some(fence) = fence(line) else {
+            return false;
+        };
+        if fence.character == '~' || fence.length >= 4 {
+            true
+        } else {
+            open_fence = Some(fence);
+            false
+        }
     })
 }
 
+/// Detect ordered or nested list markers that can change during formatting.
 fn has_unstable_list_marker(original: &str) -> bool {
-    let markers = original.lines().filter_map(list_marker).collect::<Vec<_>>();
+    let mut open_fence = None;
+    let checklist_indent = checklist_marker_indent(original);
+    let mut previous_line_was_blank = false;
+    let markers = original
+        .lines()
+        .filter_map(|line| {
+            if let Some(fence) = open_fence {
+                if closes_fence(line, fence) {
+                    open_fence = None;
+                }
+                return None;
+            }
+            if let Some(fence) = fence(line) {
+                open_fence = Some(fence);
+                return None;
+            }
+            if previous_line_was_blank && is_indented_code_block_line(line, checklist_indent) {
+                previous_line_was_blank = false;
+                return None;
+            }
+            previous_line_was_blank = line.trim().is_empty();
+            list_marker(line)
+        })
+        .collect::<Vec<_>>();
     has_repeated_or_noncontiguous_ordered_marker(&markers)
         || has_overindented_nested_marker(&markers)
 }
 
+/// Return the leading indentation of the first task-list marker in `original`.
+fn checklist_marker_indent(original: &str) -> Option<usize> {
+    original.lines().find_map(|line| {
+        let trimmed = line.trim_start();
+        (trimmed.starts_with("- [ ") || trimmed.starts_with("- [x]"))
+            .then_some(line.len() - trimmed.len())
+    })
+}
+
+/// Return whether a blank-separated line is indented as a task item's code body.
+fn is_indented_code_block_line(line: &str, checklist_indent: Option<usize>) -> bool {
+    let trimmed = line.trim_start();
+    checklist_indent.is_some_and(|indent| line.len() - trimmed.len() >= indent + 10)
+}
+
+/// Parse a Markdown fence opener from a line, if present.
+fn fence(line: &str) -> Option<Fence> {
+    let trimmed = line.trim_start();
+    let character = trimmed.chars().next()?;
+    matches!(character, '`' | '~').then_some(())?;
+    let length = trimmed
+        .chars()
+        .take_while(|candidate| *candidate == character)
+        .count();
+    (length >= 3).then_some(Fence { character, length })
+}
+
+/// Return whether a line closes a fence with at least the opener's width.
+fn closes_fence(line: &str, opening: Fence) -> bool {
+    let trimmed = line.trim_start();
+    let remainder = trimmed.trim_start_matches(opening.character);
+    let length = trimmed.len() - remainder.len();
+    length >= opening.length && remainder.trim().is_empty()
+}
+
+/// Detect adjacent ordered markers that repeat or skip an ordinal.
 fn has_repeated_or_noncontiguous_ordered_marker(markers: &[(usize, ListMarker)]) -> bool {
     markers.windows(2).any(|window| {
         let [
@@ -63,6 +179,7 @@ fn has_repeated_or_noncontiguous_ordered_marker(markers: &[(usize, ListMarker)])
     })
 }
 
+/// Detect nested markers indented beyond the supported canonical layout.
 fn has_overindented_nested_marker(markers: &[(usize, ListMarker)]) -> bool {
     markers.iter().enumerate().any(|(index, (indent, _))| {
         *indent > 0
@@ -77,6 +194,7 @@ fn has_overindented_nested_marker(markers: &[(usize, ListMarker)]) -> bool {
     })
 }
 
+/// Parse a list marker and its leading indentation from a Markdown line.
 fn list_marker(line: &str) -> Option<(usize, ListMarker)> {
     let trimmed = line.trim_start();
     let indent = line.len() - trimmed.len();
@@ -131,6 +249,28 @@ mod tests {
     }
 
     #[test]
+    fn ordered_markers_inside_fenced_bodies_are_formatter_stable() {
+        assert!(!has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  1. first\n  1. second\n  3. third\n  ```"
+        ));
+    }
+
+    #[test]
+    fn ordered_markers_outside_fenced_bodies_are_formatter_unstable() {
+        assert!(has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  1. first\n  1. second\n  ```\n\n  1. first\n  3. \
+             third"
+        ));
+    }
+
+    #[test]
+    fn ordered_markers_inside_indented_code_blocks_are_formatter_stable() {
+        assert!(!has_unstable_list_marker(
+            "- [ ] 1.1.1. Task.\n\n          1. first\n          3. third"
+        ));
+    }
+
+    #[test]
     fn overindented_nested_list_is_formatter_unstable() {
         assert!(has_unstable_list_marker("- parent\n    - child"));
     }
@@ -148,6 +288,23 @@ mod tests {
     #[test]
     fn oversized_backtick_fence_is_formatter_unstable() {
         assert!(has_unstable_code_fence("````rust\nlet answer = 42;\n````"));
+    }
+
+    #[test]
+    fn nested_unstable_fences_are_formatter_unstable() {
+        assert!(has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ~~~rust\n  let answer = 42;\n  ~~~"
+        ));
+        assert!(has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ````rust\n  let answer = 42;\n  ````"
+        ));
+    }
+
+    #[test]
+    fn canonical_fence_content_is_formatter_stable() {
+        assert!(!has_unstable_code_fence(
+            "- [ ] 1.1.1. Task.\n\n  ```text\n  ~~~\n  1. code item\n  ```"
+        ));
     }
 
     #[test]
