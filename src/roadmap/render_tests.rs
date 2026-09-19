@@ -166,9 +166,11 @@ fn noop_round_trip_property_holds_for_all_conformant_fixtures() -> Result<(), St
             ));
         }
 
-        assert_formatter_noop(&fixture_path, &rendered).map_err(|error| {
-            format!("house formatter changed rendered fixture {fixture_path}: {error}")
-        })?;
+        if !is_formatter_incompatible_fixture(&fixture_path) {
+            assert_formatter_noop(&fixture_path, &rendered).map_err(|error| {
+                format!("house formatter changed rendered fixture {fixture_path}: {error}")
+            })?;
+        }
     }
     Ok(())
 }
@@ -180,6 +182,7 @@ const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[
     "tests/fixtures/golden/nested_bullets/target.md",
     "tests/fixtures/golden/c4_addendum_render_fidelity/target.md",
     "tests/fixtures/golden/literal_backslash_escape/target.md",
+    "tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md",
     "tests/fixtures/reference_rewrite/multi_id_requires.input.md",
     "tests/fixtures/reference_rewrite/section_reference.input.md",
     "tests/fixtures/reference_rewrite/substring_non_match.input.md",
@@ -204,7 +207,7 @@ fn conformant_round_trip_fixture_paths() -> Result<Vec<Utf8PathBuf>, String> {
         &mut fixture_paths,
     )?;
 
-    fixture_paths.retain(|fixture_path| !is_excluded_round_trip_fixture(fixture_path));
+    fixture_paths.retain(|fixture_path| !is_nonconformant_round_trip_fixture(fixture_path));
     fixture_paths.sort();
 
     Ok(fixture_paths)
@@ -276,15 +279,18 @@ fn collect_fixture_paths(
     Ok(())
 }
 
-/// Return whether a fixture intentionally lies outside the formatter no-op corpus.
-fn is_excluded_round_trip_fixture(fixture_path: &Utf8Path) -> bool {
-    let path = fixture_path.as_str();
-    // F5 fixtures intentionally exercise fail-closed inputs and operations,
-    // while the indented-code-marker fixture preserves source that the house
-    // formatter rewrites as a Markdown list. Neither belongs in the conformant
-    // no-op rendering corpus.
-    path.starts_with("tests/fixtures/golden/f5_")
-        || path.starts_with("tests/fixtures/golden/insert_task_preserves_indented_code_markers/")
+/// Return whether a fixture intentionally lies outside parse/render coverage.
+fn is_nonconformant_round_trip_fixture(fixture_path: &Utf8Path) -> bool {
+    fixture_path
+        .as_str()
+        .starts_with("tests/fixtures/golden/f5_")
+}
+
+/// Return whether a conformant fixture is incompatible with the house formatter.
+fn is_formatter_incompatible_fixture(fixture_path: &Utf8Path) -> bool {
+    fixture_path
+        .as_str()
+        .starts_with("tests/fixtures/golden/insert_task_preserves_indented_code_markers/")
 }
 
 fn read_fixture(fixture_path: &Utf8Path) -> Result<String, String> {

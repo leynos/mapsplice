@@ -7,6 +7,14 @@ use mapsplice::{MetricsSnapshot, metrics_snapshot, run_from_args};
 use rstest::rstest;
 use workspace_support::{TestResult, create_workspace};
 
+/// Named arguments for one source-preservation structural operation.
+#[derive(Clone, Copy)]
+struct PreservationOperation<'a> {
+    operation: &'a str,
+    anchor: &'a str,
+    placement: Option<&'a str>,
+}
+
 /// Verify stable task reuse increments preservation without mutation or
 /// canonical-fallback counters.
 #[test]
@@ -16,12 +24,16 @@ fn stable_task_sources_record_preserved_rendering_only() {
     let stdout = run_preservation_operation(
         stable_task_roadmap(),
         "- [ ] 1.1.1. Inserted task.\n",
-        ["insert", "1.1.2", "--after"],
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.2",
+            placement: Some("--after"),
+        },
     )
     .expect("stable task operation should succeed");
     let after = metrics_snapshot();
 
-    assert!(stdout.contains("preserving its two-space continuation indentation."));
+    assert!(stdout.contains("\n  preserving its two-space continuation indentation."));
     assert_eq!(
         delta(
             before.preserved_source_renders,
@@ -40,7 +52,11 @@ fn sub_task_splice_records_child_mutation_only() {
     let stdout = run_preservation_operation(
         roadmap_with_sub_tasks(),
         "  - [ ] 1.1.1.1. Inserted sub-task.\n",
-        ["insert", "1.1.1.2", "--after"],
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.1.2",
+            placement: Some("--after"),
+        },
     )
     .expect("sub-task splice should succeed");
     let after = metrics_snapshot();
@@ -75,7 +91,11 @@ fn task_insertion_before_existing_tasks_records_renumbering_only() {
     let stdout = run_preservation_operation(
         stable_task_roadmap(),
         "- [ ] 1.1.1. Inserted task.\n",
-        ["insert", "1.1.1", ""],
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.1",
+            placement: None,
+        },
     )
     .expect("task insertion should succeed");
     let after = metrics_snapshot();
@@ -115,7 +135,11 @@ fn phase_insertion_records_dependency_rewrite_for_unchanged_task() {
             "### 9.1. Inserted step\n\n",
             "- [ ] 9.1.1. Inserted task.\n"
         ),
-        ["insert", "1", "--after"],
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1",
+            placement: Some("--after"),
+        },
     )
     .expect("phase insertion should succeed");
     let after = metrics_snapshot();
@@ -186,7 +210,11 @@ fn assert_fallback_reason(
     let _stdout = match run_preservation_operation(
         &target,
         "- [ ] 1.1.1. Inserted task.\n",
-        ["insert", "1.1.2", "--after"],
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.2",
+            placement: Some("--after"),
+        },
     ) {
         Ok(stdout) => stdout,
         Err(error) => panic!("formatter fallback operation should succeed: {error}"),
@@ -218,24 +246,25 @@ fn assert_fallback_reason(
 
 /// Run one structural operation in a temporary workspace and return its output.
 ///
-/// The command array contains the operation, anchor, and optional placement
-/// flag; failures are propagated through the integration-test result type.
+/// The [`PreservationOperation`] identifies the splice; its placement is
+/// included only when present. Failures are propagated through the
+/// integration-test result type.
 fn run_preservation_operation(
     target: &str,
     fragment: &str,
-    command: [&str; 3],
+    request: PreservationOperation<'_>,
 ) -> TestResult<String> {
     let workspace = create_workspace()?;
     workspace.write_target(target)?;
     workspace.write_fragment(fragment)?;
     let mut arguments = vec![
         "mapsplice",
-        command[0],
+        request.operation,
         workspace.target.as_str(),
-        command[1],
+        request.anchor,
     ];
-    if !command[2].is_empty() {
-        arguments.push(command[2]);
+    if let Some(placement_flag) = request.placement {
+        arguments.push(placement_flag);
     }
     arguments.push(workspace.fragment.as_str());
     run_from_args(arguments)?

@@ -61,59 +61,22 @@ fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     )
 }
 
+/// Verify target source survives each standard structural insertion shape.
 #[rstest]
+#[case::wrapped_tasks("insert_step_preserves_wrapped_tasks", "1.1")]
+#[case::wrapped_siblings("insert_task_preserves_wrapped_siblings", "1.1.2")]
+#[case::fenced_ordered_markers("insert_task_preserves_fenced_ordered_markers", "1.1.2")]
+#[case::fence_delimiter_content("insert_task_preserves_fence_delimiter_content", "1.1.2")]
+#[case::fenced_sub_task_sibling("insert_sub_task_preserves_fenced_sibling", "1.1.1.1")]
 #[serial_test::serial(cli_env)]
-fn insert_step_preserves_wrapped_tasks(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "insert_step_preserves_wrapped_tasks",
-            GoldenCommand::InsertAfter { anchor: "1.1" },
-            true,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn insert_task_preserves_wrapped_siblings(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "insert_task_preserves_wrapped_siblings",
-            GoldenCommand::InsertAfter { anchor: "1.1.2" },
-            true,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn insert_task_preserves_fenced_ordered_markers(
+fn standard_insertions_preserve_target_source(
     workspace: TestResult<GoldenWorkspace>,
+    #[case] fixture_name: &'static str,
+    #[case] anchor: &'static str,
 ) -> TestResult {
     assert_golden_case(
         &workspace?,
-        golden_success_case(
-            "insert_task_preserves_fenced_ordered_markers",
-            GoldenCommand::InsertAfter { anchor: "1.1.2" },
-            true,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn insert_task_preserves_fence_delimiter_content(
-    workspace: TestResult<GoldenWorkspace>,
-) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "insert_task_preserves_fence_delimiter_content",
-            GoldenCommand::InsertAfter { anchor: "1.1.2" },
-            true,
-        ),
+        golden_success_case(fixture_name, GoldenCommand::InsertAfter { anchor }, true),
     )
 }
 
@@ -158,19 +121,6 @@ fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
         &workspace?,
         golden_success_case(
             "insert_sub_task_after",
-            GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
-            true,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn insert_sub_task_preserves_fenced_sibling(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "insert_sub_task_preserves_fenced_sibling",
             GoldenCommand::InsertAfter { anchor: "1.1.1.1" },
             true,
         ),

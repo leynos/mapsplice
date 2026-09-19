@@ -13,6 +13,15 @@ use crate::roadmap::{
     parse_roadmap,
 };
 
+/// Bounded structural mutations exercised against generated sub-task trees.
+#[derive(Clone, Copy, Debug)]
+enum GeneratedSubTaskOperation {
+    InsertAfter,
+    Delete,
+    Replace,
+    InsertBeforeFirst,
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: 16,
@@ -24,7 +33,12 @@ proptest! {
     #[test]
     fn generated_sub_task_mutations_preserve_alignment_and_untouched_source(
         sub_task_count in 2usize..5,
-        operation in 0u8..4,
+        operation in prop_oneof![
+            Just(GeneratedSubTaskOperation::InsertAfter),
+            Just(GeneratedSubTaskOperation::Delete),
+            Just(GeneratedSubTaskOperation::Replace),
+            Just(GeneratedSubTaskOperation::InsertBeforeFirst),
+        ],
     ) {
         let source = roadmap_with_sub_tasks(sub_task_count)
             .map_err(|error| TestCaseError::fail(error.to_string()))?;
@@ -45,7 +59,7 @@ proptest! {
         let task = parent_task(&roadmap)?;
         assert_child_alignment(task)?;
         prop_assert!(task.original_source().is_none());
-        if operation == 3 {
+        if matches!(operation, GeneratedSubTaskOperation::InsertBeforeFirst) {
             prop_assert!(task
                 .sub_tasks()
                 .iter()
@@ -126,15 +140,15 @@ proptest! {
 /// Build one valid bounded operation and optional fragment for a generated
 /// sub-task mutation.
 fn generated_operation(
-    operation: u8,
+    operation: GeneratedSubTaskOperation,
     target: &str,
 ) -> Result<(RoadmapOperation, Option<super::RoadmapFragment>), TestCaseError> {
     let anchor = parse_anchor(target).map_err(|error| TestCaseError::fail(error.to_string()))?;
     match operation {
-        0 => insert_sub_task_after(anchor),
-        1 => Ok((RoadmapOperation::Delete { anchor }, None)),
-        2 => replace_sub_task(anchor),
-        _ => insert_sub_task_before_first(),
+        GeneratedSubTaskOperation::InsertAfter => insert_sub_task_after(anchor),
+        GeneratedSubTaskOperation::Delete => Ok((RoadmapOperation::Delete { anchor }, None)),
+        GeneratedSubTaskOperation::Replace => replace_sub_task(anchor),
+        GeneratedSubTaskOperation::InsertBeforeFirst => insert_sub_task_before_first(),
     }
 }
 

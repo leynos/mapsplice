@@ -16,6 +16,14 @@ struct Fence {
     length: usize,
 }
 
+/// Stateful detection of indented task-body code in one fixture scan.
+#[derive(Default)]
+struct IndentedTaskCodeState {
+    checklist_indent: Option<usize>,
+    previous_line_was_blank: bool,
+    in_indented_code: bool,
+}
+
 #[fixture]
 fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
@@ -106,11 +114,15 @@ fn scan_markdown_fixture(
     let contents = repository.read_to_string(fixture_path)?;
     let lines = contents.lines().collect::<Vec<_>>();
     let mut open_fence = None;
+    let mut indented_code = IndentedTaskCodeState::default();
     for (index, line) in lines.iter().enumerate() {
         if let Some(fence) = open_fence {
             if closes_fence(line, fence) {
                 open_fence = None;
             }
+            continue;
+        }
+        if is_indented_task_code_block_line(line, &mut indented_code) {
             continue;
         }
         if let Some(fence) = fence(line) {
@@ -132,9 +144,6 @@ fn scan_formatter_boundary_line(
     fixture_path: &Utf8Path,
     findings: &mut Vec<String>,
 ) {
-    if is_indented_task_code_block_line(lines, index) {
-        return;
-    }
     if has_repeated_or_noncontiguous_ordered_marker(lines, index) {
         report(
             fixture_path,
@@ -156,26 +165,37 @@ fn scan_formatter_boundary_line(
     }
 }
 
-/// Return whether a blank-separated line is indented as a task item's code body.
-fn is_indented_task_code_block_line(lines: &[&str], index: usize) -> bool {
-    let Some(line) = lines.get(index) else {
-        return false;
-    };
+/// Return whether `line` belongs to an indented task-body code region.
+fn is_indented_task_code_block_line(line: &str, state: &mut IndentedTaskCodeState) -> bool {
+    if state.in_indented_code {
+        if line.trim().is_empty() || is_indented_task_code_body(line, state.checklist_indent) {
+            return true;
+        }
+        state.in_indented_code = false;
+    }
+    if state.previous_line_was_blank && is_indented_task_code_body(line, state.checklist_indent) {
+        state.in_indented_code = true;
+        return true;
+    }
+    if state.checklist_indent.is_none() {
+        state.checklist_indent = checklist_marker_indent(line);
+    }
+    state.previous_line_was_blank = line.trim().is_empty();
+    false
+}
+
+/// Return whether `line` has the relative indentation of a task-body code line.
+fn is_indented_task_code_body(line: &str, checklist_indent: Option<usize>) -> bool {
     let trimmed = line.trim_start();
     let indent = line.len() - trimmed.len();
-    let previous_line_is_blank = index
-        .checked_sub(1)
-        .and_then(|previous| lines.get(previous))
-        .is_some_and(|previous| previous.trim().is_empty());
-    if indent < 10 || !previous_line_is_blank {
-        return false;
-    }
-    lines.get(..index).is_some_and(|preceding_lines| {
-        preceding_lines.iter().rev().any(|candidate| {
-            let trimmed_candidate = candidate.trim_start();
-            trimmed_candidate.starts_with("- [ ") || trimmed_candidate.starts_with("- [x]")
-        })
-    })
+    checklist_indent.is_some_and(|parent_indent| indent >= parent_indent + 10)
+}
+
+/// Return a checklist marker's indentation when `line` starts one.
+fn checklist_marker_indent(line: &str) -> Option<usize> {
+    let trimmed = line.trim_start();
+    (trimmed.starts_with("- [ ") || trimmed.starts_with("- [x]"))
+        .then_some(line.len() - trimmed.len())
 }
 
 fn fence(line: &str) -> Option<Fence> {

@@ -1,0 +1,12 @@
+error[E0639]: cannot create non-exhaustive struct using struct expression
+  --> tests/ui/metrics_snapshot_non_exhaustive.rs:6:21
+   |
+ 6 |       let _snapshot = MetricsSnapshot {
+   |  _____________________^
+ 7 | |         failures: 0,
+ 8 | |         in_place_rewrites: 0,
+ 9 | |         dependency_rewrites: 0,
+...  |
+17 | |         canonical_fallbacks_unstable_code_fence: 0,
+18 | |     };
+   | |_____^
