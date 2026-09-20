@@ -23,9 +23,9 @@ impl TaskEntry {
     pub const fn checked(&self) -> Option<bool> { self.checked }
 
     /// Set a task number and invalidate its preserved source.
-    pub(crate) fn set_number(&mut self, number: TaskNumber) {
+    pub(crate) fn set_number(&mut self, number: TaskNumber) -> bool {
         self.number = number;
-        self.clear_original_source();
+        self.clear_original_source()
     }
 
     /// Set a task checkbox state and invalidate its preserved source.

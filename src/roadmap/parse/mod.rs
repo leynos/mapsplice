@@ -3,6 +3,7 @@
 mod checklist;
 mod document;
 mod fragment;
+mod headings;
 mod step_accumulator;
 mod sub_task_body;
 mod sub_task_fragment;
@@ -10,9 +11,10 @@ mod task_children;
 
 use checklist::{ChecklistKind, parse_checklist_item_head};
 pub use fragment::parse_fragment;
+use headings::{is_phase_heading, is_step_heading, parse_phase_heading, parse_step_heading};
 use markdown::{
     ParseOptions,
-    mdast::{Heading, List, ListItem, Node, Paragraph, Root, Text},
+    mdast::{List, ListItem, Node, Paragraph, Root, Text},
     to_mdast,
 };
 use sub_task_body::parse_sub_task_body;
@@ -20,7 +22,6 @@ use sub_task_fragment::parse_sub_task_fragment_list;
 use task_children::TaskChildren;
 
 use super::{
-    PhaseNumber,
     RoadmapAnchor,
     RoadmapDocument,
     RoadmapItemLevel,
@@ -70,57 +71,6 @@ pub fn parse_roadmap(markdown: &str) -> Result<RoadmapDocument> {
     document::parse_document_root(parse_root(markdown)?, SourceId::Target, markdown)
 }
 
-pub(super) fn is_phase_heading(heading: &Heading) -> bool {
-    heading.depth == 2 && parse_phase_heading(heading).is_ok()
-}
-
-pub(super) fn is_step_heading(heading: &Heading) -> bool {
-    heading.depth == 3 && parse_step_heading(heading).is_ok()
-}
-
-pub(super) fn parse_phase_heading(heading: &Heading) -> Result<(PhaseNumber, Vec<Node>)> {
-    let (anchor, title) = strip_heading_prefix(&heading.children, RoadmapItemLevel::Phase)?;
-    match anchor {
-        RoadmapAnchor::Phase(number) => Ok((number, title)),
-        _ => Err(MapspliceError::InvalidRoadmap {
-            message: "expected a phase heading".to_owned(),
-        }),
-    }
-}
-
-pub(super) fn parse_step_heading(heading: &Heading) -> Result<(StepNumber, Vec<Node>)> {
-    let (anchor, title) = strip_heading_prefix(&heading.children, RoadmapItemLevel::Step)?;
-    match anchor {
-        RoadmapAnchor::Step(number) => Ok((number, title)),
-        _ => Err(MapspliceError::InvalidRoadmap {
-            message: "expected a step heading".to_owned(),
-        }),
-    }
-}
-
-fn strip_heading_prefix(
-    children: &[Node],
-    level: RoadmapItemLevel,
-) -> Result<(RoadmapAnchor, Vec<Node>)> {
-    let Node::Text(Text { value, .. }) =
-        children
-            .first()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "roadmap headings must start with plain text".to_owned(),
-            })?
-    else {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "roadmap headings must start with plain text".to_owned(),
-        });
-    };
-    let (anchor, remainder) = split_numbered_prefix(value, level)?;
-    let mut title = children.to_vec();
-    if let Some(Node::Text(text)) = title.first_mut() {
-        text.value = remainder;
-    }
-    Ok((anchor, title))
-}
-
 pub(super) fn parse_task_list(
     list: &List,
     source: SourceId,
@@ -146,9 +96,11 @@ pub(super) fn parse_task_list(
             }),
         })
         .collect::<Result<Vec<_>>>()?;
-    let sources = (source == SourceId::Target)
-        .then(|| task_item_sources(list, &items, source_text))
-        .unwrap_or_else(|| vec![None; items.len()]);
+    let sources = if source == SourceId::Target {
+        task_item_sources(list, &items, source_text)
+    } else {
+        vec![None; items.len()]
+    };
 
     items
         .into_iter()
@@ -365,7 +317,14 @@ fn parse_numbered_paragraph(
     Ok((anchor, summary))
 }
 
-fn split_numbered_prefix(value: &str, level: RoadmapItemLevel) -> Result<(RoadmapAnchor, String)> {
+/// Split one paragraph prefix into a typed anchor and its trimmed remainder.
+///
+/// Returns an error when the prefix is missing, malformed, or has a different
+/// roadmap level than `level`.
+pub(super) fn split_numbered_prefix(
+    value: &str,
+    level: RoadmapItemLevel,
+) -> Result<(RoadmapAnchor, String)> {
     let (digits, remainder) =
         value
             .split_once(". ")

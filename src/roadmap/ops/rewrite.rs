@@ -78,10 +78,9 @@ fn renumber_step_tasks(
     for (task_index, task) in tasks.iter_mut().enumerate() {
         let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
         plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
-        if task.number != new_task && task.clear_original_source() {
+        if task.number != new_task && task.set_number(new_task) {
             report.record_invalidation(PreservationInvalidationReason::Renumber);
         }
-        task.number = new_task;
         renumber_sub_tasks(task, new_task, plan, report)?;
     }
     Ok(())

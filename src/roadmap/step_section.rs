@@ -1,7 +1,6 @@
 //! Behaviour for parsed roadmap step sections.
 
 use super::model::{StepSection, TaskEntry};
-use crate::error::Result;
 
 impl StepSection {
     /// Return the step's tasks in their current source order.
@@ -15,21 +14,6 @@ impl StepSection {
     pub(crate) fn tasks_mut(&mut self) -> &mut Vec<TaskEntry> {
         self.clear_task_list_source();
         &mut self.tasks
-    }
-
-    /// Update tasks and discard list source only when the update changes them.
-    ///
-    /// The callback returns whether it changed a task. This lets traversals
-    /// inspect every task without losing whole-list preservation for steps
-    /// whose semantic task content remains unchanged.
-    pub(crate) fn update_tasks(
-        &mut self,
-        update: impl FnOnce(&mut [TaskEntry]) -> Result<bool>,
-    ) -> Result<()> {
-        if update(&mut self.tasks)? {
-            self.clear_task_list_source();
-        }
-        Ok(())
     }
 
     /// Return the preserved source for an unchanged task list.

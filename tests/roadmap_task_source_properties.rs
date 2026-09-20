@@ -389,13 +389,16 @@ fn assert_sub_task_insert_result(
     }
     assert_text_occurs_once(
         output,
-        &format!("- [ ] 1.1.1. {} task.", roadmap.labels[0]),
-        "sub-task parent summary",
+        &canonical_task("1.1.1", roadmap.labels[0], None),
+        "canonically rendered sub-task parent",
     )?;
     assert_text_occurs_once(
         output,
-        &canonical_parent_with_sub_tasks(roadmap.labels[0], after),
-        "sub-task-edited parent",
+        &format!(
+            "  - [ ] 1.1.1.{}. Inserted sub-task.",
+            if after { 2 } else { 1 },
+        ),
+        "canonically rendered inserted sub-task",
     )
 }
 

@@ -232,9 +232,8 @@ inspection.
   `CanonicalFallbackReason` sets. The counters are bounded, atomic, and
   process-local; they are diagnostic state, not durable telemetry. Invalidation
   is recorded at mutation points, while preservation and fallback outcomes are
-  recorded at the rendering decision.
-  Canonical rendering of invalidated or formatter-unstable task content uses
-  the two-space continuation convention.
+  recorded at the rendering decision. Canonical rendering of invalidated or
+  formatter-unstable task content uses the two-space continuation convention.
 - **Required coverage.** The corpus must exercise the whole grammar surface
   (preamble; phases, steps, tasks; multi-line task bodies; nested bullets;
   tables; code blocks) and, as adversarial cases, every way collateral
