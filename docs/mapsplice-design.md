@@ -220,18 +220,18 @@ inspection.
   mutation and renumbering own precise invalidation; rendering owns the
   formatter-stability check and the fallback to canonical Markdown. A stable
   preserved item is emitted verbatim, with trailing newlines trimmed and the
-  required separator restored when it is joined to canonical output. Ordered
-  or nested list markers and code-fence delimiters that are formatter-unstable
+  required separator restored when it is joined to canonical output. Ordered or
+  nested list markers and code-fence delimiters that are formatter-unstable
   force canonical rendering instead.
 - **Preservation observability.** `MetricsSnapshot` exposes aggregate counts
   for preserved-source renders, preserved-source invalidations, and canonical
-  fallbacks, together with reason counters for `renumber`,
-  `dependency_rewrite`, `child_mutation`, `unstable_list_marker`, and
-  `unstable_code_fence`. These causes form closed
-  `PreservationInvalidationReason` and `CanonicalFallbackReason` sets. The
-  counters are bounded, atomic, and process-local; they are diagnostic state,
-  not durable telemetry. Invalidation is recorded at mutation points, while
-  preservation and fallback outcomes are recorded at the rendering decision.
+  fallbacks, together with reason counters for `renumber`, `dependency_rewrite`,
+  `child_mutation`, `unstable_list_marker`, and `unstable_code_fence`. These
+  causes form closed `PreservationInvalidationReason` and
+  `CanonicalFallbackReason` sets. The counters are bounded, atomic, and
+  process-local; they are diagnostic state, not durable telemetry. Invalidation
+  is recorded at mutation points, while preservation and fallback outcomes are
+  recorded at the rendering decision.
 - **Required coverage.** The corpus must exercise the whole grammar surface
   (preamble; phases, steps, tasks; multi-line task bodies; nested bullets;
   tables; code blocks) and, as adversarial cases, every way collateral
