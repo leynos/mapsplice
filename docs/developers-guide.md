@@ -185,6 +185,11 @@ make nixie
 `MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
 `make fmt` remains repository-wide and can reformat unrelated Markdown files.
+The `make fmt` and `make check-fmt` targets select tracked and unignored Markdown
+files. They deliberately exclude
+`tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md`
+and `expected.md`, whose non-contiguous ordered-looking lines are indented-code
+fixtures for byte-identical source preservation and are not formatter-stable.
 
 `make nixie` validates Mermaid diagrams in tracked Markdown files through the
 CI-installed `merman-cli` renderer. The target runs one Markdown file at a time
