@@ -66,7 +66,7 @@ fn parse_roadmap_keeps_nested_numbered_sub_tasks_structural() {
         parse_roadmap_text(TARGET_WITH_SUB_TASKS).expect("roadmap with sub-tasks should parse");
     let phase = roadmap.phases.first().expect("roadmap should have a phase");
     let step = phase.steps.first().expect("phase should have a step");
-    let task = step.tasks.first().expect("step should have a task");
+    let task = step.tasks().first().expect("step should have a task");
     let first_sub_task = task
         .sub_tasks()
         .first()

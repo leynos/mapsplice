@@ -3,6 +3,9 @@
 #[path = "render_preservation.rs"]
 mod preservation;
 #[cfg(test)]
+#[path = "render_mutation_tests.rs"]
+mod render_mutation_tests;
+#[cfg(test)]
 #[path = "render_tests.rs"]
 mod render_tests;
 #[path = "render_table.rs"]
@@ -11,7 +14,6 @@ mod table;
 mod task;
 #[path = "render_text.rs"]
 mod text;
-
 use markdown::mdast::{Code, Heading, Link, List, ListItem, Node};
 use preservation::render_preserved_or_canonical;
 use table::render_table;
@@ -23,7 +25,6 @@ use super::{
     preservation_events::PreservationReport,
 };
 use crate::error::{MapspliceError, Result};
-
 /// Render a parsed roadmap back to Markdown.
 ///
 /// # Errors
@@ -102,11 +103,14 @@ fn render_step_tasks(step: &StepSection, report: &mut PreservationReport) -> Res
 
 /// Render task entries and join them as one canonical task-list body.
 fn render_tasks(tasks: &[&TaskEntry], report: &mut PreservationReport) -> Result<String> {
-    tasks
-        .iter()
-        .map(|task| task::render_task(task, report))
-        .collect::<Result<Vec<_>>>()
-        .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
+    let mut rendered = String::new();
+    for task in tasks {
+        if !rendered.is_empty() && !rendered.ends_with('\n') {
+            rendered.push('\n');
+        }
+        rendered.push_str(&task::render_task(task, report)?);
+    }
+    Ok(trim_preserved_task_source(&rendered).to_owned())
 }
 /// Validate every task before reusing a preserved task-list source.
 fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
@@ -121,7 +125,7 @@ fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
 fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
     render_inline(task.summary.nodes())?;
     task.children().iter().try_for_each(|child| match child {
-        TaskChild::Body(body) => render_nested_body(body, 4).map(drop),
+        TaskChild::Body(body) => render_nested_body(body, 2).map(drop),
         TaskChild::SubTask(identity) => {
             validate_sub_task_for_render(task::find_sub_task_for_child(task, *identity)?)
         }
@@ -129,7 +133,7 @@ fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
 }
 fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
     render_inline(sub_task.summary.nodes())?;
-    render_nested_body(&sub_task.body, 8)?;
+    render_nested_body(&sub_task.body, 4)?;
     Ok(())
 }
 fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }

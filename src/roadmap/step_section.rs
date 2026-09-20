@@ -1,8 +1,21 @@
 //! Behaviour for parsed roadmap step sections.
 
-use super::model::StepSection;
+use super::model::{StepSection, TaskEntry};
 
 impl StepSection {
+    /// Return the step's tasks in their current source order.
+    #[must_use]
+    pub fn tasks(&self) -> &[TaskEntry] { &self.tasks }
+
+    /// Mutate task membership after invalidating the whole-list source cache.
+    ///
+    /// Callers changing an individual task must use that task's invalidating
+    /// setters so its preserved source cannot outlive the semantic change.
+    pub(crate) fn tasks_mut(&mut self) -> &mut Vec<TaskEntry> {
+        self.clear_task_list_source();
+        &mut self.tasks
+    }
+
     /// Return the preserved source for an unchanged task list.
     #[must_use]
     pub(crate) fn task_list_source(&self) -> Option<&str> { self.task_list_source.as_deref() }

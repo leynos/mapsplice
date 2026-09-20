@@ -30,15 +30,19 @@ pub(super) fn render_task(task: &TaskEntry, report: &mut PreservationReport) -> 
         let (rendered, outcome) =
             render_preserved_task_or_canonical(original, || render_task_canonical(task, report))?;
         report.record_render_outcome(outcome);
-        return Ok(preserve_task_separator(task, original, rendered));
+        return Ok(preserve_task_separator(original, rendered));
     }
     render_task_canonical(task, report)
 }
 
-/// Restore the separator required after a preserved task's final child.
-fn preserve_task_separator(task: &TaskEntry, original: &str, rendered: String) -> String {
-    if rendered == trim_preserved_task_source(original) && task_requires_trailing_separator(task) {
-        format!("{rendered}\n")
+/// Restore the complete source boundary after a stable preserved task.
+///
+/// The list renderer only synthesizes a separator when its preceding task did
+/// not supply one. Returning the original suffix therefore retains loose-list
+/// blank lines and their line-ending convention byte-for-byte.
+fn preserve_task_separator(original: &str, rendered: String) -> String {
+    if rendered == trim_preserved_task_source(original) {
+        original.to_owned()
     } else {
         rendered
     }
@@ -57,18 +61,6 @@ fn preserve_sub_task_separator(
     } else {
         rendered
     }
-}
-
-/// Return whether a task's final child needs a trailing blank separator.
-fn task_requires_trailing_separator(task: &TaskEntry) -> bool {
-    task.children().last().is_some_and(|child| match child {
-        TaskChild::Body(body) => markdown_requires_trailing_separator(body),
-        TaskChild::SubTask(identity) => task
-            .sub_tasks()
-            .iter()
-            .find(|sub_task| sub_task.identity == *identity)
-            .is_some_and(sub_task_requires_trailing_separator),
-    })
 }
 
 /// Return whether a sub-task's final body node needs a trailing separator.
@@ -99,11 +91,11 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
         "- {}{}. {}",
         checkbox_marker(task.checked),
         task.number,
-        render_item_summary(&render_inline(task.summary.nodes())?, 4)
+        render_item_summary(&render_inline(task.summary.nodes())?, 2)
     )];
     for child in task.children() {
         match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
+            TaskChild::Body(body) => parts.extend(render_nested_body(body, 2)?),
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2, report)?);
@@ -160,7 +152,7 @@ fn render_sub_task_canonical(sub_task: &SubTaskEntry, indent: usize) -> Result<S
         sub_task.number,
         render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
     )];
-    let body_blocks = render_nested_body(&sub_task.body, indent + 4)?;
+    let body_blocks = render_nested_body(&sub_task.body, indent + 2)?;
     if !body_blocks.is_empty() {
         parts.push(String::new());
         parts.extend(body_blocks);

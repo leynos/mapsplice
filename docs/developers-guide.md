@@ -144,7 +144,10 @@ invalidation, while `src/roadmap/render_task.rs` reuses preserved source before
 falling back to canonical rendering. Clear an item only when its own number or
 text changes, when dependency-related content changes, or when a structural
 descendant changes. Preserve the source only when it is formatter-stable;
-otherwise use the canonical fallback.
+otherwise use the canonical fallback. Unchanged task and sub-task chunks remain
+byte-identical, including continuation indentation. Invalidated or
+formatter-unstable items use canonical rendering with the two-space
+continuation convention.
 
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in

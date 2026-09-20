@@ -74,7 +74,7 @@ pub struct StepSection {
     /// Blocks between the step heading and first task list.
     pub body: MarkdownNodes,
     /// Ordered tasks within the step.
-    pub tasks: Vec<TaskEntry>,
+    pub(super) tasks: Vec<TaskEntry>,
     /// Exact original task list source while every task remains unchanged.
     pub(crate) task_list_source: Option<String>,
     /// Blocks after the last task.
@@ -87,9 +87,9 @@ pub struct TaskEntry {
     /// Original identity for renumber tracking.
     pub identity: ItemIdentity,
     /// Current rendered task number.
-    pub number: TaskNumber,
+    pub(super) number: TaskNumber,
     /// Checkbox state, when present.
-    pub checked: Option<bool>,
+    pub(super) checked: Option<bool>,
     /// First paragraph content after the numeric prefix.
     pub summary: MarkdownNodes,
     /// Additional blocks nested beneath the task.

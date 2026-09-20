@@ -218,7 +218,7 @@ fn parent_task_mut(roadmap: &mut crate::roadmap::RoadmapDocument) -> Option<&mut
         .phases
         .first_mut()
         .and_then(|phase| phase.steps.first_mut())
-        .and_then(|step| step.tasks.first_mut())
+        .and_then(|step| step.tasks_mut().first_mut())
 }
 
 fn collect_named_fixture_paths(

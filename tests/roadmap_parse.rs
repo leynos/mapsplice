@@ -176,7 +176,7 @@ fn parse_roadmap_keeps_preamble_and_structure() {
         .steps
         .first()
         .expect("phase should contain one step");
-    assert_eq!(first_step.tasks.len(), 1);
+    assert_eq!(first_step.tasks().len(), 1);
 }
 
 #[rstest]

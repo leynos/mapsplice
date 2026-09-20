@@ -68,7 +68,7 @@ impl<'source> StepAccumulator<'source> {
 
         let mut tasks = parse_task_list(list, self.source, self.source_text)?;
         validate_tasks_belong_to_step(current.number, &tasks)?;
-        if current.tasks.is_empty() {
+        if current.tasks().is_empty() {
             current.set_task_list_source(
                 list.position
                     .as_ref()
@@ -77,7 +77,7 @@ impl<'source> StepAccumulator<'source> {
         } else {
             current.clear_task_list_source();
         }
-        current.tasks.append(&mut tasks);
+        current.tasks_mut().append(&mut tasks);
         Ok(())
     }
 
@@ -88,7 +88,7 @@ impl<'source> StepAccumulator<'source> {
             .ok_or_else(|| MapspliceError::InvalidRoadmap {
                 message: "step fragments must contain only step sections".to_owned(),
             })?;
-        if current.tasks.is_empty() {
+        if current.tasks().is_empty() {
             current.body.push_preserved(node, self.source_text);
         } else {
             current.trailing.push_preserved(node, self.source_text);
