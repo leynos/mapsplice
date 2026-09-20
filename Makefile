@@ -21,13 +21,17 @@ CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep 
 JQ ?= jq
 DOC_TEST_TARGETS ?= $(shell if command -v $(JQ) >/dev/null 2>&1; then $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | $(JQ) -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null; else echo jq-missing; fi)
 MDLINT ?= markdownlint-cli2
-# `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
-# Markdown files Git tracks and `--include-untracked` adds the untracked files
-# Git does not ignore, so a new document is formatted before it is staged.
+# `make fmt` and `make check-fmt` call mdtablefix directly. The selected paths
+# include tracked Markdown and unignored Markdown files, so a new document is
+# formatted before it is staged. The two preservation fixtures are deliberately
+# excluded: they contain non-contiguous ordered-looking indented-code lines
+# whose byte-identical preservation is the behaviour under test.
 # Both modes need mdtablefix 0.6.0 or later; CI pins the version at the
 # install-mdtablefix step.
 MDTABLEFIX ?= mdtablefix
-MDTABLEFIX_SELECT = --git --include-untracked
+MDTABLEFIX_SELECT = $(shell git ls-files --cached --others --exclude-standard -- '*.md' \
+	':!tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md' \
+	':!tests/fixtures/golden/insert_task_preserves_indented_code_markers/expected.md')
 MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 MDFIX ?= $(MDTABLEFIX)
 MARKDOWN_PATHS ?=

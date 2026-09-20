@@ -23,6 +23,9 @@ pub(crate) struct SuccessAssertion<'a> {
 pub(crate) fn assert_success(assertion: &SuccessAssertion<'_>) -> TestResult {
     match assertion.output {
         SuccessOutput::Stdout { expected } => assert_stdout_fixture(assertion, expected),
+        SuccessOutput::StdoutPreservedSource { expected } => {
+            assert_stdout_preserved_source_fixture(assertion, expected)
+        }
         SuccessOutput::StdoutTargetUnchanged { expected } => {
             assert_stdout_target_unchanged(assertion, expected)
         }
@@ -39,6 +42,20 @@ fn assert_stdout_fixture(
 ) -> TestResult {
     let expected_body = expected_output(expected)?;
     assert_stdout(assertion.name, assertion.outcome, &expected_body)
+}
+
+/// Assert an exact preserved-source fixture without normalizing its Markdown.
+fn assert_stdout_preserved_source_fixture(
+    assertion: &SuccessAssertion<'_>,
+    expected: super::FixturePath,
+) -> TestResult {
+    let expected_body = expected_output(expected)?;
+    let actual = assertion
+        .outcome
+        .stdout
+        .as_deref()
+        .ok_or_else(|| format!("golden fixture `{}` emitted no stdout", assertion.name))?;
+    compare_text(assertion.name, "stdout", actual, &expected_body)
 }
 
 fn assert_stdout_target_unchanged(

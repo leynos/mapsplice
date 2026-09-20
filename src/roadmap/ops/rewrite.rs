@@ -11,6 +11,7 @@ use super::{
         SubTaskNumber,
         TaskNumber,
         model::{MarkdownNodes, RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
+        preservation_events::{PreservationInvalidationReason, PreservationReport},
     },
     dependency_text::rewrite_text_value,
 };
@@ -24,6 +25,7 @@ struct DependencyRewriteContext<'plan> {
 }
 
 impl<'plan> DependencyRewriteContext<'plan> {
+    /// Create an empty traversal context for the supplied renumbering plan.
     const fn new(plan: &'plan RenumberPlan) -> Self {
         Self {
             plan,
@@ -34,7 +36,10 @@ impl<'plan> DependencyRewriteContext<'plan> {
 }
 
 /// Renumber every roadmap item and return the old-to-new mapping.
-pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<RenumberPlan> {
+pub(super) fn renumber_document(
+    roadmap: &mut RoadmapDocument,
+    report: &mut PreservationReport,
+) -> Result<RenumberPlan> {
     let mut plan = RenumberPlan::default();
 
     for (phase_index, phase) in roadmap.phases.iter_mut().enumerate() {
@@ -53,25 +58,46 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
                 step.clear_task_list_source();
             }
             step.number = new_step;
-
-            for (task_index, task) in step.tasks.iter_mut().enumerate() {
-                let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
-                plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
-                task.number = new_task;
-                renumber_sub_tasks(task, new_task, &mut plan)?;
-            }
+            renumber_step_tasks(&mut step.tasks, new_step, &mut plan, report)?;
         }
     }
 
     Ok(plan)
 }
 
-/// Renumber ordered sub-tasks beneath one task.
+/// Renumber tasks in one step and invalidate only tasks whose own number changes.
+///
+/// Returns an error when the collection exceeds the supported roadmap number
+/// range.
+fn renumber_step_tasks(
+    tasks: &mut [TaskEntry],
+    new_step: StepNumber,
+    plan: &mut RenumberPlan,
+    report: &mut PreservationReport,
+) -> Result<()> {
+    for (task_index, task) in tasks.iter_mut().enumerate() {
+        let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
+        plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
+        if task.number != new_task && task.clear_original_source() {
+            report.record_invalidation(PreservationInvalidationReason::Renumber);
+        }
+        task.number = new_task;
+        renumber_sub_tasks(task, new_task, plan, report)?;
+    }
+    Ok(())
+}
+
+/// Renumber a task's sub-tasks and invalidate changed descendants and parents.
+///
+/// Returns an error when the sub-task collection exceeds the supported number
+/// range.
 fn renumber_sub_tasks(
     task: &mut TaskEntry,
     new_task: TaskNumber,
     plan: &mut RenumberPlan,
+    report: &mut PreservationReport,
 ) -> Result<()> {
+    let mut descendants_changed = false;
     for (sub_task_index, sub_task) in task.sub_tasks_mut().iter_mut().enumerate() {
         let new_sub_task =
             SubTaskNumber::new(new_task, to_number(sub_task_index + 1, "sub-task")?)?;
@@ -80,7 +106,14 @@ fn renumber_sub_tasks(
             sub_task.identity.anchor,
             new_sub_task.into(),
         );
+        if sub_task.number != new_sub_task && sub_task.clear_original_source() {
+            report.record_invalidation(PreservationInvalidationReason::Renumber);
+            descendants_changed = true;
+        }
         sub_task.number = new_sub_task;
+    }
+    if descendants_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::Renumber);
     }
     Ok(())
 }
@@ -89,6 +122,7 @@ fn renumber_sub_tasks(
 pub(super) fn rewrite_dependencies(
     roadmap: &mut RoadmapDocument,
     plan: &RenumberPlan,
+    report: &mut PreservationReport,
 ) -> Result<u64> {
     let mut context = DependencyRewriteContext::new(plan);
     rewrite_markdown_nodes(&mut roadmap.preamble, SourceId::Target, &mut context)?;
@@ -103,7 +137,7 @@ pub(super) fn rewrite_dependencies(
             rewrite_markdown_nodes(&mut step.trailing, step.identity.source, &mut context)?;
             let before_tasks = context.rewrite_count;
             for task in &mut step.tasks {
-                rewrite_task_entry(task, &mut context)?;
+                rewrite_task_entry(task, &mut context, report)?;
             }
             if context.rewrite_count > before_tasks {
                 step.clear_task_list_source();
@@ -116,43 +150,72 @@ pub(super) fn rewrite_dependencies(
     Ok(context.rewrite_count)
 }
 
-/// Rewrite dependencies inside one task and its ordered sub-tasks.
+/// Rewrite dependency references in a task and its structural descendants.
+///
+/// The task's preserved source is cleared when its own text or a descendant
+/// changes. Errors report unresolved dependency anchors.
 fn rewrite_task_entry(
     task: &mut TaskEntry,
     context: &mut DependencyRewriteContext<'_>,
+    report: &mut PreservationReport,
 ) -> Result<()> {
-    rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
-    rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
+    let summary_changed = rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
+    let body_changed = rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
+    let task_text_changed = summary_changed || body_changed;
+    if task_text_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
+    }
+    let mut descendant_changed = false;
     for sub_task in task.sub_tasks_mut() {
-        rewrite_sub_task_entry(sub_task, context)?;
+        if rewrite_sub_task_entry(sub_task, context, report)? {
+            descendant_changed = true;
+        }
+    }
+    if descendant_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
     Ok(())
 }
 
-/// Rewrite dependencies inside one sub-task.
+/// Rewrite dependency references in one sub-task and report whether it changed.
+///
+/// Errors report unresolved dependency anchors encountered in the sub-task.
 fn rewrite_sub_task_entry(
     sub_task: &mut SubTaskEntry,
     context: &mut DependencyRewriteContext<'_>,
-) -> Result<()> {
-    rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
-    rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)
+    report: &mut PreservationReport,
+) -> Result<bool> {
+    let summary_changed =
+        rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
+    let body_changed =
+        rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)?;
+    let changed = summary_changed || body_changed;
+    if changed && sub_task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
+    }
+    Ok(changed)
 }
 
-/// Rewrite Markdown nodes and invalidate original snippets only on change.
+/// Rewrite dependency references in Markdown nodes and report whether they changed.
+///
+/// Changed nodes lose their preserved block source; errors report unresolved
+/// dependency anchors.
 fn rewrite_markdown_nodes(
     markdown: &mut MarkdownNodes,
     source: SourceId,
     context: &mut DependencyRewriteContext<'_>,
-) -> Result<()> {
+) -> Result<bool> {
     let before = context.rewrite_count;
     rewrite_nodes(markdown.nodes_mut(), source, context)?;
     if context.rewrite_count > before {
         markdown.clear_original_blocks();
     }
-    Ok(())
+    Ok(context.rewrite_count > before)
 }
 
-/// Rewrite every eligible text node in a node slice.
+/// Visit each Markdown node in order and rewrite eligible text descendants.
+///
+/// Errors report unresolved dependency anchors from the traversal.
 fn rewrite_nodes(
     nodes: &mut [Node],
     source: SourceId,
@@ -164,7 +227,9 @@ fn rewrite_nodes(
     Ok(())
 }
 
-/// Rewrite one Markdown node, recursing into child-bearing nodes.
+/// Rewrite one Markdown node, descending into containers as needed.
+///
+/// Errors report unresolved dependency anchors from text descendants.
 fn rewrite_node(
     node: &mut Node,
     source: SourceId,
@@ -181,7 +246,9 @@ fn rewrite_node(
     rewrite_container_node(node, source, context)
 }
 
-/// Rewrite block-level container children.
+/// Rewrite children of a block-level Markdown container.
+///
+/// Errors report unresolved dependency anchors from nested text nodes.
 fn rewrite_container_node(
     node: &mut Node,
     source: SourceId,
@@ -204,7 +271,9 @@ fn rewrite_container_node(
     }
 }
 
-/// Rewrite inline container children.
+/// Rewrite children of an inline Markdown container.
+///
+/// Errors report unresolved dependency anchors from nested text nodes.
 fn rewrite_inline_container_node(
     node: &mut Node,
     source: SourceId,
@@ -220,7 +289,9 @@ fn rewrite_inline_container_node(
     }
 }
 
-/// Rewrite MDX container children.
+/// Rewrite children of an MDX container, leaving leaf nodes unchanged.
+///
+/// Errors report unresolved dependency anchors from nested text nodes.
 fn rewrite_mdx_container_node(
     node: &mut Node,
     source: SourceId,
@@ -233,7 +304,10 @@ fn rewrite_mdx_container_node(
     }
 }
 
-/// Convert a collection index into a supported roadmap number.
+/// Convert a collection index to a supported roadmap number.
+///
+/// Returns [`MapspliceError::InvalidRoadmap`] when `value` cannot fit in a
+/// `u32`.
 fn to_number(value: usize, label: &str) -> Result<u32> {
     u32::try_from(value).map_err(|_| MapspliceError::InvalidRoadmap {
         message: format!("{label} count exceeds supported numbering range"),

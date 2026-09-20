@@ -9,10 +9,13 @@ mod golden;
 use golden::{
     GoldenCommand,
     GoldenWorkspace,
+    SuccessOutput,
     TestResult,
     assert_golden_case,
     create_workspace,
+    golden_fixture,
     golden_success_case,
+    golden_success_output_case,
     reference_delete_case,
 };
 use rstest::{fixture, rstest};
@@ -54,6 +57,46 @@ fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
             "insert_step_after",
             GoldenCommand::InsertAfter { anchor: "1.1" },
             true,
+        ),
+    )
+}
+
+/// Verify target source survives each standard structural insertion shape.
+#[rstest]
+#[case::wrapped_tasks("insert_step_preserves_wrapped_tasks", "1.1")]
+#[case::wrapped_siblings("insert_task_preserves_wrapped_siblings", "1.1.2")]
+#[case::fenced_ordered_markers("insert_task_preserves_fenced_ordered_markers", "1.1.2")]
+#[case::fence_delimiter_content("insert_task_preserves_fence_delimiter_content", "1.1.2")]
+#[case::fenced_sub_task_sibling("insert_sub_task_preserves_fenced_sibling", "1.1.1.1")]
+#[serial_test::serial(cli_env)]
+fn standard_insertions_preserve_target_source(
+    workspace: TestResult<GoldenWorkspace>,
+    #[case] fixture_name: &'static str,
+    #[case] anchor: &'static str,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(fixture_name, GoldenCommand::InsertAfter { anchor }, true),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn insert_task_preserves_indented_code_markers(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_output_case(
+            "insert_task_preserves_indented_code_markers",
+            GoldenCommand::InsertAfter { anchor: "1.1.2" },
+            true,
+            SuccessOutput::StdoutPreservedSource {
+                expected: golden_fixture(
+                    "insert_task_preserves_indented_code_markers",
+                    "expected.md",
+                ),
+            },
         ),
     )
 }

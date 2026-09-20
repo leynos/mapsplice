@@ -7,6 +7,8 @@ mod preservation;
 mod render_tests;
 #[path = "render_table.rs"]
 mod table;
+#[path = "render_task.rs"]
+mod task;
 #[path = "render_text.rs"]
 mod text;
 
@@ -17,13 +19,30 @@ use text::{escape_markdown, indent_block, render_code_block};
 
 use super::{
     RoadmapDocument,
-    model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+    model::{MarkdownNodes, StepSection, SubTaskEntry, TaskChild, TaskEntry},
+    preservation_events::PreservationReport,
 };
 use crate::error::{MapspliceError, Result};
 
 /// Render a parsed roadmap back to Markdown.
+///
+/// # Errors
+///
+/// Returns an error when the document contains unsupported Markdown or an
+/// inconsistent task-child reference that cannot be rendered.
 #[tracing::instrument(skip_all, fields(phases = roadmap.phases.len()))]
 pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
+    render_roadmap_with_report(roadmap).map(|(rendered, _)| rendered)
+}
+
+/// Render a roadmap and return local source-preservation outcomes.
+///
+/// The report records task and sub-task renderer decisions without mutating
+/// process-wide observability. Errors leave the partial report unobserved.
+pub(crate) fn render_roadmap_with_report(
+    roadmap: &RoadmapDocument,
+) -> Result<(String, PreservationReport)> {
+    let mut report = PreservationReport::default();
     let mut blocks = Vec::new();
     blocks.extend(render_markdown_nodes(&roadmap.preamble, 0)?);
     for phase in &roadmap.phases {
@@ -34,52 +53,77 @@ pub fn render_roadmap(roadmap: &RoadmapDocument) -> Result<String> {
         ));
         blocks.extend(render_markdown_nodes(&phase.body, 0)?);
         for step in &phase.steps {
-            blocks.push(format!(
-                "### {}. {}",
-                step.number,
-                render_inline(step.title.nodes())?
-            ));
-            blocks.extend(render_markdown_nodes(&step.body, 0)?);
-            if !step.tasks.is_empty() {
-                let tasks = step.tasks.iter().collect::<Vec<_>>();
-                let rendered_tasks = if let Some(source) = step.task_list_source() {
-                    validate_tasks_for_render(&tasks)?;
-                    trim_preserved_task_source(source).to_owned()
-                } else {
-                    render_tasks(&tasks)?
-                };
-                blocks.push(rendered_tasks);
-            }
-            blocks.extend(render_markdown_nodes(&step.trailing, 0)?);
+            blocks.extend(render_step(step, &mut report)?);
         }
         blocks.extend(render_markdown_nodes(&phase.trailing, 0)?);
     }
-    let rendered = blocks.join("\n\n");
-    Ok(if rendered.is_empty() {
-        rendered
+    let assembled = blocks.join("\n\n");
+    let rendered = if assembled.is_empty() {
+        assembled
     } else {
-        format!("{rendered}\n")
-    })
+        format!("{assembled}\n")
+    };
+    Ok((rendered, report))
 }
 
-fn render_tasks(tasks: &[&TaskEntry]) -> Result<String> {
+/// Render one step, preserving its whole task-list source when available.
+///
+/// Returns an error when a task cannot be rendered or its structural child
+/// sequence is invalid. Per-item render decisions are added to `report` only
+/// when the whole task-list source is unavailable.
+fn render_step(step: &StepSection, report: &mut PreservationReport) -> Result<Vec<String>> {
+    let mut blocks = vec![format!(
+        "### {}. {}",
+        step.number,
+        render_inline(step.title.nodes())?
+    )];
+    blocks.extend(render_markdown_nodes(&step.body, 0)?);
+    if !step.tasks.is_empty() {
+        blocks.push(render_step_tasks(step, report)?);
+    }
+    blocks.extend(render_markdown_nodes(&step.trailing, 0)?);
+    Ok(blocks)
+}
+
+/// Render a step's tasks from whole-list source or individual task outcomes.
+///
+/// Returns an error when preserved source cannot be validated or a canonical
+/// task render encounters invalid Markdown.
+fn render_step_tasks(step: &StepSection, report: &mut PreservationReport) -> Result<String> {
+    let tasks = step.tasks.iter().collect::<Vec<_>>();
+    step.task_list_source().map_or_else(
+        || render_tasks(&tasks, report),
+        |source| {
+            validate_tasks_for_render(&tasks)?;
+            Ok(trim_preserved_task_source(source).to_owned())
+        },
+    )
+}
+
+/// Render task entries and join them as one canonical task-list body.
+fn render_tasks(tasks: &[&TaskEntry], report: &mut PreservationReport) -> Result<String> {
     tasks
         .iter()
-        .map(|task| render_task(task))
+        .map(|task| task::render_task(task, report))
         .collect::<Result<Vec<_>>>()
         .map(|lines| lines.join("\n").trim_end_matches('\n').to_owned())
 }
+/// Validate every task before reusing a preserved task-list source.
 fn validate_tasks_for_render(tasks: &[&TaskEntry]) -> Result<()> {
     tasks
         .iter()
         .try_for_each(|task| validate_task_for_render(task))
 }
+/// Validate one task's summary, body, and structural child references.
+///
+/// Returns an error when a child is not renderable or references a missing
+/// sub-task.
 fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
     render_inline(task.summary.nodes())?;
     task.children().iter().try_for_each(|child| match child {
         TaskChild::Body(body) => render_nested_body(body, 4).map(drop),
         TaskChild::SubTask(identity) => {
-            validate_sub_task_for_render(find_sub_task_for_child(task, *identity)?)
+            validate_sub_task_for_render(task::find_sub_task_for_child(task, *identity)?)
         }
     })
 }
@@ -88,25 +132,6 @@ fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
     render_nested_body(&sub_task.body, 8)?;
     Ok(())
 }
-fn render_task(task: &TaskEntry) -> Result<String> {
-    let mut parts = vec![format!(
-        "- {}{}. {}",
-        checkbox_marker(task.checked),
-        task.number,
-        render_item_summary(&render_inline(task.summary.nodes())?, 4)
-    )];
-    for child in task.children() {
-        match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
-            TaskChild::SubTask(identity) => {
-                let sub_task = find_sub_task_for_child(task, *identity)?;
-                parts.push(render_sub_task(sub_task, 2)?);
-            }
-        }
-    }
-    Ok(parts.join("\n"))
-}
-
 fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }
 
 const fn checkbox_marker(checked: Option<bool>) -> &'static str {
@@ -115,34 +140,6 @@ const fn checkbox_marker(checked: Option<bool>) -> &'static str {
         Some(false) => "[ ] ",
         None => "",
     }
-}
-
-fn find_sub_task_for_child(task: &TaskEntry, identity: ItemIdentity) -> Result<&SubTaskEntry> {
-    task.sub_tasks()
-        .iter()
-        .find(|sub_task| sub_task.identity == identity)
-        .ok_or_else(|| MapspliceError::InvalidRoadmap {
-            message: format!(
-                "task `{}` child ordering references missing sub-task `{}`",
-                task.number, identity.anchor
-            ),
-        })
-}
-
-fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
-    let prefix = " ".repeat(indent);
-    let mut parts = vec![format!(
-        "{prefix}- {}{}. {}",
-        checkbox_marker(sub_task.checked),
-        sub_task.number,
-        render_item_summary(&render_inline(sub_task.summary.nodes())?, indent + 2)
-    )];
-    let body_blocks = render_nested_body(&sub_task.body, indent + 4)?;
-    if !body_blocks.is_empty() {
-        parts.push(String::new());
-        parts.extend(body_blocks);
-    }
-    Ok(parts.join("\n"))
 }
 
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {

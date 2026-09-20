@@ -5,7 +5,7 @@ mod rewrite;
 mod sub_task;
 
 use rewrite::{renumber_document, rewrite_dependencies};
-use sub_task::{delete_sub_task, insert_sub_tasks, replace_sub_task};
+use sub_task::{SubTaskInsertion, delete_sub_task, insert_sub_tasks, replace_sub_task};
 
 use super::{
     PhaseNumber,
@@ -16,6 +16,7 @@ use super::{
     StepNumber,
     TaskNumber,
     model::{PhaseSection, StepSection},
+    preservation_events::PreservationReport,
 };
 use crate::error::{MapspliceError, Result};
 
@@ -67,6 +68,16 @@ impl RoadmapOperation {
     }
 }
 
+/// Validated content and placement for one structural insertion.
+///
+/// The fragment remains optional until this request reaches the level-specific
+/// insertion helper, where [`required_fragment`] reports a missing fragment.
+struct InsertionRequest {
+    anchor: RoadmapAnchor,
+    after: bool,
+    fragment: Option<RoadmapFragment>,
+}
+
 /// Apply a roadmap operation to the parsed roadmap.
 ///
 /// # Errors
@@ -82,20 +93,46 @@ pub fn apply_command(
     operation: RoadmapOperation,
     fragment: Option<RoadmapFragment>,
 ) -> Result<u64> {
+    apply_command_with_report(roadmap, operation, fragment)
+        .map(|(dependency_rewrites, _)| dependency_rewrites)
+}
+
+/// Apply a roadmap operation and return local source-preservation outcomes.
+///
+/// The returned report describes only successful staged mutations. Callers can
+/// defer process-wide observability until rendering and output writing also
+/// succeed. Errors preserve the original roadmap because mutation occurs on a
+/// cloned staging document.
+pub(crate) fn apply_command_with_report(
+    roadmap: &mut RoadmapDocument,
+    operation: RoadmapOperation,
+    fragment: Option<RoadmapFragment>,
+) -> Result<(u64, PreservationReport)> {
     let mut staged = roadmap.clone();
+    let mut report = PreservationReport::default();
     match operation {
         RoadmapOperation::Append => append_fragment(&mut staged, fragment)?,
         RoadmapOperation::Insert { anchor, after } => {
-            insert_fragment(&mut staged, anchor, after, fragment)?;
+            insert_fragment(
+                &mut staged,
+                InsertionRequest {
+                    anchor,
+                    after,
+                    fragment,
+                },
+                &mut report,
+            )?;
         }
-        RoadmapOperation::Delete { anchor } => delete_anchor(&mut staged, anchor)?,
-        RoadmapOperation::Replace { anchor } => replace_anchor(&mut staged, anchor, fragment)?,
+        RoadmapOperation::Delete { anchor } => delete_anchor(&mut staged, anchor, &mut report)?,
+        RoadmapOperation::Replace { anchor } => {
+            replace_anchor(&mut staged, anchor, fragment, &mut report)?;
+        }
     }
 
-    let plan = renumber_document(&mut staged)?;
-    let dependency_rewrites = rewrite_dependencies(&mut staged, &plan)?;
+    let plan = renumber_document(&mut staged, &mut report)?;
+    let dependency_rewrites = rewrite_dependencies(&mut staged, &plan, &mut report)?;
     *roadmap = staged;
-    Ok(dependency_rewrites)
+    Ok((dependency_rewrites, report))
 }
 
 fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragment>) -> Result<()> {
@@ -111,12 +148,21 @@ fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragme
     Ok(())
 }
 
+/// Insert a validated fragment around an anchor and report sub-task invalidation.
+///
+/// Returns an error when the fragment level differs from the anchor or the
+/// anchor is absent. Only sub-task insertion can invalidate a preserved parent
+/// source before the common renumbering pass.
 fn insert_fragment(
     roadmap: &mut RoadmapDocument,
-    anchor: RoadmapAnchor,
-    after: bool,
-    fragment: Option<RoadmapFragment>,
+    request: InsertionRequest,
+    report: &mut PreservationReport,
 ) -> Result<()> {
+    let InsertionRequest {
+        anchor,
+        after,
+        fragment,
+    } = request;
     let fragment_document = required_fragment("insert", fragment)?;
     let found = fragment_document.level();
     validate_fragment_level(anchor, found)?;
@@ -131,9 +177,12 @@ fn insert_fragment(
         (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
             insert_tasks(roadmap, target, after, tasks)
         }
-        (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
-            insert_sub_tasks(roadmap, target, after, sub_tasks)
-        }
+        (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => insert_sub_tasks(
+            roadmap,
+            target,
+            SubTaskInsertion { after, sub_tasks },
+            report,
+        ),
         _ => Err(MapspliceError::LevelMismatch {
             anchor,
             expected: anchor.level(),
@@ -185,7 +234,15 @@ fn insert_tasks(
     Ok(())
 }
 
-fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result<()> {
+/// Delete one addressed item and report a preserved parent source invalidation.
+///
+/// Returns an error when the anchor is absent. Only sub-task deletion clears a
+/// retained parent source before the common renumbering pass.
+fn delete_anchor(
+    roadmap: &mut RoadmapDocument,
+    anchor: RoadmapAnchor,
+    report: &mut PreservationReport,
+) -> Result<()> {
     match anchor {
         RoadmapAnchor::Phase(target) => {
             let index = find_phase_index(roadmap, target)?;
@@ -201,16 +258,22 @@ fn delete_anchor(roadmap: &mut RoadmapDocument, anchor: RoadmapAnchor) -> Result
             step.tasks.remove(task_index);
         }
         RoadmapAnchor::SubTask(target) => {
-            delete_sub_task(roadmap, target)?;
+            delete_sub_task(roadmap, target, report)?;
         }
     }
     Ok(())
 }
 
+/// Replace one addressed item and report a preserved parent source invalidation.
+///
+/// Returns an error for a missing fragment, an anchor-level mismatch, or an
+/// absent anchor. Only sub-task replacement clears a retained parent source
+/// before the common renumbering pass.
 fn replace_anchor(
     roadmap: &mut RoadmapDocument,
     anchor: RoadmapAnchor,
     fragment: Option<RoadmapFragment>,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     let fragment_document = required_fragment("replace", fragment)?;
     let found = fragment_document.level();
@@ -234,7 +297,7 @@ fn replace_anchor(
             Ok(())
         }
         (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
-            replace_sub_task(roadmap, target, sub_tasks)
+            replace_sub_task(roadmap, target, sub_tasks, report)
         }
         _ => Err(MapspliceError::LevelMismatch {
             anchor,

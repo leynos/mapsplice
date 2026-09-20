@@ -62,7 +62,7 @@ The library API is intentionally small:
 - `parse_anchor` validates canonical positive anchors such as `8`, `8.2`,
   `8.2.3`, and `8.2.3.1`.
 - `metrics_snapshot` returns bounded process-local counters for failures,
-  in-place rewrites, and dependency rewrites.
+  in-place rewrites, dependency rewrites, and source-preservation outcomes.
 
 Public APIs must return typed `MapspliceError` variants. Opaque reports belong
 only at external process boundaries.
@@ -98,6 +98,23 @@ through standard tracing environment configuration.
 durable metrics; they exist to make failure and rewrite counts inspectable in
 tests and embeddings without adding a metrics backend.
 
+`MetricsSnapshot` reports `preserved_source_renders`,
+`preserved_source_invalidations`, and `canonical_fallbacks` for the aggregate
+source-preservation outcomes. It also reports the reason-specific counters
+`invalidations_renumber`, `invalidations_dependency_rewrite`,
+`invalidations_child_mutation`, `canonical_fallbacks_unstable_list_marker`, and
+`canonical_fallbacks_unstable_code_fence`. All counters are atomic and
+process-local; they are snapshots for diagnostics and tests, not durable
+telemetry.
+
+The closed `PreservationInvalidationReason` set is `Renumber`,
+`DependencyRewrite`, and `ChildMutation`. The closed `CanonicalFallbackReason`
+set is `UnstableListMarker` and `UnstableCodeFence`. Invalidation is recorded
+at task or sub-task mutation points in `src/roadmap/model_task_entry.rs` and
+`src/roadmap/ops/rewrite.rs`. Preservation and canonical-fallback outcomes are
+recorded at the source-preservation rendering decision in
+`src/roadmap/render_preservation.rs`.
+
 ## 6. Verification layers
 
 The test suite has four layers:
@@ -119,7 +136,15 @@ extracts source spans, while `StepSection::task_list_source` stores the exact
 source for the first parsed task list in an unchanged step. Render validates
 the task model before reusing that source, and mutation or dependency-rewrite
 code must call `StepSection::clear_task_list_source` whenever the task list
-itself changes.
+itself changes. Target parsing also captures each task and addendum sub-task's
+list-item source in `TaskEntry::original_source` and
+`SubTaskEntry::original_source`; fragment items do not receive preserved source.
+`src/roadmap/model_task_entry.rs` owns the per-item accessors and structural
+invalidation, while `src/roadmap/render_task.rs` reuses preserved source before
+falling back to canonical rendering. Clear an item only when its own number or
+text changes, when dependency-related content changes, or when a structural
+descendant changes. Preserve the source only when it is formatter-stable;
+otherwise use the canonical fallback.
 
 Dependency-reference rewrite coverage is layered around the internal
 `classify_dependency_reference` predicate in
@@ -160,6 +185,11 @@ make nixie
 `MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
 `make fmt` remains repository-wide and can reformat unrelated Markdown files.
+The `make fmt` and `make check-fmt` targets select tracked and unignored
+Markdown files. They deliberately exclude
+`tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md`
+and `expected.md`, whose non-contiguous ordered-looking lines are indented-code
+fixtures for byte-identical source preservation and are not formatter-stable.
 
 `make nixie` validates Mermaid diagrams in tracked Markdown files through the
 CI-installed `merman-cli` renderer. The target runs one Markdown file at a time
