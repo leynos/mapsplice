@@ -23,6 +23,20 @@ impl TaskOperation {
             _ => Self::InsertSubTask,
         }
     }
+
+    /// Select a valid task index while retaining dependency-rewrite coverage.
+    #[must_use]
+    pub const fn task_anchor_index(self, selector: u8) -> usize {
+        match self {
+            Self::Insert | Self::Delete => (selector & 1) as usize,
+            Self::Replace => match selector & 3 {
+                0 => 0,
+                1 => 1,
+                _ => 3,
+            },
+            Self::InsertSubTask => 0,
+        }
+    }
 }
 
 /// Valid source-format dimensions for a generated task list.
@@ -62,6 +76,8 @@ impl TaskSourceShape {
 pub struct TaskSnapshot {
     /// Stable descriptive identity used in assertion output.
     pub identity: &'static str,
+    /// Original task anchor used to identify the captured task semantically.
+    pub anchor: &'static str,
     /// Verbatim task chunk captured before an operation.
     pub source: String,
 }
@@ -127,6 +143,7 @@ fn generated_tasks(
     [
         TaskSnapshot {
             identity: "first task",
+            anchor: "1.1.1",
             source: task_source(
                 shape,
                 &TaskSourceSpec {
@@ -140,6 +157,7 @@ fn generated_tasks(
         },
         TaskSnapshot {
             identity: "dependency task",
+            anchor: "1.1.2",
             source: task_source(
                 shape,
                 &TaskSourceSpec {
@@ -153,6 +171,7 @@ fn generated_tasks(
         },
         TaskSnapshot {
             identity: "edited task",
+            anchor: "1.1.3",
             source: task_source(
                 shape,
                 &TaskSourceSpec {
@@ -166,6 +185,7 @@ fn generated_tasks(
         },
         TaskSnapshot {
             identity: "stable task",
+            anchor: "1.1.4",
             source: task_source(
                 shape,
                 &TaskSourceSpec {

@@ -32,8 +32,10 @@ proptest! {
         continuation_extra in 0usize..2,
         options in 0u8..32,
         insert_after in any::<bool>(),
+        anchor_selector in 0u8..12,
     ) {
         let operation = TaskOperation::from_selector(operation_selector);
+        let anchor_index = operation.task_anchor_index(anchor_selector);
         let roadmap = generated_roadmap(
             TaskSourceShape {
                 marker_indent,
@@ -52,19 +54,26 @@ proptest! {
                 .write_fragment(fragment_for(operation))
                 .expect("fragment should be written");
         }
-        let output = run_task_operation(
+        let operation_outcome = run_task_operation(&TaskOperationRequest {
             operation,
             insert_after,
-            workspace.target.as_str(),
-            workspace.fragment.as_str(),
-        )
-        .expect("generated task operation should succeed")
-        .stdout
-        .unwrap_or_default();
+            anchor_index,
+            target: workspace.target.as_str(),
+            fragment: workspace.fragment.as_str(),
+        });
+        prop_assert!(
+            operation_outcome.is_ok(),
+            "generated task operation should succeed: {operation_outcome:?}",
+        );
+        let output = operation_outcome
+            .expect("checked generated operation result")
+            .stdout
+            .unwrap_or_default();
 
         assert_operation_result(&OperationResult {
             operation,
             after: insert_after,
+            anchor_index,
             roadmap: &roadmap,
             snapshots: &snapshots,
             output: &output,
@@ -91,12 +100,13 @@ proptest! {
         workspace
             .write_fragment(fragment_for(TaskOperation::Insert))
             .expect("insert fragment should be written");
-        let inserted = run_task_operation(
-            TaskOperation::Insert,
-            true,
-            workspace.target.as_str(),
-            workspace.fragment.as_str(),
-        )
+        let inserted = run_task_operation(&TaskOperationRequest {
+            operation: TaskOperation::Insert,
+            insert_after: true,
+            anchor_index: 1,
+            target: workspace.target.as_str(),
+            fragment: workspace.fragment.as_str(),
+        })
         .expect("first generated operation should succeed")
         .stdout
         .unwrap_or_default();
@@ -106,12 +116,13 @@ proptest! {
         workspace
             .write_fragment(fragment_for(TaskOperation::Replace))
             .expect("replacement fragment should be written");
-        let output = run_task_operation(
-            TaskOperation::Replace,
-            false,
-            workspace.target.as_str(),
-            workspace.fragment.as_str(),
-        )
+        let output = run_task_operation(&TaskOperationRequest {
+            operation: TaskOperation::Replace,
+            insert_after: false,
+            anchor_index: 1,
+            target: workspace.target.as_str(),
+            fragment: workspace.fragment.as_str(),
+        })
         .expect("second generated operation should succeed")
         .stdout
         .unwrap_or_default();
@@ -143,12 +154,13 @@ fn dependency_rewrite_invalidates_only_its_referencing_task() {
     workspace
         .write_fragment(fragment_for(TaskOperation::Insert))
         .expect("insert fragment should be written");
-    let output = run_task_operation(
-        TaskOperation::Insert,
-        true,
-        workspace.target.as_str(),
-        workspace.fragment.as_str(),
-    )
+    let output = run_task_operation(&TaskOperationRequest {
+        operation: TaskOperation::Insert,
+        insert_after: true,
+        anchor_index: 1,
+        target: workspace.target.as_str(),
+        fragment: workspace.fragment.as_str(),
+    })
     .expect("dependency rewrite should succeed")
     .stdout
     .unwrap_or_default();
@@ -197,37 +209,52 @@ fn sub_task_expectation_follows_the_requested_insertion_side() {
     assert_eq!(after.matches(original).count(), 1);
 }
 
+/// One generated operation and its file inputs.
+struct TaskOperationRequest<'a> {
+    operation: TaskOperation,
+    insert_after: bool,
+    anchor_index: usize,
+    target: &'a str,
+    fragment: &'a str,
+}
+
 /// Run one generated operation with only valid task or sub-task anchors.
 fn run_task_operation(
-    operation: TaskOperation,
-    after: bool,
-    target: &str,
-    fragment: &str,
+    request: &TaskOperationRequest<'_>,
 ) -> mapsplice::Result<mapsplice::RunOutcome> {
+    let task_anchor = format!("1.1.{}", request.anchor_index + 1);
     let mut arguments = vec!["mapsplice".to_owned()];
-    match operation {
+    match request.operation {
         TaskOperation::Insert => {
             arguments.push("insert".to_owned());
-            if after {
+            if request.insert_after {
                 arguments.push("--after".to_owned());
             }
-            arguments.extend([target.to_owned(), "1.1.2".to_owned(), fragment.to_owned()]);
+            arguments.extend([
+                request.target.to_owned(),
+                task_anchor,
+                request.fragment.to_owned(),
+            ]);
         }
         TaskOperation::Delete => {
-            arguments.extend(["delete".to_owned(), target.to_owned(), "1.1.2".to_owned()]);
+            arguments.extend(["delete".to_owned(), request.target.to_owned(), task_anchor]);
         }
         TaskOperation::Replace => arguments.extend([
             "replace".to_owned(),
-            target.to_owned(),
-            "1.1.2".to_owned(),
-            fragment.to_owned(),
+            request.target.to_owned(),
+            task_anchor,
+            request.fragment.to_owned(),
         ]),
         TaskOperation::InsertSubTask => {
             arguments.push("insert".to_owned());
-            if after {
+            if request.insert_after {
                 arguments.push("--after".to_owned());
             }
-            arguments.extend([target.to_owned(), "1.1.1.1".to_owned(), fragment.to_owned()]);
+            arguments.extend([
+                request.target.to_owned(),
+                "1.1.1.1".to_owned(),
+                request.fragment.to_owned(),
+            ]);
         }
     }
     run_from_args(arguments)
@@ -237,6 +264,7 @@ fn run_task_operation(
 struct OperationResult<'a> {
     operation: TaskOperation,
     after: bool,
+    anchor_index: usize,
     roadmap: &'a GeneratedRoadmap,
     snapshots: &'a [TaskSnapshot; 4],
     output: &'a str,
@@ -245,18 +273,9 @@ struct OperationResult<'a> {
 /// Assert the exact source or canonical output expected for one operation.
 fn assert_operation_result(result: &OperationResult<'_>) -> TestCaseResult {
     match result.operation {
-        TaskOperation::Insert => assert_insert_result(
-            result.after,
-            result.roadmap,
-            result.snapshots,
-            result.output,
-        ),
-        TaskOperation::Delete => {
-            assert_delete_result(result.roadmap, result.snapshots, result.output)
-        }
-        TaskOperation::Replace => {
-            assert_replace_result(result.roadmap, result.snapshots, result.output)
-        }
+        TaskOperation::Insert => assert_insert_result(result),
+        TaskOperation::Delete => assert_delete_result(result),
+        TaskOperation::Replace => assert_replace_result(result),
         TaskOperation::InsertSubTask => assert_sub_task_insert_result(
             result.after,
             result.roadmap,
@@ -267,79 +286,95 @@ fn assert_operation_result(result: &OperationResult<'_>) -> TestCaseResult {
 }
 
 /// Assert insertion invalidates renumbered and dependency-rewritten task text.
-fn assert_insert_result(
-    after: bool,
-    roadmap: &GeneratedRoadmap,
-    snapshots: &[TaskSnapshot; 4],
-    output: &str,
-) -> TestCaseResult {
-    assert_source_occurs_once(output, &snapshots[0])?;
-    assert_source_absent(output, &snapshots[1])?;
+fn assert_insert_result(result: &OperationResult<'_>) -> TestCaseResult {
+    let insertion_index = result.anchor_index + usize::from(result.after);
+    for ((index, snapshot), label) in result
+        .snapshots
+        .iter()
+        .enumerate()
+        .zip(result.roadmap.labels)
+    {
+        if index < insertion_index && index != 1 {
+            assert_source_occurs_once(result.output, snapshot)?;
+        } else {
+            assert_source_absent(result.output, snapshot)?;
+            let number = index + 1 + usize::from(index >= insertion_index);
+            let dependency_target = 3 + usize::from(2 >= insertion_index);
+            assert_text_occurs_once(
+                result.output,
+                &canonical_original_task(snapshot, label, number, dependency_target),
+                snapshot.identity,
+            )?;
+        }
+    }
     assert_text_occurs_once(
-        output,
-        &canonical_task(
-            if after { "1.1.2" } else { "1.1.3" },
-            roadmap.labels[1],
-            Some("Requires 1.1.4."),
-        ),
-        "dependency-rewritten task",
-    )?;
-    assert_text_occurs_once(
-        output,
-        &canonical_task(if after { "1.1.3" } else { "1.1.2" }, "Inserted", None),
+        result.output,
+        &canonical_task(&format!("1.1.{}", insertion_index + 1), "Inserted", None),
         "inserted task",
-    )?;
-    assert_text_occurs_once(
-        output,
-        &canonical_task("1.1.4", roadmap.labels[2], None),
-        "renumbered task",
-    )?;
-    assert_text_occurs_once(
-        output,
-        &canonical_task("1.1.5", roadmap.labels[3], None),
-        "renumbered stable task",
     )
 }
 
 /// Assert deletion keeps only the task whose text and number are unchanged.
-fn assert_delete_result(
-    roadmap: &GeneratedRoadmap,
-    snapshots: &[TaskSnapshot; 4],
-    output: &str,
-) -> TestCaseResult {
-    assert_source_occurs_once(output, &snapshots[0])?;
-    assert_source_absent(output, &snapshots[1])?;
-    assert_text_occurs_once(
-        output,
-        &canonical_task("1.1.2", roadmap.labels[2], None),
-        "renumbered surviving task",
-    )?;
-    assert_text_occurs_once(
-        output,
-        &canonical_task("1.1.3", roadmap.labels[3], None),
-        "renumbered final task",
-    )
+fn assert_delete_result(result: &OperationResult<'_>) -> TestCaseResult {
+    for ((index, snapshot), label) in result
+        .snapshots
+        .iter()
+        .enumerate()
+        .zip(result.roadmap.labels)
+    {
+        if index == result.anchor_index {
+            assert_source_absent(result.output, snapshot)?;
+        } else if task_source_survives_delete(index, result.anchor_index) {
+            assert_source_occurs_once(result.output, snapshot)?;
+        } else {
+            assert_source_absent(result.output, snapshot)?;
+            let number = index + 1 - usize::from(index > result.anchor_index);
+            let dependency_target = 3 - usize::from(2 > result.anchor_index);
+            assert_text_occurs_once(
+                result.output,
+                &canonical_original_task(snapshot, label, number, dependency_target),
+                snapshot.identity,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// Return whether this generated deletion leaves a task source unchanged.
+const fn task_source_survives_delete(index: usize, deleted_index: usize) -> bool {
+    index == 0 && deleted_index == 1
 }
 
 /// Assert replacement preserves all sibling source chunks exactly once.
-fn assert_replace_result(
-    _roadmap: &GeneratedRoadmap,
-    snapshots: &[TaskSnapshot; 4],
-    output: &str,
-) -> TestCaseResult {
-    let replaced_index = 1;
-    for (index, snapshot) in snapshots.iter().enumerate() {
-        if index == replaced_index {
-            assert_source_absent(output, snapshot)?;
+fn assert_replace_result(result: &OperationResult<'_>) -> TestCaseResult {
+    for (index, snapshot) in result.snapshots.iter().enumerate() {
+        if index == result.anchor_index {
+            assert_source_absent(result.output, snapshot)?;
         } else {
-            assert_source_occurs_once(output, snapshot)?;
+            assert_source_occurs_once(result.output, snapshot)?;
         }
     }
     assert_text_occurs_once(
-        output,
-        &canonical_task("1.1.2", "Replacement", None),
+        result.output,
+        &canonical_task(
+            &format!("1.1.{}", result.anchor_index + 1),
+            "Replacement",
+            None,
+        ),
         "replacement task",
     )
+}
+
+/// Render one original task after a structural operation changes its number.
+fn canonical_original_task(
+    snapshot: &TaskSnapshot,
+    label: &str,
+    number: usize,
+    dependency_target: usize,
+) -> String {
+    let dependency =
+        (snapshot.anchor == "1.1.2").then(|| format!("Requires 1.1.{dependency_target}."));
+    canonical_task(&format!("1.1.{number}"), label, dependency.as_deref())
 }
 
 /// Assert a sub-task edit invalidates only its parent task source.
@@ -366,7 +401,11 @@ fn assert_sub_task_insert_result(
 
 /// Count one exact source chunk and fail if canonical output was duplicated.
 fn assert_source_occurs_once(output: &str, snapshot: &TaskSnapshot) -> TestCaseResult {
-    assert_text_occurs_once(output, &snapshot.source, snapshot.identity)
+    assert_text_occurs_once(
+        output,
+        &snapshot.source,
+        &format!("{} ({})", snapshot.identity, snapshot.anchor),
+    )
 }
 
 /// Require a changed task's prior source chunk to be absent from output.
@@ -374,8 +413,9 @@ fn assert_source_absent(output: &str, snapshot: &TaskSnapshot) -> TestCaseResult
     prop_assert_eq!(
         output.matches(&snapshot.source).count(),
         0,
-        "stale source for {} remained in output:\n{}",
+        "stale source for {} ({}) remained in output:\n{}",
         snapshot.identity,
+        snapshot.anchor,
         output,
     );
     Ok(())
