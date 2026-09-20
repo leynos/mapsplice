@@ -56,8 +56,8 @@ pub(super) struct ParseContext<'source> {
 ///     "## 1. Initial phase\n\n### 1.1. First step\n\n- [ ] 1.1.1. Ship the first task\n",
 /// )?;
 ///
-/// let task = &roadmap.phases[0].steps[0].tasks[0];
-/// assert_eq!(task.number.to_string(), "1.1.1");
+/// let task = &roadmap.phases[0].steps[0].tasks()[0];
+/// assert_eq!(task.number().to_string(), "1.1.1");
 /// # Ok(())
 /// # }
 /// ```
@@ -162,11 +162,12 @@ pub(super) fn validate_tasks_belong_to_step(
     tasks: &[TaskEntry],
 ) -> Result<()> {
     for task in tasks {
-        if task.number.step_number() != step_number {
+        if task.number().step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: format!(
                     "task `{}` does not belong to step `{}`",
-                    task.number, step_number
+                    task.number(),
+                    step_number
                 ),
             });
         }

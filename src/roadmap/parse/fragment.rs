@@ -37,10 +37,10 @@ use crate::{
 /// let RoadmapFragment::Phase(phases) = fragment else {
 ///     return Err("expected a phase fragment".into());
 /// };
-/// let task = &phases[0].steps[0].tasks[0];
+/// let task = &phases[0].steps[0].tasks()[0];
 ///
 /// assert_eq!(phases[0].number.get(), 1);
-/// assert_eq!(task.number.to_string(), "1.1.1");
+/// assert_eq!(task.number().to_string(), "1.1.1");
 /// # Ok(())
 /// # }
 /// ```
@@ -255,9 +255,9 @@ fn validate_task_siblings(tasks: &[TaskEntry]) -> Result<()> {
     let Some(first) = tasks.first() else {
         return Ok(());
     };
-    let step_number = first.number.step_number();
+    let step_number = first.number().step_number();
     for task in tasks {
-        if task.number.step_number() != step_number {
+        if task.number().step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "task fragments must contain tasks from one step".to_owned(),
             });

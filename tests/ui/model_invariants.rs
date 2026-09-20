@@ -11,6 +11,6 @@ fn main() {
     ))
     .expect("roadmap should parse");
 
-    let task = &mut roadmap.phases[0].steps[0].tasks[0];
+    let task = &mut roadmap.phases[0].steps[0].tasks()[0];
     task.sub_tasks.clear();
 }

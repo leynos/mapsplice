@@ -11,8 +11,30 @@ use super::{
     TaskChild,
     TaskEntry,
     TaskEntryParts,
+    TaskNumber,
 };
 impl TaskEntry {
+    /// Return the task's current rendered number.
+    #[must_use]
+    pub const fn number(&self) -> TaskNumber { self.number }
+
+    /// Return the task's checkbox state.
+    #[must_use]
+    pub const fn checked(&self) -> Option<bool> { self.checked }
+
+    /// Set a task number and invalidate its preserved source.
+    pub(crate) fn set_number(&mut self, number: TaskNumber) {
+        self.number = number;
+        self.clear_original_source();
+    }
+
+    /// Set a task checkbox state and invalidate its preserved source.
+    #[cfg(test)]
+    pub(crate) fn set_checked(&mut self, checked: Option<bool>) {
+        self.checked = checked;
+        self.clear_original_source();
+    }
+
     /// Build a parsed task entry from parser-owned parts.
     pub(crate) fn from_parts(parts: TaskEntryParts) -> Result<Self> {
         validate_task_children(&parts)?;

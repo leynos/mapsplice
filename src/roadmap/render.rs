@@ -5,6 +5,9 @@ mod preservation;
 #[cfg(test)]
 #[path = "render_tests.rs"]
 mod render_tests;
+#[cfg(test)]
+#[path = "render_mutation_tests.rs"]
+mod render_mutation_tests;
 #[path = "render_table.rs"]
 mod table;
 #[path = "render_task.rs"]
