@@ -120,6 +120,7 @@ fn scan_markdown_fixture(
             if closes_fence(line, fence) {
                 open_fence = None;
             }
+            indented_code.previous_line_was_blank = line.trim().is_empty();
             continue;
         }
         if is_indented_task_code_block_line(line, &mut indented_code) {
@@ -130,6 +131,7 @@ fn scan_markdown_fixture(
                 report(fixture_path, index, "non-canonical code fence", findings);
             }
             open_fence = Some(fence);
+            indented_code.previous_line_was_blank = line.trim().is_empty();
             continue;
         }
         scan_formatter_boundary_line(&lines, index, fixture_path, findings);
@@ -167,20 +169,23 @@ fn scan_formatter_boundary_line(
 
 /// Return whether `line` belongs to an indented task-body code region.
 fn is_indented_task_code_block_line(line: &str, state: &mut IndentedTaskCodeState) -> bool {
+    let line_is_blank = line.trim().is_empty();
     if state.in_indented_code {
         if line.trim().is_empty() || is_indented_task_code_body(line, state.checklist_indent) {
+            state.previous_line_was_blank = line_is_blank;
             return true;
         }
         state.in_indented_code = false;
     }
     if state.previous_line_was_blank && is_indented_task_code_body(line, state.checklist_indent) {
         state.in_indented_code = true;
+        state.previous_line_was_blank = line_is_blank;
         return true;
     }
     if state.checklist_indent.is_none() {
         state.checklist_indent = checklist_marker_indent(line);
     }
-    state.previous_line_was_blank = line.trim().is_empty();
+    state.previous_line_was_blank = line_is_blank;
     false
 }
 

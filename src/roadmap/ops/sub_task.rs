@@ -7,14 +7,55 @@ use crate::{
         RoadmapDocument,
         SubTaskNumber,
         model::{ItemIdentity, StepSection, SubTaskEntry, SubTaskSplice, TaskChild, TaskEntry},
+        preservation_events::{PreservationInvalidationReason, PreservationReport},
     },
 };
 
+/// Placement and validated descendants for one sub-task insertion.
+pub(super) struct SubTaskInsertion {
+    /// Whether the new descendants follow the addressed sub-task.
+    pub(super) after: bool,
+    /// Parsed sub-tasks to splice into the parent task.
+    pub(super) sub_tasks: Vec<SubTaskEntry>,
+}
+
+/// Insert sub-tasks and report whether the parent lost preserved source.
+///
+/// Returns an error when the addressed parent or sub-task is absent, or when
+/// the parent child ordering is structurally inconsistent.
 pub(super) fn insert_sub_tasks(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
-    after: bool,
-    sub_tasks: Vec<SubTaskEntry>,
+    insertion: SubTaskInsertion,
+    report: &mut PreservationReport,
+) -> Result<()> {
+    let SubTaskInsertion { after, sub_tasks } = insertion;
+    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    {
+        let task = step
+            .tasks
+            .get_mut(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
+        let target_identity = sub_task_identity(task, sub_task_index)?;
+        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
+        if task.insert_sub_tasks(splice, after, sub_tasks) {
+            report.record_invalidation(PreservationInvalidationReason::ChildMutation);
+        }
+    }
+    step.clear_task_list_source();
+    Ok(())
+}
+
+/// Delete a sub-task and report whether the parent lost preserved source.
+///
+/// Returns an error when the addressed parent or sub-task is absent, or when
+/// the parent child ordering is structurally inconsistent.
+pub(super) fn delete_sub_task(
+    roadmap: &mut RoadmapDocument,
+    target: SubTaskNumber,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     {
@@ -26,33 +67,23 @@ pub(super) fn insert_sub_tasks(
             })?;
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        task.insert_sub_tasks(splice, after, sub_tasks);
+        if task.delete_sub_task(splice) {
+            report.record_invalidation(PreservationInvalidationReason::ChildMutation);
+        }
     }
     step.clear_task_list_source();
     Ok(())
 }
 
-pub(super) fn delete_sub_task(roadmap: &mut RoadmapDocument, target: SubTaskNumber) -> Result<()> {
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    {
-        let task = step
-            .tasks
-            .get_mut(task_index)
-            .ok_or(MapspliceError::AnchorNotFound {
-                anchor: target.task_number().into(),
-            })?;
-        let target_identity = sub_task_identity(task, sub_task_index)?;
-        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        task.delete_sub_task(splice);
-    }
-    step.clear_task_list_source();
-    Ok(())
-}
-
+/// Replace a sub-task and report whether the parent lost preserved source.
+///
+/// Returns an error when the addressed parent or sub-task is absent, or when
+/// the parent child ordering is structurally inconsistent.
 pub(super) fn replace_sub_task(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
     sub_tasks: Vec<SubTaskEntry>,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     {
@@ -64,7 +95,9 @@ pub(super) fn replace_sub_task(
             })?;
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        task.replace_sub_task(splice, sub_tasks);
+        if task.replace_sub_task(splice, sub_tasks) {
+            report.record_invalidation(PreservationInvalidationReason::ChildMutation);
+        }
     }
     step.clear_task_list_source();
     Ok(())

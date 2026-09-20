@@ -23,6 +23,12 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::roadmap::preservation_events::{
+    CanonicalFallbackReason,
+    PreservationInvalidationReason,
+    PreservationReport,
+};
+
 /// Snapshot of process-local `mapsplice` counters.
 ///
 /// See the module-level example for recording counters and reading this
@@ -54,26 +60,6 @@ pub struct MetricsSnapshot {
     pub canonical_fallbacks_unstable_list_marker: u64,
     /// Canonical fallbacks caused by unstable code fences.
     pub canonical_fallbacks_unstable_code_fence: u64,
-}
-
-/// Closed mutation causes for preserved-source invalidation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PreservationInvalidationReason {
-    /// The item's rendered number changed.
-    Renumber,
-    /// The item's dependency text changed.
-    DependencyRewrite,
-    /// A structural sub-task mutation changed a parent task.
-    ChildMutation,
-}
-
-/// Closed formatter-stability causes for canonical item rendering.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CanonicalFallbackReason {
-    /// An ordered or nested list marker is formatter-unstable.
-    UnstableListMarker,
-    /// A code-fence delimiter is formatter-unstable.
-    UnstableCodeFence,
 }
 
 static FAILURES: AtomicU64 = AtomicU64::new(0);
@@ -118,33 +104,73 @@ pub fn record_dependency_rewrites(count: u64) {
     tracing::debug!(count, total, "recorded dependency rewrites");
 }
 
-/// Record one formatter-stable preserved task or sub-task render.
-pub(crate) fn record_preserved_source_render() {
-    let total = PRESERVED_SOURCE_RENDERS.fetch_add(1, Ordering::Relaxed) + 1;
-    tracing::debug!(total, "recorded preserved source render");
-}
-
-/// Record one actual preserved-source invalidation with a closed cause.
-pub(crate) fn record_preserved_source_invalidation(reason: PreservationInvalidationReason) {
-    let total = PRESERVED_SOURCE_INVALIDATIONS.fetch_add(1, Ordering::Relaxed) + 1;
-    let reason_total = invalidation_counter(reason).fetch_add(1, Ordering::Relaxed) + 1;
-    tracing::debug!(
-        reason = invalidation_reason_name(reason),
-        total,
-        reason_total,
-        "recorded preserved source invalidation"
+/// Record successful command-local source-preservation outcomes.
+///
+/// This adapter translates roadmap-domain outcomes into process-local metrics
+/// only after the command has rendered and written its result successfully.
+pub(crate) fn record_preservation_report(report: &PreservationReport) {
+    record_preserved_source_renders(report.preserved_source_renders());
+    record_preserved_source_invalidations(
+        report.invalidations_renumber(),
+        PreservationInvalidationReason::Renumber,
+    );
+    record_preserved_source_invalidations(
+        report.invalidations_dependency_rewrite(),
+        PreservationInvalidationReason::DependencyRewrite,
+    );
+    record_preserved_source_invalidations(
+        report.invalidations_child_mutation(),
+        PreservationInvalidationReason::ChildMutation,
+    );
+    record_canonical_fallbacks(
+        report.canonical_fallbacks_unstable_list_marker(),
+        CanonicalFallbackReason::UnstableListMarker,
+    );
+    record_canonical_fallbacks(
+        report.canonical_fallbacks_unstable_code_fence(),
+        CanonicalFallbackReason::UnstableCodeFence,
     );
 }
 
-/// Record one canonical rendering fallback with a closed formatter cause.
-pub(crate) fn record_canonical_fallback(reason: CanonicalFallbackReason) {
-    let total = CANONICAL_FALLBACKS.fetch_add(1, Ordering::Relaxed) + 1;
-    let reason_total = canonical_fallback_counter(reason).fetch_add(1, Ordering::Relaxed) + 1;
+/// Add stable preserved task or sub-task renders when at least one occurred.
+fn record_preserved_source_renders(count: u64) {
+    if count == 0 {
+        return;
+    }
+    let total = PRESERVED_SOURCE_RENDERS.fetch_add(count, Ordering::Relaxed) + count;
+    tracing::debug!(count, total, "recorded preserved source renders");
+}
+
+/// Add actual preserved-source invalidations for one closed mutation cause.
+fn record_preserved_source_invalidations(count: u64, reason: PreservationInvalidationReason) {
+    if count == 0 {
+        return;
+    }
+    let total = PRESERVED_SOURCE_INVALIDATIONS.fetch_add(count, Ordering::Relaxed) + count;
+    let reason_total = invalidation_counter(reason).fetch_add(count, Ordering::Relaxed) + count;
     tracing::debug!(
-        reason = canonical_fallback_reason_name(reason),
+        reason = invalidation_reason_name(reason),
+        count,
         total,
         reason_total,
-        "recorded canonical source fallback"
+        "recorded preserved source invalidations"
+    );
+}
+
+/// Add canonical fallbacks for one closed formatter-stability cause.
+fn record_canonical_fallbacks(count: u64, reason: CanonicalFallbackReason) {
+    if count == 0 {
+        return;
+    }
+    let total = CANONICAL_FALLBACKS.fetch_add(count, Ordering::Relaxed) + count;
+    let reason_total =
+        canonical_fallback_counter(reason).fetch_add(count, Ordering::Relaxed) + count;
+    tracing::debug!(
+        reason = canonical_fallback_reason_name(reason),
+        count,
+        total,
+        reason_total,
+        "recorded canonical source fallbacks"
     );
 }
 

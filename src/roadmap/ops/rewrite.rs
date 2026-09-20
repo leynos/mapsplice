@@ -11,13 +11,11 @@ use super::{
         SubTaskNumber,
         TaskNumber,
         model::{MarkdownNodes, RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
+        preservation_events::{PreservationInvalidationReason, PreservationReport},
     },
     dependency_text::rewrite_text_value,
 };
-use crate::{
-    error::{MapspliceError, Result},
-    observability::PreservationInvalidationReason,
-};
+use crate::error::{MapspliceError, Result};
 
 /// Mutable state shared by one dependency-rewrite traversal.
 struct DependencyRewriteContext<'plan> {
@@ -38,7 +36,10 @@ impl<'plan> DependencyRewriteContext<'plan> {
 }
 
 /// Renumber every roadmap item and return the old-to-new mapping.
-pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<RenumberPlan> {
+pub(super) fn renumber_document(
+    roadmap: &mut RoadmapDocument,
+    report: &mut PreservationReport,
+) -> Result<RenumberPlan> {
     let mut plan = RenumberPlan::default();
 
     for (phase_index, phase) in roadmap.phases.iter_mut().enumerate() {
@@ -57,7 +58,7 @@ pub(super) fn renumber_document(roadmap: &mut RoadmapDocument) -> Result<Renumbe
                 step.clear_task_list_source();
             }
             step.number = new_step;
-            renumber_step_tasks(&mut step.tasks, new_step, &mut plan)?;
+            renumber_step_tasks(&mut step.tasks, new_step, &mut plan, report)?;
         }
     }
 
@@ -72,15 +73,16 @@ fn renumber_step_tasks(
     tasks: &mut [TaskEntry],
     new_step: StepNumber,
     plan: &mut RenumberPlan,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     for (task_index, task) in tasks.iter_mut().enumerate() {
         let new_task = TaskNumber::new(new_step, to_number(task_index + 1, "task")?)?;
         plan.record_mapping(task.identity.source, task.identity.anchor, new_task.into());
-        if task.number != new_task {
-            task.clear_original_source(PreservationInvalidationReason::Renumber);
+        if task.number != new_task && task.clear_original_source() {
+            report.record_invalidation(PreservationInvalidationReason::Renumber);
         }
         task.number = new_task;
-        renumber_sub_tasks(task, new_task, plan)?;
+        renumber_sub_tasks(task, new_task, plan, report)?;
     }
     Ok(())
 }
@@ -93,6 +95,7 @@ fn renumber_sub_tasks(
     task: &mut TaskEntry,
     new_task: TaskNumber,
     plan: &mut RenumberPlan,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     let mut descendants_changed = false;
     for (sub_task_index, sub_task) in task.sub_tasks_mut().iter_mut().enumerate() {
@@ -103,14 +106,14 @@ fn renumber_sub_tasks(
             sub_task.identity.anchor,
             new_sub_task.into(),
         );
-        if sub_task.number != new_sub_task {
-            sub_task.clear_original_source(PreservationInvalidationReason::Renumber);
+        if sub_task.number != new_sub_task && sub_task.clear_original_source() {
+            report.record_invalidation(PreservationInvalidationReason::Renumber);
             descendants_changed = true;
         }
         sub_task.number = new_sub_task;
     }
-    if descendants_changed {
-        task.clear_original_source(PreservationInvalidationReason::Renumber);
+    if descendants_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::Renumber);
     }
     Ok(())
 }
@@ -119,6 +122,7 @@ fn renumber_sub_tasks(
 pub(super) fn rewrite_dependencies(
     roadmap: &mut RoadmapDocument,
     plan: &RenumberPlan,
+    report: &mut PreservationReport,
 ) -> Result<u64> {
     let mut context = DependencyRewriteContext::new(plan);
     rewrite_markdown_nodes(&mut roadmap.preamble, SourceId::Target, &mut context)?;
@@ -133,7 +137,7 @@ pub(super) fn rewrite_dependencies(
             rewrite_markdown_nodes(&mut step.trailing, step.identity.source, &mut context)?;
             let before_tasks = context.rewrite_count;
             for task in &mut step.tasks {
-                rewrite_task_entry(task, &mut context)?;
+                rewrite_task_entry(task, &mut context, report)?;
             }
             if context.rewrite_count > before_tasks {
                 step.clear_task_list_source();
@@ -153,20 +157,22 @@ pub(super) fn rewrite_dependencies(
 fn rewrite_task_entry(
     task: &mut TaskEntry,
     context: &mut DependencyRewriteContext<'_>,
+    report: &mut PreservationReport,
 ) -> Result<()> {
     let summary_changed = rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
     let body_changed = rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
-    if summary_changed || body_changed {
-        task.clear_original_source(PreservationInvalidationReason::DependencyRewrite);
+    let task_text_changed = summary_changed || body_changed;
+    if task_text_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
     let mut descendant_changed = false;
     for sub_task in task.sub_tasks_mut() {
-        if rewrite_sub_task_entry(sub_task, context)? {
+        if rewrite_sub_task_entry(sub_task, context, report)? {
             descendant_changed = true;
         }
     }
-    if descendant_changed {
-        task.clear_original_source(PreservationInvalidationReason::DependencyRewrite);
+    if descendant_changed && task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
     Ok(())
 }
@@ -177,14 +183,15 @@ fn rewrite_task_entry(
 fn rewrite_sub_task_entry(
     sub_task: &mut SubTaskEntry,
     context: &mut DependencyRewriteContext<'_>,
+    report: &mut PreservationReport,
 ) -> Result<bool> {
     let summary_changed =
         rewrite_markdown_nodes(&mut sub_task.summary, sub_task.identity.source, context)?;
     let body_changed =
         rewrite_markdown_nodes(&mut sub_task.body, sub_task.identity.source, context)?;
     let changed = summary_changed || body_changed;
-    if changed {
-        sub_task.clear_original_source(PreservationInvalidationReason::DependencyRewrite);
+    if changed && sub_task.clear_original_source() {
+        report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
     Ok(changed)
 }

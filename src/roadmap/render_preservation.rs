@@ -5,11 +5,7 @@ use markdown::mdast::Node;
 use super::render_block;
 use crate::{
     error::Result,
-    observability::{
-        CanonicalFallbackReason,
-        record_canonical_fallback,
-        record_preserved_source_render,
-    },
+    roadmap::preservation_events::{CanonicalFallbackReason, PreservationRenderOutcome},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,13 +47,20 @@ impl TaskListStabilityScan {
 
     /// Scan one source line and return whether it makes list formatting unstable.
     fn scan_line(&mut self, line: &str) -> bool {
+        let line_is_blank = line.trim().is_empty();
         if self.open_fence.is_some() && self.is_fenced_line(line) {
+            self.previous_line_was_blank = line_is_blank;
             return false;
         }
-        if self.is_indented_code_line(line) || self.is_fenced_line(line) {
+        if self.is_indented_code_line(line) {
+            self.previous_line_was_blank = line_is_blank;
             return false;
         }
-        self.previous_line_was_blank = line.trim().is_empty();
+        if self.is_fenced_line(line) {
+            self.previous_line_was_blank = line_is_blank;
+            return false;
+        }
+        self.previous_line_was_blank = line_is_blank;
         list_marker(line).is_some_and(|marker| self.is_unstable_marker(marker))
     }
 
@@ -139,15 +142,21 @@ pub(super) fn render_preserved_or_canonical(
 pub(super) fn render_preserved_task_or_canonical(
     original: &str,
     canonical: impl FnOnce() -> Result<String>,
-) -> Result<String> {
+) -> Result<(String, PreservationRenderOutcome)> {
     formatter_fallback_reason(original).map_or_else(
         || {
-            record_preserved_source_render();
-            Ok(trim_preserved_separator(original).to_owned())
+            Ok((
+                trim_preserved_separator(original).to_owned(),
+                PreservationRenderOutcome::PreservedSource,
+            ))
         },
         |reason| {
-            record_canonical_fallback(reason);
-            canonical()
+            canonical().map(|rendered| {
+                (
+                    rendered,
+                    PreservationRenderOutcome::CanonicalFallback(reason),
+                )
+            })
         },
     )
 }
@@ -324,6 +333,23 @@ mod tests {
         );
         assert!(!has_unstable_list_marker(source));
         assert!(formatter_fallback_reason(source).is_none());
+    }
+
+    #[test]
+    fn ordered_markers_after_a_fence_are_not_indented_code() {
+        let source = concat!(
+            "- [ ] 1.1.1. Task.\n\n",
+            "  ```text\n",
+            "  fenced content\n",
+            "  ```\n",
+            "          1. first marker\n",
+            "          3. non-contiguous marker"
+        );
+        assert!(has_unstable_list_marker(source));
+        assert_eq!(
+            formatter_fallback_reason(source),
+            Some(super::CanonicalFallbackReason::UnstableListMarker)
+        );
     }
 
     #[test]

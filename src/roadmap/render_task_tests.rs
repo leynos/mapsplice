@@ -1,16 +1,14 @@
 //! Regression tests for task source preservation during rendering.
 
 use super::super::render_roadmap;
-use crate::roadmap::{
-    RoadmapOperation,
-    apply_command,
-    parse_anchor,
-    parse_fragment,
-    parse_roadmap,
+use crate::{
+    observability::metrics_snapshot,
+    roadmap::{RoadmapOperation, apply_command, parse_anchor, parse_fragment, parse_roadmap},
 };
 
 #[test]
 fn task_lazy_continuation_survives_same_step_cache_invalidation() {
+    let before = metrics_snapshot();
     let source = concat!(
         "## 1. Phase one\n\n",
         "### 1.1. Step one\n\n",
@@ -45,5 +43,10 @@ fn task_lazy_continuation_survives_same_step_cache_invalidation() {
             "- [ ] 1.1.2. Insert after this anchor.\n",
             "- [ ] 1.1.3. Inserted sibling.\n",
         )
+    );
+    assert_eq!(
+        metrics_snapshot(),
+        before,
+        "direct rendering must not record process-local preservation metrics"
     );
 }

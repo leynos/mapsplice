@@ -19,10 +19,10 @@ pub use error::{MapspliceError, Result};
 use fs::{read_utf8, rewrite_utf8};
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,
-    apply_command as apply_command_inner,
+    apply_command_with_report,
     parse_fragment as parse_fragment_inner,
     parse_roadmap as parse_roadmap_inner,
-    render_roadmap,
+    render_roadmap_with_report,
 };
 
 /// Execute `mapsplice` using command-line arguments.
@@ -177,13 +177,16 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap_inner(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    let dependency_rewrites = apply_command_inner(&mut roadmap, operation, fragment)?;
-    let rendered = render_roadmap(&roadmap)?;
+    let (dependency_rewrites, mut preservation_report) =
+        apply_command_with_report(&mut roadmap, operation, fragment)?;
+    let (rendered, render_report) = render_roadmap_with_report(&roadmap)?;
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
         observability::record_in_place_rewrite();
     }
     observability::record_dependency_rewrites(dependency_rewrites);
+    preservation_report.extend(render_report);
+    observability::record_preservation_report(&preservation_report);
 
     if request.global.in_place {
         Ok(RunOutcome::in_place(request.target))
@@ -266,4 +269,5 @@ pub use roadmap::{
     parse_fragment as parse_fragment_text,
     parse_roadmap,
     parse_roadmap as parse_roadmap_text,
+    render_roadmap,
 };

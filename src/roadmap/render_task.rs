@@ -14,21 +14,25 @@ use super::{
 };
 use crate::{
     error::{MapspliceError, Result},
-    roadmap::model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+    roadmap::{
+        model::{ItemIdentity, MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+        preservation_events::PreservationReport,
+    },
 };
 
 /// Render a task from preserved source when stable, otherwise canonically.
 ///
 /// Returns an error when canonical rendering encounters invalid Markdown or
 /// an inconsistent structural child sequence.
-pub(super) fn render_task(task: &TaskEntry) -> Result<String> {
+pub(super) fn render_task(task: &TaskEntry, report: &mut PreservationReport) -> Result<String> {
     if let Some(original) = task.original_source() {
         validate_task_for_render(task)?;
-        let rendered =
-            render_preserved_task_or_canonical(original, || render_task_canonical(task))?;
+        let (rendered, outcome) =
+            render_preserved_task_or_canonical(original, || render_task_canonical(task, report))?;
+        report.record_render_outcome(outcome);
         return Ok(preserve_task_separator(task, original, rendered));
     }
-    render_task_canonical(task)
+    render_task_canonical(task, report)
 }
 
 /// Restore the separator required after a preserved task's final child.
@@ -90,7 +94,7 @@ fn markdown_requires_trailing_separator(markdown: &MarkdownNodes) -> bool {
 ///
 /// Returns an error when the task's structural child sequence references a
 /// missing sub-task.
-fn render_task_canonical(task: &TaskEntry) -> Result<String> {
+fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> Result<String> {
     let mut parts = vec![format!(
         "- {}{}. {}",
         checkbox_marker(task.checked),
@@ -102,7 +106,7 @@ fn render_task_canonical(task: &TaskEntry) -> Result<String> {
             TaskChild::Body(body) => parts.extend(render_nested_body(body, 4)?),
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
-                parts.push(render_sub_task(sub_task, 2)?);
+                parts.push(render_sub_task(sub_task, 2, report)?);
             }
         }
     }
@@ -131,12 +135,17 @@ pub(super) fn find_sub_task_for_child(
 /// Render a sub-task from preserved source when stable, otherwise canonically.
 ///
 /// Returns an error when canonical rendering encounters invalid Markdown.
-fn render_sub_task(sub_task: &SubTaskEntry, indent: usize) -> Result<String> {
+fn render_sub_task(
+    sub_task: &SubTaskEntry,
+    indent: usize,
+    report: &mut PreservationReport,
+) -> Result<String> {
     if let Some(original) = sub_task.original_source() {
         validate_sub_task_for_render(sub_task)?;
-        let preserved = render_preserved_task_or_canonical(original, || {
+        let (preserved, outcome) = render_preserved_task_or_canonical(original, || {
             render_sub_task_canonical(sub_task, indent)
         })?;
+        report.record_render_outcome(outcome);
         return Ok(preserve_sub_task_separator(sub_task, original, preserved));
     }
     render_sub_task_canonical(sub_task, indent)

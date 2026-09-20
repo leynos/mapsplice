@@ -12,8 +12,6 @@ use super::{
     TaskEntry,
     TaskEntryParts,
 };
-use crate::observability::{PreservationInvalidationReason, record_preserved_source_invalidation};
-
 impl TaskEntry {
     /// Build a parsed task entry from parser-owned parts.
     pub(crate) fn from_parts(parts: TaskEntryParts) -> Result<Self> {
@@ -46,13 +44,10 @@ impl TaskEntry {
 
     /// Clear preserved source after this task or one of its descendants changes.
     ///
-    /// Records the supplied cause only when a source span was present, so the
-    /// counter measures invalidations rather than mutation attempts.
-    pub(crate) fn clear_original_source(&mut self, reason: PreservationInvalidationReason) {
-        if self.original_source.take().is_some() {
-            record_preserved_source_invalidation(reason);
-        }
-    }
+    /// Returns whether a preserved source span was present before the mutation,
+    /// allowing the application layer to record an actual invalidation without
+    /// coupling the model to process-wide observability.
+    pub(crate) fn clear_original_source(&mut self) -> bool { self.original_source.take().is_some() }
 
     /// Return the original ordered task-child sequence.
     #[must_use]
@@ -72,31 +67,38 @@ impl TaskEntry {
         splice: SubTaskSplice,
         after: bool,
         sub_tasks: Vec<SubTaskEntry>,
-    ) {
-        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
+    ) -> bool {
+        let invalidated = self.clear_original_source();
         let new_children = sub_task_children(&sub_tasks);
         let insert_at = splice.sub_task_index + usize::from(after);
         let child_insert_at = splice.child_index + usize::from(after);
         self.sub_tasks.splice(insert_at..insert_at, sub_tasks);
         self.children
             .splice(child_insert_at..child_insert_at, new_children);
+        invalidated
     }
 
     /// Delete one sub-task while keeping the child order vector aligned.
-    pub(crate) fn delete_sub_task(&mut self, splice: SubTaskSplice) {
-        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
+    pub(crate) fn delete_sub_task(&mut self, splice: SubTaskSplice) -> bool {
+        let invalidated = self.clear_original_source();
         self.sub_tasks.remove(splice.sub_task_index);
         self.children.remove(splice.child_index);
+        invalidated
     }
 
     /// Replace one sub-task while keeping the child order vector aligned.
-    pub(crate) fn replace_sub_task(&mut self, splice: SubTaskSplice, sub_tasks: Vec<SubTaskEntry>) {
-        self.clear_original_source(PreservationInvalidationReason::ChildMutation);
+    pub(crate) fn replace_sub_task(
+        &mut self,
+        splice: SubTaskSplice,
+        sub_tasks: Vec<SubTaskEntry>,
+    ) -> bool {
+        let invalidated = self.clear_original_source();
         let new_children = sub_task_children(&sub_tasks);
         self.sub_tasks
             .splice(splice.sub_task_index..=splice.sub_task_index, sub_tasks);
         self.children
             .splice(splice.child_index..=splice.child_index, new_children);
+        invalidated
     }
 
     /// Remove a sub-task without updating structural children for invariant tests.
@@ -116,12 +118,10 @@ impl SubTaskEntry {
 
     /// Clear preserved source after this sub-task changes.
     ///
-    /// Records the supplied cause only when a source span was present.
-    pub(crate) fn clear_original_source(&mut self, reason: PreservationInvalidationReason) {
-        if self.original_source.take().is_some() {
-            record_preserved_source_invalidation(reason);
-        }
-    }
+    /// Returns whether a preserved source span was present before the mutation,
+    /// allowing the application layer to record an actual invalidation without
+    /// coupling the model to process-wide observability.
+    pub(crate) fn clear_original_source(&mut self) -> bool { self.original_source.take().is_some() }
 }
 
 /// Build child markers for the supplied sub-task sequence in the same order.
