@@ -174,6 +174,25 @@ contract behind C3.
   context** — currently the `Requires` clause of a task body (and any future
   `Blocks` clause adopted by the grammar). Only dependency references are
   candidates for rewriting.
+- **Clause positions.** A `Requires` clause is recognized in three source
+  positions, and all three carry the same rewrite and dangling-dependency
+  guarantees:
+
+  | Position                         | Recognized when                        |
+  | -------------------------------- | -------------------------------------- |
+  | Inline task or sub-task text     | `Requires` shares the numbered summary |
+  | Continuation text of the summary | `Requires` begins an indented line     |
+  | Nested task-body bullet item     | `Requires` begins a nested bullet item |
+
+  *Table 1: Recognized `Requires` clause positions.*
+
+- **Clause exclusions.** Two forms are deliberately outside the grammar and are
+  **not** rewritten. A numeric range such as `Requires 1.1.1-1.1.3.` is not a
+  supported clause form. A clause split across a hard line wrap — a newline
+  between `Requires` and its anchors, or between anchors in one clause — is
+  also not recognized; joining wrapped continuations before scanning remains
+  tracked by `docs/roadmap.md` item 1.2.2. Neither exclusion changes the
+  anchor-token or dependency-context definitions above.
 - **Incidental numbers are preserved.** An anchor token that is not in a
   dependency context, or that is immediately preceded by a section sigil (`§`),
   is incidental: it is a section reference, a version, or prose, and it is left
@@ -249,7 +268,7 @@ inspection.
   | `Requires` lists                | every id in a multi-id clause is rewritten |
   | Dangling `Requires`             | unresolved valid anchors fail closed       |
 
-  *Table 1: Required adversarial fixtures for the fidelity and reference
+  *Table 2: Required adversarial fixtures for the fidelity and reference
   contracts.*
 
 - **Test shapes.** `rstest` unit fixtures cover the model, renumbering, and the

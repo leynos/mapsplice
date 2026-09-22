@@ -61,7 +61,14 @@ roadmap's own convention), or hard-wrapped across source lines (the downstream
 convention). A clause the scanner cannot see is silently excluded from
 renumbering — exactly the corruption the tool exists to prevent.
 
-- [ ] 1.2.1. Rewrite dependency clauses in body bullet list items.
+- [x] 1.2.1. Rewrite dependency clauses in body bullet list items.
+
+  - Addressed: `rewrite_task_entry` now visits `TaskChild::Body` blocks via
+    `TaskEntry::children_mut`, so a `Requires` clause inside a nested
+    task-body bullet is renumbered and validated like the inline and plain
+    continuation forms. Deleting a referenced item is rejected with
+    `MapspliceError::DanglingDependency` before any output or in-place write,
+    leaving the target byte-identical.
 
   - Requires 1.1.2.
   - Apply the dependency-reference predicate to task and sub-task body bullet
@@ -74,6 +81,9 @@ renumbering — exactly the corruption the tool exists to prevent.
 - [ ] 1.2.2. Join task continuation lines before dependency-clause scanning.
 
   - Requires 1.2.1.
+  - Out of scope for the nested-bullet fix. A newline between `Requires` and
+    its anchors, or between anchors in one clause, is still not recognized;
+    `docs/mapsplice-design.md` section 7 records that exclusion explicitly.
   - Normalize each item's body text (unwrap hard-wrapped continuation lines)
     before applying the dependency-reference predicate, so a newline between
     `Requires` and an anchor, or between anchors in one clause, no longer

@@ -105,9 +105,13 @@ The result will:
 - renumber the original phase 2 to `3`
 - rewrite dependency prose such as `Requires 2.1.1.` to `Requires 3.1.1.`
 
-Only `Requires` dependency references are rewritten. Incidental numeric text
-such as section references (`§2.1`), semantic versions (`1.4.0`), and prose
-quantities is preserved.
+Only `Requires` dependency references are rewritten. A `Requires` clause is
+recognized in three positions: on the task or sub-task title line, beginning a
+plain indented continuation line, and beginning a nested task-body bullet item.
+
+Incidental numeric text is preserved: section references (`§2.1`), semantic
+versions (`1.4.0`), ordered-list numbering, and numbers inside code examples
+are all left exactly as written.
 
 ## Command details
 
