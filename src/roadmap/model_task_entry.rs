@@ -75,6 +75,16 @@ impl TaskEntry {
     #[must_use]
     pub(crate) fn children(&self) -> &[TaskChild] { &self.children }
 
+    /// Return mutable structural children for dependency rewriting.
+    ///
+    /// Non-structural [`TaskChild::Body`] blocks hold the task's nested body
+    /// Markdown: [`TaskEntry::body`] is drained into these children during
+    /// parsing, so body text is only reachable through this accessor.
+    ///
+    /// Callers must preserve the correspondence between the body blocks, the
+    /// sub-task slice, and the ordered child sequence.
+    pub(crate) fn children_mut(&mut self) -> &mut [TaskChild] { &mut self.children }
+
     /// Find the index of a structural sub-task by rendered number.
     #[must_use]
     pub(crate) fn find_sub_task_index(&self, target: SubTaskNumber) -> Option<usize> {
