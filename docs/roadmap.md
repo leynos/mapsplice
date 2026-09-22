@@ -103,6 +103,21 @@ renumbering — exactly the corruption the tool exists to prevent.
     clause succeeds with a warning naming the item, and a fixture pins the
     diagnostic text.
 
+- [ ] 1.2.4. Renumber addendum sub-tasks that share a parent with body bullets.
+
+  - Requires 1.2.1.
+  - Defect observed while building the nested-bullet fixture corpus, and
+    reproduced against the revision before the nested-bullet fix, so it is
+    pre-existing rather than a regression from it. When a task holds both a
+    non-structural body bullet and an addendum sub-task, a renumbering edit
+    that moves the parent leaves the sub-task at its stale number and renders
+    it under the new parent: `- [ ] 1.1.2. Parent.` with a body bullet,
+    renumbered to `1.1.3`, still emits `- [ ] 1.1.2.1. Sub one.` instead of
+    `- [ ] 1.1.3.1. Sub one.`, violating C4 in `docs/mapsplice-design.md`.
+  - Success: a task with a body bullet followed by an addendum sub-task
+    renumbers the sub-task with its parent, pinned by a fixture that fails on
+    the current behaviour.
+
 ## 2. Model addenda as first-class items
 
 Idea: nested sub-tasks are part of the roadmap structure, not opaque task body

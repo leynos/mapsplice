@@ -273,6 +273,36 @@ impl RenumberPlan {
             .and_then(|mapping| mapping.get(&anchor).copied())
     }
 
+    /// Resolve a dependency reference written in `source` to its new anchor.
+    ///
+    /// The source-local mapping is consulted first. A unique cross-source
+    /// mapping is then accepted only for fragment text.
+    ///
+    /// The asymmetry is a correctness requirement rather than an optimization.
+    /// A fragment item's identity is its fragment-local spelling, because that
+    /// spelling is all the fragment file carries; a target item's identity is
+    /// the anchor it held before the operation. Those are the same kind of
+    /// value, so if target text could fall back to the fragment's mapping, a
+    /// replacement item spelled like the item it superseded would absorb a
+    /// surviving consumer's clause — the clause would keep its old digits and
+    /// silently resolve to a different item. A fragment clause, by contrast,
+    /// genuinely is written in the fragment's own numbering when it arrives, so
+    /// the fallback is exactly what makes it resolve.
+    #[must_use]
+    pub fn resolve_reference(
+        &self,
+        source: SourceId,
+        anchor: RoadmapAnchor,
+    ) -> Option<RoadmapAnchor> {
+        if let Some(local) = self.resolve(source, anchor) {
+            return Some(local);
+        }
+        if source == SourceId::Fragment {
+            return self.resolve_unique(anchor);
+        }
+        None
+    }
+
     /// Resolve a unique mapping across all sources when local lookup is absent.
     #[must_use]
     pub fn resolve_unique(&self, anchor: RoadmapAnchor) -> Option<RoadmapAnchor> {

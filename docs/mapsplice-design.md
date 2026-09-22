@@ -140,7 +140,13 @@ Untouched gate-clean content remains byte-exact.
 
 - **C1 — Operations.** `append` (phase-level), `insert` (before, or `--after`),
   `delete`, and `replace`, each addressed by an anchor, with strict level
-  matching between fragment and anchor.
+  matching between fragment and anchor. `insert` and `replace` differ only in
+  what happens to the addressed item's identity: an `insert` leaves it in place
+  and splices the fragment around it, while a `replace` **retires** it. A
+  retired identity is gone, so a dependency reference to it no longer resolves
+  and the operation fails closed rather than redirecting the consumer; a
+  fragment clause, which is written in the fragment's own numbering, still
+  resolves through the cross-source fallback described in section 7.
 - **C2 — Renumber contract.** After any edit, phase, step, task, and addendum
   numbers are contiguous from 1, in document order, at every level. No gaps, no
   duplicates, no out-of-order numbering survives an operation.
@@ -200,11 +206,19 @@ contract behind C3.
   substituting every number-shaped token in the document — is what upholds F1
   and C3.
 - **Resolution.** A dependency reference is resolved against the renumber plan:
-  the source-local mapping first, then a unique cross-source mapping when the
-  anchor is defined exactly once across the target and the fragment. A valid
-  dependency reference that does not resolve is a dangling dependency and the
-  operation fails with a typed diagnostic before output is emitted or an
-  in-place write occurs.
+  the source-local mapping first, then, for a reference written in the
+  **fragment**, a unique cross-source mapping when the anchor is defined
+  exactly once across the target and the fragment. The cross-source fallback is
+  deliberately withheld from target text. A fragment item's identity is its
+  fragment-local spelling, because that spelling is all the fragment file
+  carries; a target item's identity is the anchor it held before the operation.
+  Both are written the same way, so if target text could fall back to the
+  fragment's mapping, a replacement item spelled like the item it superseded
+  would absorb a surviving consumer's clause — the clause would keep its old
+  digits and silently resolve to a different item. This is the identity
+  preservation guarantee in its resolution form. A valid dependency reference
+  that does not resolve is a dangling dependency and the operation fails with a
+  typed diagnostic before output is emitted or an in-place write occurs.
 
 ## 8. Fixture and test requirements
 

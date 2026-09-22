@@ -191,10 +191,7 @@ fn insert_before_task_rewrites_nested_bullet_dependency(
     // The consumer block pins both halves of the contract: the consumer takes
     // the number the prerequisite vacated, and its nested clause follows the
     // prerequisite rather than the inserted task that reused `1.1.1`.
-    assert_contains(
-        &stdout,
-        "- [ ] 1.1.3. Consumer.\n\n  - Requires 1.1.2.\n",
-    );
+    assert_contains(&stdout, "- [ ] 1.1.3. Consumer.\n\n  - Requires 1.1.2.\n");
     Ok(())
 }
 
@@ -208,8 +205,13 @@ fn delete_task_required_by_nested_bullet_is_rejected(
     test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
     let original = test_workspace.read_target()?;
 
-    let error = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1.1.1"])
-        .expect_err("deleting a required prerequisite must fail");
+    let error = run_from_args([
+        "mapsplice",
+        "delete",
+        test_workspace.target.as_str(),
+        "1.1.1",
+    ])
+    .expect_err("deleting a required prerequisite must fail");
 
     assert_dangling_anchor(&error, "1.1.1");
     assert_equal(&test_workspace.read_target()?, &original);
@@ -267,9 +269,7 @@ fn preview_delete_required_by_nested_bullet_is_rejected(
 /// Both non-nested clause forms must keep rewriting now that nesting works.
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn inline_and_continuation_clauses_still_rewrite(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
+fn inline_and_continuation_clauses_still_rewrite(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(concat!(
         "# Test\n\n",
@@ -292,7 +292,10 @@ fn inline_and_continuation_clauses_still_rewrite(
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "- [ ] 1.1.3. Inline consumer. Requires 1.1.2.");
-    assert_contains(&stdout, "- [ ] 1.1.4. Continuation consumer.\n  Requires 1.1.2.");
+    assert_contains(
+        &stdout,
+        "- [ ] 1.1.4. Continuation consumer.\n  Requires 1.1.2.",
+    );
     Ok(())
 }
 
