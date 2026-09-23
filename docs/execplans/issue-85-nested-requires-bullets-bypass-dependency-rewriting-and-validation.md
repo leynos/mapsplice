@@ -291,6 +291,33 @@ Constraints confirmed by experiment:
   sound. State which gates ran and which were replaced by other evidence, as
   the Remaining work section now does, rather than letting a clean local result
   imply coverage it did not have.
+- **Writing a commit hash into prose can fail the spelling gate.** `5ba0ab2`
+  is a valid revision, but Typos splits the hex string into letter-runs and
+  reads the middle two characters of that run as a typo — a misspelling of a
+  short English word. The failure surfaced twice: locally in `make spelling`,
+  and in CI at 13:53 (run `35869927771`, the `Spelling` step), both naming the
+  same line. Two things are worth keeping. The exemption went into
+  `typos.local.toml` — the tracked input — rather than `typos.toml`, which is
+  generated and says so; the generated file is committed alongside it because
+  the builder reports the drift otherwise. And the pattern was scoped to the
+  backticked 7–40 hex form rather than to that one revision, with a negative
+  control run in a scratch repository to show the wider scope is still safe: a
+  common sending-verb misspelling and the US spelling of `colour` both kept
+  failing while the SHA was ignored. Of the 33 backticked hex tokens in the
+  tracked docs, all are commit or Verus hashes and none is an English word, so
+  the form is the right thing to exclude. The lesson's own first draft wrote
+  the misspelling out as an example and was itself rejected by the gate — which
+  is the gate behaving correctly, and a small demonstration that quoting an
+  error verbatim is not free.
+- **A grep over a freshly-written file can compare it with itself.** Checking
+  that the pull-request body matched the local draft, the first attempt wrote
+  the live body to a file inside a pipeline and then diffed that same file
+  against the draft. It printed `IDENTICAL` while the byte counts in the very
+  same output differed by 26. The bytes disagreed with the verdict, and the
+  bytes were right: the extraction had added a trailing newline. When two
+  measurements of the same thing disagree, that is the finding — re-measure by
+  an independent route (here, hashing both sides) rather than trusting the one
+  that agrees with what was expected.
 
 ## Constraints that must hold
 
