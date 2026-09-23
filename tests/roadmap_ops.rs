@@ -2,10 +2,12 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
+#[path = "roadmap_ops/nested_requires.rs"]
+mod nested_requires;
+#[path = "roadmap_ops/assertions.rs"]
+mod ops_assertions;
 #[path = "support/ops.rs"]
 mod support;
-
-use std::fmt::Debug;
 
 use assertions::assert_contains;
 use mapsplice::{
@@ -17,6 +19,7 @@ use mapsplice::{
     parse_roadmap,
     run_from_args,
 };
+use ops_assertions::{assert_anchor_not_found, assert_equal, assert_level_mismatch};
 use rstest::rstest;
 use support::{
     PHASE_FRAGMENT,
@@ -29,21 +32,6 @@ use support::{
     Workspace,
     workspace,
 };
-
-fn assert_equal<T>(actual: &T, expected: &T)
-where
-    T: Debug + PartialEq,
-{
-    assert_eq!(actual, expected);
-}
-
-fn assert_level_mismatch(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
-}
-
-fn assert_anchor_not_found(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
-}
 
 #[rstest]
 #[serial_test::serial(cli_env)]
@@ -141,200 +129,6 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(
         &stdout,
         "- [ ] 1.1.3. Second task. Depends on 1.1.1 and 1.1.2.",
     );
-    Ok(())
-}
-
-/// Roadmap whose consumer reaches `1.1.1` through a nested task-body bullet.
-///
-/// The nested bullet is the issue #85 shape: the clause lives in a body block
-/// rather than in the task summary, so it is only visible through the task's
-/// structural child sequence.
-const NESTED_BULLET_CONSUMER: &str = concat!(
-    "# Test\n\n",
-    "## 1. Phase\n\n",
-    "### 1.1. Step\n\n",
-    "- [ ] 1.1.1. Prerequisite.\n",
-    "- [ ] 1.1.2. Consumer.\n",
-    "  - Requires 1.1.1.\n",
-);
-
-fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
-    let MapspliceError::DanglingDependency { anchor } = error else {
-        panic!("expected dangling dependency error, got {error:?}");
-    };
-    assert_eq!(anchor.to_string(), expected);
-}
-
-/// Insertion must not silently redirect a nested consumer to the new task.
-///
-/// Issue #85: the inserted task inherits the consumer's old number, so a
-/// clause that is never scanned leaves the consumer depending on an unrelated
-/// item.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn insert_before_task_rewrites_nested_bullet_dependency(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment(TASK_FRAGMENT)?;
-
-    let outcome = run_from_args([
-        "mapsplice",
-        "insert",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let stdout = outcome.stdout.unwrap_or_default();
-
-    // The consumer block pins both halves of the contract: the consumer takes
-    // the number the prerequisite vacated, and its nested clause follows the
-    // prerequisite rather than the inserted task that reused `1.1.1`.
-    assert_contains(&stdout, "- [ ] 1.1.3. Consumer.\n\n  - Requires 1.1.2.\n");
-    Ok(())
-}
-
-/// Deleting a still-required prerequisite must fail, not create a self-dependency.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn delete_task_required_by_nested_bullet_is_rejected(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
-    let original = test_workspace.read_target()?;
-
-    let error = run_from_args([
-        "mapsplice",
-        "delete",
-        test_workspace.target.as_str(),
-        "1.1.1",
-    ])
-    .expect_err("deleting a required prerequisite must fail");
-
-    assert_dangling_anchor(&error, "1.1.1");
-    assert_equal(&test_workspace.read_target()?, &original);
-    Ok(())
-}
-
-/// An in-place delete must reject the edit before touching the file.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn in_place_delete_required_by_nested_bullet_leaves_target_byte_identical(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
-    let original = test_workspace.read_target()?;
-
-    let error = run_from_args([
-        "mapsplice",
-        "--in-place",
-        "delete",
-        test_workspace.target.as_str(),
-        "1.1.1",
-    ])
-    .expect_err("in-place delete of a required prerequisite must fail");
-
-    assert_dangling_anchor(&error, "1.1.1");
-    assert_equal(&test_workspace.read_target()?, &original);
-    Ok(())
-}
-
-/// Preview mode must apply the same validation without writing the target.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn preview_delete_required_by_nested_bullet_is_rejected(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
-    let original = test_workspace.read_target()?;
-
-    let error = run_from_args([
-        "mapsplice",
-        "delete",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        "--in-place",
-    ])
-    .expect_err("preview delete of a required prerequisite must fail");
-
-    assert_dangling_anchor(&error, "1.1.1");
-    assert_equal(&test_workspace.read_target()?, &original);
-    Ok(())
-}
-
-/// Both non-nested clause forms must keep rewriting now that nesting works.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn inline_and_continuation_clauses_still_rewrite(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(concat!(
-        "# Test\n\n",
-        "## 1. Phase\n\n",
-        "### 1.1. Step\n\n",
-        "- [ ] 1.1.1. Prerequisite.\n",
-        "- [ ] 1.1.2. Inline consumer. Requires 1.1.1.\n",
-        "- [ ] 1.1.3. Continuation consumer.\n",
-        "  Requires 1.1.1.\n",
-    ))?;
-    test_workspace.write_fragment(TASK_FRAGMENT)?;
-
-    let outcome = run_from_args([
-        "mapsplice",
-        "insert",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let stdout = outcome.stdout.unwrap_or_default();
-
-    assert_contains(&stdout, "- [ ] 1.1.3. Inline consumer. Requires 1.1.2.");
-    assert_contains(
-        &stdout,
-        "- [ ] 1.1.4. Continuation consumer.\n  Requires 1.1.2.",
-    );
-    Ok(())
-}
-
-/// Incidental numbers and fenced examples must survive a nested-clause rewrite.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(concat!(
-        "# Test\n\n",
-        "## 1. Phase\n\n",
-        "### 1.1. Step\n\n",
-        "- [ ] 1.1.1. Prerequisite.\n",
-        "- [ ] 1.1.2. Consumer.\n",
-        "  - Requires 1.1.1. See §2.1, release 1.4.0, count 27.\n",
-        "  - Blocks 1.1.1.\n",
-        "  ```text\n",
-        "  Requires 1.1.1.\n",
-        "  ```\n",
-    ))?;
-    test_workspace.write_fragment(TASK_FRAGMENT)?;
-
-    let outcome = run_from_args([
-        "mapsplice",
-        "insert",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let stdout = outcome.stdout.unwrap_or_default();
-
-    assert_contains(
-        &stdout,
-        "- Requires 1.1.2. See §2.1, release 1.4.0, count 27.",
-    );
-    assert_contains(&stdout, "- Blocks 1.1.1.");
-    assert_contains(&stdout, "Requires 1.1.1.");
     Ok(())
 }
 
