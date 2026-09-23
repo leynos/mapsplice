@@ -4,9 +4,9 @@
 mod workspace_support;
 
 use rstest::fixture;
-pub use workspace_support::{TestResult, Workspace};
+pub(crate) use workspace_support::{TestResult, Workspace};
 
-pub const TARGET_TWO_PHASES: &str = concat!(
+pub(crate) const TARGET_TWO_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -16,7 +16,7 @@ pub const TARGET_TWO_PHASES: &str = concat!(
     "- [ ] 2.1.1. Second task. Requires 2.1.1.\n",
 );
 
-pub const TARGET_TWO_TASKS: &str = concat!(
+pub(crate) const TARGET_TWO_TASKS: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -24,7 +24,7 @@ pub const TARGET_TWO_TASKS: &str = concat!(
     "- [ ] 1.1.2. Second task. Depends on 1.1.1 and 1.1.2.\n",
 );
 
-pub const TARGET_THREE_PHASES: &str = concat!(
+pub(crate) const TARGET_THREE_PHASES: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "### 1.1. Step one\n\n",
@@ -37,15 +37,15 @@ pub const TARGET_THREE_PHASES: &str = concat!(
     "- [ ] 3.1.1. Final task. Requires 3.1.1.\n",
 );
 
-pub const PHASE_FRAGMENT: &str = concat!(
+pub(crate) const PHASE_FRAGMENT: &str = concat!(
     "## 9. Inserted phase\n\n",
     "### 9.1. Added step\n\n",
     "- [ ] 9.1.1. Added task. Requires 9.1.1.\n",
 );
 
-pub const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
+pub(crate) const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
 
-pub const REPLACEMENT_FRAGMENT: &str = concat!(
+pub(crate) const REPLACEMENT_FRAGMENT: &str = concat!(
     "## 7. Replacement phase A\n\n",
     "### 7.1. Step A\n\n",
     "- [ ] 7.1.1. Replacement task A.\n\n",
@@ -59,7 +59,7 @@ impl Workspace {
 }
 
 #[fixture]
-pub fn workspace() -> TestResult<Workspace> {
+pub(crate) fn workspace() -> TestResult<Workspace> {
     let workspace = workspace_support::create_workspace()?;
     Ok(workspace)
 }

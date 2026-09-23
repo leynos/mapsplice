@@ -18,13 +18,11 @@ use super::golden::{
     golden_success_case,
     golden_success_output_case,
 };
-
 #[fixture]
 fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
     Ok(workspace)
 }
-
 #[derive(Clone, Copy, Debug)]
 struct FailClosedCase {
     name: &'static str,
@@ -48,7 +46,6 @@ impl FailClosedCase {
         }
     }
 }
-
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn f1_minimal_untouched_content(workspace: TestResult<GoldenWorkspace>) -> TestResult {
@@ -155,7 +152,6 @@ fn c3_dangling_requires_failure(workspace: TestResult<GoldenWorkspace>) -> TestR
         }),
     )
 }
-
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn c6_stdout_target_unchanged(workspace: TestResult<GoldenWorkspace>) -> TestResult {

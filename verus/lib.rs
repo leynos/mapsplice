@@ -1,0 +1,186 @@
+//! Root entry point for production-used Verus kernels.
+//!
+//! Each verified kernel expands a shared `macro_rules!` body that is defined in
+//! a `.macro.rs` file and included by both this proof and the production
+//! module, so the text Verus proves and the text cargo compiles are one
+//! artefact rather than two implementations that can drift.
+//!
+//! The convention matters twice over. A plain-Rust module pulled in with
+//! `#[path]` is treated by Verus as opaque — it cannot be called from a proof at
+//! all — so a proof that reaches production code must bring the body in as
+//! text. And the splice cannot be a bare `include!` inside the function, because
+//! Whitaker's `bumpy_road_function` lint compares an included file's line
+//! numbers against the enclosing function's range, aborts the compiler, and so
+//! fails `make lint` for any crate that does it. A macro definition carries the
+//! expansion context that lint skips, which is why the shared text is a macro
+//! rather than a body fragment.
+//!
+//! Do not add a standalone reimplementation here. A kernel that is not the
+//! function the product calls proves nothing about the product.
+
+use vstd::prelude::*;
+
+verus! {
+
+include!("kernels/select_resolution.macro.rs");
+
+// ---------------------------------------------------------------------------
+// Kernel: dependency-reference resolution
+// ---------------------------------------------------------------------------
+//
+// Production caller: `RenumberPlan::resolve_reference` in
+// `src/roadmap/model.rs`, which delegates its decision to
+// `select_resolution` in `src/roadmap/ops/remap_kernel.rs`.
+//
+// The kernel answers one question: given the source-local mapping and the
+// unique cross-source mapping, which of them does a dependency reference
+// resolve through? Its inputs are already-resolved anchors, so it performs no
+// lookup; the proof obligations therefore concern which answer is chosen, not
+// whether a lookup succeeds.
+
+/// Specification of the resolution decision.
+///
+/// Read as: the local mapping wins when it exists; otherwise the cross-source
+/// value is used only for fragment text; otherwise there is no resolution.
+pub open spec fn select_resolution_spec<T>(
+    local: Option<T>,
+    cross_unique: Option<T>,
+    source_is_fragment: bool,
+) -> Option<T> {
+    if local.is_some() {
+        local
+    } else if source_is_fragment {
+        cross_unique
+    } else {
+        Option::None
+    }
+}
+
+/// Choose which mapping a dependency reference resolves through.
+///
+/// The body is expanded from the same macro the production kernel expands, so
+/// this proof is about the executable function the product calls and not about
+/// a model of it.
+pub fn select_resolution<T: Copy>(
+    local: Option<T>,
+    cross_unique: Option<T>,
+    source_is_fragment: bool,
+) -> (result: Option<T>)
+    ensures
+        result == select_resolution_spec(local, cross_unique, source_is_fragment),
+{
+    select_resolution_body!(local, cross_unique, source_is_fragment)
+}
+
+// ---------------------------------------------------------------------------
+// Obligation 1: identity preservation
+// ---------------------------------------------------------------------------
+//
+// A reference written in the *target* must never resolve through the
+// cross-source fallback. This is the rule whose violation let an inserted task
+// that inherited a prerequisite's number absorb a surviving consumer's clause.
+
+/// A target-text reference with no source-local mapping resolves to nothing.
+///
+/// This is the identity-preservation obligation in its kernel form. The
+/// cross-source value is present and deliberately ignored: if the decision
+/// consulted it, this proof would fail.
+proof fn target_text_never_uses_the_cross_source_fallback<T>(
+    local: Option<T>,
+    cross_unique: Option<T>,
+)
+    requires
+        !local.is_some(),
+    ensures
+        select_resolution_spec(local, cross_unique, false) == Option::<T>::None,
+{
+}
+
+/// A target-text reference with a source-local mapping resolves to that mapping.
+///
+/// The companion obligation: withholding the fallback must not discard the
+/// legitimate local resolution.
+proof fn target_text_keeps_its_source_local_mapping<T>(
+    local: Option<T>,
+    cross_unique: Option<T>,
+)
+    requires
+        local.is_some(),
+    ensures
+        select_resolution_spec(local, cross_unique, false) == local,
+{
+}
+
+// ---------------------------------------------------------------------------
+// Obligation 2: deleted-target rejection
+// ---------------------------------------------------------------------------
+//
+// Deleting a prerequisite retires its identity. A surviving consumer's clause
+// names the retired anchor, so it must fail to resolve rather than silently
+// resolving to the replacement item that inherited the old number.
+//
+// This obligation has no theorem of its own, and the omission is deliberate.
+// The earlier `retired_anchor_never_resolves` assumed both options absent and
+// concluded the result was `None`. With neither option holding a `T`, there is
+// no value to fabricate: `None` is forced by the type rather than by the
+// kernel, so no defect in the body can make the conclusion false. A six-defect
+// battery over `select_resolution_spec` confirmed it — the theorem survived
+// every one, while each of its three neighbours was rejected by at least one.
+// The defects and the obligations that reject them are tabulated in
+// `docs/verification.md`, whose Table 2 is the evidence for that claim.
+//
+// Deleted-target rejection is still guaranteed; it is just not this file's
+// guarantee. In kernel form it is checked by `target_text_never_uses_the_cross_source_fallback`
+// (a target reference with no local mapping resolves to nothing, whatever the
+// cross-source value holds), and in production it is the `unresolved` collection
+// in `src/roadmap/ops/rewrite.rs` that turns a `None` into
+// `MapspliceError::DanglingDependency`. That end-to-end behaviour is pinned by
+// the CLI regressions and the property suite, which assert the rejection
+// directly.
+
+// ---------------------------------------------------------------------------
+// A source-span obligation is deliberately absent
+// ---------------------------------------------------------------------------
+//
+// An earlier draft carried `resolution_is_a_function_of_its_inputs`, which took
+// two triples with pairwise-equal inputs and concluded equality of results. It
+// was removed because it could not fail. It is congruence over a pure `spec fn`
+// and is therefore discharged from the signature alone: no defect in the kernel
+// can make it false. The defect battery recorded in `docs/verification.md`
+// demonstrates that rather than assuming it, and the vacuity of both removed
+// theorems is why this file proves three obligations and not five.
+//
+// The property it was meant to capture is real — resolution must not vary with
+// hidden state such as map iteration order — but it is a property of the
+// *caller*. `RenumberPlan::resolve_reference` is what reads the maps; the
+// kernel receives two already-resolved anchors and has no state to vary with.
+// Would the kernel's reference transparency be worth proving, the missing piece
+// is a functional-correctness theorem connecting its output to the resolved
+// anchors, not a determinism statement about a total function of its arguments.
+//
+// Source-span preservation itself is a property of the renderer, which writes
+// output by copying preserved spans. It is not a property of this kernel, and
+// no theorem here would be evidence for it. It is covered by the golden
+// fixtures and the in-place byte-identity assertions in `tests/` instead, and
+// `docs/verification.md` records the boundary.
+
+/// Fragment text does consult the cross-source fallback.
+///
+/// Recorded because the fallback is not dead code: without this obligation a
+/// change that removed the fragment branch entirely would satisfy every other
+/// theorem in this file.
+proof fn fragment_text_uses_the_cross_source_fallback<T>(
+    local: Option<T>,
+    cross_unique: Option<T>,
+)
+    requires
+        !local.is_some(),
+        cross_unique.is_some(),
+    ensures
+        select_resolution_spec(local, cross_unique, true) == cross_unique,
+{
+}
+
+} // verus!
+
+fn main() {}

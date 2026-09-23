@@ -5,6 +5,8 @@ mod contracts;
 #[path = "roadmap_golden/formatter_boundary.rs"]
 mod formatter_boundary;
 mod golden;
+#[path = "roadmap_golden/nested_requires.rs"]
+mod nested_requires;
 
 use golden::{
     GoldenCommand,
@@ -21,7 +23,7 @@ use golden::{
 use rstest::{fixture, rstest};
 
 #[fixture]
-fn workspace() -> TestResult<GoldenWorkspace> {
+pub(crate) fn workspace() -> TestResult<GoldenWorkspace> {
     let workspace = create_workspace()?;
     Ok(workspace)
 }

@@ -61,7 +61,14 @@ roadmap's own convention), or hard-wrapped across source lines (the downstream
 convention). A clause the scanner cannot see is silently excluded from
 renumbering — exactly the corruption the tool exists to prevent.
 
-- [ ] 1.2.1. Rewrite dependency clauses in body bullet list items.
+- [x] 1.2.1. Rewrite dependency clauses in body bullet list items.
+
+  - Addressed: `rewrite_task_entry` now visits `TaskChild::Body` blocks via
+    `TaskEntry::body_children_mut`, so a `Requires` clause inside a nested
+    task-body bullet is renumbered and validated like the inline and plain
+    continuation forms. Deleting a referenced item is rejected with
+    `MapspliceError::DanglingDependency` before any output or in-place write,
+    leaving the target byte-identical.
 
   - Requires 1.1.2.
   - Apply the dependency-reference predicate to task and sub-task body bullet
@@ -74,6 +81,9 @@ renumbering — exactly the corruption the tool exists to prevent.
 - [ ] 1.2.2. Join task continuation lines before dependency-clause scanning.
 
   - Requires 1.2.1.
+  - Out of scope for the nested-bullet fix. A newline between `Requires` and
+    its anchors, or between anchors in one clause, is still not recognized;
+    `docs/mapsplice-design.md` section 7 records that exclusion explicitly.
   - Normalize each item's body text (unwrap hard-wrapped continuation lines)
     before applying the dependency-reference predicate, so a newline between
     `Requires` and an anchor, or between anchors in one clause, no longer
@@ -92,6 +102,21 @@ renumbering — exactly the corruption the tool exists to prevent.
   - Success: an edit over a roadmap containing an anchor-free `Requires`
     clause succeeds with a warning naming the item, and a fixture pins the
     diagnostic text.
+
+- [ ] 1.2.4. Renumber addendum sub-tasks that share a parent with body bullets.
+
+  - Requires 1.2.1.
+  - Defect observed while building the nested-bullet fixture corpus, and
+    reproduced against the revision before the nested-bullet fix, so it is
+    pre-existing rather than a regression from it. When a task holds both a
+    non-structural body bullet and an addendum sub-task, a renumbering edit
+    that moves the parent leaves the sub-task at its stale number and renders
+    it under the new parent: `- [ ] 1.1.2. Parent.` with a body bullet,
+    renumbered to `1.1.3`, still emits `- [ ] 1.1.2.1. Sub one.` instead of
+    `- [ ] 1.1.3.1. Sub one.`, violating C4 in `docs/mapsplice-design.md`.
+  - Success: a task with a body bullet followed by an addendum sub-task
+    renumbers the sub-task with its parent, pinned by a fixture that fails on
+    the current behaviour.
 
 ## 2. Model addenda as first-class items
 

@@ -1,0 +1,153 @@
+//! Golden coverage for `Requires` clauses in nested task-body bullets.
+
+use rstest::rstest;
+
+use super::{
+    golden::{
+        ExpectedError,
+        FailureOutput,
+        GoldenCommand,
+        GoldenFailureSpec,
+        GoldenWorkspace,
+        TestResult,
+        assert_golden_case,
+        golden_failure_case,
+        golden_success_case,
+    },
+    workspace,
+};
+
+/// Verify a `Requires` clause inside a nested task-body bullet is rewritten.
+///
+/// Regression for issue #85: the nested bullet carries the clause reachable
+/// only through [`mapsplice`]'s structural child sequence, so the inserted task
+/// used to leave the consumer pointing at the unrelated item that inherited
+/// `1.1.1`.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn c3_nested_bullet_requires_rewrite(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "c3_nested_bullet_requires_rewrite",
+            GoldenCommand::InsertBefore { anchor: "1.1.1" },
+            true,
+        ),
+    )
+}
+
+/// Verify insertion renumbers all three clause positions and leaves prose alone.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn f4_nested_requires_clause_positions(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "f4_nested_requires_clause_positions",
+            GoldenCommand::InsertBefore { anchor: "1.1.1" },
+            true,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn c3_nested_bullet_requires_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_failure_case(GoldenFailureSpec {
+            name: "c3_nested_bullet_requires_failure",
+            command: GoldenCommand::Delete { anchor: "1.1.1" },
+            fragment: None,
+            error: ExpectedError::DanglingDependency,
+            output: FailureOutput::TargetUnchanged,
+        }),
+    )
+}
+
+/// Verify an in-place delete of a still-required item writes nothing at all.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn f5_nested_requires_delete_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_failure_case(GoldenFailureSpec {
+            name: "f5_nested_requires_delete_in_place",
+            command: GoldenCommand::Delete { anchor: "1.1.1" },
+            fragment: None,
+            error: ExpectedError::DanglingDependency,
+            output: FailureOutput::InPlaceTargetUnchanged,
+        }),
+    )
+}
+
+/// Verify preview mode rejects a deletion stranded by the deepest clause form.
+///
+/// The clause sits in a nested bullet inside an addendum sub-task's body, one
+/// level deeper than C3's task-body bullet. That position is reached only
+/// through the sub-task's own structural child sequence, so it exercises the
+/// same defect class one nesting level further out. Preview mode is selected by
+/// the [`FailureOutput::TargetUnchanged`] variant alone, which keeps
+/// `--in-place` off the command line; the byte-identical target assertion then
+/// proves nothing was written despite the absence of that flag.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_failure_case(GoldenFailureSpec {
+            name: "c6_nested_requires_preview_failure",
+            command: GoldenCommand::Delete { anchor: "1.1.1" },
+            fragment: None,
+            error: ExpectedError::DanglingDependency,
+            output: FailureOutput::TargetUnchanged,
+        }),
+    )
+}
+
+/// Verify a hyphenated range has each endpoint rewritten and is not expanded.
+///
+/// `Requires 1.1.2-1.1.4.` is outside the clause grammar, because a hyphen is
+/// not an anchor character. It is not *ignored*, though: the scanner reads the
+/// two endpoints as two separate anchors in dependency context and rewrites each
+/// on its own item's behalf. The deleted task is the one *inside* the range, not
+/// an endpoint, so both endpoints survive and the range closes up from
+/// `1.1.2-1.1.4` to `1.1.2-1.1.3`. That distinguishes the two readings the text
+/// admits: an expanding reader would have emitted every anchor the range covers,
+/// and a reader that rejected the form would have copied it through unchanged.
+/// Deleting an endpoint instead would fail the operation as a dangling
+/// dependency, which is a different contract and is covered by the C3 and F5
+/// cases.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn f6_hyphenated_range_endpoints_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "f6_hyphenated_range_endpoints_rewritten",
+            GoldenCommand::Delete { anchor: "1.1.3" },
+            false,
+        ),
+    )
+}
+
+/// Verify incidental numbers and fenced examples survive a nested-clause delete.
+///
+/// The deleted task is an unreferenced middle one, not the last task. Deleting
+/// the last task shifts no later number and so rewrites no clause, which would
+/// make the fixture a test that a trailing delete disturbs nothing — true, but
+/// not what its name claims. Deleting a middle task renumbers all three clause
+/// positions, so the fixture shows the incidental prose and the fenced example
+/// holding their bytes *while* the surrounding clauses are rewritten.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn c2_nested_prose_and_code_not_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "c2_nested_prose_and_code_not_rewritten",
+            GoldenCommand::Delete { anchor: "1.1.2" },
+            false,
+        ),
+    )
+}

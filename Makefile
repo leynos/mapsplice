@@ -1,6 +1,7 @@
 .PHONY: help all clean test build release lint fmt check-fmt markdownfmt \
 	markdownlint markdownlint-paths nixie typecheck test-workflow-contracts \
-	spelling
+	spelling check-ripgrep check-verification-ledger check-prover-tools \
+	verus-install verus verus-selftest
 
 
 TARGET ?= mapsplice
@@ -47,6 +48,16 @@ TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1
 TYPOS_CONFIG_BUILDER = $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
+RG ?= rg
+# `rust-prover-tools` is pinned to a commit, not a release: it resolves the
+# Verus download, checksum, and invocation, and CI must get the same runner the
+# proofs were developed against. `uvx` runs it from a cached environment.
+PROVER_TOOLS ?= uvx --from git+https://github.com/leynos/rust-prover-tools@$(shell cat tools/rust-prover-tools/REF) prover-tools
+# The pinned Verus release refuses to run under a rustup-managed toolchain
+# override, and this repository pins `nightly-2026-03-26` in
+# `rust-toolchain.toml`. The override is cleared for the proof run only; cargo
+# builds keep the repository toolchain.
+VERUS_RUN ?= env -u RUSTUP_TOOLCHAIN $(PROVER_TOOLS) verus run --repo-root .
 
 define require_markdown_paths
 $(if $(strip $(MARKDOWN_PATHS)),,$(error set MARKDOWN_PATHS='docs/users-guide.md [more.md...]'))
@@ -80,7 +91,7 @@ test-workflow-contracts: ## Validate the mutation-testing caller contract
 target/%/$(TARGET): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
 
-lint: ## Run Clippy and the Whitaker Dylint suite with warnings denied
+lint: check-verification-ledger ## Run Clippy and the Whitaker Dylint suite with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
 	$(CARGO) clippy $(CLIPPY_FLAGS)
 	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
@@ -112,6 +123,44 @@ spelling: ## Enforce en-GB-oxendict spelling
 markdownlint-paths: ## Lint Markdown files listed in MARKDOWN_PATHS
 	$(call require_markdown_paths)
 	$(MDLINT) --no-globs -- $(MARKDOWN_PATHS)
+
+check-ripgrep: ## Verify ripgrep is available
+	@command -v "$(firstword $(RG))" >/dev/null 2>&1 || { \
+		echo "ripgrep (rg) is required for the verification-ledger check" >&2; \
+		exit 1; \
+	}
+
+check-verification-ledger: check-ripgrep ## Verify verification-ledger symbols exist
+	@RG='$(RG)' scripts/check-verification-ledger.sh .
+
+check-prover-tools: ## Verify the configured prover-tools runner is available
+	@command -v "$(firstword $(PROVER_TOOLS))" >/dev/null 2>&1 || { \
+		echo "prover-tools runner ($(firstword $(PROVER_TOOLS))) is required for Verus verification" >&2; \
+		exit 1; \
+	}
+
+verus-install: check-prover-tools ## Install the pinned Verus release
+	$(PROVER_TOOLS) verus install --repo-root .
+
+verus: verus-install ## Verify the production-used Verus proof entry point
+	$(VERUS_RUN) --proof-file verus/lib.rs
+
+verus-selftest: verus-install ## Confirm Verus rejects the deliberately false smoke proof
+	@output="$$(mktemp)"; \
+	if $(VERUS_RUN) --proof-file verus/smoke.rs >"$$output" 2>&1; then \
+		cat "$$output"; \
+		rm -f "$$output"; \
+		echo "Verus smoke proof unexpectedly succeeded" >&2; \
+		exit 1; \
+	fi; \
+	if ! grep -Fq "Verus proofs failed" "$$output"; then \
+		cat "$$output"; \
+		rm -f "$$output"; \
+		echo "Verus smoke proof did not reach the verifier" >&2; \
+		exit 1; \
+	fi; \
+	cat "$$output"; \
+	rm -f "$$output"
 
 nixie: ## Validate Mermaid diagrams
 	set -e; artefacts_dir="$$(mktemp -d)"; trap 'rm -rf "$$artefacts_dir"' EXIT; \

@@ -23,12 +23,20 @@ accepted = []
 # `artifact.kind = "..."`: a JSON field name in the validation output
 # design, scoped to the backticked field assignment so the common noun is
 # still corrected everywhere else.
+# A backticked abbreviated commit or blob SHA: hex digits split into
+# letter-runs that are not words, so `5ba0ab2` is read as containing `ba`.
+# Scoped to the backticked 7-40 hex form, so the shape is excluded rather than
+# any particular revision, and ordinary prose keeps its corrections. This
+# masks no English word: the only a-f-only token of that length in the
+# tracked docs is the fake checksum `deadbeef`, which is inside a fenced code
+# block and so was never checked.
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
     "`color`",
     "flavor = \"current_thread\"",
     "`artifact\\.kind = \"[a-z_]+\"`",
+    "`[0-9a-f]{7,40}`",
 ]
 
 [files]

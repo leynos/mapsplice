@@ -25,12 +25,18 @@ jobs:
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@82feb2b7aac45b7efff40c9c4bb632551b14521c
       - name: Install mold linker
+        # ripgrep is listed here rather than left implicit: `make lint` depends
+        # on `check-verification-ledger`, which shells out to `rg` to confirm
+        # that every symbol the ledger names still exists in `src/`. The
+        # `ubuntu-latest` image does not ship `rg`, so without this the lint job
+        # fails at its first prerequisite with "ripgrep (rg) is required for the
+        # verification-ledger check", before any Rust is compiled.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang mold
+            && sudo apt-get install --yes --no-install-recommends clang mold ripgrep
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.

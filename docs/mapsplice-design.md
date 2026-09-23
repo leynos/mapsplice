@@ -140,7 +140,13 @@ Untouched gate-clean content remains byte-exact.
 
 - **C1 — Operations.** `append` (phase-level), `insert` (before, or `--after`),
   `delete`, and `replace`, each addressed by an anchor, with strict level
-  matching between fragment and anchor.
+  matching between fragment and anchor. `insert` and `replace` differ only in
+  what happens to the addressed item's identity: an `insert` leaves it in place
+  and splices the fragment around it, while a `replace` **retires** it. A
+  retired identity is gone, so a dependency reference to it no longer resolves
+  and the operation fails closed rather than redirecting the consumer; a
+  fragment clause, which is written in the fragment's own numbering, still
+  resolves through the cross-source fallback described in section 7.
 - **C2 — Renumber contract.** After any edit, phase, step, task, and addendum
   numbers are contiguous from 1, in document order, at every level. No gaps, no
   duplicates, no out-of-order numbering survives an operation.
@@ -174,6 +180,35 @@ contract behind C3.
   context** — currently the `Requires` clause of a task body (and any future
   `Blocks` clause adopted by the grammar). Only dependency references are
   candidates for rewriting.
+- **Clause positions.** A `Requires` clause is recognized in three source
+  positions, and all three carry the same rewrite and dangling-dependency
+  guarantees:
+
+  | Position                            | Recognized when                        |
+  | ----------------------------------- | -------------------------------------- |
+  | Inline task or sub-task text        | `Requires` shares the numbered summary |
+  | Continuation text of the summary    | `Requires` begins an indented line     |
+  | Nested task or sub-task body bullet | `Requires` begins a nested bullet item |
+
+  *Table 1: Recognized `Requires` clause positions.*
+
+- **Numeric ranges.** A range such as `Requires 1.1.1-1.1.3.` is not a
+  *supported* clause form and is never *expanded* into the anchors it spans.
+  The endpoints are still rewritten, individually: a hyphen is not an anchor
+  character, so the scanner reads `1.1.1` and `1.1.3` as two separate anchors,
+  each in dependency context, and each follows its own item's new number. The
+  rewritten clause therefore keeps exactly two anchors however many the range
+  covered. Deleting `1.1.2` from a roadmap that requires `1.1.1-1.1.3` yields
+  `Requires 1.1.1-1.1.2.`, and deleting an *endpoint* fails the operation as a
+  dangling dependency like any other retired requirement. The form is tolerated
+  rather than rejected because rejecting it would mean declining an edit over a
+  stylistic choice in prose the author is entitled to write.
+- **Clause exclusions.** One form is outside the grammar and is left
+  **unrewritten**: a clause split across a hard line wrap, meaning a newline
+  between `Requires` and its anchors, or between anchors in one clause. Joining
+  wrapped continuations before scanning remains tracked by `docs/roadmap.md`
+  item 1.2.2. This exclusion does not change the anchor-token or
+  dependency-context definitions above.
 - **Incidental numbers are preserved.** An anchor token that is not in a
   dependency context, or that is immediately preceded by a section sigil (`§`),
   is incidental: it is a section reference, a version, or prose, and it is left
@@ -181,11 +216,19 @@ contract behind C3.
   substituting every number-shaped token in the document — is what upholds F1
   and C3.
 - **Resolution.** A dependency reference is resolved against the renumber plan:
-  the source-local mapping first, then a unique cross-source mapping when the
-  anchor is defined exactly once across the target and the fragment. A valid
-  dependency reference that does not resolve is a dangling dependency and the
-  operation fails with a typed diagnostic before output is emitted or an
-  in-place write occurs.
+  the source-local mapping first, then, for a reference written in the
+  **fragment**, a unique cross-source mapping when the anchor is defined
+  exactly once across the target and the fragment. The cross-source fallback is
+  deliberately withheld from target text. A fragment item's identity is its
+  fragment-local spelling, because that spelling is all the fragment file
+  carries; a target item's identity is the anchor it held before the operation.
+  Both are written the same way, so if target text could fall back to the
+  fragment's mapping, a replacement item spelled like the item it superseded
+  would absorb a surviving consumer's clause — the clause would keep its old
+  digits and silently resolve to a different item. This is the identity
+  preservation guarantee in its resolution form. A valid dependency reference
+  that does not resolve is a dangling dependency and the operation fails with a
+  typed diagnostic before output is emitted or an in-place write occurs.
 
 ## 8. Fixture and test requirements
 
@@ -249,7 +292,7 @@ inspection.
   | `Requires` lists                | every id in a multi-id clause is rewritten |
   | Dangling `Requires`             | unresolved valid anchors fail closed       |
 
-  *Table 1: Required adversarial fixtures for the fidelity and reference
+  *Table 2: Required adversarial fixtures for the fidelity and reference
   contracts.*
 
 - **Test shapes.** `rstest` unit fixtures cover the model, renumbering, and the
