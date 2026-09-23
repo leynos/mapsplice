@@ -1,7 +1,7 @@
 //! Contract tests for `scripts/check-verification-ledger.sh`.
 //!
 //! The ledger is what makes the proof claims auditable, so the check that
-//! keeps it honest needs its own evidence. Each case materialises a small tree
+//! keeps it honest needs its own evidence. Each case materializes a small tree
 //! — a ledger and a source file — and asserts the checker's exit status and,
 //! where it fails, its single-line diagnostic.
 //!
@@ -52,12 +52,12 @@ fn fixture(symbol: &str, source: &str) -> TestResult<LedgerFixture> {
     Ok((ledger_naming(symbol)?, source.to_owned()))
 }
 
-/// Materialise a `(ledger, source)` pair into a scratch tree.
+/// Materialize a `(ledger, source)` pair into a scratch tree.
 ///
 /// # Errors
 ///
 /// Returns an error when the scratch tree cannot be created or populated.
-fn materialise(fixture: &LedgerFixture) -> TestResult<TempDir> {
+fn materialize(fixture: &LedgerFixture) -> TestResult<TempDir> {
     let directory = TempDir::new().map_err(|error| format!("create scratch: {error}"))?;
     let root = utf8(directory.path())?;
     let handle = open_dir(root)?;
@@ -122,7 +122,7 @@ fn ledger_check_accepts_only_a_real_declaration(
     #[from(real_ledger)] real_ledger: TestResult<LedgerFixture>,
 ) -> TestResult {
     let (ledger, _) = real_ledger?;
-    let directory = materialise(&(ledger, source.to_owned()))?;
+    let directory = materialize(&(ledger, source.to_owned()))?;
     let output = run_ledger_check(utf8(directory.path())?)?;
 
     require(
@@ -152,7 +152,7 @@ fn ledger_check_rejects_a_claim_with_no_declaration(
     #[case] symbol: &str,
     #[case] source: &str,
 ) -> TestResult {
-    let directory = materialise(&fixture(symbol, source)?)?;
+    let directory = materialize(&fixture(symbol, source)?)?;
     let output = run_ledger_check(utf8(directory.path())?)?;
 
     require(
@@ -170,7 +170,7 @@ fn ledger_check_rejects_a_claim_with_no_declaration(
 
 #[test]
 fn ledger_check_rejects_a_ledger_stating_no_claims() -> TestResult {
-    let directory = materialise(&(
+    let directory = materialize(&(
         "# Verification ledger\n\n| Claim | Executable function |\n| ----- | --- |\n".to_owned(),
         "fn select_resolution() {}".to_owned(),
     ))?;

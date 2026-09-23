@@ -24,8 +24,8 @@ so a run in which the verifier never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
 claim names a function that no longer exists in `src/`.
 
-Deleted-target rejection is a third obligation that has no row here, because it
-has no theorem that can fail; the policy at the end of this document records
+Deleted-target rejection is a further obligation that has no row here, because
+it has no theorem that can fail; the policy at the end of this document records
 why and where it is covered instead.
 
 ## What is proved, and what is not

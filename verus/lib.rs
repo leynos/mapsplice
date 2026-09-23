@@ -123,9 +123,11 @@ proof fn target_text_keeps_its_source_local_mapping<T>(
 // The earlier `retired_anchor_never_resolves` assumed both options absent and
 // concluded the result was `None`. With neither option holding a `T`, there is
 // no value to fabricate: `None` is forced by the type rather than by the
-// kernel, so no defect in the body can make the conclusion false. A five-defect
+// kernel, so no defect in the body can make the conclusion false. A six-defect
 // battery over `select_resolution_spec` confirmed it — the theorem survived
 // every one, while each of its three neighbours was rejected by at least one.
+// The defects and the obligations that reject them are tabulated in
+// `docs/verification.md`, whose Table 2 is the evidence for that claim.
 //
 // Deleted-target rejection is still guaranteed; it is just not this file's
 // guarantee. In kernel form it is checked by `target_text_never_uses_the_cross_source_fallback`
@@ -144,8 +146,9 @@ proof fn target_text_keeps_its_source_local_mapping<T>(
 // two triples with pairwise-equal inputs and concluded equality of results. It
 // was removed because it could not fail. It is congruence over a pure `spec fn`
 // and is therefore discharged from the signature alone: no defect in the kernel
-// can make it false, which the falsifiability check below demonstrates rather
-// than assumes.
+// can make it false. The defect battery recorded in `docs/verification.md`
+// demonstrates that rather than assuming it, and the vacuity of both removed
+// theorems is why this file proves three obligations and not five.
 //
 // The property it was meant to capture is real — resolution must not vary with
 // hidden state such as map iteration order — but it is a property of the

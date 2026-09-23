@@ -63,7 +63,7 @@ The shared text therefore moved from `verus/kernels/select_resolution.body.rs`
 definition), and both `verus/lib.rs` and `src/roadmap/ops/remap_kernel.rs`
 expand `select_resolution_body!` and include the macro file at item level.
 
-Confirmed after the change: `make verus` reports `5 verified, 0 errors`;
+Confirmed after the change: `make verus` reports `4 verified, 0 errors`;
 `make lint` exits 0 with zero ICEs and the Whitaker toolchain banner present
 (so the suite genuinely loaded); and all six deterministic gates pass. The fix
 was verified both cold (a run that recompiled the crate) and warm.
@@ -123,17 +123,28 @@ Constraints confirmed by experiment:
    with its body shared via `verus/kernels/select_resolution.macro.rs` and
    called from `RenumberPlan::resolve_reference`.
 2. Added `verus/lib.rs` as the proof entry point: identity preservation,
-   local-mapping precedence, deleted-target rejection, and non-vacuity — four
-   obligations, all discharged, measured as `5 verified, 0 errors` (the four
-   `proof fn`s plus the verified kernel `fn`).
+   local-mapping precedence, and non-vacuity — three theorems, all discharged,
+   measured as `4 verified, 0 errors` (the three `proof fn`s plus the verified
+   kernel `fn`).
 
-   A fifth obligation, "source-span preservation", was drafted and then
-   removed. It concluded equality of results from pairwise-equal arguments,
-   which Verus discharges from the signature alone, so no kernel defect could
-   falsify it — confirmed by injecting a blatant spec defect, which three other
-   obligations rejected and that one did not. A CodeRabbit review found this
-   independently. Every remaining obligation is falsifiable, and Table 2 of
-   `docs/verification.md` records the injection that each one rejects.
+   Two further obligations were drafted and then removed, and neither removal
+   was discretionary. "Source-span preservation" concluded equality of results
+   from pairwise-equal arguments, which Verus discharges from the signature
+   alone, so no kernel defect could falsify it; a CodeRabbit review found that
+   independently. "Deleted-target rejection" looked falsifiable but was not:
+   its theorem assumed both options absent and concluded `None`, and with
+   neither option holding a `T` there is no value to fabricate, so the
+   conclusion is forced by the type rather than by the kernel. A six-defect
+   battery established it — the theorem survived all six specification defects
+   while each of its three neighbours rejected at least one. Table 2 of
+   `docs/verification.md` records the defect that each surviving theorem
+   rejects; deleted-target rejection is covered instead by the identity
+   obligation in kernel form and by the `unresolved` collection in production.
+
+   One body defect was injected as well, into the shared macro body alone with
+   the specification left correct. Verus rejected it at the `select_resolution`
+   `ensures` clause (4 verified, 1 error), which is the evidence that the proof
+   is about the text the product compiles rather than about the specification.
 3. Added the `docs/verification.md` ledger with a claim row per theorem, and
    `scripts/check-verification-ledger.sh` wired into `make lint`.
 4. Wired `make verus` and `make verus-selftest`; the selftest runs a
@@ -145,8 +156,33 @@ Constraints confirmed by experiment:
 
 ## Remaining work
 
-1. Push and open the draft PR.
-2. Run `coderabbit review --agent` and clear all concerns.
+1. Push and open the draft PR. **Done** — the branch is pushed and
+   [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
+2. Run `coderabbit review --agent` and clear all concerns. **In progress** —
+   three rounds have run and every finding is actioned or dismissed with
+   evidence. Re-run once the current round's fixes land.
+3. Follow the CI result for the PR. The first run failed `make lint`; see the
+   lesson below.
+
+## Lessons
+
+- **A local gate run can be vacuous about a later step in the same target.** An
+  early `make lint` failure (a denied `%`) aborted the target two steps before
+  Whitaker, so the run's silence about the Dylint suite proved nothing. A gate
+  is only green when it reaches its last step; the log was checked for the
+  Dylint banner rather than for a zero exit alone.
+- **A new prerequisite for `make lint` is a new CI prerequisite.** Wiring
+  `check-verification-ledger` into `lint` made `rg` a hard dependency of the
+  lint job. It is present locally, so the gate passed here and failed on the
+  runner. The install step now provides it.
+- **A fixture can be a test of nothing.** The C2 golden case originally deleted
+  the _last_ task, which shifts no later number and so rewrote no clause: it
+  was a test that a trailing delete disturbs nothing, which is true but not
+  what the case name claimed. It now deletes a middle task, so renumbering
+  actually happens while the incidental prose is held under test.
+- **Not every clause position of a theorem is falsifiable.** Two obligations
+  were removed after a defect battery showed no defect could falsify them. The
+  ledger records the battery; the proofs state three obligations, not five.
 
 ## Constraints that must hold
 

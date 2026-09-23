@@ -107,7 +107,14 @@ The result will:
 
 Only `Requires` dependency references are rewritten. A `Requires` clause is
 recognized in three positions: on the task or sub-task title line, beginning a
-plain indented continuation line, and beginning a nested task-body bullet item.
+plain indented continuation line, and beginning a nested task or sub-task body
+bullet item.
+
+A numeric range such as `Requires 1.1.1-1.1.3.` is not a supported clause form,
+but it is not ignored either. A hyphen is not an anchor character, so the
+scanner reads the two endpoints as two separate anchors and rewrites each one
+on its own item's behalf. The range is never expanded. Deleting `1.1.2` from a
+roadmap requiring `1.1.1-1.1.3` therefore yields `Requires 1.1.1-1.1.2.`.
 
 Dependency references follow the item, not the number. Inserting items shifts
 the anchors of everything after the insertion point while leaving every

@@ -105,6 +105,32 @@ fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) ->
     )
 }
 
+/// Verify a hyphenated range has each endpoint rewritten and is not expanded.
+///
+/// `Requires 1.1.2-1.1.4.` is outside the clause grammar, because a hyphen is
+/// not an anchor character. It is not *ignored*, though: the scanner reads the
+/// two endpoints as two separate anchors in dependency context and rewrites each
+/// on its own item's behalf. The deleted task is the one *inside* the range, not
+/// an endpoint, so both endpoints survive and the range closes up from
+/// `1.1.2-1.1.4` to `1.1.2-1.1.3`. That distinguishes the two readings the text
+/// admits: an expanding reader would have emitted every anchor the range covers,
+/// and a reader that rejected the form would have copied it through unchanged.
+/// Deleting an endpoint instead would fail the operation as a dangling
+/// dependency, which is a different contract and is covered by the C3 and F5
+/// cases.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn f6_hyphenated_range_endpoints_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_case(
+            "f6_hyphenated_range_endpoints_rewritten",
+            GoldenCommand::Delete { anchor: "1.1.3" },
+            false,
+        ),
+    )
+}
+
 /// Verify incidental numbers and fenced examples survive a nested-clause delete.
 ///
 /// The deleted task is an unreferenced middle one, not the last task. Deleting

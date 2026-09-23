@@ -184,21 +184,26 @@ contract behind C3.
   positions, and all three carry the same rewrite and dangling-dependency
   guarantees:
 
-  | Position                         | Recognized when                        |
-  | -------------------------------- | -------------------------------------- |
-  | Inline task or sub-task text     | `Requires` shares the numbered summary |
-  | Continuation text of the summary | `Requires` begins an indented line     |
-  | Nested task-body bullet item     | `Requires` begins a nested bullet item |
+  | Position                            | Recognized when                        |
+  | ----------------------------------- | -------------------------------------- |
+  | Inline task or sub-task text        | `Requires` shares the numbered summary |
+  | Continuation text of the summary    | `Requires` begins an indented line     |
+  | Nested task or sub-task body bullet | `Requires` begins a nested bullet item |
 
   *Table 1: Recognized `Requires` clause positions.*
 
 - **Clause exclusions.** Two forms are deliberately outside the grammar and are
   **not** rewritten. A numeric range such as `Requires 1.1.1-1.1.3.` is not a
-  supported clause form. A clause split across a hard line wrap — a newline
-  between `Requires` and its anchors, or between anchors in one clause — is
-  also not recognized; joining wrapped continuations before scanning remains
-  tracked by `docs/roadmap.md` item 1.2.2. Neither exclusion changes the
-  anchor-token or dependency-context definitions above.
+  supported clause form: the scanner reads the two endpoints as two separate
+  anchors, because a hyphen is not an anchor character, so each endpoint is
+  rewritten individually and the range is never expanded. Deleting `1.1.2` from
+  a roadmap that requires `1.1.1-1.1.3` therefore yields
+  `Requires 1.1.1-1.1.2.` — the endpoints follow their own items and the range
+  closes up. A clause split across a hard line wrap — a newline between
+  `Requires` and its anchors, or between anchors in one clause — is also not
+  recognized; joining wrapped continuations before scanning remains tracked by
+  `docs/roadmap.md` item 1.2.2. Neither exclusion changes the anchor-token or
+  dependency-context definitions above.
 - **Incidental numbers are preserved.** An anchor token that is not in a
   dependency context, or that is immediately preceded by a section sigil (`§`),
   is incidental: it is a section reference, a version, or prose, and it is left
