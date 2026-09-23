@@ -1,11 +1,19 @@
 //! Root entry point for production-used Verus kernels.
 //!
-//! Each verified kernel splices its production body with `include!` from a
-//! shared `.body.rs` file, so the text Verus proves and the text cargo compiles
-//! are one artefact rather than two implementations that can drift. The
-//! convention matters: a plain-Rust module pulled in with `#[path]` is treated
-//! by Verus as opaque — it cannot be called from a proof at all — so a proof
-//! that reaches production code must splice the body textually.
+//! Each verified kernel expands a shared `macro_rules!` body that is defined in
+//! a `.macro.rs` file and included by both this proof and the production
+//! module, so the text Verus proves and the text cargo compiles are one
+//! artefact rather than two implementations that can drift.
+//!
+//! The convention matters twice over. A plain-Rust module pulled in with
+//! `#[path]` is treated by Verus as opaque — it cannot be called from a proof at
+//! all — so a proof that reaches production code must bring the body in as
+//! text. And the splice cannot be a bare `include!` inside the function, because
+//! Whitaker's `bumpy_road_function` lint compares an included file's line
+//! numbers against the enclosing function's range, aborts the compiler, and so
+//! fails `make lint` for any crate that does it. A macro definition carries the
+//! expansion context that lint skips, which is why the shared text is a macro
+//! rather than a body fragment.
 //!
 //! Do not add a standalone reimplementation here. A kernel that is not the
 //! function the product calls proves nothing about the product.
@@ -13,6 +21,8 @@
 use vstd::prelude::*;
 
 verus! {
+
+include!("kernels/select_resolution.macro.rs");
 
 // ---------------------------------------------------------------------------
 // Kernel: dependency-reference resolution
@@ -48,8 +58,9 @@ pub open spec fn select_resolution_spec<T>(
 
 /// Choose which mapping a dependency reference resolves through.
 ///
-/// The body is spliced from the production kernel, so this proof is about the
-/// executable function the product calls and not about a model of it.
+/// The body is expanded from the same macro the production kernel expands, so
+/// this proof is about the executable function the product calls and not about
+/// a model of it.
 pub fn select_resolution<T: Copy>(
     local: Option<T>,
     cross_unique: Option<T>,
@@ -58,7 +69,7 @@ pub fn select_resolution<T: Copy>(
     ensures
         result == select_resolution_spec(local, cross_unique, source_is_fragment),
 {
-    include!("kernels/select_resolution.body.rs")
+    select_resolution_body!(local, cross_unique, source_is_fragment)
 }
 
 // ---------------------------------------------------------------------------

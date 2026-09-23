@@ -14,10 +14,10 @@
 //! sake of four assertions. The narrow reader is the smaller commitment.
 //!
 //! What this deliberately does **not** support: multi-line scalars, anchors
-//! and aliases, tags, quoted keys, or nested sequences of sequences. Given an
-//! unsupported construct it panics rather than returning something wrong, so a
-//! future edit to `verus.yml` that this reader cannot read fails loudly at the
-//! point of the edit instead of passing vacuously.
+//! and aliases, tags, or quoted keys. Given an unsupported construct [`parse`]
+//! returns an error rather than something wrong, so a future edit to
+//! `verus.yml` that this reader cannot read fails loudly at the point of the
+//! edit instead of passing vacuously.
 //!
 //! Flow sequences — `types: [opened, synchronize]` — are supported through
 //! [`Line::sequence`], because the workflow under test uses one and a caller
@@ -27,12 +27,8 @@
 /// One parsed YAML line: a mapping key, and the value or sequence item under it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Line {
-    /// Zero-based depth, counted in leading two-space indentation levels.
-    pub indent: usize,
     /// The key text for a mapping entry, or the item text for a sequence entry.
-    pub text: String,
-    /// Whether this line begins a sequence item.
-    pub is_item: bool,
+    text: String,
 }
 
 impl Line {
@@ -86,43 +82,41 @@ impl Line {
 /// Blank lines and whole-line comments are dropped; they carry no structure
 /// this contract depends on.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics on tab indentation, on indentation that is not a whole number of
-/// two-space levels, and on any line that is neither a mapping entry nor a
-/// sequence item. Those are the constructs listed as unsupported above, and
-/// failing here is what keeps the reader from silently misreading them.
-#[must_use]
-pub fn parse(yaml: &str) -> Vec<Line> {
+/// Returns an error naming the offending line when the document uses a
+/// construct this reader does not support: tab indentation, a line that is
+/// neither a mapping entry nor a sequence item, or an indentation column that
+/// cannot be expressed as whole two-space levels. Reporting is deliberate —
+/// a reader that misread such a line instead would let the workflow contract
+/// tests pass on a document they had not actually parsed.
+pub fn parse(yaml: &str) -> Result<Vec<Line>, String> {
     let mut lines = Vec::new();
     for raw in yaml.lines() {
         if raw.trim().is_empty() || raw.trim_start().starts_with('#') {
             continue;
         }
-        assert!(
-            !raw.starts_with('\t') && !raw[..raw.len() - raw.trim_start().len()].contains('\t'),
-            "workflow_scan cannot read tab indentation: {raw:?}"
-        );
         let content = raw.trim_start();
-        let indent = raw.len() - content.len();
-        assert_eq!(
-            indent % 2,
-            0,
-            "workflow_scan expects two-space indentation: {raw:?}"
-        );
+        let indentation = raw
+            .get(..raw.len().saturating_sub(content.len()))
+            .unwrap_or_default();
+        if indentation != " ".repeat(indentation.len()) {
+            return Err(format!(
+                "workflow_scan cannot read non-space indentation: {raw:?}"
+            ));
+        }
         let is_item = content.starts_with("- ");
-        assert!(
-            is_item || content.contains(':'),
-            "workflow_scan found a line that is neither a mapping entry nor a sequence item: \
-             {raw:?}"
-        );
+        if !is_item && !content.contains(':') {
+            return Err(format!(
+                "workflow_scan found a line that is neither a mapping entry nor a sequence item: \
+                 {raw:?}"
+            ));
+        }
         lines.push(Line {
-            indent: indent / 2,
             text: content.to_owned(),
-            is_item,
         });
     }
-    lines
+    Ok(lines)
 }
 
 /// Return the indices of every mapping entry whose key is `key`.

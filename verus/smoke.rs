@@ -1,6 +1,6 @@
 //! Deliberately failing proof used to prove that the Verus harness is live.
 //!
-//! `make verify-proofs-selftest` and `tests/verus_harness.rs` depend on this
+//! `make verus-selftest` and `tests/verus_harness/` depend on this
 //! proof failing; do not make its assertion provable.
 
 use vstd::prelude::*;

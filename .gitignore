@@ -21,3 +21,6 @@ __pycache__/
 *~
 *.un~
 .vtcode/
+
+# Compiler crash dumps (whitaker ICEs); never commit these.
+rustc-ice-*.txt

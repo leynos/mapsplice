@@ -9,12 +9,28 @@
 //!
 //! The decision is therefore extracted here as a pure function over its own
 //! inputs, with no map, no document, and no I/O. `verus/lib.rs` proves the
-//! obligations over this exact text: the body of
-//! [`select_resolution`] is spliced from `verus/kernels/select_resolution.body.rs`,
-//! so the verified text and the compiled text are one artefact rather than two
-//! implementations that can drift.
+//! obligations over this exact text: [`select_resolution`] expands the same
+//! `select_resolution_body!` macro that `verus/kernels/select_resolution.macro.rs`
+//! defines and the proof expands, so the verified text and the compiled text are
+//! one artefact rather than two implementations that can drift.
+//!
+//! The macro indirection is load-bearing rather than stylistic. Whitaker's
+//! `bumpy_road_function` lint cannot see through `include!`: spliced tokens
+//! report `span.from_expansion() == false` while carrying the included file's
+//! line numbers, so the lint compares them against the enclosing function's
+//! range in a different coordinate system and aborts the compiler with an
+//! internal error. Expanding the shared text as a macro gives it the expansion
+//! context that lint already skips. `verus/kernels/select_resolution.macro.rs`
+//! records the trade this makes.
 //!
 //! [`RenumberPlan::resolve_reference`]: super::super::model::RenumberPlan::resolve_reference
+
+// The body is macro-expanded, not spliced, so that Whitaker's
+// `bumpy_road_function` lint can skip it. See the module documentation above.
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/verus/kernels/select_resolution.macro.rs"
+));
 
 /// Choose which mapping a dependency reference resolves through.
 ///
@@ -33,10 +49,7 @@ pub const fn select_resolution<T: Copy>(
     cross_unique: Option<T>,
     source_is_fragment: bool,
 ) -> Option<T> {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/verus/kernels/select_resolution.body.rs"
-    ))
+    select_resolution_body!(local, cross_unique, source_is_fragment)
 }
 
 #[cfg(test)]

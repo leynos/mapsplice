@@ -4,27 +4,51 @@
 //! keeps it honest needs its own evidence. Each case materialises a small tree
 //! — a ledger and a source file — and asserts the checker's exit status and,
 //! where it fails, its single-line diagnostic.
+//!
+//! Failures are reported as `Err` rather than by panicking, because
+//! `clippy::panic_in_result_fn` is denied across the workspace and the
+//! diagnostics a test observes are also what a reader needs to see.
 
 use cap_std::fs_utf8::Dir;
 use rstest::{fixture, rstest};
 use tempfile::TempDir;
 
-use crate::prover_harness::{TestResult, fixture_text, open_dir, run_ledger_check, utf8};
+use crate::prover_harness::{
+    TestResult,
+    fixture_text,
+    open_dir,
+    read_repo_file,
+    run_ledger_check,
+    utf8,
+};
 
 /// A `(ledger, source)` pair, as text.
 type LedgerFixture = (String, String);
 
 const LEDGER_DIAGNOSTIC: &str = "verification ledger names missing symbol:";
+/// The ledger's executable-function column, as the fixture spells it.
+const KERNEL_COLUMN: &str = "| `select_resolution` |";
 const EMPTY_LEDGER_DIAGNOSTIC: &str = "verification ledger states no verifiable claims";
 
 /// Render the real ledger with its kernel column replaced by `symbol`.
+///
+/// # Errors
+///
+/// Returns an error when the fixture no longer carries the kernel column, so a
+/// rejection case cannot pass because the substitution silently did nothing.
 fn ledger_naming(symbol: &str) -> TestResult<String> {
     let ledger = fixture_text("real", "md")?;
-    Ok(ledger.replace("| `select_resolution` |", &format!("| `{symbol}` |")))
+    if !ledger.contains(KERNEL_COLUMN) {
+        return Err("the ledger fixture no longer contains the kernel column".into());
+    }
+    // A substitution that is the identity — `symbol` naming the kernel itself —
+    // is the case that puts the claim and the declaration in agreement, so it is
+    // expressed here rather than special-cased by the caller.
+    Ok(ledger.replace(KERNEL_COLUMN, &format!("| `{symbol}` |")))
 }
 
 /// Build a fixture from a symbol name and the source file that should satisfy it.
-fn fixture(symbol: &str, source: &str) -> TestResult<(String, String)> {
+fn fixture(symbol: &str, source: &str) -> TestResult<LedgerFixture> {
     Ok((ledger_naming(symbol)?, source.to_owned()))
 }
 
@@ -33,7 +57,7 @@ fn fixture(symbol: &str, source: &str) -> TestResult<(String, String)> {
 /// # Errors
 ///
 /// Returns an error when the scratch tree cannot be created or populated.
-pub fn materialise(fixture: &LedgerFixture) -> TestResult<TempDir> {
+fn materialise(fixture: &LedgerFixture) -> TestResult<TempDir> {
     let directory = TempDir::new().map_err(|error| format!("create scratch: {error}"))?;
     let root = utf8(directory.path())?;
     let handle = open_dir(root)?;
@@ -55,9 +79,34 @@ fn write(handle: &Dir, path: &str, contents: &str) -> TestResult {
     Ok(())
 }
 
+/// Return an error when `condition` does not hold.
+fn require(condition: bool, reason: String) -> TestResult {
+    if condition {
+        Ok(())
+    } else {
+        Err(reason.into())
+    }
+}
+
 #[fixture]
 fn real_ledger() -> TestResult<LedgerFixture> {
     fixture_text("real", "md").map(|md| (md, String::new()))
+}
+
+#[test]
+fn the_fixture_is_a_copy_of_the_real_ledger() -> TestResult {
+    // Every case above asserts against the fixture rather than `docs/`, so a
+    // fixture that drifts from the document it copies would let the checker be
+    // tested against a ledger no longer resembling the one that ships. The
+    // fixture is named `real` for that reason, and this is what the name means.
+    let fixture = fixture_text("real", "md")?;
+    let on_disk = read_repo_file("docs/verification.md")?;
+    require(
+        fixture == on_disk,
+        "tests/data/verification_ledger/real.md must be a copy of docs/verification.md; re-copy \
+         it after editing the ledger"
+            .to_owned(),
+    )
 }
 
 #[rstest]
@@ -74,20 +123,23 @@ fn ledger_check_accepts_only_a_real_declaration(
 ) -> TestResult {
     let (ledger, _) = real_ledger?;
     let directory = materialise(&(ledger, source.to_owned()))?;
-    let output = run_ledger_check(utf8(directory.path())?);
+    let output = run_ledger_check(utf8(directory.path())?)?;
 
-    assert_eq!(
-        output.status.success(),
-        should_accept,
-        "source {source:?} should {} the claim",
-        if should_accept { "satisfy" } else { "fail" }
-    );
+    require(
+        output.status.success() == should_accept,
+        format!(
+            "source {source:?} should {} the claim, but the checker exited {}. Output: {}",
+            if should_accept { "satisfy" } else { "fail" },
+            output.status,
+            String::from_utf8_lossy(&output.stdout).trim_end(),
+        ),
+    )?;
     if !should_accept {
         let diagnostic = String::from_utf8_lossy(&output.stdout);
-        assert!(
+        require(
             diagnostic.starts_with(LEDGER_DIAGNOSTIC),
-            "expected a missing-symbol diagnostic, got {diagnostic:?}"
-        );
+            format!("expected a missing-symbol diagnostic, got {diagnostic:?}"),
+        )?;
     }
     Ok(())
 }
@@ -101,17 +153,19 @@ fn ledger_check_rejects_a_claim_with_no_declaration(
     #[case] source: &str,
 ) -> TestResult {
     let directory = materialise(&fixture(symbol, source)?)?;
-    let output = run_ledger_check(utf8(directory.path())?);
+    let output = run_ledger_check(utf8(directory.path())?)?;
 
-    assert!(
+    require(
         !output.status.success(),
-        "claim {symbol:?} should be rejected"
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout).trim_end(),
-        format!("{LEDGER_DIAGNOSTIC} {symbol}")
-    );
-    Ok(())
+        format!("claim {symbol:?} should be rejected"),
+    )?;
+    let diagnostic = String::from_utf8_lossy(&output.stdout)
+        .trim_end()
+        .to_owned();
+    require(
+        diagnostic == format!("{LEDGER_DIAGNOSTIC} {symbol}"),
+        format!("expected the missing-symbol diagnostic, got {diagnostic:?}"),
+    )
 }
 
 #[test]
@@ -120,12 +174,15 @@ fn ledger_check_rejects_a_ledger_stating_no_claims() -> TestResult {
         "# Verification ledger\n\n| Claim | Executable function |\n| ----- | --- |\n".to_owned(),
         "fn select_resolution() {}".to_owned(),
     ))?;
-    let output = run_ledger_check(utf8(directory.path())?);
+    let output = run_ledger_check(utf8(directory.path())?)?;
 
-    assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(EMPTY_LEDGER_DIAGNOSTIC),
-        "an empty claim table must be a failure, not a vacuous pass"
-    );
-    Ok(())
+    require(
+        !output.status.success(),
+        "an empty claim table must fail rather than pass vacuously".to_owned(),
+    )?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    require(
+        stderr.contains(EMPTY_LEDGER_DIAGNOSTIC),
+        format!("expected the empty-ledger diagnostic, got {stderr:?}"),
+    )
 }

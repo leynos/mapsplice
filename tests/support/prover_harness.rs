@@ -52,6 +52,21 @@ pub fn fixture_text(name: &str, extension: &str) -> TestResult<String> {
         .map_err(|error| format!("read verification-ledger fixture {path}: {error}").into())
 }
 
+/// Read a repository file through a capability-scoped handle.
+///
+/// The workspace denies `std::fs` access that bypasses the capability policy,
+/// so contract tests read the files they assert against the same way the rest
+/// of the suite does. `path` is relative to the repository root.
+///
+/// # Errors
+///
+/// Returns an error when the file is absent or unreadable.
+pub fn read_repo_file(path: &str) -> TestResult<String> {
+    open_dir(&manifest_dir())?
+        .read_to_string(path)
+        .map_err(|error| format!("read {path}: {error}").into())
+}
+
 /// Path to the verification-ledger checker under test.
 #[must_use]
 pub fn ledger_script_path() -> Utf8PathBuf {
@@ -62,13 +77,16 @@ pub fn ledger_script_path() -> Utf8PathBuf {
 ///
 /// `RG` is cleared so the script resolves ripgrep from `PATH` rather than
 /// inheriting an override from the developer's shell.
-#[must_use]
-pub fn run_ledger_check(directory: &Utf8Path) -> Output {
+///
+/// # Errors
+///
+/// Returns an error when the script cannot be executed.
+pub fn run_ledger_check(directory: &Utf8Path) -> TestResult<Output> {
     Command::new(ledger_script_path())
         .arg(directory)
         .env_remove("RG")
         .output()
-        .expect("failed to execute check-verification-ledger.sh")
+        .map_err(|error| format!("execute check-verification-ledger.sh: {error}").into())
 }
 
 /// A fake `prover-tools` runner plus the log it writes.
