@@ -1,9 +1,11 @@
 //! Splice operations and anchor-aware mutation helpers.
 
 mod dependency_text;
+mod remap_kernel;
 mod rewrite;
 mod sub_task;
 
+pub(crate) use remap_kernel::select_resolution;
 use rewrite::{renumber_document, rewrite_dependencies};
 use sub_task::{SubTaskInsertion, delete_sub_task, insert_sub_tasks, replace_sub_task};
 

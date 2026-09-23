@@ -288,19 +288,25 @@ impl RenumberPlan {
     /// silently resolve to a different item. A fragment clause, by contrast,
     /// genuinely is written in the fragment's own numbering when it arrives, so
     /// the fallback is exactly what makes it resolve.
+    ///
+    /// The choice between the two mappings is delegated to
+    /// [`select_resolution`], a pure kernel that `verus/lib.rs` proves
+    /// identity preservation over. Keeping the decision there — and only
+    /// there — is what makes the rule a theorem rather than a comment: were
+    /// the caller to withhold the cross-source value itself, the kernel's
+    /// fragment guard would be dead in production and the proof would be
+    /// about unreachable logic.
+    ///
+    /// [`select_resolution`]: super::ops::select_resolution
     #[must_use]
     pub fn resolve_reference(
         &self,
         source: SourceId,
         anchor: RoadmapAnchor,
     ) -> Option<RoadmapAnchor> {
-        if let Some(local) = self.resolve(source, anchor) {
-            return Some(local);
-        }
-        if source == SourceId::Fragment {
-            return self.resolve_unique(anchor);
-        }
-        None
+        let local = self.resolve(source, anchor);
+        let cross_unique = self.resolve_unique(anchor);
+        super::ops::select_resolution(local, cross_unique, source == SourceId::Fragment)
     }
 
     /// Resolve a unique mapping across all sources when local lookup is absent.
