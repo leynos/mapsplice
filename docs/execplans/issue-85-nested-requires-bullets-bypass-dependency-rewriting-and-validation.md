@@ -40,7 +40,7 @@ The four coding-plan tasks:
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
 - `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
 
-The five CodeRabbit rounds and their response commits:
+The six CodeRabbit rounds and their response commits:
 
 | Round | Findings | Answered by | Evidence artefact                               |
 | ----- | -------- | ----------- | ----------------------------------------------- |
@@ -49,9 +49,10 @@ The five CodeRabbit rounds and their response commits:
 | 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                    |
 | 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`               |
 | 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw` |
+| 6     | 6        | _pending_   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 
-_Table 3: the five review rounds, re-derived from the artefacts by matching
-each round's findings against the files its response commit touched._
+_Table 2: the review rounds, re-derived from the artefacts by matching each
+round's findings against the files its response commit touched._
 
 Supporting commits that are not themselves a round response:
 
@@ -124,7 +125,7 @@ by direct experiment against the pinned Verus binary, not by reading:
 | `include!` at item level inside `verus!`                           | Function is again "ignored" — the macro does not see it                                                                                        |
 | **`include!` inside a function body inside `verus!`**              | **The included text is verified.** A false postcondition over the included body is caught, with the diagnostic pointing into the included file |
 
-_Table 2: Verus splice probes and what each establishes._
+_Table 3: Verus splice probes and what each establishes._
 
 So Verus verifies only text that is literally inside the `verus!` macro. A body
 spliced by `include!` _is_ verified, and that same file is also plain Rust that
@@ -190,10 +191,17 @@ Constraints confirmed by experiment:
 
 1. Push and open the draft PR. **Done** — the branch is pushed and
    [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
-2. Run `coderabbit review --agent` and clear all concerns. **Done for five
-   rounds** — 8, 6, 7, 7 and 4 findings, every one actioned or dismissed with
-   recorded evidence, counts re-derived from the artefacts (Table 3). A sixth
-   round has not been run; it is the next milestone.
+2. Run `coderabbit review --agent` and clear all concerns. **Done for six
+   rounds** — 8, 6, 7, 7, 4 and 6 findings, every one actioned or dismissed
+   with recorded evidence, counts re-derived from the artefacts (Table 2).
+   Round 6 returned six findings that are four distinct issues, because two
+   pairs are the same finding stated twice. Two were accepted and fixed (the
+   ExecPlan's table captions were out of document order; the `verus.yml`
+   concurrency comment described a `push` trigger the workflow does not
+   have). Two were dismissed against evidence already on file: the ExecPlan
+   rename re-raises round 1's finding with a new justification, and the
+   ledger-fixture finding would undo what round 3's major finding asked for.
+   A seventh round has not been run.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
    (see the lesson below), and a later one failed `make spelling` on a commit
    hash written into the ExecPlan. Both are fixed. The current tip is
@@ -257,6 +265,12 @@ Constraints confirmed by experiment:
   for 32 findings in total. The two errors nearly cancelled: the wrong
   breakdown summed to 25, which is what the correct count was wrongly recorded
   as, so a re-read of the total confirmed a number that was itself groundless.
+  (A sixth round has since run, so the live tally is 8, 6, 7, 7, 4, 6 for 38;
+  Table 2 is the current record. This paragraph is left as written because it
+  is the record of what the correction established at the time, and the lesson
+  it draws would be weakened by editing the numbers that make the point. The
+  paragraph has already gone stale once for exactly the reason it describes,
+  which is the cleanest illustration of it available.)
 - **A missing round announces itself as a count that does not close.** Five
   commits name CodeRabbit; only four review artefacts could be found. That
   one-line reconciliation was available from the start and would have caught
@@ -326,6 +340,52 @@ Constraints confirmed by experiment:
   measurements of the same thing disagree, that is the finding — re-measure by
   an independent route (here, hashing both sides) rather than trusting the one
   that agrees with what was expected.
+- **A re-review can re-raise a settled finding, and a *checkable* new reason
+  deserves a check rather than a repeat of the old argument.** Round 6 asked
+  again for the ExecPlan to be renamed to `docs/execplans/roadmap-1-2-1.md`,
+  which round 1 had already raised and which the round-1 triage had already
+  refused. The difference was the justification: round 6 said the rename was
+  needed "so the renumber planner can classify and carry the plan correctly".
+  That is a factual claim about the repository and it is false in two
+  independent ways, both one command from being shown so —
+  `git grep -n "execplans" -- src/` finds no such subcommand, and
+  `git grep -n "execplans/issue-85" -- .` finds no reference to the file. There
+  is no planner, no classifier, and no link. Re-arguing the original refusal
+  would have been the wrong move twice over: it would have treated a new claim
+  as though it were the old one, and it would have left the claim standing
+  unrefuted. When a re-raise arrives with a reason that can be tested, test it.
+  When the reason turns out to be false, that is the strongest possible form of
+  the dismissal — and the weakest possible reason to change the code.
+- **Two of round 6's six findings were the same finding stated twice, so the
+  round's own count is not its issue count.** The ExecPlan rename came back
+  once as "rename to the conventional roadmap name for item 1.2.1" and once as
+  "rename the file to `docs/execplans/roadmap-1-2-1.md`"; the ledger-fixture
+  finding came back twice differing only in a subordinate clause. Six findings,
+  four issues. Deduplicate by the change requested, not by the number the
+  report prints — the count in a summary line is a measure of how many times
+  the scanner spoke, not of how many defects exist.
+- **A comment can be the defect, and the honest fix can be smaller than the
+  one requested.** Round 6 noticed that `verus.yml`'s concurrency comment
+  mentions "a push to `main`" and asked for a push trigger to be added so the
+  comment would be true. Measured across the repository,
+  `grep -rn "push:" .github/workflows/` returns nothing: no workflow here
+  triggers on push, including `ci.yml`. Adding one to `verus.yml` on its own
+  would have made proofs run on every merge to `main` while lint and the test
+  suite did not — trading a comment's inaccuracy for a CI layout that is harder
+  to reason about and still inaccurate about every other workflow. The comment
+  was the defect; the triggers were correct as they stood. Where a finding
+  identifies two things that disagree and only one of them is wrong, the work
+  is to determine *which*, not to move the one that is easier to move.
+- **Three of round 6's findings pointed at two files spelled with the same
+  table numbers, and only two of the three could be right.** The ExecPlan had
+  its captions out of document order (`Table 3` above `Table 2`), while line
+  171's "Table 2 of `docs/verification.md`" is a cross-*document* reference
+  into the ledger's own `Table 2` and was correct. A search-and-replace over
+  "Table 2"/"Table 3" would have swapped all of them and introduced exactly the
+  defect the round was reporting. The review had scoped its own suggestion to
+  the local captions and the local cross-reference, and that scoping was
+  correct — worth noting because a plausible-looking mechanical fix here was
+  the one that would have broken something.
 
 ## Constraints that must hold
 
