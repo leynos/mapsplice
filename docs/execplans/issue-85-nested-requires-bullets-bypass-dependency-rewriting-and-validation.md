@@ -202,23 +202,38 @@ Constraints confirmed by experiment:
   readings differ for any step beyond the first few. The finding was right that
   something should change and wrong about why, so the reasoning was checked
   against the code before the edit, and the record says which part was taken.
-- **A count in a plan is a claim, and this one was wrong twice.** The round
+- **A count in a plan is a claim, and this one was wrong twice over.** The round
   tally stood at "four rounds (7, 7, 7, 4 findings)" and was carried from the
   plan into the pull-request body without being re-derived. Both halves were
   false. There were five rounds, and the per-round counts are 8, 6, 7, 7 and 4,
-  for 32 findings in total; the total merely happened to match at 25, which is
-  what let the wrong breakdown survive a re-read.
-- **The evidence glob was narrower than the evidence.** Round artifacts were
+  for 32 findings in total. The two errors nearly cancelled: the wrong
+  breakdown summed to 25, which is what the correct count was wrongly recorded
+  as, so a re-read of the total confirmed a number that was itself groundless.
+- **A missing round announces itself as a count that does not close.** Five
+  commits name CodeRabbit; only four review artefacts could be found. That
+  one-line reconciliation was available from the start and would have caught
+  the omission immediately, where re-reading the tally did not. Prefer a check
+  that compares two independently-derived numbers over a re-read of the number
+  in question.
+- **The evidence glob was narrower than the evidence.** Round artefacts were
   enumerated with `ls /tmp/coderabbit-*.out`, but two of the five rounds were
   captured only inside subagent task-output files under
   `/tmp/claude-1000/.../tasks/`, which that glob cannot see. Two rounds were
-  therefore invisible, and the surviving four were mis-indexed against the
-  response commits — the file named `.round3` actually holds the round answered
-  by `67ab4b9`, which the plan's own commit list did not mention. Enumerate by
-  content (`grep -rl` for a review-completed marker and the branch name), not by
-  a filename pattern that only holds when the convention was followed. The
-  authoritative re-derivation matched each artifact's findings against the files
-  each response commit touched, rather than trusting timestamps or filenames.
+  therefore invisible, and the four that did match were indexed against the
+  wrong response commits — the file named `.out.round3` actually holds the
+  round answered by `67ab4b9`, which the plan's own commit list did not
+  mention. Enumerate by content (`grep -rl` for a review-completed marker and
+  the branch name), not by a filename pattern that only holds when the
+  convention was followed. The authoritative re-derivation matched each
+  artefact's findings against the files each response commit touched, rather
+  than trusting timestamps or filenames.
+- **Two unrelated things shared the label "round 3", and correcting the first
+  error caused a second.** The note file `cr-triage-round3.md` and the artefact
+  file `.out.round3` are different rounds. The first correction asserted that
+  the note documented `67ab4b9`'s round on the strength of the filename match
+  alone; the file-touch check showed the note's F1–F7 table corresponds to
+  `fcbe9c6` and the note is round 4, not round 2. A correction written from the
+  same faulty signal as the error it fixes is not a correction.
 
 ## Constraints that must hold
 
