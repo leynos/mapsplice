@@ -163,8 +163,9 @@ Constraints confirmed by experiment:
 2. Run `coderabbit review --agent` and clear all concerns. **In progress** —
    four rounds have run (7, 7, 7, 4 findings) and every finding is actioned or
    dismissed with recorded evidence. Re-run once the current round's fixes land.
-3. Follow the CI result for the PR. The first run failed `make lint`; see the
-   lesson below. The fix is in and the next run is the check on it.
+3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
+   (see the lesson below); after the ripgrep fix the `build-test` job passes,
+   3m56s against the previous 4m14s failure, and `verify` passes in 35s.
 
 ## Lessons
 
