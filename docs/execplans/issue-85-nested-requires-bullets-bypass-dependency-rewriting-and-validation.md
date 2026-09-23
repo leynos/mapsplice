@@ -195,8 +195,11 @@ Constraints confirmed by experiment:
    recorded evidence, counts re-derived from the artefacts (Table 3). A sixth
    round has not been run; it is the next milestone.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
-   (see the lesson below); after the ripgrep fix, run `35868377416` at
-   `0c222e4` reports `build-test success` (4m39s) and `verify success` (55s).
+   (see the lesson below), and a later one failed `make spelling` on a commit
+   hash written into the ExecPlan. Both are fixed. The current tip is
+   `5e38bcb`, where run `35871439602` reports `build-test success` and
+   `35871439535` reports `verify success`, with the `Spelling` step reaching
+   `refreshed: typos.toml` and no error.
 4. The code gates for the branch as a whole. **Covered by CI, not by a local
    run.** The local gate run commissioned after the round-tally correction was
    scoped to the Markdown gates, because the seven commits after `92dc9bb`
@@ -207,6 +210,11 @@ Constraints confirmed by experiment:
    is green at the tip, which is why no local re-run was commissioned. If a
    local run is ever wanted as independent evidence, it must cover `lint`,
    `typecheck` and `test` explicitly rather than inheriting this scope.
+5. Local Markdown gates at `5e38bcb`. **Done** — `check-fmt` (203 files left
+   unchanged), `spelling`, `nixie` (all Markdown, no Mermaid present) and
+   `markdownlint` (`Linting: 60 file(s)`, `Summary: 0 error(s)`) all green,
+   sequentially, with HEAD unmoved and `typos.toml` reported in sync rather
+   than drifting. Logs are under `/tmp/<gate>-mapsplice-issue85-5e38bcb.out`.
 
 ## Lessons
 
