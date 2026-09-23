@@ -42,13 +42,13 @@ The four coding-plan tasks:
 
 The six CodeRabbit rounds and their response commits:
 
-| Round | Findings | Answered by | Evidence artefact                               |
-| ----- | -------- | ----------- | ----------------------------------------------- |
-| 1     | 8        | `05b49d3`   | `/tmp/coderabbit-mapsplice-issue-85.out`        |
-| 2     | 6        | `67ab4b9`   | `.../tasks/bh6xlkhs1.output`                    |
-| 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                    |
-| 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`               |
-| 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw` |
+| Round | Findings | Answered by | Evidence artefact                                      |
+| ----- | -------- | ----------- | ------------------------------------------------------ |
+| 1     | 8        | `05b49d3`   | `/tmp/coderabbit-mapsplice-issue-85.out`               |
+| 2     | 6        | `67ab4b9`   | `.../tasks/bh6xlkhs1.output`                           |
+| 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                           |
+| 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`                      |
+| 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
 | 6     | 6        | _pending_   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
@@ -197,11 +197,11 @@ Constraints confirmed by experiment:
    Round 6 returned six findings that are four distinct issues, because two
    pairs are the same finding stated twice. Two were accepted and fixed (the
    ExecPlan's table captions were out of document order; the `verus.yml`
-   concurrency comment described a `push` trigger the workflow does not
-   have). Two were dismissed against evidence already on file: the ExecPlan
-   rename re-raises round 1's finding with a new justification, and the
-   ledger-fixture finding would undo what round 3's major finding asked for.
-   A seventh round has not been run.
+   concurrency comment described a `push` trigger the workflow does not have).
+   Two were dismissed against evidence already on file: the ExecPlan rename
+   re-raises round 1's finding with a new justification, and the ledger-fixture
+   finding would undo what round 3's major finding asked for. A seventh round
+   has not been run.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
    (see the lesson below), and a later one failed `make spelling` on a commit
    hash written into the ExecPlan. Both are fixed. The current tip is
@@ -340,7 +340,7 @@ Constraints confirmed by experiment:
   measurements of the same thing disagree, that is the finding — re-measure by
   an independent route (here, hashing both sides) rather than trusting the one
   that agrees with what was expected.
-- **A re-review can re-raise a settled finding, and a *checkable* new reason
+- **A re-review can re-raise a settled finding, and a _checkable_ new reason
   deserves a check rather than a repeat of the old argument.** Round 6 asked
   again for the ExecPlan to be renamed to `docs/execplans/roadmap-1-2-1.md`,
   which round 1 had already raised and which the round-1 triage had already
@@ -375,11 +375,11 @@ Constraints confirmed by experiment:
   to reason about and still inaccurate about every other workflow. The comment
   was the defect; the triggers were correct as they stood. Where a finding
   identifies two things that disagree and only one of them is wrong, the work
-  is to determine *which*, not to move the one that is easier to move.
+  is to determine _which_, not to move the one that is easier to move.
 - **Three of round 6's findings pointed at two files spelled with the same
   table numbers, and only two of the three could be right.** The ExecPlan had
   its captions out of document order (`Table 3` above `Table 2`), while line
-  171's "Table 2 of `docs/verification.md`" is a cross-*document* reference
+  171's "Table 2 of `docs/verification.md`" is a cross-_document_ reference
   into the ledger's own `Table 2` and was correct. A search-and-replace over
   "Table 2"/"Table 3" would have swapped all of them and introduced exactly the
   defect the round was reporting. The review had scoped its own suggestion to
