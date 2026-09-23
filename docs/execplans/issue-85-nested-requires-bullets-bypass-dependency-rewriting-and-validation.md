@@ -189,14 +189,15 @@ Constraints confirmed by experiment:
   were removed after a defect battery showed no defect could falsify them. The
   ledger records the battery; the proofs state three obligations, not five.
 - **An unreachable bug is still a bug, and reachability must be checked rather
-  than assumed.** Two oracle defects survived four review rounds because every
-  input the generator produces happens to mask them: an identity helper that
-  divided by the wrong constant twice, and a summary match that accepted a
-  prefix. Neither could fail on today's inputs. Both were fixed, because the
-  cost of the fix is a few lines and the cost of the failure is a test suite
-  that passes more easily while asserting less. The distinction between "live"
-  and "reachable" was established by enumerating the generated inputs, not by
-  reading the code and judging it unlikely.
+  than assumed.** Two oracle defects survived every review round that ran after
+  they were written — five rounds for the identity helper that divided by the
+  wrong constant twice, four for the summary match that accepted a prefix —
+  because every input the generator produces happens to mask them. Neither could
+  fail on today's inputs. Both were fixed, because the cost of the fix is a few
+  lines and the cost of the failure is a test suite that passes more easily
+  while asserting less. The distinction between "live" and "reachable" was
+  established by enumerating the generated inputs, not by reading the code and
+  judging it unlikely.
 - **A review finding's own framing can be wrong.** CodeRabbit described the
   identity-helper change as preserving existing behaviour. It does not: the two
   readings differ for any step beyond the first few. The finding was right that
