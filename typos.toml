@@ -35,6 +35,7 @@ extend-ignore-re = [
     "Azure\\s+Architecture\\s+Center\\s*\\|\\s*Microsoft\\s+Learn\\b",
     "GitHub\\s+Flavored\\s+Markdown\\b(?:\\s\\(GFM\\))?",
     "\\brust-analyzer\\b",
+    "`[0-9a-f]{7,40}`",
     "`artifact\\.kind = \"[a-z_]+\"`",
     "`color`",
     "`mold`",
