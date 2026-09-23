@@ -235,6 +235,24 @@ Constraints confirmed by experiment:
   `check-verification-ledger` into `lint` made `rg` a hard dependency of the
   lint job. It is present locally, so the gate passed here and failed on the
   runner. The install step now provides it.
+- **The formatter has to be run with the gate's own flags, or it is a different
+  tool.** `make check-fmt` runs `mdtablefix --check` over its selected files
+  _with the flags held in `MDTABLEFIX_RULES`_. Fixing a table-alignment
+  complaint with a bare `mdtablefix --in-place <file>`, without those flags,
+  produced a file that looked repaired and failed the very next `check-fmt` —
+  the alignment was fixed but the paragraph wrapping the default rules leave
+  alone was not. The second attempt passed the rule set and succeeded. The
+  flags are declared once in the Makefile, so they are visible rather than
+  hidden; the mistake was to reach for the bare command instead of reading how
+  the gate calls it. Run the gate's command, not the tool.
+- **Two failures in one file can have one cause, and fixing the second can
+  reintroduce work in the first.** Seven `markdownlint` errors and a
+  `check-fmt` complaint all landed in this file at once. Converting the three
+  `*emphasis*` spans to `_emphasis_` shortened those lines, which re-flowed a
+  paragraph `--wrap` had already settled, so `check-fmt` failed again after the
+  MD049 fix. Format and lint are not independent when the formatter re-packs
+  lines to a column limit: run the formatter _last_, after every content edit,
+  and re-run it if any edit lands afterwards.
 - **A fixture can be a test of nothing.** The C2 golden case originally deleted
   the _last_ task, which shifts no later number and so rewrote no clause: it
   was a test that a trailing delete disturbs nothing, which is true but not
