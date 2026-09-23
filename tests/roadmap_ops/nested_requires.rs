@@ -5,6 +5,8 @@
 //! whichever item inherited its old number, and deleting a still-required
 //! prerequisite produced a self-dependency instead of a rejection.
 
+use std::process::Command;
+
 use mapsplice::{MapspliceError, run_from_args};
 use rstest::rstest;
 
@@ -112,26 +114,40 @@ fn in_place_delete_required_by_nested_bullet_leaves_target_byte_identical(
     Ok(())
 }
 
-/// Preview mode must apply the same validation without writing the target.
+/// A rejected preview must emit no roadmap body at all.
+///
+/// This is the only test that distinguishes preview mode from in-place mode
+/// from the outside. The in-process entry point returns `Err` and so yields no
+/// outcome whose stdout could be inspected, which makes an in-process
+/// "no stdout" assertion vacuous; spawning the real process is what shows
+/// whether a roadmap escaped to stdout before the failure.
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn preview_delete_required_by_nested_bullet_is_rejected(
+fn preview_delete_required_by_nested_bullet_emits_no_body(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
     let original = test_workspace.read_target()?;
 
-    let error = run_from_args([
-        "mapsplice",
-        "delete",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        "--in-place",
-    ])
-    .expect_err("preview delete of a required prerequisite must fail");
+    let output = Command::new(env!("CARGO_BIN_EXE_mapsplice"))
+        .args(["delete", test_workspace.target.as_str(), "1.1.1"])
+        .output()?;
 
-    assert_dangling_anchor(&error, "1.1.1");
+    if output.status.success() {
+        return Err("preview delete of a required prerequisite must fail".into());
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !stdout.is_empty() {
+        return Err(format!(
+            "a rejected preview must emit no roadmap body, but stdout held:\n{stdout}"
+        )
+        .into());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.contains("1.1.1") {
+        return Err(format!("the diagnostic must name the stranded anchor, got:\n{stderr}").into());
+    }
     assert_equal(&test_workspace.read_target()?, &original);
     Ok(())
 }

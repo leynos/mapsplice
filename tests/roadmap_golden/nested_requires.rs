@@ -81,7 +81,15 @@ fn f5_nested_requires_delete_in_place(workspace: TestResult<GoldenWorkspace>) ->
     )
 }
 
-/// Verify preview mode rejects the same deletion without rewriting the target.
+/// Verify preview mode rejects a deletion stranded by the deepest clause form.
+///
+/// The clause sits in a nested bullet inside an addendum sub-task's body, one
+/// level deeper than C3's task-body bullet. That position is reached only
+/// through the sub-task's own structural child sequence, so it exercises the
+/// same defect class one nesting level further out. Preview mode is selected by
+/// the [`FailureOutput::TargetUnchanged`] variant alone, which keeps
+/// `--in-place` off the command line; the byte-identical target assertion then
+/// proves nothing was written despite the absence of that flag.
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {

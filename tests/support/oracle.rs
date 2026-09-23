@@ -5,31 +5,22 @@
 //! (`src/roadmap/ops/dependency_text.rs`). A defect shared between the two
 //! therefore cannot cancel out.
 //!
-//! Three concerns are modelled separately, because conflating them is the
-//! defect class this oracle exists to catch:
-//!
-//! - **Identity** — each item has a stable [`ItemId`] assigned at generation and preserved through
-//!   every edit. Numbers are *derived* from position; they are never the identity. This is what
-//!   lets the oracle tell "the consumer's clause follows its prerequisite" apart from "the
-//!   consumer's clause still reads `1.1.1`, which the inserted task now also holds".
-//! - **Dependency graph** — [`Edge`] values over [`ItemId`], built from the same selectors that
-//!   drive generation, independent of clause spelling.
-//! - **Clause representation** — [`ClauseForm`], which changes only the bytes of the generated
-//!   Markdown, never the expected outcome.
-//!
-//! Expected outcomes are derived from the post-edit identity tree alone:
-//! which identities the edit removes, which survive, and which edges still
-//! point at a removed identity afterwards.
-//!
 //! The model is split three ways, because conflating the parts is the defect
 //! class this oracle exists to catch:
 //!
 //! - **Identity** — [`oracle_identity`] holds the generation-time tokens and the positional helpers
-//!   that derive numbers from them. Numbers are never the identity.
+//!   that derive numbers from them. Numbers are never the identity. This is what lets the oracle
+//!   tell "the consumer's clause follows its prerequisite" apart from "the consumer's clause still
+//!   reads `1.1.1`, which the inserted task now also holds".
 //! - **Dependency graph** — [`oracle_model`] holds [`Edge`] values over identities, built from the
-//!   same selectors that drive generation, independent of clause spelling.
+//!   same selectors that drive generation, independent of clause spelling. [`ClauseForm`] varies
+//!   only the bytes of the generated Markdown, never the expected outcome.
 //! - **Post-edit structure** — [`oracle_tree`] applies the edit to the identity tree, numbers it by
 //!   position, and reports which identities the edit removed.
+//!
+//! Expected outcomes are derived from the post-edit identity tree alone:
+//! which identities the edit removes, which survive, and which edges still
+//! point at a removed identity afterwards.
 
 #[path = "oracle_identity.rs"]
 mod oracle_identity;

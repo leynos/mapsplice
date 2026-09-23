@@ -93,10 +93,10 @@ impl Model {
 
 /// Build the prerequisite edge selected by `selector` for `consumer`.
 ///
-/// The four prerequisite kinds deliberately span the anchor depths the
-/// resolver must handle: a same-level task, a deeper sub-task, a shallower
-/// step, and a task in a different step that only resolves as a unique
-/// cross-source anchor.
+/// The four prerequisite kinds deliberately span the anchor shapes the
+/// resolver must handle: a same-level task in this step, a deeper sub-task, a
+/// shallower step, and a task in a different step, whose anchor differs from
+/// the consumer's in both the step and task components.
 fn prerequisite_for(step: usize, selector: u8, consumer: ItemId) -> Option<Edge> {
     let kind = (selector & PREREQUISITE_MASK) >> PREREQUISITE_SHIFT;
     let form = ClauseForm::from_selector(selector >> CLAUSE_SHIFT);
@@ -110,8 +110,7 @@ fn prerequisite_for(step: usize, selector: u8, consumer: ItemId) -> Option<Edge>
         1 => sub_task_of_step(step, 0),
         // The enclosing step, a shallower two-level anchor.
         2 => ItemId::new(Level::Step, step),
-        // The first task of the next step, resolvable only as a unique
-        // cross-source anchor.
+        // The first task of the next step, a cross-step same-source anchor.
         _ => task_in_step((step + 1).rem_euclid(STEP_COUNT), 0),
     };
     if prerequisite == consumer {

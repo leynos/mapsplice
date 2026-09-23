@@ -109,6 +109,17 @@ Only `Requires` dependency references are rewritten. A `Requires` clause is
 recognized in three positions: on the task or sub-task title line, beginning a
 plain indented continuation line, and beginning a nested task-body bullet item.
 
+Dependency references follow the item, not the number. Inserting items shifts
+the anchors of everything after the insertion point while leaving every
+existing item's identity intact, so a clause that required `1.1.1` before the
+insert still names whichever item that was, now carrying its new anchor.
+Replacing an item retires it instead: the addressed item's identity ends with
+the edit, and any surviving clause that still required it makes the operation
+fail with a dangling-dependency error rather than silently re-pointing the
+consumer at a replacement item that inherited the old number. Delete behaves
+the same way. Nothing is written in any failing case, including in place, so
+the target is left byte-identical.
+
 Incidental numeric text is preserved: section references (`§2.1`), semantic
 versions (`1.4.0`), ordered-list numbering, and numbers inside code examples
 are all left exactly as written.

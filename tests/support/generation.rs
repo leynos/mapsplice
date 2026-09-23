@@ -2,9 +2,9 @@
 //!
 //! Rendering takes the [`Model`] alongside the generation parameters, so the
 //! text and the expected dependency graph are produced from the same selectors
-//! but through different code paths: the graph in `dependency_oracle`, the
-//! bytes here. That separation is what makes the oracle an independent check
-//! rather than a restatement of the generator.
+//! but through different code paths: the graph in [`super::oracle`], the bytes
+//! here. That separation is what makes the oracle an independent check rather
+//! than a restatement of the generator.
 
 use std::fmt::{self, Write as _};
 
@@ -266,7 +266,7 @@ pub fn incidental_prose() -> String {
 
 /// Render the fragment tasks spliced by an insert or replace edit.
 ///
-/// A task fragment is recognised by its three-level anchor, so the tasks are
+/// A task fragment is recognized by its three-level anchor, so the tasks are
 /// spelled `1.1.n` even though the fragment is a standalone document. The
 /// target's numbering replaces those numbers on splice, so they are only a
 /// parse-time device, not an identity. No clause is generated inside the
