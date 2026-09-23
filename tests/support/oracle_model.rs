@@ -11,6 +11,7 @@ use super::oracle_identity::{
     Level,
     STEP_COUNT,
     SUB_TASKS_PER_TAIL,
+    TASK_COUNT,
     TASKS_PER_STEP,
     step_of_task,
     sub_task_of_step,
@@ -79,6 +80,18 @@ impl Model {
             }
         }
         Self { edges }
+    }
+
+    /// Return every task identity the generator renders into the target.
+    ///
+    /// Rendered order is generation order, so callers can walk the document
+    /// alongside this. Fragment tasks are excluded: they belong to the fragment
+    /// document, not the target.
+    #[must_use]
+    pub fn per_task_identities() -> Vec<ItemId> {
+        (0..TASK_COUNT)
+            .map(|index| ItemId::new(Level::Task, index))
+            .collect()
     }
 
     /// Return the edges whose consumer is `consumer`.

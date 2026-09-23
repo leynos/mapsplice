@@ -140,7 +140,7 @@ fn render_task(
         old_anchor(id),
         task_label(id.index)
     );
-    render_clauses(&mut item, model, id, TASK_CLAUSE_INDENT)?;
+    render_clauses(&mut item, model, id, TASK_CLAUSE_INDENT);
     item.push_str(&incidental_prose());
     if shape.has(Shape::WRAPPED_PROSE) {
         item.push_str("  Unrelated prose wrapped\n  across two source lines.\n");
@@ -154,7 +154,7 @@ fn render_task(
             position + 1,
             sub_task_label(id.index, position)
         )?;
-        render_clauses(&mut item, model, *sub_task, &sub_task_body_indent)?;
+        render_clauses(&mut item, model, *sub_task, &sub_task_body_indent);
     }
     Ok(item)
 }
@@ -163,28 +163,36 @@ fn render_task(
 ///
 /// The clauses are written into `item` rather than returned, so the caller can
 /// keep a container's summary, clauses, and incidental prose in source order.
-fn render_clauses(
-    item: &mut String,
-    model: &Model,
-    consumer: ItemId,
-    body_indent: &str,
-) -> Result<(), fmt::Error> {
+fn render_clauses(item: &mut String, model: &Model, consumer: ItemId, body_indent: &str) {
     for edge in model.edges_from(consumer) {
         let clause = format!("Requires {}.", old_anchor(edge.prerequisite));
-        write!(item, "{}", render_clause(edge.form, &clause, body_indent))?;
+        let rendered = render_clause(edge.form, &clause, body_indent);
+        if edge.form == ClauseForm::Inline {
+            // The inline form shares the summary line, which the caller has
+            // already terminated with a newline. Join it there rather than
+            // starting a fresh line: a one-space-indented line is read as a
+            // continuation, so appending it would generate the wrong position
+            // and leave the inline position untested.
+            let newline = item.pop();
+            debug_assert_eq!(newline, Some('\n'));
+            item.push_str(&rendered);
+            item.push('\n');
+        } else {
+            item.push_str(&rendered);
+        }
     }
-    Ok(())
 }
 
 /// Render one clause in its generated form.
 ///
 /// `body_indent` is the consumer container's body indent, measured absolutely
 /// from the document margin; every non-inline form starts its line there. The
-/// inline form appends to the summary line instead, so it carries a single
-/// leading space. The nested-bullet forms supply their own list marker.
+/// inline form carries a single leading space and is meant to be joined to the
+/// summary line by the caller, which is what makes it inline rather than a
+/// continuation. The nested-bullet forms supply their own list marker.
 fn render_clause(form: ClauseForm, clause: &str, body_indent: &str) -> String {
     match form {
-        ClauseForm::Inline => format!(" {clause}\n"),
+        ClauseForm::Inline => format!(" {clause}"),
         ClauseForm::Continuation => format!("\n{body_indent}{clause}\n"),
         ClauseForm::NestedBullet => format!("\n{body_indent}- {clause}\n"),
         ClauseForm::NestedSubTaskBullet => format!("\n{body_indent}  - {clause}\n"),
