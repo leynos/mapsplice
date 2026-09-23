@@ -118,26 +118,23 @@ proof fn target_text_keeps_its_source_local_mapping<T>(
 // Deleting a prerequisite retires its identity. A surviving consumer's clause
 // names the retired anchor, so it must fail to resolve rather than silently
 // resolving to the replacement item that inherited the old number.
-
-/// A reference to a retired anchor does not resolve, in either source.
-///
-/// "Retired" is modelled as: the anchor has no mapping in the local table, and
-/// it is not uniquely mapped cross-source either. Under those conditions the
-/// reference must not resolve, whatever its source, which is what makes the
-/// operation fail with a dangling-dependency error instead of re-pointing the
-/// consumer at a different item.
-proof fn retired_anchor_never_resolves<T>(
-    local: Option<T>,
-    cross_unique: Option<T>,
-    source_is_fragment: bool,
-)
-    requires
-        !local.is_some(),
-        !cross_unique.is_some(),
-    ensures
-        select_resolution_spec(local, cross_unique, source_is_fragment) == Option::<T>::None,
-{
-}
+//
+// This obligation has no theorem of its own, and the omission is deliberate.
+// The earlier `retired_anchor_never_resolves` assumed both options absent and
+// concluded the result was `None`. With neither option holding a `T`, there is
+// no value to fabricate: `None` is forced by the type rather than by the
+// kernel, so no defect in the body can make the conclusion false. A five-defect
+// battery over `select_resolution_spec` confirmed it — the theorem survived
+// every one, while each of its three neighbours was rejected by at least one.
+//
+// Deleted-target rejection is still guaranteed; it is just not this file's
+// guarantee. In kernel form it is checked by `target_text_never_uses_the_cross_source_fallback`
+// (a target reference with no local mapping resolves to nothing, whatever the
+// cross-source value holds), and in production it is the `unresolved` collection
+// in `src/roadmap/ops/rewrite.rs` that turns a `None` into
+// `MapspliceError::DanglingDependency`. That end-to-end behaviour is pinned by
+// the CLI regressions and the property suite, which assert the rejection
+// directly.
 
 // ---------------------------------------------------------------------------
 // A source-span obligation is deliberately absent

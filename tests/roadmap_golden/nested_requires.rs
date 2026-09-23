@@ -106,6 +106,13 @@ fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) ->
 }
 
 /// Verify incidental numbers and fenced examples survive a nested-clause delete.
+///
+/// The deleted task is an unreferenced middle one, not the last task. Deleting
+/// the last task shifts no later number and so rewrites no clause, which would
+/// make the fixture a test that a trailing delete disturbs nothing — true, but
+/// not what its name claims. Deleting a middle task renumbers all three clause
+/// positions, so the fixture shows the incidental prose and the fenced example
+/// holding their bytes *while* the surrounding clauses are rewritten.
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn c2_nested_prose_and_code_not_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
@@ -113,7 +120,7 @@ fn c2_nested_prose_and_code_not_rewritten(workspace: TestResult<GoldenWorkspace>
         &workspace?,
         golden_success_case(
             "c2_nested_prose_and_code_not_rewritten",
-            GoldenCommand::Delete { anchor: "1.1.5" },
+            GoldenCommand::Delete { anchor: "1.1.2" },
             false,
         ),
     )

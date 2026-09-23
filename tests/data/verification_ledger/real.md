@@ -8,12 +8,11 @@ implementation unless a refinement proof connects it to the production function.
 
 ## Claim ledger
 
-| Claim                                                                                            | Executable function | Input domain                                                                                       | Unverified external contracts            | Result class      |
-| ------------------------------------------------------------------------------------------------ | ------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------- |
-| Identity preservation: a target-text reference never resolves through the cross-source fallback  | `select_resolution` | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls | Local correctness |
-| Local-mapping precedence: a target-text reference with its own mapping keeps it                  | `select_resolution` | As above                                                                                           | None                                     | Local correctness |
-| Deleted-target rejection: a reference with neither mapping resolves to nothing, in either source | `select_resolution` | As above, with both options absent                                                                 | None                                     | Local correctness |
-| Non-vacuity: fragment text does consult the cross-source fallback                                | `select_resolution` | As above, with the local option absent and the cross-source option present                         | None                                     | Local correctness |
+| Claim                                                                                           | Executable function | Input domain                                                                                       | Unverified external contracts            | Result class      |
+| ----------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------- |
+| Identity preservation: a target-text reference never resolves through the cross-source fallback | `select_resolution` | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls | Local correctness |
+| Local-mapping precedence: a target-text reference with its own mapping keeps it                 | `select_resolution` | As above                                                                                           | None                                     | Local correctness |
+| Non-vacuity: fragment text does consult the cross-source fallback                               | `select_resolution` | As above, with the local option absent and the cross-source option present                         | None                                     | Local correctness |
 
 _Table 1: The verification claim ledger._
 
@@ -24,6 +23,10 @@ whose assertion is deliberately unprovable, and fails unless Verus rejects it �
 so a run in which the verifier never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
 claim names a function that no longer exists in `src/`.
+
+Deleted-target rejection is a third obligation that has no row here, because it
+has no theorem that can fail; the policy at the end of this document records
+why and where it is covered instead.
 
 ## What is proved, and what is not
 
@@ -102,30 +105,67 @@ statements about dead code.
 - Existing property tests remain in place. Verus proofs complement them and do
   not replace them.
 - A proof's obligations are only meaningful if they can fail, and each remaining
-  theorem in `verus/lib.rs` was checked by injecting a kernel defect and
-  confirming the proof is rejected. The findings below are the evidence for the
-  four rows that survive; a theorem that survives every injected defect is
-  removed rather than listed, which is why there are four rows and not five.
+  theorem in `verus/lib.rs` was checked by injecting a defect and confirming
+  the proof is rejected. A theorem that survives every injected defect is
+  removed rather than listed, which is why the ledger has three rows and not
+  five.
 
-  | Injected kernel defect                           | Theorem that rejects it                            |
+  Two kinds of defect were injected, and the distinction matters. A
+  **specification defect** changes `select_resolution_spec`, the definition the
+  `ensures` clause compares against; it tests whether an obligation can
+  distinguish one decision rule from another. A **body defect** changes only
+  the shared macro body in `verus/kernels/select_resolution.macro.rs`, leaving
+  the specification untouched; it tests whether verification reaches the text
+  the product actually compiles, which is the whole point of the splice
+  convention above.
+
+  | Injected specification defect                    | Theorem that rejects it                            |
   | ------------------------------------------------ | -------------------------------------------------- |
   | Target text falls back to the cross-source value | `target_text_never_uses_the_cross_source_fallback` |
+  | Fragment guard inverted                          | `target_text_never_uses_the_cross_source_fallback` |
   | Local mapping loses precedence                   | `target_text_keeps_its_source_local_mapping`       |
   | Local branch returns the cross-source value      | `target_text_keeps_its_source_local_mapping`       |
   | Fragment text ignores the cross-source fallback  | `fragment_text_uses_the_cross_source_fallback`     |
   | Both branches resolve to nothing                 | `fragment_text_uses_the_cross_source_fallback`     |
 
-  _Table 2: Defect injections and the obligations that reject them._
+  _Table 2: Injected specification defects and the obligations that reject
+  them._
 
-- A previous revision listed a fifth row, "Source-span preservation: resolution
-  depends on nothing but its three inputs". It was removed because it could not
-  fail: it concluded equality of results from pairwise-equal arguments, which
-  Verus discharges from the signature alone for any total function, so no
+  One body defect was injected: the macro dropping its fragment guard while the
+  specification stayed correct. Verus rejected it at the `select_resolution`
+  `ensures` clause — 4 verified, 1 error — which is the evidence that the proof
+  is about the shared body and not merely about the specification. A body
+  defect this file could not catch would mean the splice had silently stopped
+  reaching production.
+
+- The obligations are not all the same shape, and the ledger should not imply
+  they are. Three theorems state properties of `select_resolution_spec` and are
+  discharged over the specification alone; the executable function is tied to
+  that specification by its own `ensures` clause, which is what the body defect
+  above exercises. No theorem here inspects text, allocation, or I/O, so none
+  of the remaining rows carries an unverified external contract.
+
+- Two rows have been removed rather than listed, both for the same reason.
+
+  The earlier "Source-span preservation: resolution depends on nothing but its
+  three inputs" concluded equality of results from pairwise-equal arguments,
+  which Verus discharges from the signature alone for any total function, so no
   kernel defect could falsify it. Source-span preservation is a property of the
   renderer rather than of this kernel, and it is covered by the golden fixtures
-  and in-place byte-identity assertions in `tests/`. Retaining an unfalsifiable
-  row would have made the ledger's own falsifiability rule false, which is the
-  failure this entry exists to prevent.
+  and in-place byte-identity assertions in `tests/`.
+
+  "Deleted-target rejection" was removed when the defect battery showed its
+  theorem, which assumed both options absent, survived all six specification
+  defects while its neighbours each rejected at least one. With neither option
+  holding a value there is nothing to fabricate, so the conclusion is forced by
+  the type rather than by the kernel. The rejection itself is still guaranteed:
+  `target_text_never_uses_the_cross_source_fallback` covers its kernel form,
+  and the `unresolved` collection in `src/roadmap/ops/rewrite.rs` turns a
+  `None` into `MapspliceError::DanglingDependency`, which the CLI regressions
+  and property suite assert directly.
+
+  Retaining either row would have made the ledger's own falsifiability rule
+  false, which is the failure this entry exists to prevent.
 - Every claim row must name a function that exists in `src/`. The checker
   matches a line-initial declaration, so a name surviving only in a doc comment
   does not satisfy a claim. The check is necessary rather than sufficient: it

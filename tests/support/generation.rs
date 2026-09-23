@@ -190,10 +190,18 @@ fn render_clauses(item: &mut String, model: &Model, consumer: ItemId, body_inden
 /// inline form carries a single leading space and is meant to be joined to the
 /// summary line by the caller, which is what makes it inline rather than a
 /// continuation. The nested-bullet forms supply their own list marker.
+///
+/// The continuation form starts on the line immediately after the summary, with
+/// no blank line between them. A blank line would end the summary paragraph and
+/// make the clause a body paragraph of its own, which is a different clause
+/// position — no longer "continuation text of the summary" but plain body text
+/// — so the generated document would not exercise the position the form names.
+/// Only the nested-bullet forms open with a blank line, and that is because a
+/// list cannot interrupt a paragraph without one.
 fn render_clause(form: ClauseForm, clause: &str, body_indent: &str) -> String {
     match form {
         ClauseForm::Inline => format!(" {clause}"),
-        ClauseForm::Continuation => format!("\n{body_indent}{clause}\n"),
+        ClauseForm::Continuation => format!("{body_indent}{clause}\n"),
         ClauseForm::NestedBullet => format!("\n{body_indent}- {clause}\n"),
         ClauseForm::NestedSubTaskBullet => format!("\n{body_indent}  - {clause}\n"),
     }

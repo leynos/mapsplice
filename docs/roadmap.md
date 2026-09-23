@@ -64,7 +64,7 @@ renumbering — exactly the corruption the tool exists to prevent.
 - [x] 1.2.1. Rewrite dependency clauses in body bullet list items.
 
   - Addressed: `rewrite_task_entry` now visits `TaskChild::Body` blocks via
-    `TaskEntry::children_mut`, so a `Requires` clause inside a nested
+    `TaskEntry::body_children_mut`, so a `Requires` clause inside a nested
     task-body bullet is renumbered and validated like the inline and plain
     continuation forms. Deleting a referenced item is rejected with
     `MapspliceError::DanglingDependency` before any output or in-place write,
