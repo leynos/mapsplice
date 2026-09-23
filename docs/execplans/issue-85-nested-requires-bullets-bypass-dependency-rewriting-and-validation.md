@@ -22,19 +22,47 @@ deterministic gate is green. This plan tracks the CodeRabbit review and the PR.
 
 _Table 1: The coding plan's four tasks and their state._
 
-Commits:
+Commits, oldest first. This list is deliberately exhaustive: the round-tally
+error below was hidden for a while by a list that was missing entries, and a
+reconciliation against a list that is itself incomplete cannot find anything.
 
-- `05b49d3` — Address CodeRabbit review findings on the nested-Requires work.
+The four coding-plan tasks:
+
+- `db94b11` — Rewrite dependency clauses in nested task-body bullets.
+- `5ba0ab2` — Document the supported Requires clause grammar.
+- `962d5eb` — Add CLI and golden regressions for nested Requires clauses (#85).
+- `0dd99de` — Add property suite and split oversized test modules (#85).
 - `7b9032b` — Extract nested-Requires regressions to honour the 400-line file
   rule (#85).
 - `b7fdcda` — Scope dependency property assertions to each item's own block.
 - `55e3484` — Extract dependency resolution into a production-used Verus kernel.
 - `9a9b7c8` — Wire the Verus harness into the build and continuous integration.
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
-- `67ab4b9` — Answer the CodeRabbit review of the issue #85 work.
-- `16ef675` — Answer the second CodeRabbit review of the issue #85 work.
-- `fcbe9c6` — Answer the third CodeRabbit review of the issue #85 work.
-- `92dc9bb` — Answer the fourth CodeRabbit review of the issue #85 work.
+- `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
+
+The five CodeRabbit rounds and their response commits:
+
+| Round | Findings | Answered by | Evidence artefact                               |
+| ----- | -------- | ----------- | ----------------------------------------------- |
+| 1     | 8        | `05b49d3`   | `/tmp/coderabbit-mapsplice-issue-85.out`        |
+| 2     | 6        | `67ab4b9`   | `.../tasks/bh6xlkhs1.output`                    |
+| 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                    |
+| 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`               |
+| 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw` |
+
+_Table 3: the five review rounds, re-derived from the artefacts by matching
+each round's findings against the files its response commit touched._
+
+Supporting commits that are not themselves a round response:
+
+- `de24f4c` — Use `is_multiple_of` where the crate denies integer remainder.
+- `87edd94` — Record the fourth review round and its lessons in the ExecPlan.
+- `0c084a8` — Record the green CI run in the ExecPlan.
+- `1477434` — Correct the review-round count in the ExecPlan.
+- `e277c1f` — Fix the spelling and formatting the gates caught in the ExecPlan.
+- `67becfe` — Give the two masked oracle defects their own survival counts.
+- `72ff94f` — Correct the evidence-glob lesson to what was measured.
+- `0c222e4` — Re-wrap the corrected lesson paragraphs to the 80-column limit.
 
 ## Task 4 outcome: the splice is a macro, and why
 
@@ -162,12 +190,23 @@ Constraints confirmed by experiment:
 
 1. Push and open the draft PR. **Done** — the branch is pushed and
    [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
-2. Run `coderabbit review --agent` and clear all concerns. **In progress** —
-   five rounds have run (8, 6, 7, 7, 4 findings) and every finding is actioned
-   or dismissed with recorded evidence.
+2. Run `coderabbit review --agent` and clear all concerns. **Done for five
+   rounds** — 8, 6, 7, 7 and 4 findings, every one actioned or dismissed with
+   recorded evidence, counts re-derived from the artefacts (Table 3). A sixth
+   round has not been run; it is the next milestone.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
-   (see the lesson below); after the ripgrep fix the `build-test` job passes,
-   3m56s against the previous 4m14s failure, and `verify` passes in 35s.
+   (see the lesson below); after the ripgrep fix, run `35868377416` at
+   `0c222e4` reports `build-test success` (4m39s) and `verify success` (55s).
+4. The code gates for the branch as a whole. **Covered by CI, not by a local
+   run.** The local gate run commissioned after the round-tally correction was
+   scoped to the Markdown gates, because the seven commits after `92dc9bb`
+   touch no non-Markdown file. That scope decision is correct for the diff but
+   should not be read as local verification of the branch: 42 of the 61 paths
+   the branch changes relative to `main` are non-Markdown, and their last local
+   gate run predates `92dc9bb`. CI re-runs the full set on every push, and it
+   is green at the tip, which is why no local re-run was commissioned. If a
+   local run is ever wanted as independent evidence, it must cover `lint`,
+   `typecheck` and `test` explicitly rather than inheriting this scope.
 
 ## Lessons
 
@@ -243,6 +282,15 @@ Constraints confirmed by experiment:
   alone; the file-touch check showed the note's F1–F7 table corresponds to
   `fcbe9c6` and the note is round 4, not round 2. A correction written from the
   same faulty signal as the error it fixes is not a correction.
+- **A scope decision that is right for the diff can still understate the
+  branch.** Gating the seven commits after `92dc9bb` as docs-only is correct —
+  they touch no code — but "these gates pass" then means something narrower
+  than it sounds, because the branch also changes 42 non-Markdown paths whose
+  last local gate run was earlier. The green result was read next to a CI run
+  covering the full set at the same commit, which is what made the narrow scope
+  sound. State which gates ran and which were replaced by other evidence, as
+  the Remaining work section now does, rather than letting a clean local result
+  imply coverage it did not have.
 
 ## Constraints that must hold
 
