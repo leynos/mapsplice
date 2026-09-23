@@ -31,6 +31,8 @@ Commits:
 - `55e3484` — Extract dependency resolution into a production-used Verus kernel.
 - `9a9b7c8` — Wire the Verus harness into the build and continuous integration.
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
+- `67ab4b9` — Answer the CodeRabbit review of the issue #85 work.
+- `16ef675` — Answer the second CodeRabbit review of the issue #85 work.
 - `fcbe9c6` — Answer the third CodeRabbit review of the issue #85 work.
 - `92dc9bb` — Answer the fourth CodeRabbit review of the issue #85 work.
 
@@ -161,8 +163,8 @@ Constraints confirmed by experiment:
 1. Push and open the draft PR. **Done** — the branch is pushed and
    [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
 2. Run `coderabbit review --agent` and clear all concerns. **In progress** —
-   four rounds have run (7, 7, 7, 4 findings) and every finding is actioned or
-   dismissed with recorded evidence. Re-run once the current round's fixes land.
+   five rounds have run (8, 6, 7, 7, 4 findings) and every finding is actioned
+   or dismissed with recorded evidence.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
    (see the lesson below); after the ripgrep fix the `build-test` job passes,
    3m56s against the previous 4m14s failure, and `verify` passes in 35s.
@@ -200,6 +202,23 @@ Constraints confirmed by experiment:
   readings differ for any step beyond the first few. The finding was right that
   something should change and wrong about why, so the reasoning was checked
   against the code before the edit, and the record says which part was taken.
+- **A count in a plan is a claim, and this one was wrong twice.** The round
+  tally stood at "four rounds (7, 7, 7, 4 findings)" and was carried from the
+  plan into the pull-request body without being re-derived. Both halves were
+  false. There were five rounds, and the per-round counts are 8, 6, 7, 7 and 4,
+  for 32 findings in total; the total merely happened to match at 25, which is
+  what let the wrong breakdown survive a re-read.
+- **The evidence glob was narrower than the evidence.** Round artifacts were
+  enumerated with `ls /tmp/coderabbit-*.out`, but two of the five rounds were
+  captured only inside subagent task-output files under
+  `/tmp/claude-1000/.../tasks/`, which that glob cannot see. Two rounds were
+  therefore invisible, and the surviving four were mis-indexed against the
+  response commits — the file named `.round3` actually holds the round answered
+  by `67ab4b9`, which the plan's own commit list did not mention. Enumerate by
+  content (`grep -rl` for a review-completed marker and the branch name), not by
+  a filename pattern that only holds when the convention was followed. The
+  authoritative re-derivation matched each artifact's findings against the files
+  each response commit touched, rather than trusting timestamps or filenames.
 
 ## Constraints that must hold
 
