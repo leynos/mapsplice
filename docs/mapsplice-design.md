@@ -192,17 +192,22 @@ contract behind C3.
 
   *Table 1: Recognized `Requires` clause positions.*
 
-- **Clause exclusions.** Two forms are deliberately outside the grammar and are
-  **not** rewritten. A numeric range such as `Requires 1.1.1-1.1.3.` is not a
-  supported clause form: the scanner reads the two endpoints as two separate
-  anchors, because a hyphen is not an anchor character, so each endpoint is
-  rewritten individually and the range is never expanded. Deleting `1.1.2` from
-  a roadmap that requires `1.1.1-1.1.3` therefore yields
-  `Requires 1.1.1-1.1.2.` — the endpoints follow their own items and the range
-  closes up. A clause split across a hard line wrap — a newline between
-  `Requires` and its anchors, or between anchors in one clause — is also not
-  recognized; joining wrapped continuations before scanning remains tracked by
-  `docs/roadmap.md` item 1.2.2. Neither exclusion changes the anchor-token or
+- **Numeric ranges.** A range such as `Requires 1.1.1-1.1.3.` is not a
+  *supported* clause form and is never *expanded* into the anchors it spans.
+  The endpoints are still rewritten, individually: a hyphen is not an anchor
+  character, so the scanner reads `1.1.1` and `1.1.3` as two separate anchors,
+  each in dependency context, and each follows its own item's new number. The
+  rewritten clause therefore keeps exactly two anchors however many the range
+  covered. Deleting `1.1.2` from a roadmap that requires `1.1.1-1.1.3` yields
+  `Requires 1.1.1-1.1.2.`, and deleting an *endpoint* fails the operation as a
+  dangling dependency like any other retired requirement. The form is tolerated
+  rather than rejected because rejecting it would mean declining an edit over a
+  stylistic choice in prose the author is entitled to write.
+- **Clause exclusions.** One form is outside the grammar and is left
+  **unrewritten**: a clause split across a hard line wrap, meaning a newline
+  between `Requires` and its anchors, or between anchors in one clause. Joining
+  wrapped continuations before scanning remains tracked by `docs/roadmap.md`
+  item 1.2.2. This exclusion does not change the anchor-token or
   dependency-context definitions above.
 - **Incidental numbers are preserved.** An anchor token that is not in a
   dependency context, or that is immediately preceded by a section sigil (`§`),

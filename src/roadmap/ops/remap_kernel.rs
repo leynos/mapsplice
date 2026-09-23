@@ -60,7 +60,9 @@ mod tests {
 
     use super::select_resolution;
 
-    /// Return the letters `1`, `2`, or `3` for the cases below.
+    /// Two distinct mapped values, so a case's expected answer identifies
+    /// which input the kernel selected. They are not letters and no third
+    /// value is needed: every case is decided between these two and `None`.
     const ONE: Option<u8> = Some(1);
     const TWO: Option<u8> = Some(2);
 

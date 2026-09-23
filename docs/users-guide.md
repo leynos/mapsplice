@@ -113,8 +113,11 @@ bullet item.
 A numeric range such as `Requires 1.1.1-1.1.3.` is not a supported clause form,
 but it is not ignored either. A hyphen is not an anchor character, so the
 scanner reads the two endpoints as two separate anchors and rewrites each one
-on its own item's behalf. The range is never expanded. Deleting `1.1.2` from a
-roadmap requiring `1.1.1-1.1.3` therefore yields `Requires 1.1.1-1.1.2.`.
+on its own item's behalf. The range is never expanded: a clause naming two
+anchors keeps exactly two anchors, however many items the range spanned.
+Deleting `1.1.2` from a roadmap requiring `1.1.1-1.1.3` therefore yields
+`Requires 1.1.1-1.1.2.`, while deleting an endpoint fails the edit as a
+dangling dependency.
 
 Dependency references follow the item, not the number. Inserting items shifts
 the anchors of everything after the insertion point while leaving every

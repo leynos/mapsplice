@@ -13,7 +13,6 @@ use super::oracle_identity::{
     SUB_TASKS_PER_TAIL,
     TASK_COUNT,
     TASKS_PER_STEP,
-    step_of_task,
     sub_task_of_step,
     sub_task_owner,
     task_in_step,
@@ -138,12 +137,18 @@ fn prerequisite_for(step: usize, selector: u8, consumer: ItemId) -> Option<Edge>
 }
 
 /// Return the task a consumer belongs to, whether it is a task or a sub-task.
+///
+/// `sub_task_owner` already yields a *step* index, so it is passed to
+/// `task_in_step` directly. Wrapping it in `step_of_task` would divide by
+/// `TASKS_PER_STEP` a second time, collapsing several distinct steps onto step
+/// 0. That was latent rather than live: the only caller recovers the result with
+/// `.index.rem_euclid(TASKS_PER_STEP)`, and every step's tail task has the same
+/// remainder, so the collapsed result still agreed. It would have stopped
+/// agreeing the moment the generator's task count per step changed, or if any
+/// other caller consulted `consumer_of` for the step rather than the position.
 const fn consumer_of(consumer: ItemId) -> ItemId {
     match consumer.level {
-        Level::SubTask => task_in_step(
-            step_of_task(sub_task_owner(consumer.index)),
-            TASKS_PER_STEP - 1,
-        ),
+        Level::SubTask => task_in_step(sub_task_owner(consumer.index), TASKS_PER_STEP - 1),
         _ => consumer,
     }
 }
