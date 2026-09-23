@@ -49,7 +49,7 @@ The six CodeRabbit rounds and their response commits:
 | 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                           |
 | 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`                      |
 | 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
-| 6     | 6        | _pending_   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
+| 6     | 6        | `08b62f9`   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
@@ -64,6 +64,12 @@ Supporting commits that are not themselves a round response:
 - `67becfe` — Give the two masked oracle defects their own survival counts.
 - `72ff94f` — Correct the evidence-glob lesson to what was measured.
 - `0c222e4` — Re-wrap the corrected lesson paragraphs to the 80-column limit.
+- `e083639` — Answer the sixth CodeRabbit review of the issue #85 work
+  (amended to `08b62f9`, which is the commit the round is answered by; the
+  original said "fourth", continuing an off-by-one the round table corrects).
+- `97da0e4` — Fix the formatting and lint the gates caught in the round-6
+  ExecPlan edit.
+- `a720876` — Record the two formatter lessons from the round-6 gate fix.
 
 ## Task 4 outcome: the splice is a macro, and why
 
@@ -208,21 +214,24 @@ Constraints confirmed by experiment:
    `5e38bcb`, where run `35871439602` reports `build-test success` and
    `35871439535` reports `verify success`, with the `Spelling` step reaching
    `refreshed: typos.toml` and no error.
-4. The code gates for the branch as a whole. **Covered by CI, not by a local
-   run.** The local gate run commissioned after the round-tally correction was
-   scoped to the Markdown gates, because the seven commits after `92dc9bb`
-   touch no non-Markdown file. That scope decision is correct for the diff but
-   should not be read as local verification of the branch: 42 of the 61 paths
-   the branch changes relative to `main` are non-Markdown, and their last local
-   gate run predates `92dc9bb`. CI re-runs the full set on every push, and it
-   is green at the tip, which is why no local re-run was commissioned. If a
-   local run is ever wanted as independent evidence, it must cover `lint`,
-   `typecheck` and `test` explicitly rather than inheriting this scope.
-5. Local Markdown gates at `5e38bcb`. **Done** — `check-fmt` (203 files left
-   unchanged), `spelling`, `nixie` (all Markdown, no Mermaid present) and
-   `markdownlint` (`Linting: 60 file(s)`, `Summary: 0 error(s)`) all green,
-   sequentially, with HEAD unmoved and `typos.toml` reported in sync rather
-   than drifting. Logs are under `/tmp/<gate>-mapsplice-issue85-5e38bcb.out`.
+4. The code gates for the branch as a whole. **Done locally at `08b62f9`.**
+   The full set was run there — `check-fmt`, `lint`, `typecheck`, `test`,
+   `markdownlint`, `nixie` and `spelling` — and five passed, with `check-fmt`
+   and `markdownlint` failing on the ExecPlan text this branch had just added.
+   Both were fixed, and all four Markdown gates were re-run green at `a720876`.
+   `lint`, `typecheck` and `test` were green at `08b62f9` and nothing after
+   that touched a Rust file or the `Makefile`, so they were not re-run; the
+   committed `verus.yml` edit _is_ covered by them, because
+   `tests/verus_harness/workflow.rs` reads that file through `include_str!` and
+   again from disk. Logs are under `/tmp/<gate>-mapsplice-issue85-08b62f9.out`
+   and `...-97da0e4.out`.
+5. Local Markdown gates. **Done twice** — at `5e38bcb` (203 files left
+   unchanged; `Linting: 60 file(s)`, `Summary: 0 error(s)`) and again at
+   `a720876` after the round-6 text was added and formatted. Both runs were
+   sequential, with HEAD unmoved and `typos.toml` reported in sync (`current:`)
+   rather than drifting. This tracked 42 of the 61 paths the branch changes
+   relative to `main`, which is why item 4 was widened rather than inherited
+   from here.
 
 ## Lessons
 
