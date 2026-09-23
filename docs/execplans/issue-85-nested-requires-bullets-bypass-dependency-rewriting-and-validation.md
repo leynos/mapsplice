@@ -192,12 +192,12 @@ Constraints confirmed by experiment:
   than assumed.** Two oracle defects survived every review round that ran after
   they were written — five rounds for the identity helper that divided by the
   wrong constant twice, four for the summary match that accepted a prefix —
-  because every input the generator produces happens to mask them. Neither could
-  fail on today's inputs. Both were fixed, because the cost of the fix is a few
-  lines and the cost of the failure is a test suite that passes more easily
-  while asserting less. The distinction between "live" and "reachable" was
-  established by enumerating the generated inputs, not by reading the code and
-  judging it unlikely.
+  because every input the generator produces happens to mask them. Neither
+  could fail on today's inputs. Both were fixed, because the cost of the fix is
+  a few lines and the cost of the failure is a test suite that passes more
+  easily while asserting less. The distinction between "live" and "reachable"
+  was established by enumerating the generated inputs, not by reading the code
+  and judging it unlikely.
 - **A review finding's own framing can be wrong.** CodeRabbit described the
   identity-helper change as preserving existing behaviour. It does not: the two
   readings differ for any step beyond the first few. The finding was right that
@@ -217,8 +217,8 @@ Constraints confirmed by experiment:
   that compares two independently-derived numbers over a re-read of the number
   in question.
 - **The evidence glob was narrower than the evidence.** Round artefacts were
-  enumerated with `ls /tmp/*coderabbit*issue-85*`, which found four of the five.
-  The fifth was captured only inside a subagent task-output file under
+  enumerated with `ls /tmp/*coderabbit*issue-85*`, which found four of the
+  five. The fifth was captured only inside a subagent task-output file under
   `/tmp/claude-1000/.../tasks/`, which any `/tmp` glob rooted at the top level
   cannot see. The four that did match were then indexed against the wrong
   response commits — the file named `.out.round3` actually holds the round
@@ -232,9 +232,10 @@ Constraints confirmed by experiment:
   machine rather than reasoned about: the branch name alone is worthless as a
   key — it matches 49 files here, including other sessions' gate logs and every
   `tee` output on the branch — and the doubled hit means hits must be
-  deduplicated by comparing finding lists before they are counted as rounds. The
-  authoritative re-derivation matched each artefact's findings against the files
-  each response commit touched, rather than trusting timestamps or filenames.
+  deduplicated by comparing finding lists before they are counted as rounds.
+  The authoritative re-derivation matched each artefact's findings against the
+  files each response commit touched, rather than trusting timestamps or
+  filenames.
 - **Two unrelated things shared the label "round 3", and correcting the first
   error caused a second.** The note file `cr-triage-round3.md` and the artefact
   file `.out.round3` are different rounds. The first correction asserted that
