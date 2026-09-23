@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 
 use super::{
     MapspliceError,
+    MarkdownNodes,
     Result,
     SubTaskEntry,
     SubTaskNumber,
@@ -75,15 +76,24 @@ impl TaskEntry {
     #[must_use]
     pub(crate) fn children(&self) -> &[TaskChild] { &self.children }
 
-    /// Return mutable structural children for dependency rewriting.
+    /// Return the mutable body blocks for dependency rewriting.
     ///
     /// Non-structural [`TaskChild::Body`] blocks hold the task's nested body
     /// Markdown: [`TaskEntry::body`] is drained into these children during
     /// parsing, so body text is only reachable through this accessor.
     ///
-    /// Callers must preserve the correspondence between the body blocks, the
-    /// sub-task slice, and the ordered child sequence.
-    pub(crate) fn children_mut(&mut self) -> &mut [TaskChild] { &mut self.children }
+    /// Only the body blocks are yielded, and only as Markdown nodes. Handing
+    /// back `&mut [TaskChild]` would let a caller reorder or replace child
+    /// variants, which would silently break the correspondence between the
+    /// body blocks and the ordered child sequence that renumbering depends on;
+    /// yielding the nodes directly makes that hazard unrepresentable rather
+    /// than merely documented.
+    pub(crate) fn body_children_mut(&mut self) -> impl Iterator<Item = &mut MarkdownNodes> {
+        self.children.iter_mut().filter_map(|child| match child {
+            TaskChild::Body(body) => Some(body),
+            TaskChild::SubTask(_) => None,
+        })
+    }
 
     /// Find the index of a structural sub-task by rendered number.
     #[must_use]

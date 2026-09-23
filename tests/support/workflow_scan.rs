@@ -13,11 +13,18 @@
 //! parsing it here is a new transitive dependency in the lock file for the
 //! sake of four assertions. The narrow reader is the smaller commitment.
 //!
-//! What this deliberately does **not** support: multi-line scalars, anchors
-//! and aliases, tags, or quoted keys. Given an unsupported construct [`parse`]
-//! returns an error rather than something wrong, so a future edit to
-//! `verus.yml` that this reader cannot read fails loudly at the point of the
-//! edit instead of passing vacuously.
+//! What this deliberately does **not** support: block scalars (`|` and `>`),
+//! multi-line flow collections, anchors and aliases, and tags. Given an
+//! unsupported construct [`parse`] returns an error rather than something
+//! wrong, so a future edit to `verus.yml` that this reader cannot read fails
+//! loudly at the point of the edit instead of passing vacuously.
+//!
+//! Quoted keys _are_ supported, and are unquoted before lookup. The workflow
+//! under test writes `'on':` because `on` is a YAML 1.1 boolean, so rejecting
+//! the quoting would make the reader unable to read the very document it
+//! exists for. Rejecting it was the earlier behaviour this file documented,
+//! and it was wrong: [`Line::key`] returned the text with its quotes attached,
+//! so a caller looking up `on` would have silently missed rather than failed.
 //!
 //! Flow sequences — `types: [opened, synchronize]` — are supported through
 //! [`Line::sequence`], because the workflow under test uses one and a caller
@@ -48,9 +55,17 @@ impl Line {
     #[must_use]
     pub fn value(&self) -> Option<&str> { self.entry().split_once(": ").map(|(_, value)| value) }
 
-    /// Return the key of a `key: value` entry.
+    /// Return the key of a `key: value` entry, unquoted.
+    ///
+    /// A single-quoted key — `'on':`, which the workflow under test uses
+    /// because `on` is a YAML 1.1 boolean — yields the bare name. Returning
+    /// the quotes would make a caller looking up `on` miss silently, which is
+    /// exactly the failure a parser exists to prevent.
     #[must_use]
-    pub fn key(&self) -> Option<&str> { self.entry().split_once(':').map(|(key, _)| key) }
+    pub fn key(&self) -> Option<&str> {
+        let (key, _) = self.entry().split_once(':')?;
+        Some(unquote(key))
+    }
 
     /// Return the comma-separated elements of an inline flow sequence.
     ///
@@ -85,11 +100,12 @@ impl Line {
 /// # Errors
 ///
 /// Returns an error naming the offending line when the document uses a
-/// construct this reader does not support: tab indentation, a line that is
-/// neither a mapping entry nor a sequence item, or an indentation column that
-/// cannot be expressed as whole two-space levels. Reporting is deliberate —
-/// a reader that misread such a line instead would let the workflow contract
-/// tests pass on a document they had not actually parsed.
+/// construct this reader does not support: tab indentation, an indentation
+/// column that is not a whole number of two-space levels, a block scalar
+/// header, or a line that is neither a mapping entry nor a sequence item.
+/// Reporting is deliberate — a reader that misread such a line instead would
+/// let the workflow contract tests pass on a document they had not actually
+/// parsed.
 pub fn parse(yaml: &str) -> Result<Vec<Line>, String> {
     let mut lines = Vec::new();
     for raw in yaml.lines() {
@@ -103,6 +119,24 @@ pub fn parse(yaml: &str) -> Result<Vec<Line>, String> {
         if indentation != " ".repeat(indentation.len()) {
             return Err(format!(
                 "workflow_scan cannot read non-space indentation: {raw:?}"
+            ));
+        }
+        if indentation.len() % 2 != 0 {
+            return Err(format!(
+                "workflow_scan cannot read an indentation column that is not a whole number of \
+                 two-space levels: {raw:?}"
+            ));
+        }
+        // A block scalar header is a `key: |` or `key: >` entry, optionally
+        // with a chomping or indentation indicator (`|-`, `>+`). Its value
+        // lines are continuation text, which this reader would misread as
+        // structure, so the header is rejected wherever it appears.
+        if let Some(value) = content.split_once(':').map(|(_, value)| value.trim())
+            && matches!(value.chars().next(), Some('|' | '>'))
+        {
+            return Err(format!(
+                "workflow_scan cannot read a block scalar; its continuation lines would be \
+                 misread as structure: {raw:?}"
             ));
         }
         let is_item = content.starts_with("- ");
@@ -154,4 +188,69 @@ pub fn sequence<'a>(lines: &'a [Line], key: &str) -> Vec<&'a str> {
         .first()
         .map(|line| line.sequence())
         .unwrap_or_default()
+}
+
+/// Strip a matching pair of surrounding quotes.
+///
+/// Both `'single'` and `"double"` forms are removed. Text that is not wrapped
+/// in a matching pair is returned unchanged, so this is safe to apply to every
+/// key rather than only to the ones that look quoted.
+#[must_use]
+fn unquote(text: &str) -> &str {
+    for quote in ['\'', '"'] {
+        if let Some(inner) = text
+            .strip_prefix(quote)
+            .and_then(|rest| rest.strip_suffix(quote))
+        {
+            return inner;
+        }
+    }
+    text
+}
+
+#[cfg(test)]
+mod tests {
+    //! Reader-edge coverage.
+
+    use rstest::rstest;
+
+    use super::{parse, unquote};
+
+    #[rstest]
+    #[case::single("'on'", "on")]
+    #[case::double("\"on\"", "on")]
+    #[case::bare("on", "on")]
+    #[case::single_quote_only("'on", "'on")]
+    #[case::empty("", "")]
+    fn unquote_strips_only_a_matching_pair(#[case] text: &str, #[case] expected: &str) {
+        assert_eq!(unquote(text), expected);
+    }
+
+    #[test]
+    fn a_quoted_key_is_looked_up_without_its_quotes() {
+        let lines = parse("'on':\n  workflow_dispatch:\n").unwrap_or_default();
+        assert!(
+            lines.iter().any(|line| line.key() == Some("on")),
+            "a quoted key must be reachable by its bare name; parsed {lines:?}"
+        );
+    }
+
+    #[rstest]
+    #[case::tab("\ton: x\n")]
+    #[case::two_and_a_half_levels("   on: x\n")]
+    #[case::block_scalar_literal("run: |\n")]
+    #[case::block_scalar_folded("run: >\n")]
+    #[case::block_scalar_stripped("run: |-\n")]
+    #[case::block_scalar_indented("run: |2\n")]
+    fn parse_rejects_unsupported_constructs(#[case] yaml: &str) {
+        assert!(
+            parse(yaml).is_err(),
+            "unsupported construct must fail loudly rather than be misread: {yaml:?}"
+        );
+    }
+
+    #[test]
+    fn even_indentation_is_accepted() {
+        assert!(parse("on:\n  x:\n    y:\n").is_ok());
+    }
 }

@@ -220,6 +220,10 @@ fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
         "- Requires 1.1.2. See §2.1, release 1.4.0, count 27.",
     );
     assert_contains(&stdout, "- Blocks 1.1.1.");
-    assert_contains(&stdout, "Requires 1.1.1.");
+    // The fenced block must survive byte-for-byte, including its fence and its
+    // indentation. Asserting on the bare clause text would not establish that:
+    // the inserted task's own self-reference is rewritten to `Requires 1.1.1.`
+    // as well, so that assertion would pass whether or not the fence survived.
+    assert_contains(&stdout, "  ```text\n  Requires 1.1.1.\n  ```\n");
     Ok(())
 }

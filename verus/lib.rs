@@ -140,37 +140,29 @@ proof fn retired_anchor_never_resolves<T>(
 }
 
 // ---------------------------------------------------------------------------
-// Obligation 3: source-span preservation
+// A source-span obligation is deliberately absent
 // ---------------------------------------------------------------------------
 //
-// Resolution is a decision over two already-computed answers. It reads neither
-// the document nor the plan, so it cannot alter the source spans the renderer
-// preserves; the obligation is that the decision leaves other text alone,
-// which holds because the function has no other output channel.
-
-/// Resolution depends on nothing but its three inputs.
-///
-/// Two calls with equal inputs return equal results, so resolution cannot
-/// vary with hidden state such as map iteration order. The equal-inputs
-/// premise is what makes this a statement about determinism rather than a
-/// tautology.
-proof fn resolution_is_a_function_of_its_inputs<T>(
-    local_a: Option<T>,
-    cross_a: Option<T>,
-    fragment_a: bool,
-    local_b: Option<T>,
-    cross_b: Option<T>,
-    fragment_b: bool,
-)
-    requires
-        local_a == local_b,
-        cross_a == cross_b,
-        fragment_a == fragment_b,
-    ensures
-        select_resolution_spec(local_a, cross_a, fragment_a)
-            == select_resolution_spec(local_b, cross_b, fragment_b),
-{
-}
+// An earlier draft carried `resolution_is_a_function_of_its_inputs`, which took
+// two triples with pairwise-equal inputs and concluded equality of results. It
+// was removed because it could not fail. It is congruence over a pure `spec fn`
+// and is therefore discharged from the signature alone: no defect in the kernel
+// can make it false, which the falsifiability check below demonstrates rather
+// than assumes.
+//
+// The property it was meant to capture is real — resolution must not vary with
+// hidden state such as map iteration order — but it is a property of the
+// *caller*. `RenumberPlan::resolve_reference` is what reads the maps; the
+// kernel receives two already-resolved anchors and has no state to vary with.
+// Would the kernel's reference transparency be worth proving, the missing piece
+// is a functional-correctness theorem connecting its output to the resolved
+// anchors, not a determinism statement about a total function of its arguments.
+//
+// Source-span preservation itself is a property of the renderer, which writes
+// output by copying preserved spans. It is not a property of this kernel, and
+// no theorem here would be evidence for it. It is covered by the golden
+// fixtures and the in-place byte-identity assertions in `tests/` instead, and
+// `docs/verification.md` records the boundary.
 
 /// Fragment text does consult the cross-source fallback.
 ///

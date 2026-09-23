@@ -10,7 +10,7 @@ use super::{
         StepNumber,
         SubTaskNumber,
         TaskNumber,
-        model::{MarkdownNodes, RenumberPlan, SourceId, SubTaskEntry, TaskChild, TaskEntry},
+        model::{MarkdownNodes, RenumberPlan, SourceId, SubTaskEntry, TaskEntry},
         preservation_events::{PreservationInvalidationReason, PreservationReport},
     },
     dependency_text::rewrite_text_value,
@@ -179,7 +179,7 @@ fn rewrite_task_entry(
 
 /// Rewrite nested task-body blocks, leaving structural sub-tasks untouched.
 ///
-/// [`TaskChild::Body`] blocks carry the nested body Markdown that
+/// Body-child blocks carry the nested body Markdown that
 /// [`TaskEntry::body`] has already had drained into them by the parser, so a
 /// dependency clause inside a body bullet is only reachable here. Sub-task
 /// children are skipped because [`TaskEntry::sub_tasks_mut`] rewrites the same
@@ -193,10 +193,8 @@ fn rewrite_task_body_children(
 ) -> Result<bool> {
     let source = task.identity.source;
     let mut changed = false;
-    for child in task.children_mut() {
-        if let TaskChild::Body(body) = child {
-            changed |= rewrite_markdown_nodes(body, source, context)?;
-        }
+    for body in task.body_children_mut() {
+        changed |= rewrite_markdown_nodes(body, source, context)?;
     }
     Ok(changed)
 }

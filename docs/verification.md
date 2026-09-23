@@ -13,7 +13,6 @@ implementation unless a refinement proof connects it to the production function.
 | Identity preservation: a target-text reference never resolves through the cross-source fallback  | `select_resolution` | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls | Local correctness |
 | Local-mapping precedence: a target-text reference with its own mapping keeps it                  | `select_resolution` | As above                                                                                           | None                                     | Local correctness |
 | Deleted-target rejection: a reference with neither mapping resolves to nothing, in either source | `select_resolution` | As above, with both options absent                                                                 | None                                     | Local correctness |
-| Source-span preservation: resolution depends on nothing but its three inputs                     | `select_resolution` | Two triples of equal inputs                                                                        | None                                     | Local correctness |
 | Non-vacuity: fragment text does consult the cross-source fallback                                | `select_resolution` | As above, with the local option absent and the cross-source option present                         | None                                     | Local correctness |
 
 _Table 1: The verification claim ledger._
@@ -102,9 +101,31 @@ statements about dead code.
   or the in-place write path. Those are covered by the golden and CLI tests.
 - Existing property tests remain in place. Verus proofs complement them and do
   not replace them.
-- A proof's obligations are only meaningful if they can fail. Each theorem in
-  `verus/lib.rs` was checked by injecting a kernel defect and confirming the
-  proof is rejected.
+- A proof's obligations are only meaningful if they can fail, and each remaining
+  theorem in `verus/lib.rs` was checked by injecting a kernel defect and
+  confirming the proof is rejected. The findings below are the evidence for the
+  four rows that survive; a theorem that survives every injected defect is
+  removed rather than listed, which is why there are four rows and not five.
+
+  | Injected kernel defect                           | Theorem that rejects it                            |
+  | ------------------------------------------------ | -------------------------------------------------- |
+  | Target text falls back to the cross-source value | `target_text_never_uses_the_cross_source_fallback` |
+  | Local mapping loses precedence                   | `target_text_keeps_its_source_local_mapping`       |
+  | Local branch returns the cross-source value      | `target_text_keeps_its_source_local_mapping`       |
+  | Fragment text ignores the cross-source fallback  | `fragment_text_uses_the_cross_source_fallback`     |
+  | Both branches resolve to nothing                 | `fragment_text_uses_the_cross_source_fallback`     |
+
+  _Table 2: Defect injections and the obligations that reject them._
+
+- A previous revision listed a fifth row, "Source-span preservation: resolution
+  depends on nothing but its three inputs". It was removed because it could not
+  fail: it concluded equality of results from pairwise-equal arguments, which
+  Verus discharges from the signature alone for any total function, so no
+  kernel defect could falsify it. Source-span preservation is a property of the
+  renderer rather than of this kernel, and it is covered by the golden fixtures
+  and in-place byte-identity assertions in `tests/`. Retaining an unfalsifiable
+  row would have made the ledger's own falsifiability rule false, which is the
+  failure this entry exists to prevent.
 - Every claim row must name a function that exists in `src/`. The checker
   matches a line-initial declaration, so a name surviving only in a doc comment
   does not satisfy a claim. The check is necessary rather than sufficient: it

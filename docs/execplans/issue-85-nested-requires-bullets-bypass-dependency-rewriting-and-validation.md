@@ -20,6 +20,8 @@ deterministic gate is green. This plan tracks the CodeRabbit review and the PR.
 | 3    | CLI regressions, golden fixtures, property suite     | Done  |
 | 4    | Verus proofs, ledger, Makefile and CI wiring         | Done  |
 
+_Table 1: The coding plan's four tasks and their state._
+
 Commits:
 
 - `05b49d3` — Address CodeRabbit review findings on the nested-Requires work.
@@ -33,7 +35,7 @@ Commits:
 ## Task 4 outcome: the splice is a macro, and why
 
 The construction described below was correct about Verus and wrong about
-Whitaker. A bare `include!` inside a function body *is* verified — that part
+Whitaker. A bare `include!` inside a function body _is_ verified — that part
 held — but it also aborts Whitaker's `bumpy_road_function` lint with an
 internal compiler error, which fails `make lint` for the whole crate.
 
@@ -41,13 +43,13 @@ The mechanism, established in a twenty-line reproduction crate rather than by
 reading:
 
 - Tokens spliced by `include!` report `span.from_expansion() == false` while
-  still carrying the *included* file's line numbers. `bumpy_road_function`
+  still carrying the _included_ file's line numbers. `bumpy_road_function`
   skips expansion spans precisely because such line numbers can point outside
   the enclosing function, but that guard cannot see through `include!`. It
   therefore compares the body file's lines against the function's range in a
   different coordinate system and panics in `push_segment`
   (`crates/bumpy_road_function/src/driver/segment_builder.rs`).
-- The trigger is *any* `include!` inside a function body. An `include!` at item
+- The trigger is _any_ `include!` inside a function body. An `include!` at item
   level is fine; a nested `include!` inside an included item is not. The lint
   has no `excluded_paths` support (unlike `no_std_fs_operations`), and every
   `allow`/`expect` form is rejected earlier by the attribute lints this
@@ -61,7 +63,7 @@ The shared text therefore moved from `verus/kernels/select_resolution.body.rs`
 definition), and both `verus/lib.rs` and `src/roadmap/ops/remap_kernel.rs`
 expand `select_resolution_body!` and include the macro file at item level.
 
-Confirmed after the change: `make verus` reports `6 verified, 0 errors`;
+Confirmed after the change: `make verus` reports `5 verified, 0 errors`;
 `make lint` exits 0 with zero ICEs and the Whitaker toolchain banner present
 (so the suite genuinely loaded); and all six deterministic gates pass. The fix
 was verified both cold (a run that recompiled the crate) and warm.
@@ -77,7 +79,7 @@ by that lint.
 The reference implementation is `leynos/mdtablefix` (ADR 0011 and
 `docs/verification.md`). Its scaffolding — `tools/verus/VERSION`,
 `tools/verus/SHA256SUMS`, `verus/smoke.rs`, the workflow shape — is already
-present in this repository and byte-matches the reference. Its *proof* content
+present in this repository and byte-matches the reference. Its _proof_ content
 is not transferable, because ADR 0011's "include the production module with
 `#[path]`" convention does not actually verify anything. This was established
 by direct experiment against the pinned Verus binary, not by reading:
@@ -86,12 +88,14 @@ by direct experiment against the pinned Verus binary, not by reading:
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Plain-Rust module `#[path]`-included, function called from a proof | `error: cannot use function ... which is ignored because it is either declared outside the verus! macro or it is marked as external`           |
 | Same, with `--no-external-by-default`                              | Still unverifiable; a false assertion about the body is not caught                                                                             |
-| Module carrying its own `verus!` block, `#[path]`-included         | Verified as a *separate crate item*; the module's own body is proved, but this forces `verus!` syntax into a production file                   |
+| Module carrying its own `verus!` block, `#[path]`-included         | Verified as a _separate crate item_; the module's own body is proved, but this forces `verus!` syntax into a production file                   |
 | `include!` at item level inside `verus!`                           | Function is again "ignored" — the macro does not see it                                                                                        |
 | **`include!` inside a function body inside `verus!`**              | **The included text is verified.** A false postcondition over the included body is caught, with the diagnostic pointing into the included file |
 
+_Table 2: Verus splice probes and what each establishes._
+
 So Verus verifies only text that is literally inside the `verus!` macro. A body
-spliced by `include!` *is* verified, and that same file is also plain Rust that
+spliced by `include!` _is_ verified, and that same file is also plain Rust that
 cargo compiles. That is the construction used here: one body file, spliced into
 the production `const fn` by cargo and into the verified `fn` by Verus.
 
@@ -119,8 +123,17 @@ Constraints confirmed by experiment:
    with its body shared via `verus/kernels/select_resolution.macro.rs` and
    called from `RenumberPlan::resolve_reference`.
 2. Added `verus/lib.rs` as the proof entry point: identity preservation,
-   local-mapping precedence, deleted-target rejection, non-vacuity, and
-   source-span preservation — 6 obligations, all discharged.
+   local-mapping precedence, deleted-target rejection, and non-vacuity — four
+   obligations, all discharged, measured as `5 verified, 0 errors` (the four
+   `proof fn`s plus the verified kernel `fn`).
+
+   A fifth obligation, "source-span preservation", was drafted and then
+   removed. It concluded equality of results from pairwise-equal arguments,
+   which Verus discharges from the signature alone, so no kernel defect could
+   falsify it — confirmed by injecting a blatant spec defect, which three other
+   obligations rejected and that one did not. A CodeRabbit review found this
+   independently. Every remaining obligation is falsifiable, and Table 2 of
+   `docs/verification.md` records the injection that each one rejects.
 3. Added the `docs/verification.md` ledger with a claim row per theorem, and
    `scripts/check-verification-ledger.sh` wired into `make lint`.
 4. Wired `make verus` and `make verus-selftest`; the selftest runs a
@@ -139,7 +152,7 @@ Constraints confirmed by experiment:
 
 - No `assume`, admitted lemma, or `external_body` that merely restates the
   invariant under proof.
-- Frame the risk honestly: the *clause recognizer* is the large surface here,
+- Frame the risk honestly: the _clause recognizer_ is the large surface here,
   and it is not proved. `docs/verification.md` states that boundary rather than
   implying the recognizer is verified.
 - The macro wrapper means the kernel body is opaque to `bumpy_road_function`.
