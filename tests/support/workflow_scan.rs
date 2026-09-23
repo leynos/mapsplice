@@ -121,7 +121,7 @@ pub fn parse(yaml: &str) -> Result<Vec<Line>, String> {
                 "workflow_scan cannot read non-space indentation: {raw:?}"
             ));
         }
-        if indentation.len() % 2 != 0 {
+        if !indentation.len().is_multiple_of(2) {
             return Err(format!(
                 "workflow_scan cannot read an indentation column that is not a whole number of \
                  two-space levels: {raw:?}"
