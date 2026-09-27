@@ -606,6 +606,26 @@ Constraints confirmed by experiment:
     again, once that run had closed, so it needs its own pass — the rule
     closing item 8 is not suspended here, it is the reason.
 
+    `58708e5` carries only that correction. It is one Markdown file and no
+    other path, so the same three targets cover it and the rest cannot see it:
+    the narrowing follows item 5's rule, which asks what a gate's inputs are
+    rather than which gates were convenient. The pass held its freeze — HEAD,
+    the tree hash, the working-tree status, and the three file hashes were
+    identical at both endpoints — and went green on `check-fmt` at 203 files
+    unchanged, `markdownlint` at 0 errors over 60 files, and `test` at 375
+    nextest cases with 12 doctests passing and 2 ignored. The prerequisite was
+    read rather than assumed: `markdownlint` depends on `spelling`, and its log
+    opens with the builder's `current: typos.toml`, so the green is the whole
+    target and not a target that stopped early and said nothing. Logs carry the
+    `-6` suffix; `frozen` here means HEAD `58708e5` with tree `442233a` at both
+    ends, which is a narrower claim than item 9's nine-gate pass.
+
+    The recursion this entry sits inside is real, and it is cut here rather
+    than papered over: a commit that records its own gate result edits the very
+    file that result describes, so the evidence for the last such commit cannot
+    live in it. That evidence is the `-6` log set and the reply, and it stops
+    there by design.
+
     The reply is queued as `4877ca11` and a fresh review follows as `ec0d21cf`,
     so the reply posts first, as in round 8.
 
