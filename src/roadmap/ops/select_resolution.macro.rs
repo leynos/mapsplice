@@ -9,8 +9,10 @@
 // context that lint already skips, so wrapping the splice in a macro is what
 // lets the two sides share one text at all.
 //
-// `verus/lib.rs` expands this under a proof; `src/roadmap/ops/remap_kernel.rs`
-// expands it in production. Keep those two call sites in step.
+// The file is domain-owned: `remap_kernel.rs` includes it from beside itself,
+// and `verus/lib.rs` reaches into `src/` for it. So the dependency runs from
+// verification infrastructure to the domain kernel, and production names no
+// proof path. Keep the two expansion sites in step.
 //
 // One consequence is worth stating plainly: because the expansion is what the
 // lint sees, the kernel body is opaque to `bumpy_road_function` in both

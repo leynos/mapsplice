@@ -173,8 +173,10 @@ Constraints confirmed by experiment:
 ## Completed work
 
 1. Extracted the resolution decision into `src/roadmap/ops/remap_kernel.rs`,
-   with its body shared via `verus/kernels/select_resolution.macro.rs` and
-   called from `RenumberPlan::resolve_reference`.
+   with its body shared via `src/roadmap/ops/select_resolution.macro.rs` and
+   called from `RenumberPlan::resolve_reference`. The body is domain-owned and
+   the proof reaches into `src/` for it, so the dependency runs from
+   verification infrastructure to the domain kernel; see item 7.
 2. Added `verus/lib.rs` as the proof entry point: identity preservation,
    local-mapping precedence, and non-vacuity — three theorems, all discharged,
    measured as `4 verified, 0 errors` (the three `proof fn`s plus the verified

@@ -5,6 +5,12 @@
 //! module, so the text Verus proves and the text cargo compiles are one
 //! artefact rather than two implementations that can drift.
 //!
+//! The shared body lives in the domain module that uses it, and the proof
+//! reaches into `src/` for it. The dependency therefore runs from verification
+//! infrastructure to the domain kernel: production carries no proof path, no
+//! manifest environment lookup, and no knowledge of this directory. Reaching
+//! across the tree is what keeps the domain clean.
+//!
 //! The convention matters twice over. A plain-Rust module pulled in with
 //! `#[path]` is treated by Verus as opaque — it cannot be called from a proof at
 //! all — so a proof that reaches production code must bring the body in as
@@ -22,7 +28,9 @@ use vstd::prelude::*;
 
 verus! {
 
-include!("kernels/select_resolution.macro.rs");
+// Relative to this file. The body is domain-owned, so the proof is what crosses
+// the tree boundary; see the module documentation above.
+include!("../src/roadmap/ops/select_resolution.macro.rs");
 
 // ---------------------------------------------------------------------------
 // Kernel: dependency-reference resolution

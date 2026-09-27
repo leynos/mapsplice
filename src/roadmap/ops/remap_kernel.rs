@@ -10,9 +10,14 @@
 //! The decision is therefore extracted here as a pure function over its own
 //! inputs, with no map, no document, and no I/O. `verus/lib.rs` proves the
 //! obligations over this exact text: [`select_resolution`] expands the same
-//! `select_resolution_body!` macro that `verus/kernels/select_resolution.macro.rs`
-//! defines and the proof expands, so the verified text and the compiled text are
-//! one artefact rather than two implementations that can drift.
+//! `select_resolution_body!` macro that `select_resolution.macro.rs` defines and
+//! the proof expands, so the verified text and the compiled text are one
+//! artefact rather than two implementations that can drift.
+//!
+//! The shared body lives beside this module rather than under `verus/`, so the
+//! dependency runs from verification infrastructure to the domain kernel and not
+//! the other way round: this file names no proof path, and the proof is what
+//! reaches across the tree. `verus/lib.rs` records how it reaches in.
 //!
 //! The macro indirection is load-bearing rather than stylistic. Whitaker's
 //! `bumpy_road_function` lint cannot see through `include!`: spliced tokens
@@ -20,17 +25,14 @@
 //! line numbers, so the lint compares them against the enclosing function's
 //! range in a different coordinate system and aborts the compiler with an
 //! internal error. Expanding the shared text as a macro gives it the expansion
-//! context that lint already skips. `verus/kernels/select_resolution.macro.rs`
-//! records the trade this makes.
+//! context that lint already skips. `select_resolution.macro.rs` records the
+//! trade this makes.
 //!
 //! [`RenumberPlan::resolve_reference`]: super::super::model::RenumberPlan::resolve_reference
 
 // The body is macro-expanded, not spliced, so that Whitaker's
 // `bumpy_road_function` lint can skip it. See the module documentation above.
-include!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/verus/kernels/select_resolution.macro.rs"
-));
+include!("select_resolution.macro.rs");
 
 /// Choose which mapping a dependency reference resolves through.
 ///

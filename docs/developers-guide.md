@@ -163,10 +163,12 @@ Which answer a reference resolves through is a separate, proven boundary.
 `select_resolution` in `src/roadmap/ops/remap_kernel.rs`, a pure `const fn`
 over two already-computed anchors and a `bool` source flag; it performs no
 lookup and cannot fail. The kernel's body is shared as a `macro_rules!`
-definition in `verus/kernels/select_resolution.macro.rs`, expanded by both the
-production `const fn` and the proof in `verus/lib.rs`, so the verified text and
-the compiled text are one artefact rather than two that can drift. The splice
-is a macro rather than a bare `include!` because Whitaker's
+definition in `src/roadmap/ops/select_resolution.macro.rs`, expanded by both
+the production `const fn` and the proof in `verus/lib.rs`, so the verified text
+and the compiled text are one artefact rather than two that can drift. The body
+is domain-owned and the proof reaches into `src/` for it, so the dependency runs
+from verification infrastructure to the domain kernel rather than the reverse.
+The splice is a macro rather than a bare `include!` because Whitaker's
 `bumpy_road_function` lint cannot see through `include!` and aborts the
 compiler; `verus/lib.rs` documents that convention, and
 [mapsplice-design.md](mapsplice-design.md) records the dependency-clause

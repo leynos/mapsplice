@@ -57,11 +57,19 @@ gap is preferable to implying a coverage that does not exist.
 ## How the kernel connects to production
 
 `verus/lib.rs` proves the macro-defined body in
-`verus/kernels/select_resolution.macro.rs`. `src/roadmap/ops/remap_kernel.rs`
+`src/roadmap/ops/select_resolution.macro.rs`. `src/roadmap/ops/remap_kernel.rs`
 includes that same file and expands `select_resolution_body!` inside its
 `const fn`, and `RenumberPlan::resolve_reference` in `src/roadmap/model.rs`
 calls it. The verified text and the compiled text are therefore one artefact,
 not two implementations that can drift.
+
+The shared body lives beside the domain module that expands it, and the proof is
+what crosses the tree to reach it. The dependency therefore runs from
+verification infrastructure to the domain kernel: production carries no proof
+path, no `CARGO_MANIFEST_DIR` lookup, and no knowledge of `verus/`. A kernel
+placed under the proof tree would invert that direction — the domain would name
+verification infrastructure to compile itself — which is why the file sits in
+`src/roadmap/ops/` and `verus/lib.rs` writes `../src/`.
 
 Sharing the text is deliberate rather than incidental. Verus treats a
 plain-Rust module included with `#[path]` as opaque — it cannot be called from
@@ -79,9 +87,9 @@ be silenced — it fails `make lint` outright, for the whole crate, on any
 it the expansion context the lint already skips, which is what lets the two
 sides share one text at all.
 
-The trade is recorded in `verus/kernels/select_resolution.macro.rs`: the kernel
-body is opaque to `bumpy_road_function` in both crates. Nothing is lost here —
-the body holds one `if` inside one match arm — but a future kernel with
+The trade is recorded in `src/roadmap/ops/select_resolution.macro.rs`: the
+kernel body is opaque to `bumpy_road_function` in both crates. Nothing is lost
+here — the body holds one `if` inside one match arm — but a future kernel with
 genuinely nested conditionals would go unflagged by that lint.
 
 `RenumberPlan::resolve_reference` delegates the whole decision, including the
@@ -114,7 +122,7 @@ statements about dead code.
   **specification defect** changes `select_resolution_spec`, the definition the
   `ensures` clause compares against; it tests whether an obligation can
   distinguish one decision rule from another. A **body defect** changes only
-  the shared macro body in `verus/kernels/select_resolution.macro.rs`, leaving
+  the shared macro body in `src/roadmap/ops/select_resolution.macro.rs`, leaving
   the specification untouched; it tests whether verification reaches the text
   the product actually compiles, which is the whole point of the splice
   convention above.
