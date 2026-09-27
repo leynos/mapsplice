@@ -230,6 +230,32 @@ Constraints confirmed by experiment:
    reasoning refuted but a real narrow gap closed with two CRLF tests; and the
    domain-architecture warning was dismissed, because its premise is wrong and
    its proposed remedy is the standalone reimplementation the issue rules out.
+
+   The round-7 response is committed at `067accc` (the two tests, the guide
+   paragraph and section 7.1), with the ExecPlan records at `e540078`. The
+   inline finding's paragraph was rewritten at its own anchor, and the
+   dispositions are triaged with measured evidence in
+   `/tmp/cr-triage-round7.md`.
+
+   Two facts about round 7 that a successor needs. First, it was a GitHub App
+   review, not a local pass, so it is the first round with a thread to answer:
+   comment `4113958501`, review `5328698796`. Second, CodeRabbit then **paused
+   automatic reviews** on the branch (`auto_pause_after_reviewed_commits`),
+   which is not the same as rate limiting — the paused walkthrough offers
+   `@coderabbitai review` as the documented way back. Reconciliation was
+   therefore enqueued deliberately rather than left to the automation: the
+   focused reply first and the review request second, so the reviewer reads the
+   dispositions before re-reviewing. Queue identifiers are ephemeral, so they
+   are not recorded here; `comenq hist -n 20` shows both, the reply opening
+   "Reconcile, please" and the request reading `@coderabbitai review`.
+
+   A third party reviewed as well and needs no disposition. `sourcery-ai`
+   declined the pull request for being over its 150,000-character diff limit (a
+   size refusal, not findings), and `chatgpt-codex-connector` reported its code
+   review as completed with no suggestions. Neither raised a thread.
+
+   Continuous integration is green on the new head: `build-test` and `verify`
+   both succeeded at `e540078`, re-triggered by the push rather than by hand.
    The dispositions are recorded in `/tmp/cr-triage-round7.md`.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
    (see the lesson below), and a later one failed `make spelling` on a commit
