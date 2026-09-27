@@ -42,17 +42,16 @@ The four coding-plan tasks:
 
 The eight CodeRabbit rounds and their response commits:
 
-| Round | Findings | Answered by | Evidence artefact                                      |
-| ----- | -------- | ----------- | ------------------------------------------------------ |
-| 1     | 8        | `05b49d3`   | `/tmp/coderabbit-mapsplice-issue-85.out`               |
-| 2     | 6        | `67ab4b9`   | `.../tasks/bh6xlkhs1.output`                           |
-| 3     | 7        | `16ef675`   | `.../tasks/bfs030ibl.output`                           |
-| 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`                      |
-| 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
-| 6     | 6        | `08b62f9`   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
-| 7     | 4        | `067accc`   | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
-| 8     | 3        | `ef8cda3`   | `/tmp/walkthrough-86-0523.md`                          |
-| 9     | 5        | `0ae84d1`   | `/tmp/walkthrough-86-*.md` (pending)                   |
+| Round | Findings | Answered by                                | Evidence artefact                                      |
+| ----- | -------- | ------------------------------------------ | ------------------------------------------------------ |
+| 1     | 8        | `05b49d3`                                  | `/tmp/coderabbit-mapsplice-issue-85.out`               |
+| 2     | 6        | `67ab4b9`                                  | `.../tasks/bh6xlkhs1.output`                           |
+| 3     | 7        | `16ef675`                                  | `.../tasks/bfs030ibl.output`                           |
+| 4     | 7        | `fcbe9c6`                                  | `/tmp/coderabbit-issue-85-...out`                      |
+| 5     | 4        | `92dc9bb`                                  | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
+| 6     | 6        | `08b62f9`                                  | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
+| 7     | 4        | `067accc`                                  | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
+| 8     | 3        | `ef8cda3`, `bcc6e08`, `fe72e93`, `0ae84d1` | `/tmp/walkthrough-86-0523.md`                          |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
@@ -65,13 +64,17 @@ returned one inline finding plus three failed pre-merge checks for a count of
 four. The tally is therefore 8, 6, 7, 7, 4, 6, 4 and 3.
 
 Round 8 returned one inline finding and two pre-merge rows for a count of
-three, and its review decision was still `CHANGES_REQUESTED`. Two of the three
-were valid and are recorded in item 7 of Remaining work; both were actioned
-(`ef8cda3`, `fe72e93`). Round 8 re-raised the domain-architecture row that
-round 7 had raised, but with a **revised remedy**: it dropped the separate
-proof adapter that the round-7 dismissal had refuted and asked instead for the
-shared body to be domain-owned, with the dependency running from verification
-to the domain. That revised remedy was correct and was implemented. This is
+three, and its review decision was still `CHANGES_REQUESTED`. All three were
+live and all three were actioned: the inline finding at `ef8cda3` and the
+line-ending row at `bcc6e08`, both recorded in item 7 of Remaining work, and
+the domain-architecture row at `fe72e93` and `0ae84d1`, recorded in item 8.
+Round 8 re-raised the domain-architecture row that round 7 had raised, but with
+a **revised remedy**. Round 7 required the kernel be "self-contained in the
+domain module", connected by "a separate proof adapter"; round 8 asks instead
+to "define **or include**" it "from a domain-owned source", keeping the adapter
+only as one of two options ("a proof-side adapter or refinement proof"). That
+relaxation is what unblocked the round-7 objection — the adapter was never
+dropped, it stopped being mandatory — and the remedy was implemented. This is
 worth recording as a case where the first dismissal was right about the remedy
 and wrong about the underlying complaint, so a re-raise was not a duplicate.
 
@@ -101,8 +104,8 @@ Supporting commits that are not themselves a round response:
 - `06bf3a4` — Record the three round-7 reconciliation lessons.
 - `e456dc7` — Record the posted round-7 reply by its durable comment
   identifier.
-- `ef8cda3` — Exercise CRLF rejection through the in-place path.
-- `fe72e93` — Give the shared kernel body a domain-owned home.
+- `56f3572` — Fix the MD049 emphasis style the Markdown gate caught in the
+  round-8 ExecPlan text.
 
 ## Task 4 outcome: the splice is a macro, and why
 
@@ -246,16 +249,16 @@ Constraints confirmed by experiment:
 
 1. Push and open the draft PR. **Done** — the branch is pushed and
    [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
-2. Run `coderabbit review --agent` and clear all concerns. **Done for seven
-   rounds** — 8, 6, 7, 7, 4, 6 and 4 findings, every one actioned or dismissed
-   with recorded evidence, counts re-derived from the artefacts (Table 2).
-   Round 6 returned six findings that are four distinct issues, because two
-   pairs are the same finding stated twice. Two were accepted and fixed (the
-   ExecPlan's table captions were out of document order; the `verus.yml`
-   concurrency comment described a `push` trigger the workflow does not have).
-   Two were dismissed against evidence already on file: the ExecPlan rename
-   re-raises round 1's finding with a new justification, and the ledger-fixture
-   finding would undo what round 3's major finding asked for.
+2. Run `coderabbit review --agent` and clear all concerns. **Done for eight
+   rounds** — 8, 6, 7, 7, 4, 6, 4 and 3 findings, every one actioned or
+   dismissed with recorded evidence, counts re-derived from the artefacts
+   (Table 2). Round 6 returned six findings that are four distinct issues,
+   because two pairs are the same finding stated twice. Two were accepted and
+   fixed (the ExecPlan's table captions were out of document order; the
+   `verus.yml` concurrency comment described a `push` trigger the workflow does
+   not have). Two were dismissed against evidence already on file: the ExecPlan
+   rename re-raises round 1's finding with a new justification, and the
+   ledger-fixture finding would undo what round 3's major finding asked for.
 
    Round 7 ran on the PR itself and returned `CHANGES_REQUESTED` for one inline
    finding and three pre-merge warnings. One inline finding was accepted (the
@@ -349,9 +352,9 @@ Constraints confirmed by experiment:
    byte-identical, an in-place success rewrites it.
 
    **The linked-issues row** said `tests/roadmap_dependency_properties.rs`
-   still generated LF-only targets, and it was correct. Closed by giving the
-   generator a `Shape::CRLF` and a `retarget` pass, threading a `crlf`
-   parameter through `build_case`, and adding an independent `in_place`
+   still generated LF-only targets, and it was correct. Closed at `bcc6e08` by
+   giving the generator a `Shape::CRLF` and a `retarget` pass, threading a
+   `crlf` parameter through `build_case`, and adding an independent `in_place`
    parameter so half the cases run on the path that actually writes. Line
    endings and mode are their own parameters rather than bits of a random byte,
    so every run generates both; a combination reachable only when a random byte
@@ -519,6 +522,46 @@ Constraints confirmed by experiment:
   the omission immediately, where re-reading the tally did not. Prefer a check
   that compares two independently-derived numbers over a re-read of the number
   in question.
+- **The same flaw has a mirror, and it is worse, because it inflates.** Table 2
+  briefly carried a ninth row — `| 9 | 5 | 0ae84d1 | ... (pending) |` — written
+  while recording the domain-purity gate, before any ninth review existed. The
+  PR has only ever carried two CodeRabbit review submissions — `5328698796` on
+  `bcd0506` and `5328960095` on `e456dc7` — and no ninth-review artefact
+  appears under `/tmp` by content or by name. The row was not invented
+  wholesale: the work it pointed at was real and the commit was real, but that
+  work answers round 8's third finding, which item 8 of Remaining work already
+  records. Three signals were visible at the time and none was read — the
+  caption still said "the eight CodeRabbit rounds", the running tally in the
+  prose still listed eight numbers, and the row's own evidence cell said
+  "(pending)", which for a table captioned _re-derived from the artefacts_ is
+  an admission that nothing had been derived. A tally that does not close is
+  the safe failure; a tally that closes on a row with no artefact behind it
+  passes every re-read, because the arithmetic works. Anchor each row to an
+  artefact that exists before the row is written, not to work that needs
+  recording somewhere. The row also exposed a second defect next to it: round
+  8's "Answered by" cell named only `ef8cda3`, though its three findings landed
+  across four commits — `ef8cda3`, `bcc6e08`, `fe72e93` and `0ae84d1`. A cell
+  that names one commit for a round that needed four reads as a settled fact
+  and sends a successor to the wrong diff.
+
+  The count that refuted the row was itself nearly misread the same way.
+  `gh api …/pulls/86/reviews` returns every reviewer's submission, and the
+  unfiltered list has _three_ entries — the two CodeRabbit reviews and one
+  `sourcery-ai` comment — so taking its length gave a number that was right
+  about the API and wrong about the claim it was used to settle. Count by
+  author, not by page length; an aggregating endpoint answers a question about
+  the page, not about the reviewer.
+- **Widening a table cell re-pads the whole table, so probe it on a copy.** The
+  round-8 cell above had to name four commits instead of one. Editing it in
+  place would have left every other row's padding stale, and
+  `mdtablefix --check` would have failed the gate — the same class of coupling
+  between content and formatting that the emphasis fix already demonstrated.
+  The edit was rehearsed on a `/tmp` copy, the formatter was run there, and the
+  resulting table was ported back already formatted; the probe then passed
+  `--check` unchanged. This is the general form of "run the gate's command, not
+  the tool": when an edit changes a line's length inside a formatted construct,
+  produce the formatted result first and move that, rather than moving the
+  content and hoping the formatter agrees.
 - **The evidence glob was narrower than the evidence.** Round artefacts were
   enumerated with `ls /tmp/*coderabbit*issue-85*`, which found four of the
   five. The fifth was captured only inside a subagent task-output file under
