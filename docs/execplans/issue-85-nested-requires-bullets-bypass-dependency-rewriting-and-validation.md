@@ -343,7 +343,7 @@ Constraints confirmed by experiment:
    **The inline finding** (`4114203677`) asked the CRLF rejection test to use
    `--in-place`. It was right and the gap was real: the test asserted
    byte-identity on the path that never writes, so it would have passed with a
-   rejection path that normalised the target on its way to a write. Fixed at
+   rejection path that normalized the target on its way to a write. Fixed at
    `ef8cda3` with a negative control — an in-place rejection leaves the file
    byte-identical, an in-place success rewrites it.
 
@@ -363,14 +363,14 @@ Constraints confirmed by experiment:
    injecting that defect both ways rather than argued. Second, the module doc
    saying "line endings are deliberately LF-only … the parser normalizes CRLF
    to LF on render" was doubly stale — the modes now vary, and the mechanism it
-   named does not exist. There is no parse-time normalisation anywhere in the
+   named does not exist. There is no parse-time normalization anywhere in the
    product; the renderer joins canonical lines with `\n` while preserved spans
    are emitted as raw byte slices, which is why an accepted edit can return a
    document holding both conventions.
 
    The assertions were split so the two obligations cannot be conflated.
    Content checks (a summary renders as `{anchor}. {stem}`, a clause survives
-   outside its fences) normalise `\r\n`; the preservation check compares raw
+   outside its fences) normalize `\r\n`; the preservation check compares raw
    bytes and is the only one that may. The assertion layer moved to
    `tests/support/dependency_case.rs` for that separation and to keep every
    file under the 400-line limit.

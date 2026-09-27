@@ -1,7 +1,7 @@
 .PHONY: help all clean test build release lint fmt check-fmt markdownfmt \
 	markdownlint markdownlint-paths nixie typecheck test-workflow-contracts \
-	spelling check-ripgrep check-verification-ledger check-prover-tools \
-	verus-install verus verus-selftest
+	spelling check-ripgrep check-verification-ledger check-domain-purity \
+	check-prover-tools verus-install verus verus-selftest
 
 
 TARGET ?= mapsplice
@@ -91,7 +91,7 @@ test-workflow-contracts: ## Validate the mutation-testing caller contract
 target/%/$(TARGET): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
 
-lint: check-verification-ledger ## Run Clippy and the Whitaker Dylint suite with warnings denied
+lint: check-verification-ledger check-domain-purity ## Run Clippy and the Whitaker Dylint suite with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
 	$(CARGO) clippy $(CLIPPY_FLAGS)
 	RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
@@ -132,6 +132,9 @@ check-ripgrep: ## Verify ripgrep is available
 
 check-verification-ledger: check-ripgrep ## Verify verification-ledger symbols exist
 	@RG='$(RG)' scripts/check-verification-ledger.sh .
+
+check-domain-purity: check-ripgrep ## Verify the roadmap domain reaches no infrastructure
+	@RG='$(RG)' scripts/check-domain-purity.sh .
 
 check-prover-tools: ## Verify the configured prover-tools runner is available
 	@command -v "$(firstword $(PROVER_TOOLS))" >/dev/null 2>&1 || { \

@@ -63,8 +63,8 @@ includes that same file and expands `select_resolution_body!` inside its
 calls it. The verified text and the compiled text are therefore one artefact,
 not two implementations that can drift.
 
-The shared body lives beside the domain module that expands it, and the proof is
-what crosses the tree to reach it. The dependency therefore runs from
+The shared body lives beside the domain module that expands it, and the proof
+is what crosses the tree to reach it. The dependency therefore runs from
 verification infrastructure to the domain kernel: production carries no proof
 path, no `CARGO_MANIFEST_DIR` lookup, and no knowledge of `verus/`. A kernel
 placed under the proof tree would invert that direction — the domain would name
@@ -122,10 +122,10 @@ statements about dead code.
   **specification defect** changes `select_resolution_spec`, the definition the
   `ensures` clause compares against; it tests whether an obligation can
   distinguish one decision rule from another. A **body defect** changes only
-  the shared macro body in `src/roadmap/ops/select_resolution.macro.rs`, leaving
-  the specification untouched; it tests whether verification reaches the text
-  the product actually compiles, which is the whole point of the splice
-  convention above.
+  the shared macro body in `src/roadmap/ops/select_resolution.macro.rs`,
+  leaving the specification untouched; it tests whether verification reaches
+  the text the product actually compiles, which is the whole point of the
+  splice convention above.
 
   | Injected specification defect                    | Theorem that rejects it                            |
   | ------------------------------------------------ | -------------------------------------------------- |

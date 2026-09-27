@@ -248,7 +248,7 @@ const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
 /// Issue #85 lists line endings among the inputs the tests must vary,
 /// and this is the issue's own nested-bullet shape in the line-ending variant.
 /// The mode matters: preview never writes the file, so its byte-identity
-/// assertion would hold even if rejection normalised line endings on the way
+/// assertion would hold even if rejection normalized line endings on the way
 /// to a write. Only the in-place path can fail that way, which is why this
 /// mirrors `in_place_delete_required_by_nested_bullet_leaves_target_byte_identical`
 /// rather than `delete_task_required_by_nested_bullet_is_rejected`. A `\r`

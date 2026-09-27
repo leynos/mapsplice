@@ -4,10 +4,10 @@
 //! case, so that each file stays under the 400-line limit.
 //!
 //! Two obligations meet here and must not be conflated. A check on what an item
-//! *says* normalises `\r\n` to `\n` first, because a target may be generated
+//! *says* normalizes `\r\n` to `\n` first, because a target may be generated
 //! with either terminator and the renderer may change an item's terminators
 //! while leaving its text alone. A check on what the file *holds* may not
-//! normalise anything: a rejected edit has to leave the target with the exact
+//! normalize anything: a rejected edit has to leave the target with the exact
 //! bytes it started from, which is why [`assert_target_unchanged`] is the one
 //! assertion here that compares raw strings.
 
@@ -120,13 +120,13 @@ fn assert_accepted(rendered: &str, case: &Case) -> TestCaseResult {
             return Ok(());
         };
         let clause = format!("Requires {expected_anchor}.");
-        let block = content_view(block);
+        let normalized = content_view(block);
         prop_assert!(
-            block.contains(&clause),
+            normalized.contains(&clause),
             "consumer {consumer:?} must carry a clause `{clause}` for \
-             {prerequisite:?}\nblock:\n{block}",
+             {prerequisite:?}\nblock:\n{normalized}",
         );
-        assert_clause_is_not_incidental(&block, &clause, *consumer)?;
+        assert_clause_is_not_incidental(&normalized, &clause, *consumer)?;
     }
 
     assert_no_retired_clause(rendered, &retired, case)?;
@@ -212,14 +212,14 @@ pub fn assert_incidental_text_survives(case: &Case, mode: Mode) -> TestCaseResul
         assert_target_unchanged(&workspace, &case.generated.target)?;
         return Ok(());
     };
-    let rendered = content_view(&rendered);
+    let normalized = content_view(&rendered);
 
     let mut inspected = 0_usize;
     for identity in Model::per_task_identities() {
         if identity.is_fragment() {
             continue;
         }
-        let Some(block) = item_block(&rendered, &item_stem(identity)) else {
+        let Some(block) = item_block(&normalized, &item_stem(identity)) else {
             continue;
         };
         inspected += 1;
@@ -237,7 +237,7 @@ pub fn assert_incidental_text_survives(case: &Case, mode: Mode) -> TestCaseResul
     }
     prop_assert!(
         inspected > 0,
-        "at least one task block must survive to inspect\nrendered:\n{rendered}",
+        "at least one task block must survive to inspect\nrendered:\n{normalized}",
     );
     Ok(())
 }

@@ -107,7 +107,10 @@ fn retarget(rendered: String, ending: &str) -> String {
     if ending == "\n" {
         return rendered;
     }
-    let mut converted = String::with_capacity(rendered.len() + rendered.len() / 16);
+    // Every terminator gains exactly one byte, so counting them sizes the
+    // buffer exactly rather than by an estimate.
+    let added = rendered.matches('\n').count();
+    let mut converted = String::with_capacity(rendered.len() + added);
     for line in rendered.split_inclusive('\n') {
         match line.strip_suffix('\n') {
             Some(body) => {
