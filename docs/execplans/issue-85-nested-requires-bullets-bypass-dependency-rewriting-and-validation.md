@@ -523,8 +523,8 @@ Constraints confirmed by experiment:
    `@coderabbitai review` is the route that can retire it; nothing else is, and
    the two Lessons entries below record why the available alternatives are not.
 
-10. Round 9: four findings, all live, all actioned. **Fixed at `c15f7a4`;
-    reply pending.**
+10. Round 9: four findings, all live, all actioned. **Fixed at `c15f7a4` and
+    `e7d5c76`; reply queued.**
 
     The review posted at 08:25:30 as submission `5329508595` on head `31da138`,
     at its own request (`5854149029`, queued as comenq `338a274a`). Its four
@@ -581,11 +581,33 @@ Constraints confirmed by experiment:
     corrected. The message has no asserting test, so nothing would have caught
     it; the wiring test checks the prerequisite edge, which was already right.
 
-    Gates after the reflow: `make check-fmt` 203 files unchanged, and
-    `make markdownlint` 0 errors over 60 files with its `spelling` prerequisite
-    inline. Those two were the only red gates, and the other seven are
-    unaffected — the deltas since their green run are prose plus the
-    `check-ripgrep` message string, which no gate reads.
+    Reading the row's remedy rather than only its verdict also produced
+    `e7d5c76`, which carries the `rg` prose and the widened `check-ripgrep`
+    message; `c15f7a4` carries the gate fix, the contract test, the property
+    comments, the users' guide section, the README signpost, and the design
+    document boundary. Both are pushed and `c15f7a4` is an ancestor of
+    `e7d5c76`, so no finding sits on a superseded tree.
+
+    Gates on that change set: the delegated pass ran `make check-fmt`,
+    `make markdownlint`, and `make test`, and its first attempt was red on the
+    first two — an asterisk span at line 606 that `MD049` rejects under the
+    ExecPlan's underscore convention, and a `+3 -3` re-wrap in the paragraph
+    recording the earlier instances of both mistakes. Both were fixed and the
+    three re-run green: 203 files unchanged, 0 errors over 60 files with the
+    `spelling` prerequisite inline, and 375 nextest cases plus 12 doctests.
+
+    The freeze did not hold for the red attempt. It ran while those fixes were
+    being written, so its suffix described a tree that had already changed by
+    the time it finished; the scrutineer reported the mismatch rather than
+    suppressing it, re-ran the set under a fresh suffix, and the green figures
+    quoted above are that re-run. Two consequences are worth keeping. The
+    evidence belongs to `e7d5c76`, the head the reply describes, and not to
+    anything printed after it. And this record commit edits the same file
+    again, once that run had closed, so it needs its own pass — the rule
+    closing item 8 is not suspended here, it is the reason.
+
+    The reply is queued as `4877ca11` and a fresh review follows as `ec0d21cf`,
+    so the reply posts first, as in round 8.
 
 ## Lessons
 
