@@ -165,8 +165,8 @@ over two already-computed anchors and a `bool` source flag; it performs no
 lookup and cannot fail. The kernel's body is shared as a `macro_rules!`
 definition in `verus/kernels/select_resolution.macro.rs`, expanded by both the
 production `const fn` and the proof in `verus/lib.rs`, so the verified text and
-the compiled text are one artefact rather than two that can drift. The
-splice is a macro rather than a bare `include!` because Whitaker's
+the compiled text are one artefact rather than two that can drift. The splice
+is a macro rather than a bare `include!` because Whitaker's
 `bumpy_road_function` lint cannot see through `include!` and aborts the
 compiler; `verus/lib.rs` documents that convention, and
 [mapsplice-design.md](mapsplice-design.md) records the dependency-clause
@@ -211,20 +211,21 @@ make nixie
 `make verus` verifies the production-used kernels, and `make verus-selftest`
 runs a deliberately false proof that must be rejected. Both are required in CI:
 a run whose verifier never started reports success on the first target and
-failure on the second, so the pair cannot pass vacuously. `make lint` depends
-on `check-verification-ledger`, which requires `rg` (ripgrep) on `PATH` — a
-fresh environment without it fails the lint gate before compiling anything.
+failure on the second, so the pair cannot pass vacuously. `make lint` depends on
+`check-verification-ledger`, which requires `rg` (ripgrep) on `PATH` — a fresh
+environment without it fails the lint gate before compiling anything.
 
 The pinned inputs are `tools/verus/VERSION` (the release),
 `tools/verus/SHA256SUMS` (its archive digests), and
 `tools/rust-prover-tools/REF` (the commit of the runner that resolves and
 invokes it). `tests/verus_harness.rs` asserts the workflow's `VERUS_VERSION`
 matches `tools/verus/VERSION`, because the CI cache key derives from it and a
-mismatch would silently restore the wrong verifier. `scripts/check-verification-ledger.sh`
-requires every symbol named in the ledger's claim table to exist as a
-declaration below `src/`, so a renamed kernel cannot leave a claim behind as
-prose. A row whose executable-function cell reads `Pending` is exempt, because
-it declares work that has not landed rather than asserting a result.
+mismatch would silently restore the wrong verifier.
+`scripts/check-verification-ledger.sh` requires every symbol named in the
+ledger's claim table to exist as a declaration below `src/`, so a renamed
+kernel cannot leave a claim behind as prose. A row whose executable-function
+cell reads `Pending` is exempt, because it declares work that has not landed
+rather than asserting a result.
 
 Proofs complement the property and end-to-end tests rather than replacing them.
 The kernel's trusted boundary and the obligations that were deliberately left
