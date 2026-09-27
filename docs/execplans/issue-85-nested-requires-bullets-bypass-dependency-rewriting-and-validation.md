@@ -469,21 +469,45 @@ Constraints confirmed by experiment:
    guard-rail failure messages absent). Logs are under
    `/tmp/<gate>-mapsplice-issue85-final56f3572.out`.
 
-   **The round-8 reply has not been posted.** It is drafted at
-   `/tmp/cr-round8-reply-draft.md` and its claims were each re-verified against
-   the tree, the logs, and the GitHub API rather than carried over from earlier
-   drafts: the four commits that answer the round, the `--in-place` flag at
+   **The round-8 reply is posted and each of its three findings is settled.**
+   Drafted at `/tmp/cr-round8-reply-draft.md` and queued as comenq `64428446`,
+   it posted at 07:56:16 as comment `5853993606`; CodeRabbit answered at
+   07:57:30 as `5854001158`. Every claim in it had been re-verified against the
+   tree, the logs, and the GitHub API rather than carried over from an earlier
+   draft: the four commits that answer the round, the `--in-place` flag at
    `tests/roadmap_ops/nested_requires.rs:266`, `retarget` at
    `tests/support/generation.rs:90-91`, the five-parameter properties,
    `CASES = 256`, the absent CRLF normalization, the seventeen-probe purity
    battery, and the nine gate results above. Three false claims were removed in
    the process and are recorded in the Lessons section.
 
-   **Queue order follows round 7's precedent**: the reply first, so the
-   reviewer reads the dispositions, then `@coderabbitai review` behind it. Both
-   go through `comenq`, not a direct comment. Per the round-7 lesson this file
-   already records, the reply must be queued only once the head is final —
-   which is now the case, with everything after `56f3572` documentation-only.
+   The reviewer's response reconciles all three as addressed, in its own words:
+   the inline finding because the test "now passes `--in-place` and compares
+   the target after rejection", exercising "the write-capable path that the
+   preview test could not test"; the line-endings row because the properties
+   "now sample CRLF and in-place mode as separate inputs", with content
+   compared after normalization and the rejected target compared without it;
+   and the domain-architecture row because "production includes the macro from
+   `src/roadmap/ops/`, and Verus includes that same domain-owned file". It also
+   confirmed every cited fix commit is an ancestor of the head it inspected,
+   and accepted the two stale-path corrections offered rather than disputing
+   them. On a threshold claim it was precise in the right direction: separate
+   booleans "make both variants available; they do not guarantee an exact half
+   of the 256 cases", which is exactly why the reply said the matrix is
+   exercised on every run rather than that the split is even.
+
+   **Queue order followed round 7's precedent**: the reply first, so the
+   reviewer reads the dispositions, then `@coderabbitai review` behind it as
+   comenq `338a274a`. Both went through `comenq`, not a direct comment. Per the
+   round-7 lesson this file already records, the reply must be queued only once
+   the head is final — which it was, with everything after `56f3572`
+   documentation-only.
+
+   **The reply is not the review.** The decision is still `CHANGES_REQUESTED`,
+   held by round 8's submission on `e456dc7`, while `mergeStateStatus` is
+   `CLEAN` and all required checks pass on `e2b376b`. The queued
+   `@coderabbitai review` is the route that can retire it; nothing else is, and
+   the two Lessons entries below record why the available alternatives are not.
 
 ## Lessons
 
