@@ -215,7 +215,8 @@ runs a deliberately false proof that must be rejected. Both are required in CI:
 a run whose verifier never started reports success on the first target and
 failure on the second, so the pair cannot pass vacuously. `make lint` depends on
 `check-verification-ledger`, which requires `rg` (ripgrep) on `PATH` — a fresh
-environment without it fails the lint gate before compiling anything.
+environment without it fails the lint gate before compiling anything. The
+domain-purity gate described below shares that same prerequisite target.
 
 The pinned inputs are `tools/verus/VERSION` (the release),
 `tools/verus/SHA256SUMS` (its archive digests), and
@@ -260,6 +261,11 @@ Like the verification-ledger check, the gate is necessary rather than
 sufficient, and matching is textual. A name surviving only in a doc comment
 triggers it, so a comment discussing an escape hatch is treated as an escape
 hatch — the conservative direction, and visible in review rather than silent.
+
+Both this gate and the verification-ledger check run through the shared
+`check-ripgrep` prerequisite, so a missing `rg` fails `make lint` before either
+scan starts rather than inside one of them. `RG` selects a different executable
+when ripgrep is installed under another name.
 
 `MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;

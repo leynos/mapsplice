@@ -523,7 +523,8 @@ Constraints confirmed by experiment:
    `@coderabbitai review` is the route that can retire it; nothing else is, and
    the two Lessons entries below record why the available alternatives are not.
 
-10. Round 9: four findings, all live, all actioned. **In progress.**
+10. Round 9: four findings, all live, all actioned. **Fixed at `c15f7a4`;
+    reply pending.**
 
     The review posted at 08:25:30 as submission `5329508595` on head `31da138`,
     at its own request (`5854149029`, queued as comenq `338a274a`). Its four
@@ -559,6 +560,33 @@ Constraints confirmed by experiment:
       no hit. This is the same gap round 7 raised for the kernel boundary, so
       the precedent for the fix already exists in that file.
 
+    All four are actioned in `c15f7a4`. The gate gained a third alternative
+    that matches the grouped form across the brace; a battery of 17 probes then
+    passed 12/12 positives and 5/5 negatives, and the new contract test makes
+    the alternative load-bearing — removing `grouped` from the pattern makes
+    that test fail, so it bites rather than merely coexisting. The three
+    property comments now say each case samples independently. The developer
+    guide gained a section on the gate beside the verification-ledger one, the
+    design document records the inward dependency direction, the users' guide
+    gained a compatibility section, and the README signposts it.
+
+    Reading the `Developer Documentation` row's resolution closely turned up
+    two further claims the tree did not support, both in the same class as the
+    rest of this branch. The row asks for the `rg` prerequisite to be
+    documented, and the section as first written omitted it. And
+    `check-ripgrep`'s failure message still named only the verification-ledger
+    check, because this branch made the target a prerequisite of the purity
+    gate without widening the message — so an operator without ripgrep would
+    have been told about one of the two checks they were missing. Both are
+    corrected. The message has no asserting test, so nothing would have caught
+    it; the wiring test checks the prerequisite edge, which was already right.
+
+    Gates after the reflow: `make check-fmt` 203 files unchanged, and
+    `make markdownlint` 0 errors over 60 files with its `spelling` prerequisite
+    inline. Those two were the only red gates, and the other seven are
+    unaffected — the deltas since their green run are prose plus the
+    `check-ripgrep` message string, which no gate reads.
+
 ## Lessons
 
 - **A local gate run can be vacuous about a later step in the same target.** An
@@ -570,6 +598,37 @@ Constraints confirmed by experiment:
   `check-verification-ledger` into `lint` made `rg` a hard dependency of the
   lint job. It is present locally, so the gate passed here and failed on the
   runner. The install step now provides it.
+- **The same lint has now fired four times on the same mistake in the same
+  file.** `MD049/emphasis-style` rejected an asterisk span in the ExecPlan at
+  line 343/378, again at 416, again at 551, and again at 606. The fixes are
+  `97da0e4`, `56f3572`, `c15f7a4`, and the commit carrying this paragraph — and
+  getting that list right took a second look, because the log that caught the
+  first run is named `…-08b62f9.out` and `08b62f9` is the _head under test_,
+  not the fix. A commit in a log filename is a label, not an actor; the branch
+  already has a lesson saying so, and it applied here.
+
+  The fourth instance is the one worth keeping. It is in the paragraph
+  describing the first three, written after the pattern had been diagnosed, by
+  an author who had just finished explaining it — three lines above the
+  offending span. That is the strongest available evidence that the cause is
+  not carelessness but a competing convention: this branch's Rust doc comments,
+  `verus/lib.rs`, and its review replies all use asterisk emphasis, and the
+  ExecPlan is the single file where the opposite is enforced. A rule that has
+  to be applied against a habit will be broken while the habit is being
+  described, so the check belongs in the gate rather than in the attention of
+  whoever is typing — which is where it already is, and why the third and
+  fourth instances cost one re-run each rather than shipping.
+- **A shared prerequisite's message can go stale the moment a second caller
+  joins it, and nothing will catch it.** When `check-domain-purity` took
+  `check-ripgrep` as its prerequisite too, the target's failure text still said
+  ripgrep "is required for the verification-ledger check" — so an operator
+  without `rg` would be told about one of the two checks they were missing. No
+  test reads that string: the wiring test asserts the prerequisite _edge_,
+  which was already correct. The same shape recurs across this branch — a claim
+  narrower than the code behind it — and the reason it survives is that gates
+  check structure and not prose. It was found by reading the review row's
+  resolution list against the tree, not by any gate, which is the argument for
+  reading the row's remedy rather than only its verdict.
 - **The formatter has to be run with the gate's own flags, or it is a different
   tool.** `make check-fmt` runs `mdtablefix --check` over its selected files
   _with the flags held in `MDTABLEFIX_RULES`_. Fixing a table-alignment

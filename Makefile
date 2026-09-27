@@ -126,7 +126,7 @@ markdownlint-paths: ## Lint Markdown files listed in MARKDOWN_PATHS
 
 check-ripgrep: ## Verify ripgrep is available
 	@command -v "$(firstword $(RG))" >/dev/null 2>&1 || { \
-		echo "ripgrep (rg) is required for the verification-ledger check" >&2; \
+		echo "ripgrep (rg) is required for the verification-ledger and domain-purity checks" >&2; \
 		exit 1; \
 	}
 
