@@ -245,9 +245,11 @@ Constraints confirmed by experiment:
    `@coderabbitai review` as the documented way back. Reconciliation was
    therefore enqueued deliberately rather than left to the automation: the
    focused reply first and the review request second, so the reviewer reads the
-   dispositions before re-reviewing. Queue identifiers are ephemeral, so they
-   are not recorded here; `comenq hist -n 20` shows both, the reply opening
-   "Reconcile, please" and the request reading `@coderabbitai review`.
+   dispositions before re-reviewing. The reply is posted as comment
+   `5852783897` (2026-09-27T04:57:41Z, identity `buzzybee-df12`),
+   byte-identical to the draft; the review request was enqueued behind it.
+   Queue identifiers are ephemeral and are not recorded here —
+   `comenq hist -n 20` shows the entries, the reply opening "Reconcile, please".
 
    A third party reviewed as well and needs no disposition. `sourcery-ai`
    declined the pull request for being over its 150,000-character diff limit (a
