@@ -52,6 +52,7 @@ The eight CodeRabbit rounds and their response commits:
 | 6     | 6        | `08b62f9`   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 | 7     | 4        | `067accc`   | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
 | 8     | 3        | `ef8cda3`   | `/tmp/walkthrough-86-0523.md`                          |
+| 9     | 5        | `0ae84d1`   | `/tmp/walkthrough-86-*.md` (pending)                   |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
@@ -374,6 +375,59 @@ Constraints confirmed by experiment:
    bytes and is the only one that may. The assertion layer moved to
    `tests/support/dependency_case.rs` for that separation and to keep every
    file under the 400-line limit.
+
+   **The domain-architecture row's third part** asked for a gate preventing
+   infrastructure path or environment access in `src/roadmap`. The first two
+   parts landed at `fe72e93`; this one had no implementation, so the rule it
+   states was still only prose. `scripts/check-domain-purity.sh` now enforces
+   it, wired into `make lint` beside the verification-ledger check. It matches
+   `use` declarations line-anchored with the root spelled out, so
+   `use crate::fs;` is caught alongside `use std::fs;` — the offence is
+   reaching the filesystem, not which root names it — and matches module paths,
+   process calls, and the build-time environment and file macros wherever they
+   appear. `src/roadmap` is free of all of it today, so the gate passes and now
+   fails on the exact historical defect:
+
+   ```text
+   include!(concat!(env!("CARGO_MANIFEST_DIR"), "/verus/..."));
+   ```
+
+   The gate was verified by injection rather than by argument: ten separate
+   defects — the crate-rooted and `std::` import forms, `env!`, `option_env!`,
+   `include_str!`, a qualified `std::fs::` call, a bare `current_dir()`,
+   `std::env::args()`, and the historical `concat!(env!(...))` — each drove it
+   to exit 1, and an empty domain tree and a missing domain directory were both
+   refused rather than passing vacuously. Test files are exempt by name, because
+   `render_tests.rs` drives the built binary; the exemption is by file rather
+   than by region so no brace count has to be trusted, and the contract tests
+   (`tests/domain_purity.rs`, nine cases) assert it from both sides.
+
+   Commit `0ae84d1` also clears what the first gate run on `bcc6e08` reported:
+   two `clippy::shadow_reuse` bindings and a denied integer division in the
+   property-test support, and the Markdown rewrap `mdtablefix --check` asked
+   for. All four gates that failed on `bcc6e08` pass on `0ae84d1`, and the
+   Whitaker stage ran for real: its toolchain banner is present and the
+   `No libraries were found` warning appears zero times, which is the check
+   that distinguishes a genuine Dylint pass from an empty `DYLINT_LIBRARY_PATH`
+   exiting 0 while doing nothing.
+
+   **A caution learned here.** The first run's report noted that Clippy's
+   failure aborted the `lint` recipe before Whitaker, so the Dylint suite was
+   *unexecuted* rather than passing. That distinction is the reason the fix was
+   followed by a second full run rather than by a claim of a clean gate set.
+
+8. The domain-architecture row's third sub-item, and the gate run that followed
+   it. **Done at `0ae84d1`.** Full gate run on `bcc6e08` (run
+   `/tmp/lint-mapsplice-issue85-bcc6e08.out` and siblings): `typecheck`, `test`
+   (365 nextest cases, 12 doctests), `nixie`, `verus` (`4 verified, 0 errors`)
+   and `verus-selftest` passed; `check-fmt`, `lint`, `markdownlint` and
+   `spelling` failed. The failures were deterministic and are all fixed: four
+   Clippy errors in the property-test support, three `-ise` spellings, and
+   `mdtablefix --check` on three Markdown files. The run also established that
+   the Whitaker stage had never executed, because Clippy aborted the recipe
+   before it — recorded as unexecuted rather than passed. Gate run two on
+   `0ae84d1` covers the same nine targets plus the new gate; see
+   `/tmp/<gate>-mapsplice-issue85-gate2.out`.
 
 ## Lessons
 
