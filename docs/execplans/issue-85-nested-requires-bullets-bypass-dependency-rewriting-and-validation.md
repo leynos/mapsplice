@@ -247,8 +247,10 @@ Constraints confirmed by experiment:
 
 ## Remaining work
 
-1. Push and open the draft PR. **Done** — the branch is pushed and
-   [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
+1. Push and open the PR. **Done** — the branch is pushed and
+   [PR #86](https://github.com/leynos/mapsplice/pull/86) is open. It was a
+   draft until `bcd0506` marked it ready for review, which is what
+   auto-triggered round 7's App review.
 2. Run `coderabbit review --agent` and clear all concerns. **Done for eight
    rounds** — 8, 6, 7, 7, 4, 6, 4 and 3 findings, every one actioned or
    dismissed with recorded evidence, counts re-derived from the artefacts
@@ -452,6 +454,36 @@ Constraints confirmed by experiment:
    the tree, and a gate result is only evidence for the tree state whose hash
    is in its verdict line.** A run started on uncommitted work is a label in a
    log, not a candidate.
+9. The final gate set, and the round-8 reply. **Gate set done; reply pending.**
+   The nine gates ran once more, sequentially, against the frozen head
+   `56f3572` with the tree hash identical at both endpoints (08:51:22 and
+   09:11:52) and all nine green — the first genuine single-tree result for this
+   branch. `check-fmt` 203 files unchanged; `lint` with the Whitaker banner
+   present, `No libraries were found` absent, all three stages executed and both
+   `rg`-dependent prerequisites run; `typecheck`; `test` 374 nextest cases
+   passed with 0 skipped, plus 12 doctests passing and 2 ignored;
+   `markdownlint` 0 errors over 60 files; `nixie` 4 charts to 4 SVGs; `spelling`
+   `current: typos.toml`; `verus` `4 verified, 0 errors`; `verus-selftest`
+   exiting 0 because Verus genuinely rejected the false proof
+   (`assertion failed` at `verus/smoke.rs:11:12`, 0 verified with 1 error, both
+   guard-rail failure messages absent). Logs are under
+   `/tmp/<gate>-mapsplice-issue85-final56f3572.out`.
+
+   **The round-8 reply has not been posted.** It is drafted at
+   `/tmp/cr-round8-reply-draft.md` and its claims were each re-verified against
+   the tree, the logs, and the GitHub API rather than carried over from earlier
+   drafts: the four commits that answer the round, the `--in-place` flag at
+   `tests/roadmap_ops/nested_requires.rs:266`, `retarget` at
+   `tests/support/generation.rs:90-91`, the five-parameter properties,
+   `CASES = 256`, the absent CRLF normalization, the seventeen-probe purity
+   battery, and the nine gate results above. Three false claims were removed in
+   the process and are recorded in the Lessons section.
+
+   **Queue order follows round 7's precedent**: the reply first, so the
+   reviewer reads the dispositions, then `@coderabbitai review` behind it. Both
+   go through `comenq`, not a direct comment. Per the round-7 lesson this file
+   already records, the reply must be queued only once the head is final —
+   which is now the case, with everything after `56f3572` documentation-only.
 
 ## Lessons
 
@@ -749,6 +781,43 @@ Constraints confirmed by experiment:
   sat at line 85 and line 139 held a probe-table row. Anchors are per-commit
   facts; the reply now cites the section by name and binds the line number to
   its commit explicitly.
+- **An aggregate endpoint answers a question about the page, not about the
+  subject.** The claim that the PR "has only ever had three CodeRabbit
+  submissions" came from taking the length of `gh api .../pulls/86/reviews`.
+  That endpoint returns every reviewer's submission, and its three entries are
+  two CodeRabbit reviews and one `sourcery-ai` comment, so the count was right
+  about the API and wrong about the reviewer. The measured answer, by author,
+  is two — `5328698796` on `bcd0506` and `5328960095` on `e456dc7`. This is the
+  round-tally error in a new costume: a number was read off a source that does
+  not partition the way the sentence using it assumes. Filter by the attribute
+  the claim is about before counting.
+- **A count that describes a measurement is a claim, and re-reading the prose
+  cannot settle it.** The domain-purity battery was recorded as "ten separate
+  defects" and the reply drafted from it said "fifteen probes" while
+  enumerating seventeen. Neither number came from running the battery; both
+  came from reading the words that stated it. Re-measured by executing the
+  script once per construct: 17 probes, 17 caught, 0 missed. The same held for
+  the suite size — "363 tests" was carried through several drafts, and the
+  recorded run says 374. When a sentence states a number and the number is
+  load-bearing, the only way to check it is to re-derive it from the thing it
+  describes.
+- **A formatter can introduce a semantic defect in prose that no formatting
+  gate catches.** The line-anchor lesson ended "so the section sat at line" on
+  one line and "1" on the next, an orphan left by an earlier rewrap. Read as
+  written it asserts the section had moved to line 1; measured, it moved from
+  74 to 85. `mdtablefix` produced it, `markdownlint` has no rule against a
+  two-character line, and the spelling gate sees a valid word — every gate that
+  ran over that text was green. Reflowing a paragraph can detach a number from
+  the clause it belongs to, so a post-format read of the changed prose is part
+  of the edit, not a formality after it.
+- **A round's findings can land across more commits than the row naming it.**
+  Round 8's three findings were answered by four commits — `ef8cda3`, `bcc6e08`,
+  `fe72e93` and `0ae84d1` — and the table named one, the domain-purity lesson
+  named three, and the supporting-commits list named two of them as belonging
+  to no round at all. Three descriptions of one round, all wrong in different
+  ways, and none detectable by reading any single one of them. The cell was
+  only settleable by matching each finding to the commit that touched the file
+  it names.
 
 ## Constraints that must hold
 
