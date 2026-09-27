@@ -429,6 +429,25 @@ Constraints confirmed by experiment:
    `0ae84d1` covers the same nine targets plus the new gate; see
    `/tmp/<gate>-mapsplice-issue85-gate2.out`.
 
+   **A process error in that second run, recorded because it changed a rule.**
+   The run was launched before `0ae84d1` was committed, so its first two gates
+   executed against a tree that still held the fix and the new gate as
+   uncommitted edits — content-identical to the commit, but reached by a
+   different path, since `mdtablefix` selects files by
+   `git ls-files --cached --others --exclude-standard` and an untracked script
+   is not in any gate's path list. The three Markdown gates had no such
+   wrinkle. Then the ExecPlan commit `1ce921e` landed at 08:42:26, while
+   `check-fmt` had finished at 08:41:48: the `check-fmt` pass therefore did not
+   see the ExecPlan text that commit added. That text is Markdown this branch
+   authors, and `mdtablefix --check` is exactly what rejected the previous such
+   edit, so the pass could not be inherited. `check-fmt`, `spelling` and
+   `markdownlint` were re-run on the restored, fully committed tree; the first
+   two pass and the third is the golden-fixture-inclusive run. The rule is now
+   applied without exception: **no tracked edit may land while a gate run owns
+   the tree, and a gate result is only evidence for the tree state whose hash
+   is in its verdict line.** A run started on uncommitted work is a label in a
+   log, not a candidate.
+
 ## Lessons
 
 - **A local gate run can be vacuous about a later step in the same target.** An
