@@ -15,11 +15,14 @@
 # An earlier revision of this repository did exactly that, which is why the
 # check is a gate rather than a note in a style guide.
 #
-# Two shapes are matched. A `use` declaration is line-anchored and its root is
+# Three shapes are matched. A `use` declaration is line-anchored and its root is
 # spelled out, so `use crate::fs;` is caught alongside `use std::fs;` — the
 # point is the dependency on infrastructure, not on which root names it. A
-# module path or call is matched wherever it appears, so a path qualified in
-# place rather than imported is caught too.
+# grouped import is matched by the same principle across the brace, so
+# `use std::{fs as files};` is caught even though neither the bare name nor the
+# alias used at the call site appears in the shape a plain `use` has. A module
+# path or call is matched wherever it appears, so a path qualified in place
+# rather than imported is caught too.
 #
 # Like the verification-ledger check, this is necessary rather than sufficient.
 # Matching is textual, so a name surviving only in a doc comment triggers it: a
@@ -58,11 +61,19 @@ infrastructure='fs|path|io|process|env|net|thread'
 
 visibility='(pub(\([^)]*\))?[[:space:]]+)?'
 declaration="^[[:space:]]*${visibility}use[[:space:]]+(::)?((crate|std|alloc|core|self|super)::)*(${infrastructure})(::|[[:space:];]|$)"
+# A grouped import names its paths inside braces, so the root is not adjacent to
+# the `use`: `use std::{fs as files};` hides `fs` behind a brace and an alias,
+# and the call site then reads `files::read(..)`, which `qualified` cannot see
+# either. The leading group is optional so that the first brace member matches
+# as `use std::{fs}`, and the trailing delimiter admits `,` for a member that is
+# followed by others. Neither needs the alias to be recognised: importing the
+# infrastructure at all is the violation, whatever the local name becomes.
+grouped="^[[:space:]]*${visibility}use[[:space:]]+(::)?((crate|std|alloc|core|self|super)::)*[^;]*\{([^}]*[^[:alnum:]_])?(${infrastructure})([[:space:]]+as[[:space:]]+[[:alnum:]_]+)?[[:space:]]*[,}]"
 qualified="(^|[^[:alnum:]_])(std::|crate::|self::|super::)?(${infrastructure})::"
 build_time='include_str!|include_bytes!|option_env!|(^|[^[:alnum:]_])env!'
 process_calls='(^|[^[:alnum:]_])(current_dir|current_exe|std::env::args)[[:space:]]*\('
 
-pattern="${declaration}|${qualified}|${build_time}|${process_calls}"
+pattern="${declaration}|${grouped}|${qualified}|${build_time}|${process_calls}"
 
 production_scanned="$("${rg_cmd[@]}" --files \
     --glob '*.rs' --glob '!*_tests.rs' "${domain_dir}" | wc -l | tr -d '[:space:]')"

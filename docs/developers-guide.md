@@ -235,6 +235,32 @@ unproved are recorded in [verification.md](verification.md); the Markdown
 clause recognizer is outside every proof, which is why the CLI regressions and
 golden fixtures carry that part of the contract.
 
+### 7.2 The domain-purity gate
+
+`make lint` also depends on `check-domain-purity`, which runs
+`scripts/check-domain-purity.sh`. The roadmap domain owns the Markdown model,
+the splice, and the rendering; whatever reads a file, reads an environment
+variable, or walks the filesystem belongs to an adapter that calls the domain,
+never to the domain itself. Filesystem access lives in `src/fs.rs`. The gate
+scans the production sources under `src/roadmap` and fails if any of them names
+infrastructure — `fs`, `path`, `io`, `process`, `env`, `net`, or `thread` —
+through a `use` declaration, a grouped import, a qualified module path, a
+process call, or a build-time macro such as `env!` or `include_str!`. The rule
+matters because nothing in the compiler enforces it: the resolved kernel is
+spliced with a macro, and the obvious way to locate a file for `include!` is
+`env!("CARGO_MANIFEST_DIR")`, which an earlier revision of this repository did.
+
+Test files are exempt by name, since `src/roadmap/render_tests.rs` drives the
+rendering path through the built binary and legitimately names `std::process`.
+The exemption is by file rather than by region, so no brace count has to be
+trusted, and `tests/domain_purity.rs` asserts it from both sides: the same text
+in a production file must fail.
+
+Like the verification-ledger check, the gate is necessary rather than
+sufficient, and matching is textual. A name surviving only in a doc comment
+triggers it, so a comment discussing an escape hatch is treated as an escape
+hatch — the conservative direction, and visible in review rather than silent.
+
 `MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
 `make fmt` remains repository-wide and can reformat unrelated Markdown files.

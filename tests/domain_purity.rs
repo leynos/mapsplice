@@ -134,6 +134,25 @@ fn a_domain_source_using_the_filesystem_is_rejected() -> TestResult {
 }
 
 #[test]
+fn a_grouped_or_aliased_infrastructure_import_is_rejected() -> TestResult {
+    // A brace group puts the infrastructure a level further in and an alias
+    // hides it again at the call site, so neither the line-anchored `use` shape
+    // nor the qualified-path shape matches. The import itself is the violation,
+    // whatever local name it is bound to, so the gate must catch it before any
+    // alias is resolved.
+    assert_rejected("render.rs", "use std::{fs as files};\n")?;
+    assert_rejected("render.rs", "use std::{fs};\n")?;
+    assert_rejected("render.rs", "use std::{path, fs};\n")?;
+    assert_rejected("render.rs", "use std::{io as stream, process as proc};\n")?;
+    assert_rejected("render.rs", "pub use std::env;\n")?;
+    // The near misses: a domain module may group imports freely, and a name
+    // that merely starts with an infrastructure name is not infrastructure.
+    assert_accepted("render.rs", "use std::{collections::HashMap};\n")?;
+    assert_accepted("render.rs", "use crate::roadmap::{fs_helpers};\n")?;
+    assert_accepted("render.rs", "use std::fmt::{self, Display};\n")
+}
+
+#[test]
 fn the_root_of_an_infrastructure_import_is_not_what_matters() -> TestResult {
     // The offence is reaching the filesystem, not spelling the crate root one
     // way. A rule that only knew `std::` would let the crate-rooted form land.

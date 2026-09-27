@@ -331,6 +331,37 @@ a file default should be disabled for one process.
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.
 
+## Compatibility and migration
+
+### Nested task-body `Requires` clauses
+
+A `Requires` clause written as a bullet in a task's body is now recognized.
+Previously only inline clauses and plain continuation clauses were scanned, so
+a clause in a body bullet was silently ignored during renumbering and
+dangling-dependency validation. Two faults followed from that silence, and both
+are fixed:
+
+- **Insertion could re-point a consumer.** Inserting before a prerequisite
+  renumbered the consumer to the anchor the prerequisite vacated, so a clause
+  that was never scanned kept its old text and the consumer ended up depending
+  on whichever unrelated item inherited that number. A rewritten clause now
+  names its prerequisite's own new anchor.
+- **Deletion could produce a self-dependency.** Deleting a still-required
+  prerequisite left the surviving consumer naming the anchor the deleted item
+  used to hold, which now resolved to the consumer itself. In in-place mode
+  that invalid result was written to disk.
+
+**Upgrading may surface new failures.** An edit that would strand a surviving
+consumer is now rejected with a dangling-dependency error *before* anything is
+written, and in in-place mode the original file is left byte-identical. A
+`delete` or `replace` that previously appeared to succeed while writing an
+invalid roadmap will now fail instead. The failure is the correct outcome — the
+roadmap it used to write did not satisfy its own `Requires` clauses — but a
+script that ignored the exit status and relied on the write will need updating.
+
+No other behaviour changes. Section references such as `§2.1`, version numbers,
+ordered-list numbering, and fenced code examples keep their bytes.
+
 ## Contributing
 
 Maintainer workflows and repository gates are documented in the

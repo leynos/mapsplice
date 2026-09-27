@@ -63,9 +63,11 @@ pub const CASES: u32 = 256;
 /// Build one generated case from the supplied selectors.
 ///
 /// `crlf` is a parameter of its own rather than a bit inside `shape_options`,
-/// so that every run generates both endings. Leaving it to a bit of a random
-/// byte would let a run skip CRLF entirely and report success without having
-/// exercised it.
+/// so that each case samples the ending independently. That makes both endings
+/// reachable on every run without guaranteeing either one appears: a run is not
+/// compelled to an exact split. Leaving it to a bit of a random byte would hide
+/// the choice a second level down, where the generator's own masking decides
+/// whether the bit survives at all.
 ///
 /// # Examples
 ///

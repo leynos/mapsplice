@@ -52,9 +52,23 @@ The eight CodeRabbit rounds and their response commits:
 | 6     | 6        | `08b62f9`                                  | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 | 7     | 4        | `067accc`                                  | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
 | 8     | 3        | `ef8cda3`, `bcc6e08`, `fe72e93`, `0ae84d1` | `/tmp/walkthrough-86-0523.md`                          |
+| 9     | 4        | _(pending)_                                | `/tmp/walkthrough-86-round9-31da138.md`                |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
+
+Round 9 was the first review the fresh `@coderabbitai review` was asked for,
+and it is the first round where the previously failing rows **pass**: both
+`Linked Issues` and `Domain Architecture` moved from warning to pass, which
+confirms rounds 7 and 8 were genuinely resolved rather than merely argued away.
+Its four findings are two inline and two pre-merge rows, and all four are live.
+The two inline findings are the same class as every other real defect this
+branch has produced — a claim stronger than the code behind it. The purity gate
+was asserted to catch infrastructure access in `src/roadmap`, and it does not
+catch a grouped-and-aliased import; the property module doc claimed a fixed
+half-split that independent sampling cannot promise. Both were confirmed by
+experiment before being accepted, and the probe results are in item 10 of
+Remaining work.
 
 Round 7 is the first round that ran as a GitHub App review on the PR rather
 than as a local `coderabbit review --agent` pass. It was triggered by marking
@@ -508,6 +522,42 @@ Constraints confirmed by experiment:
    `CLEAN` and all required checks pass on `e2b376b`. The queued
    `@coderabbitai review` is the route that can retire it; nothing else is, and
    the two Lessons entries below record why the available alternatives are not.
+
+10. Round 9: four findings, all live, all actioned. **In progress.**
+
+    The review posted at 08:25:30 as submission `5329508595` on head `31da138`,
+    at its own request (`5854149029`, queued as comenq `338a274a`). Its four
+    findings are two inline comments and two pre-merge rows:
+
+    - `4114642817` (`scripts/check-domain-purity.sh:61`, Major) — the gate does
+      not detect a grouped, aliased infrastructure import. **Confirmed by
+      experiment, not by reading**: a probe tree holding
+      `use std::{fs as files};` plus `files::read("x")` in `src/roadmap` exits 0
+      — the gate misses it — while the same probe with `use std::fs;` exits 1
+      and names the line. The `declaration` pattern anchors on the `use` and
+      expects an infrastructure root immediately after the `use` path prefix,
+      so a brace group puts `fs` one level further in, and the alias then hides
+      the call site from `qualified`. This is a real hole in a gate this branch
+      added and described as catching the offence regardless of root.
+    - `4114642821` (`tests/roadmap_dependency_properties.rs:32`, Minor) — two
+      comments overstate the coverage. `in_place` and `crlf` are each
+      `any::<bool>()`, so a run may contain no in-place case and no CRLF case.
+      The doc says "half of the cases" and the generator doc says "every run
+      generates both endings". **Both are claims the code does not support.**
+      The reviewer's framing is right and so is the fix: say that each case
+      samples independently rather than implying a guaranteed split. Note the
+      same overstatement is in the round-8 reply text, which said the matrix "is
+      exercised on every run"; the correct statement is that both variants are
+      _available_ to every run, which is what CodeRabbit itself wrote back.
+    - `User-Facing Documentation` (pre-merge warning) — asks for a migration
+      document for the next minor release. No such document exists and the
+      repository has no release-notes convention.
+    - `Developer Documentation` (pre-merge warning) — the developer guide
+      documents the verification-ledger gate and `rg` at lines 217 and 226 but
+      never the domain-purity gate. **Confirmed**: `rg` for
+      `domain.purity|check-domain-purity` in `docs/developers-guide.md` returns
+      no hit. This is the same gap round 7 raised for the kernel boundary, so
+      the precedent for the fix already exists in that file.
 
 ## Lessons
 
