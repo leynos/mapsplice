@@ -746,9 +746,9 @@ Constraints confirmed by experiment:
   living at line 74. Both were correct for `bcd0506`, the commit the reviewer
   anchored to — the line really did hold the stale paragraph — but by the time
   the reply was written the file had grown and been reformatted, so the section
-  sat at line
-  1. Anchors are per-commit facts; the reply now cites the section by name and
-  binds the line number to its commit explicitly.
+  sat at line 85 and line 139 held a probe-table row. Anchors are per-commit
+  facts; the reply now cites the section by name and binds the line number to
+  its commit explicitly.
 
 ## Constraints that must hold
 
