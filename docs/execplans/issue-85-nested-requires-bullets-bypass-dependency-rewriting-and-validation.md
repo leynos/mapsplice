@@ -135,8 +135,11 @@ _Table 3: Verus splice probes and what each establishes._
 
 So Verus verifies only text that is literally inside the `verus!` macro. A body
 spliced by `include!` _is_ verified, and that same file is also plain Rust that
-cargo compiles. That is the construction used here: one body file, spliced into
-the production `const fn` by cargo and into the verified `fn` by Verus.
+cargo compiles. The shipped construction refines this: the shared text is a
+`macro_rules!` definition, included at item level and expanded in both the
+production `const fn` and the verified `fn` (see "Task 4 outcome" above). The
+probe result is untouched — text inside the macro is verified — while the
+body-fragment splice is history rather than the current design.
 
 Constraints confirmed by experiment:
 

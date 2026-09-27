@@ -227,3 +227,78 @@ fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
     assert_contains(&stdout, "  ```text\n  Requires 1.1.1.\n  ```\n");
     Ok(())
 }
+
+/// The same roadmap with CRLF line endings, for the two cases below.
+///
+/// Every line ends in `\r\n`, including the nested clause bullet. The parser
+/// accepts CRLF and the rejection path compares whole-file bytes, so this
+/// fixture must be written and read without translation for the assertion to
+/// mean anything.
+const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
+    "# Test\r\n\r\n",
+    "## 1. Phase\r\n\r\n",
+    "### 1.1. Step\r\n\r\n",
+    "- [ ] 1.1.1. Prerequisite.\r\n",
+    "- [ ] 1.1.2. Consumer.\r\n",
+    "  - Requires 1.1.1.\r\n",
+);
+
+/// A rejected edit must leave a CRLF target byte-identical, carriage returns and all.
+///
+/// Issue #85 lists line endings among the inputs the tests must vary. The
+/// property suite is LF-only by design — it asserts a byte-identical round trip
+/// that a CRLF target cannot have, because rendering normalizes line endings
+/// outside preserved spans — so the CRLF case is pinned here instead, on the
+/// issue's own nested-bullet shape. A `\r` stripped from the untouched file
+/// would still leave a file that looks correct line-by-line, which is why the
+/// assertion is on the whole file rather than on any single line.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
+    let original = test_workspace.read_target()?;
+
+    let error = run_from_args([
+        "mapsplice",
+        "delete",
+        test_workspace.target.as_str(),
+        "1.1.1",
+    ])
+    .expect_err("deleting a required prerequisite must fail under CRLF too");
+
+    assert_dangling_anchor(&error, "1.1.1");
+    assert_equal(&test_workspace.read_target()?, &original);
+    Ok(())
+}
+
+/// A CRLF target rewrites its nested clause correctly, normalizing line endings.
+///
+/// The renumbering contract is unchanged by the line-ending convention: the
+/// clause follows its prerequisite rather than the inserted task that reused
+/// `1.1.1`. What differs is the rendering — the rewritten region comes back as
+/// LF, which is the documented normalization rather than a regression. Asserting
+/// the LF form is deliberate: it pins the actual behaviour, so a future change
+/// that starts preserving CRLF through a rewrite is visible here instead of
+/// passing unnoticed.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn crlf_target_rewrites_nested_clause_and_normalizes_line_endings(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
+    test_workspace.write_fragment(TASK_FRAGMENT)?;
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "insert",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, "- [ ] 1.1.3. Consumer.\n\n  - Requires 1.1.2.\n");
+    Ok(())
+}
