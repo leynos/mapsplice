@@ -40,7 +40,7 @@ The four coding-plan tasks:
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
 - `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
 
-The six CodeRabbit rounds and their response commits:
+The seven CodeRabbit rounds and their response commits:
 
 | Round | Findings | Answered by | Evidence artefact                                      |
 | ----- | -------- | ----------- | ------------------------------------------------------ |
@@ -50,9 +50,17 @@ The six CodeRabbit rounds and their response commits:
 | 4     | 7        | `fcbe9c6`   | `/tmp/coderabbit-issue-85-...out`                      |
 | 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
 | 6     | 6        | `08b62f9`   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
+| 7     | 4        | `067accc`   | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
+
+Round 7 is the first round that ran as a GitHub App review on the PR rather
+than as a local `coderabbit review --agent` pass. It was triggered by marking
+the PR ready for review, not queued through `comenq`;
+`gh api …/pulls/86/reviews` had shown zero CodeRabbit submissions before it. It
+returned one inline finding plus three failed pre-merge checks for a count of
+four. The tally is therefore 8, 6, 7, 7, 4, 6 and 4.
 
 Supporting commits that are not themselves a round response:
 
@@ -70,6 +78,9 @@ Supporting commits that are not themselves a round response:
 - `97da0e4` — Fix the formatting and lint the gates caught in the round-6
   ExecPlan edit.
 - `a720876` — Record the two formatter lessons from the round-6 gate fix.
+- `bcd0506` — Mark the PR ready for review, and record the widened local gate
+  scope.
+- `067accc` — Answer the seventh CodeRabbit review of the issue #85 work.
 
 ## Task 4 outcome: the splice is a macro, and why
 
@@ -200,8 +211,8 @@ Constraints confirmed by experiment:
 
 1. Push and open the draft PR. **Done** — the branch is pushed and
    [PR #86](https://github.com/leynos/mapsplice/pull/86) is open as a draft.
-2. Run `coderabbit review --agent` and clear all concerns. **Done for six
-   rounds** — 8, 6, 7, 7, 4 and 6 findings, every one actioned or dismissed
+2. Run `coderabbit review --agent` and clear all concerns. **Done for seven
+   rounds** — 8, 6, 7, 7, 4, 6 and 4 findings, every one actioned or dismissed
    with recorded evidence, counts re-derived from the artefacts (Table 2).
    Round 6 returned six findings that are four distinct issues, because two
    pairs are the same finding stated twice. Two were accepted and fixed (the
@@ -209,8 +220,17 @@ Constraints confirmed by experiment:
    concurrency comment described a `push` trigger the workflow does not have).
    Two were dismissed against evidence already on file: the ExecPlan rename
    re-raises round 1's finding with a new justification, and the ledger-fixture
-   finding would undo what round 3's major finding asked for. A seventh round
-   has not been run.
+   finding would undo what round 3's major finding asked for.
+
+   Round 7 ran on the PR itself and returned `CHANGES_REQUESTED` for one inline
+   finding and three pre-merge warnings. One inline finding was accepted (the
+   ExecPlan still described the superseded `include!` splice as current); the
+   developer-documentation warning was accepted after checking it against the
+   guide's own conventions; the line-ending warning was partly accepted, its
+   reasoning refuted but a real narrow gap closed with two CRLF tests; and the
+   domain-architecture warning was dismissed, because its premise is wrong and
+   its proposed remedy is the standalone reimplementation the issue rules out.
+   The dispositions are recorded in `/tmp/cr-triage-round7.md`.
 3. Follow the CI result for the PR. **Done** — the first run failed `make lint`
    (see the lesson below), and a later one failed `make spelling` on a commit
    hash written into the ExecPlan. Both are fixed. The current tip is
@@ -416,6 +436,51 @@ Constraints confirmed by experiment:
   the local captions and the local cross-reference, and that scoping was
   correct — worth noting because a plausible-looking mechanical fix here was
   the one that would have broken something.
+- **A pre-merge warning can be identified by a check while its stated reason is
+  false, and the useful work is separating the two.** Round 7's Linked Issues
+  check reported that the line-ending variation issue #85 asks for was missing.
+  Two of its three supporting claims were wrong: CRLF targets _are_ generated
+  elsewhere in the suite (`tests/support/task_source_properties.rs:60,114`),
+  and the issue does not require a byte-identical CRLF round trip, because F3
+  promises identity modulo the documented normalization. But the third claim —
+  that CRLF _with a nested-bullet clause_ was untested — was true, and it is
+  the intersection this issue is about. Refuting the reasoning and then
+  stopping would have left a real gap standing on the strength of a good
+  argument. The gap was closed with two tests instead. A finding's
+  justification and its claim are separate objects; each has to be checked on
+  its own.
+- **A negative control is what makes a new test's fixture trustworthy.** The
+  CRLF fixture is written with `concat!` and `"\r\n"` escapes, and an escape
+  lost in editing degrades it silently to `"\n"` — a CRLF test built on an LF
+  fixture passes while testing nothing. Before the tests were accepted, the
+  fixture was checked to hold nine CRs with every LF preceded by a CR, and an
+  expected anchor was flipped to confirm the assertion actually fails. The
+  second check is the one that catches a test that asserts nothing; the first
+  catches a fixture that is not what its name says. Both are cheap, and both
+  were needed here because the whole point of the test is a byte that is
+  invisible when it is right.
+- **An architecture finding can be right about a mechanism and wrong about its
+  consequence.** Round 7 reported that `src/roadmap/ops/remap_kernel.rs` uses
+  `env!("CARGO_MANIFEST_DIR")` and `include!` to reach into `verus/`, which is
+  accurate and is the only such usage in `src/`. The consequence it drew — a
+  domain-to-infrastructure dependency — does not follow: both operands are
+  compile-time, and nothing about resolution consults a repository path while
+  the program runs. The proposed remedy was worse than the finding: a "separate
+  proof adapter" is a standalone reimplementation, which is what `verus/lib.rs`
+  forbids and what issue #85 excludes as "not sufficient". When a finding
+  proposes removing a mechanism, the question is not whether the mechanism is
+  ugly but whether the thing it exists for still gets done. Here the mechanism
+  exists precisely because the issue requires the proof to reach the production
+  kernel.
+- **A finding can arrive as a GitHub App review rather than a local run, and the
+  two have different failure modes.** Rounds 1-6 were local `review --agent`
+  passes; Round 7 was the App's own review, auto-triggered by marking the PR
+  ready. It posted a `CHANGES_REQUESTED` review, three pre-merge checks, and a
+  walkthrough that auto-paused itself after an influx of commits. The suite of
+  surfaces to read is therefore larger than the findings text: review
+  submissions carry the `commit_id` they assessed, pre-merge checks carry their
+  own resolutions, and the walkthrough is edited in place rather than appended.
+  Reading only the inline comments would have missed three of the four findings.
 
 ## Constraints that must hold
 
