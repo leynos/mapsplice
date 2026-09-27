@@ -243,15 +243,17 @@ const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
     "  - Requires 1.1.1.\r\n",
 );
 
-/// A rejected edit must leave a CRLF target byte-identical, carriage returns and all.
+/// A rejected in-place edit must leave a CRLF target byte-identical, carriage returns and all.
 ///
-/// Issue #85 lists line endings among the inputs the tests must vary. The
-/// property suite is LF-only by design — it asserts a byte-identical round trip
-/// that a CRLF target cannot have, because rendering normalizes line endings
-/// outside preserved spans — so the CRLF case is pinned here instead, on the
-/// issue's own nested-bullet shape. A `\r` stripped from the untouched file
-/// would still leave a file that looks correct line-by-line, which is why the
-/// assertion is on the whole file rather than on any single line.
+/// Issue #85 lists line endings among the inputs the tests must vary,
+/// and this is the issue's own nested-bullet shape in the line-ending variant.
+/// The mode matters: preview never writes the file, so its byte-identity
+/// assertion would hold even if rejection normalised line endings on the way
+/// to a write. Only the in-place path can fail that way, which is why this
+/// mirrors `in_place_delete_required_by_nested_bullet_leaves_target_byte_identical`
+/// rather than `delete_task_required_by_nested_bullet_is_rejected`. A `\r`
+/// stripped from the untouched file would still leave a file that looks correct
+/// line-by-line, so the assertion is on the whole file rather than on any line.
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>) -> TestResult {
@@ -261,11 +263,12 @@ fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>)
 
     let error = run_from_args([
         "mapsplice",
+        "--in-place",
         "delete",
         test_workspace.target.as_str(),
         "1.1.1",
     ])
-    .expect_err("deleting a required prerequisite must fail under CRLF too");
+    .expect_err("in-place delete of a required prerequisite must fail under CRLF too");
 
     assert_dangling_anchor(&error, "1.1.1");
     assert_equal(&test_workspace.read_target()?, &original);
