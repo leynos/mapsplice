@@ -818,6 +818,29 @@ Constraints confirmed by experiment:
   ways, and none detectable by reading any single one of them. The cell was
   only settleable by matching each finding to the commit that touched the file
   it names.
+- **An endpoint's shape is not the reviewer's decision.** `gh pr view --json`
+  with `reviewDecision,mergeStateStatus` reports `CHANGES_REQUESTED` alongside
+  `CLEAN`, and both are live at once on `ed04a0f`. They describe different
+  things: the merge state is computed from branch protection and check results,
+  so it drops the stale review as soon as the threads resolve, while the
+  decision is the last submission's verdict and stays until a later submission
+  replaces it. Reading either alone gives a wrong answer — the merge state
+  would say the change is unblocked when a human-readable objection still
+  stands, and the decision would say it is blocked when nothing is. Both are
+  required, and the fresh review is the only route that retires the decision.
+  Dismissing it, approving on the bot's behalf, or ticking an ignore box would
+  each make one number agree with the other without changing the underlying
+  state, which is precisely why none of them is available.
+- **A review surface can carry the author's name and none of the review.** The
+  `sourcery-ai` entry in the reviews list is not a review: its whole body is
+  "Sorry @leynos, your pull request is larger than the review limit of 150,000
+  diff characters." It appears in the aggregate list with a `COMMENTED` state
+  and would be counted as a submission by anything that counts submissions.
+  Likewise `chatgpt-codex-connector[bot]` posted a summary table whose only
+  content is that Codex completed a review on `bcd0506` and produced no
+  findings — a real review, on a superseded commit, with nothing to reconcile.
+  Enumerate surfaces, then classify each one; a surface's existence is not
+  evidence of coverage, and its absence is not evidence of a gap.
 
 ## Constraints that must hold
 
