@@ -395,15 +395,17 @@ Constraints confirmed by experiment:
    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/verus/..."));
    ```
 
-   The gate was verified by injection rather than by argument: ten separate
-   defects — the crate-rooted and `std::` import forms, `env!`, `option_env!`,
-   `include_str!`, a qualified `std::fs::` call, a bare `current_dir()`,
-   `std::env::args()`, and the historical `concat!(env!(...))` — each drove it
-   to exit 1, and an empty domain tree and a missing domain directory were both
-   refused rather than passing vacuously. Test files are exempt by name, because
-   `render_tests.rs` drives the built binary; the exemption is by file rather
-   than by region so no brace count has to be trusted, and the contract tests
-   (`tests/domain_purity.rs`, nine cases) assert it from both sides.
+   The gate was verified by injection rather than by argument: seventeen
+   separate defects — the crate-rooted and `std::` import forms for `fs`,
+   `path`, `process` and `io`, `env!`, `option_env!`, `include_str!`,
+   `include_bytes!`, a qualified `std::fs::` call, a bare `current_dir()`,
+   `std::env::args()`, `std::env::var()`, and the historical
+   `concat!(env!(...))` — each drove it to exit 1, and an empty domain tree and
+   a missing domain directory were both refused rather than passing vacuously.
+   Test files are exempt by name, because `render_tests.rs` drives the built
+   binary; the exemption is by file rather than by region so no brace count has
+   to be trusted, and the contract tests (`tests/domain_purity.rs`, nine cases)
+   assert it from both sides.
 
    Commit `0ae84d1` also clears what the first gate run on `bcc6e08` reported:
    two `clippy::shadow_reuse` bindings and a denied integer division in the
