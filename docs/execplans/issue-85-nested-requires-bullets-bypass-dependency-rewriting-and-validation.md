@@ -526,6 +526,37 @@ Constraints confirmed by experiment:
   submissions carry the `commit_id` they assessed, pre-merge checks carry their
   own resolutions, and the walkthrough is edited in place rather than appended.
   Reading only the inline comments would have missed three of the four findings.
+- **"Reviews paused" is not "ratelimited", and the difference decides the
+  remedy.** The round-7 walkthrough reports reviews paused because of an influx
+  of commits (`auto_review.auto_pause_after_reviewed_commits`), which is a
+  different condition from the rate limit that would call for sleeping and
+  retrying. Neither condition, however, reconciles anything on its own: with
+  automatic reviews off, the stale `CHANGES_REQUESTED` would have blocked merge
+  indefinitely. The documented way back is `@coderabbitai review`, so the reply
+  and the review request were both enqueued deliberately rather than left to
+  the automation. Read the walkthrough's own wording before choosing a remedy —
+  two conditions that both look like "the reviewer has stopped" need different
+  responses.
+- **A comment queued before the final push describes a head that no longer
+  exists.** The reconciliation reply was queued three times: once naming
+  `e540078` and disclaiming a review request, then again naming `07da3c3` after
+  a fixup, then finally on a frozen `df9b380`. Each earlier draft became false
+  in a different way — a superseded head, a claim about which gates had been
+  re-run, a statement that no new review was requested when one was. In
+  between, the PR body had to be rewritten twice and the ExecPlan's recorded
+  queue identifiers were invalidated by re-enqueueing. The sequence that works
+  is: finish every edit, push, run the gates _and_ watch CI on that exact
+  commit, and only then queue the comment. Queueing is the last step of a
+  round, not a step that can overlap one.
+- **A sentence in a document that is true of a named commit must be checked
+  against that commit, not against the working tree.** The reply's
+  inline-finding claim cited `execplan:139` and named `## Task 4 outcome` as
+  living at line 74. Both were correct for `bcd0506`, the commit the reviewer
+  anchored to — the line really did hold the stale paragraph — but by the time
+  the reply was written the file had grown and been reformatted, so the section
+  sat at line
+  1. Anchors are per-commit facts; the reply now cites the section by name and
+  binds the line number to its commit explicitly.
 
 ## Constraints that must hold
 
