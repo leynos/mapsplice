@@ -413,7 +413,7 @@ Constraints confirmed by experiment:
 
    **A caution learned here.** The first run's report noted that Clippy's
    failure aborted the `lint` recipe before Whitaker, so the Dylint suite was
-   *unexecuted* rather than passing. That distinction is the reason the fix was
+   _unexecuted_ rather than passing. That distinction is the reason the fix was
    followed by a second full run rather than by a claim of a clean gate set.
 
 8. The domain-architecture row's third sub-item, and the gate run that followed
