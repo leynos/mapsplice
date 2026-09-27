@@ -40,7 +40,7 @@ The four coding-plan tasks:
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
 - `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
 
-The seven CodeRabbit rounds and their response commits:
+The eight CodeRabbit rounds and their response commits:
 
 | Round | Findings | Answered by | Evidence artefact                                      |
 | ----- | -------- | ----------- | ------------------------------------------------------ |
@@ -51,6 +51,7 @@ The seven CodeRabbit rounds and their response commits:
 | 5     | 4        | `92dc9bb`   | `/tmp/coderabbit-mapsplice-issue-85-...out.raw`        |
 | 6     | 6        | `08b62f9`   | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 | 7     | 4        | `067accc`   | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
+| 8     | 3        | `ef8cda3`   | `/tmp/walkthrough-86-0523.md`                          |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
@@ -60,7 +61,18 @@ than as a local `coderabbit review --agent` pass. It was triggered by marking
 the PR ready for review, not queued through `comenq`;
 `gh api …/pulls/86/reviews` had shown zero CodeRabbit submissions before it. It
 returned one inline finding plus three failed pre-merge checks for a count of
-four. The tally is therefore 8, 6, 7, 7, 4, 6 and 4.
+four. The tally is therefore 8, 6, 7, 7, 4, 6, 4 and 3.
+
+Round 8 returned one inline finding and two pre-merge rows for a count of
+three, and its review decision was still `CHANGES_REQUESTED`. Two of the three
+were valid and are recorded in item 7 of Remaining work; both were actioned
+(`ef8cda3`, `fe72e93`). Round 8 re-raised the domain-architecture row that
+round 7 had raised, but with a **revised remedy**: it dropped the separate
+proof adapter that the round-7 dismissal had refuted and asked instead for the
+shared body to be domain-owned, with the dependency running from verification
+to the domain. That revised remedy was correct and was implemented. This is
+worth recording as a case where the first dismissal was right about the remedy
+and wrong about the underlying complaint, so a re-raise was not a duplicate.
 
 Supporting commits that are not themselves a round response:
 
@@ -81,6 +93,15 @@ Supporting commits that are not themselves a round response:
 - `bcd0506` — Mark the PR ready for review, and record the widened local gate
   scope.
 - `067accc` — Answer the seventh CodeRabbit review of the issue #85 work.
+- `e540078` — Record the round-7 response in the ExecPlan.
+- `07da3c3` — Replace the ephemeral queue identifiers with a durable artefact.
+- `df9b380` — Record the round-7 re-gate as plan item 6, and correct two stale
+  heads.
+- `06bf3a4` — Record the three round-7 reconciliation lessons.
+- `e456dc7` — Record the posted round-7 reply by its durable comment
+  identifier.
+- `ef8cda3` — Exercise CRLF rejection through the in-place path.
+- `fe72e93` — Give the shared kernel body a domain-owned home.
 
 ## Task 4 outcome: the splice is a macro, and why
 
@@ -208,6 +229,17 @@ Constraints confirmed by experiment:
    CodeRabbit finding about `verus/smoke.rs` referencing targets that did not
    exist).
 6. Added `.github/workflows/verus.yml`.
+7. Moved the shared kernel body from `verus/kernels/` to
+   `src/roadmap/ops/select_resolution.macro.rs`, so the dependency runs from
+   verification infrastructure to the domain kernel rather than the reverse.
+   This is what item 1 refers to. Round 8 of review asked for exactly that
+   direction, and the reason it is worth the churn is that the earlier layout
+   had production naming a proof path and doing a `CARGO_MANIFEST_DIR` lookup
+   to reach it: the domain could not compile without knowing where the proof
+   tree was. Now `remap_kernel.rs` includes a file beside itself and
+   `verus/lib.rs` writes `../src/`, so the knowledge lives on the proof side
+   where it belongs. Committed as `fe72e93`, with `make verus` at
+   `4 verified, 0 errors` and the 39 harness tests green.
 
 ## Remaining work
 
@@ -304,6 +336,44 @@ Constraints confirmed by experiment:
    prerequisite of `make markdownlint` and committed rather than reverted,
    which is why every subsequent spelling run reports `current:` instead of
    `refreshed:`.
+7. Round 8 of review, and the line-ending property coverage it required.
+   Round 8 returned two rows that were live, and the second was the largest
+   piece of work since the fix itself.
+
+   **The inline finding** (`4114203677`) asked the CRLF rejection test to use
+   `--in-place`. It was right and the gap was real: the test asserted
+   byte-identity on the path that never writes, so it would have passed with a
+   rejection path that normalised the target on its way to a write. Fixed at
+   `ef8cda3` with a negative control — an in-place rejection leaves the file
+   byte-identical, an in-place success rewrites it.
+
+   **The linked-issues row** said `tests/roadmap_dependency_properties.rs`
+   still generated LF-only targets, and it was correct. Closed by giving the
+   generator a `Shape::CRLF` and a `retarget` pass, threading a `crlf`
+   parameter through `build_case`, and adding an independent `in_place`
+   parameter so half the cases run on the path that actually writes. Line
+   endings and mode are their own parameters rather than bits of a random byte,
+   so every run generates both; a combination reachable only when a random byte
+   happens to set one bit can go unexercised while the suite reports success.
+
+   Two facts make this more than a coverage tidy-up. First, the old suite could
+   not have caught the inline finding's defect: with every case forced to
+   preview, the injected write-on-rejection defect passes. Only the mode
+   dimension makes the byte-identity assertion bite, which was measured by
+   injecting that defect both ways rather than argued. Second, the module doc
+   saying "line endings are deliberately LF-only … the parser normalizes CRLF
+   to LF on render" was doubly stale — the modes now vary, and the mechanism it
+   named does not exist. There is no parse-time normalisation anywhere in the
+   product; the renderer joins canonical lines with `\n` while preserved spans
+   are emitted as raw byte slices, which is why an accepted edit can return a
+   document holding both conventions.
+
+   The assertions were split so the two obligations cannot be conflated.
+   Content checks (a summary renders as `{anchor}. {stem}`, a clause survives
+   outside its fences) normalise `\r\n`; the preservation check compares raw
+   bytes and is the only one that may. The assertion layer moved to
+   `tests/support/dependency_case.rs` for that separation and to keep every
+   file under the 400-line limit.
 
 ## Lessons
 
