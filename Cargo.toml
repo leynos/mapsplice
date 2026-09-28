@@ -17,7 +17,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt"] }
 [dev-dependencies]
 insta = "1.44.0"
 proptest = "1.9.0"
-rstest = "0.26.1"
+rstest = "0.27.0"
 rstest-bdd = "0.6.0"
 rstest-bdd-macros = "0.6.0"
 serial_test = "3.2.0"
