@@ -20,7 +20,7 @@ proptest = "1.9.0"
 rstest = "0.26.1"
 rstest-bdd = "0.5.0"
 rstest-bdd-macros = "0.5.0"
-serial_test = "3.2.0"
+serial_test = "4.0.1"
 tempfile = "3.27.0"
 trybuild = "1.0.114"
 
