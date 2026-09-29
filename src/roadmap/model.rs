@@ -105,20 +105,30 @@ pub struct TaskEntry {
 /// Parser-owned parts required to build one task entry.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct TaskEntryParts {
+    /// Original source and anchor identity for renumbering.
     pub(crate) identity: ItemIdentity,
+    /// Current task number.
     pub(crate) number: TaskNumber,
+    /// Parsed checklist state, when present.
     pub(crate) checked: Option<bool>,
+    /// First paragraph after the task number.
     pub(crate) summary: MarkdownNodes,
+    /// Additional Markdown blocks beneath the task.
     pub(crate) body: MarkdownNodes,
+    /// Exact item source while its content remains unchanged.
     pub(crate) original_source: Option<String>,
+    /// Structural sub-tasks nested beneath this task.
     pub(crate) sub_tasks: Vec<SubTaskEntry>,
+    /// Body spans and sub-task identities in source order.
     pub(crate) children: Vec<TaskChild>,
 }
 
 /// Location for a sub-task splice in both structural task vectors.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SubTaskSplice {
+    /// Position in the task's structural sub-task vector.
     pub(crate) sub_task_index: usize,
+    /// Matching position in the task's ordered child vector.
     pub(crate) child_index: usize,
 }
 
@@ -151,7 +161,9 @@ pub struct SubTaskEntry {
 /// Roadmap-owned Markdown nodes kept behind the parse/render boundary.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MarkdownNodes {
+    /// Parsed Markdown nodes retained for rendering.
     nodes: Vec<Node>,
+    /// Original source block for each aligned node, when available.
     original_blocks: Vec<Option<String>>,
 }
 
@@ -288,6 +300,7 @@ impl RenumberPlan {
         }
     }
 
+    /// Record a source-local old-to-new anchor mapping.
     pub(crate) fn record_mapping(
         &mut self,
         source: SourceId,
