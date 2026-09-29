@@ -103,6 +103,7 @@ pub(super) fn replace_sub_task(
     Ok(())
 }
 
+/// Find the owning step and indices of an addressed sub-task.
 fn find_sub_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
@@ -122,6 +123,7 @@ fn find_sub_task_parent_mut(
     Ok((step, task_index, sub_task_index))
 }
 
+/// Resolve a sub-task identity from its index in the parent task.
 fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIdentity> {
     task.sub_tasks()
         .get(sub_task_index)
@@ -131,6 +133,7 @@ fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIden
         })
 }
 
+/// Locate matching sub-task positions in the structural and child vectors.
 fn find_sub_task_splice(
     task: &TaskEntry,
     sub_task_index: usize,

@@ -13,9 +13,12 @@ impl<'de> Deserialize<'de> for PhaseNumber {
     }
 }
 
+/// Wire fields used to validate a step number on deserialization.
 #[derive(Deserialize)]
 struct StepNumberWire {
+    /// Parent phase supplied by the serialized value.
     phase: PhaseNumber,
+    /// Step ordinal supplied by the serialized value.
     step: u32,
 }
 
@@ -29,9 +32,12 @@ impl<'de> Deserialize<'de> for StepNumber {
     }
 }
 
+/// Wire fields used to validate a task number on deserialization.
 #[derive(Deserialize)]
 struct TaskNumberWire {
+    /// Parent step supplied by the serialized value.
     step: StepNumber,
+    /// Task ordinal supplied by the serialized value.
     task: u32,
 }
 
@@ -45,9 +51,12 @@ impl<'de> Deserialize<'de> for TaskNumber {
     }
 }
 
+/// Wire fields used to validate a sub-task number on deserialization.
 #[derive(Deserialize)]
 struct SubTaskNumberWire {
+    /// Parent task supplied by the serialized value.
     task: TaskNumber,
+    /// Sub-task ordinal supplied by the serialized value.
     sub_task: u32,
 }
 
