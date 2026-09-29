@@ -3,12 +3,7 @@
 #[path = "workspace.rs"]
 mod workspace_support;
 
-use std::{
-    env,
-    ffi::OsString,
-    path::PathBuf,
-    sync::{Mutex, MutexGuard},
-};
+use std::{env, path::PathBuf, sync::Mutex};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use rstest::fixture;
@@ -52,12 +47,13 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn enter_root(&self, guard: &mut ProcessStateGuard) -> TestResult {
+    pub fn enter_root(&self, state: &mut ProcessState) -> TestResult {
         let parent = self
             .target
             .parent()
             .ok_or_else(|| "target path should have a parent".to_owned())?;
-        guard.enter_dir(parent)
+        state.enter_dir(parent);
+        Ok(())
     }
 
     pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
@@ -73,77 +69,42 @@ impl Workspace {
     }
 }
 
-pub struct ProcessStateGuard {
-    _lock: MutexGuard<'static, ()>,
-    saved_env: Vec<(&'static str, Option<OsString>)>,
-    saved_cwd: Option<PathBuf>,
+#[derive(Default)]
+pub struct ProcessState {
+    env_vars: Vec<(&'static str, Option<String>)>,
+    cwd: Option<Utf8PathBuf>,
 }
 
-impl ProcessStateGuard {
-    pub fn acquire() -> TestResult<Self> {
-        let lock = ENV_LOCK.lock()?;
-        Ok(Self {
-            _lock: lock,
-            saved_env: Vec::new(),
-            saved_cwd: None,
+impl ProcessState {
+    pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) {
+        self.env_vars.push((key, Some(value.as_ref().to_owned())));
+    }
+
+    pub fn remove_env(&mut self, key: &'static str) { self.env_vars.push((key, None)); }
+
+    pub fn enter_dir(&mut self, path: &Utf8Path) { self.cwd = Some(path.to_path_buf()); }
+
+    pub fn run<R>(&self, action: impl FnOnce() -> TestResult<R>) -> TestResult<R> {
+        let _lock = ENV_LOCK.lock()?;
+        temp_env::with_vars(&self.env_vars, || {
+            let _cwd = self.cwd.as_deref().map(CwdRestore::enter).transpose()?;
+            action()
         })
     }
+}
 
-    pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) {
-        self.remember_env(key);
-        // SAFETY: tests mutate process environment only while holding ENV_LOCK,
-        // and the guard restores the previous value before releasing it.
-        unsafe {
-            env::set_var(key, value.as_ref());
-        }
-    }
+struct CwdRestore(PathBuf);
 
-    pub fn remove_env(&mut self, key: &'static str) {
-        self.remember_env(key);
-        // SAFETY: tests mutate process environment only while holding ENV_LOCK,
-        // and the guard restores the previous value before releasing it.
-        unsafe {
-            env::remove_var(key);
-        }
-    }
-
-    pub fn enter_dir(&mut self, path: &Utf8Path) -> TestResult {
-        if self.saved_cwd.is_none() {
-            self.saved_cwd = Some(env::current_dir()?);
-        }
+impl CwdRestore {
+    fn enter(path: &Utf8Path) -> TestResult<Self> {
+        let previous = env::current_dir()?;
         env::set_current_dir(path.as_std_path())?;
-        Ok(())
-    }
-
-    fn remember_env(&mut self, key: &'static str) {
-        if self
-            .saved_env
-            .iter()
-            .any(|(saved_key, _)| *saved_key == key)
-        {
-            return;
-        }
-        self.saved_env.push((key, env::var_os(key)));
+        Ok(Self(previous))
     }
 }
 
-impl Drop for ProcessStateGuard {
-    fn drop(&mut self) {
-        if let Some(previous) = &self.saved_cwd
-            && let Err(_error) = env::set_current_dir(previous)
-        {}
-        // SAFETY: ProcessStateGuard owns ENV_LOCK for its full lifetime,
-        // serializing environment mutation and restoration in tests.
-        unsafe {
-            for (key, saved_env_value) in self.saved_env.iter().rev() {
-                if let Some(original_value) = saved_env_value {
-                    env::set_var(key, original_value);
-                } else {
-                    env::remove_var(key);
-                }
-            }
-        }
-    }
+impl Drop for CwdRestore {
+    fn drop(&mut self) { if let Err(_error) = env::set_current_dir(&self.0) {} }
 }
 
 #[fixture]
