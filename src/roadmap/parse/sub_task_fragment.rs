@@ -8,6 +8,7 @@ use crate::{
     roadmap::{SubTaskEntry, model::SourceId},
 };
 
+/// Parse unordered sub-task fragment items without parent-order validation.
 pub(super) fn parse_sub_task_fragment_list(
     list: &List,
     source_text: &str,
