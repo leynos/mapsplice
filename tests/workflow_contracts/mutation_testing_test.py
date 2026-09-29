@@ -28,7 +28,16 @@ WORKFLOW_PATH = (
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
 #: modules outside ``#[cfg(test)]``, so the caller only mirrors the CI
 #: baseline's feature flags (``make test`` runs --all-features).
-EXPECTED_WITH = {"extra-args": "--all-features"}
+EXPECTED_WITH = {
+    "extra-args": "--all-features",
+    # The reusable workflow has no install-mold input, so the mutants job installs
+    # mold through a setup command; .cargo/config.toml links with it on Linux.
+    "setup-commands": (
+        "export DEBIAN_FRONTEND=noninteractive\n"
+        "sudo apt-get update\n"
+        "sudo apt-get install --yes --no-install-recommends mold\n"
+    ),
+}
 
 
 def _load() -> dict[str, object]:
