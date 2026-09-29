@@ -171,20 +171,33 @@ where
     cli.command.into_request(global, &matches)
 }
 
+/// Top-level clap parser before configuration defaults are resolved.
 #[derive(Debug, Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Global flags that may be merged with other configuration sources.
     #[command(flatten)]
     global: GlobalCli,
+    /// Selected operation and its command-specific arguments.
     #[command(subcommand)]
     command: Commands,
 }
 
+/// Clap's parsed subcommand variants before conversion to domain commands.
 #[derive(Debug, Subcommand)]
+#[command(about = None)]
 enum Commands {
+    /// Collect the target and fragment for an append operation.
+    #[command(about = None)]
     Append(AppendArgs),
+    /// Collect the insertion anchor, fragment, and optional defaults.
+    #[command(about = None)]
     Insert(InsertArgs),
+    /// Collect the target and anchor for a delete operation.
+    #[command(about = None)]
     Delete(DeleteArgs),
+    /// Collect the target, anchor, and fragment for a replacement.
+    #[command(about = None)]
     Replace(ReplaceArgs),
 }
 
@@ -200,40 +213,71 @@ impl Commands {
     }
 }
 
+/// Positional paths for appending a fragment to a roadmap.
 #[derive(Debug, Args)]
+#[command(about = None)]
 struct AppendArgs {
+    /// Roadmap file to extend.
+    #[arg(help = None)]
     target: Utf8PathBuf,
+    /// Markdown fragment to append.
+    #[arg(help = None)]
     fragment: Utf8PathBuf,
 }
 
+/// Positional inputs and optional settings for insertion.
 #[derive(Debug, Args)]
+#[command(about = None)]
 struct InsertArgs {
+    /// Insert settings merged with environment and file defaults.
     #[command(flatten)]
     config: InsertConfig,
+    /// Roadmap file to modify.
+    #[arg(help = None)]
     target: Utf8PathBuf,
+    /// Existing item before or after which to insert.
+    #[arg(help = None)]
     anchor: RoadmapAnchor,
+    /// Markdown fragment to insert.
+    #[arg(help = None)]
     fragment: Utf8PathBuf,
 }
 
+/// Optional insert settings before configuration sources are merged.
 #[derive(Clone, Debug, Default, Parser, Serialize, Deserialize, OrthoConfig)]
 #[command(name = "insert")]
 #[ortho_config(prefix = "MAPSPLICE_")]
 struct InsertConfig {
-    #[arg(long, action = ArgAction::SetTrue)]
+    /// Insert after the anchor when true; absence preserves lower-priority defaults.
+    #[arg(long, action = ArgAction::SetTrue, help = None)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     after: Option<bool>,
 }
 
+/// Positional inputs for deleting one roadmap item.
 #[derive(Debug, Args)]
+#[command(about = None)]
 struct DeleteArgs {
+    /// Roadmap file to modify.
+    #[arg(help = None)]
     target: Utf8PathBuf,
+    /// Item to delete.
+    #[arg(help = None)]
     anchor: RoadmapAnchor,
 }
 
+/// Positional inputs for replacing one roadmap item.
 #[derive(Debug, Args)]
+#[command(about = None)]
 struct ReplaceArgs {
+    /// Roadmap file to modify.
+    #[arg(help = None)]
     target: Utf8PathBuf,
+    /// Item whose content is replaced.
+    #[arg(help = None)]
     anchor: RoadmapAnchor,
+    /// Markdown fragment containing the replacement.
+    #[arg(help = None)]
     fragment: Utf8PathBuf,
 }
 
