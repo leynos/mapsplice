@@ -73,8 +73,11 @@ impl RoadmapOperation {
 /// The fragment remains optional until this request reaches the level-specific
 /// insertion helper, where [`required_fragment`] reports a missing fragment.
 struct InsertionRequest {
+    /// Existing item used as the insertion boundary.
     anchor: RoadmapAnchor,
+    /// Place new siblings after the anchor when true.
     after: bool,
+    /// Content to insert, validated by the level-specific helper.
     fragment: Option<RoadmapFragment>,
 }
 
@@ -135,6 +138,7 @@ pub(crate) fn apply_command_with_report(
     Ok((dependency_rewrites, report))
 }
 
+/// Append phase-level fragment content to the roadmap.
 fn append_fragment(roadmap: &mut RoadmapDocument, fragment: Option<RoadmapFragment>) -> Result<()> {
     let fragment_document = required_fragment("append", fragment)?;
     let found = fragment_document.level();
@@ -191,6 +195,7 @@ fn insert_fragment(
     }
 }
 
+/// Splice phase siblings before or after the addressed phase.
 fn insert_phases(
     roadmap: &mut RoadmapDocument,
     target: PhaseNumber,
@@ -205,6 +210,7 @@ fn insert_phases(
     Ok(())
 }
 
+/// Splice step siblings within the addressed step's parent phase.
 fn insert_steps(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -219,6 +225,7 @@ fn insert_steps(
     Ok(())
 }
 
+/// Splice task siblings and invalidate the parent's preserved list source.
 fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
@@ -307,6 +314,7 @@ fn replace_anchor(
     }
 }
 
+/// Return required fragment content or report the missing operation input.
 fn required_fragment(
     command: &'static str,
     fragment: Option<RoadmapFragment>,
@@ -314,6 +322,7 @@ fn required_fragment(
     fragment.ok_or(MapspliceError::MissingFragment { command })
 }
 
+/// Reject fragment content at a different roadmap level from the anchor.
 fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Result<()> {
     let expected = anchor.level();
     if expected == found {
@@ -327,6 +336,7 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
     }
 }
 
+/// Locate a numbered phase or report its anchor as missing.
 fn find_phase_index(roadmap: &RoadmapDocument, target: PhaseNumber) -> Result<usize> {
     roadmap
         .phases
@@ -337,6 +347,7 @@ fn find_phase_index(roadmap: &RoadmapDocument, target: PhaseNumber) -> Result<us
         })
 }
 
+/// Find the parent phase and index of an addressed step.
 fn find_step_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: StepNumber,
@@ -356,6 +367,7 @@ fn find_step_parent_mut(
         })
 }
 
+/// Find the parent step and index of an addressed task.
 fn find_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,

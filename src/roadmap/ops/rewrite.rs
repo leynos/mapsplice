@@ -19,8 +19,11 @@ use crate::error::{MapspliceError, Result};
 
 /// Mutable state shared by one dependency-rewrite traversal.
 struct DependencyRewriteContext<'plan> {
+    /// Completed anchor remapping plan for this traversal.
     plan: &'plan RenumberPlan,
+    /// Count of dependency references changed so far.
     rewrite_count: u64,
+    /// Referenced anchors with no mapping found so far.
     unresolved: Vec<RoadmapAnchor>,
 }
 
