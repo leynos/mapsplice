@@ -229,18 +229,26 @@ fn assert_fallback_reason(
         before.canonical_fallbacks_unstable_code_fence,
         after.canonical_fallbacks_unstable_code_fence,
     );
-    assert_eq!(list_fallbacks, expected_list_fallbacks);
-    assert_eq!(fence_fallbacks, expected_code_fence_fallbacks);
+    assert_eq!(
+        list_fallbacks, expected_list_fallbacks,
+        "unstable list-marker fallback count"
+    );
+    assert_eq!(
+        fence_fallbacks, expected_code_fence_fallbacks,
+        "code-fence fallback count"
+    );
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        1
+        1,
+        "formatter instability should cause one canonical fallback"
     );
     assert_eq!(
         delta(
             before.preserved_source_invalidations,
             after.preserved_source_invalidations
         ),
-        0
+        0,
+        "formatter fallback should not invalidate preserved source"
     );
 }
 
@@ -280,11 +288,13 @@ fn assert_no_preservation_mutation_or_fallback(before: MetricsSnapshot, after: M
             before.preserved_source_invalidations,
             after.preserved_source_invalidations
         ),
-        0
+        0,
+        "stable source should not be invalidated"
     );
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        0
+        0,
+        "stable source should not need canonical fallback"
     );
 }
 
@@ -292,21 +302,24 @@ fn assert_no_preservation_mutation_or_fallback(before: MetricsSnapshot, after: M
 fn assert_no_canonical_fallback(before: MetricsSnapshot, after: MetricsSnapshot) {
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        0
+        0,
+        "mutation should not trigger canonical fallback"
     );
     assert_eq!(
         delta(
             before.canonical_fallbacks_unstable_list_marker,
             after.canonical_fallbacks_unstable_list_marker,
         ),
-        0
+        0,
+        "mutation should not trigger a list-marker fallback"
     );
     assert_eq!(
         delta(
             before.canonical_fallbacks_unstable_code_fence,
             after.canonical_fallbacks_unstable_code_fence,
         ),
-        0
+        0,
+        "mutation should not trigger a code-fence fallback"
     );
 }
 

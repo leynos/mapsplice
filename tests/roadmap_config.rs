@@ -11,18 +11,24 @@ use rstest::rstest;
 use support::{ProcessState, TARGET_TWO_TASKS, TASK_FRAGMENT, TestResult, Workspace, workspace};
 
 fn assert_contains(haystack: &str, needle: &str) {
-    assert!(haystack.contains(needle));
+    assert!(
+        haystack.contains(needle),
+        "expected `{needle}` in `{haystack}`"
+    );
 }
 
 fn assert_equal<T>(actual: &T, expected: &T)
 where
     T: Debug + PartialEq,
 {
-    assert_eq!(actual, expected);
+    assert_eq!(actual, expected, "configuration value differs");
 }
 
 fn assert_configuration_error(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::Configuration { .. }));
+    assert!(
+        matches!(error, MapspliceError::Configuration { .. }),
+        "expected configuration error"
+    );
 }
 
 fn workspace_root(workspace: &Workspace) -> TestResult<Utf8PathBuf> {
