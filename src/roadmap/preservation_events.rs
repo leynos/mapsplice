@@ -36,11 +36,17 @@ pub(crate) enum PreservationRenderOutcome {
 /// the command has rendered and, for in-place requests, written successfully.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PreservationReport {
+    /// Stable task or sub-task sources emitted verbatim.
     preserved_source_renders: u64,
+    /// Preserved sources invalidated by a rendered-number change.
     invalidations_renumber: u64,
+    /// Preserved sources invalidated by rewritten dependency text.
     invalidations_dependency_rewrite: u64,
+    /// Preserved parent sources invalidated by a sub-task mutation.
     invalidations_child_mutation: u64,
+    /// Canonical renders required by unstable list markers.
     canonical_fallbacks_unstable_list_marker: u64,
+    /// Canonical renders required by unstable code fences.
     canonical_fallbacks_unstable_code_fence: u64,
 }
 
