@@ -11,6 +11,11 @@ fn top_level_help_lists_supported_commands() {
     let stdout = String::from_utf8(output.stdout).expect("help output should be UTF-8");
 
     assert!(output.status.success(), "help command should succeed");
+    assert_eq!(
+        stdout.trim_start().lines().next(),
+        Some("Usage: mapsplice [OPTIONS] <COMMAND>"),
+        "top-level help should start with usage, without an inferred description"
+    );
     insta::assert_snapshot!(stable_help_lines(&stdout), @r"
 Usage: mapsplice [OPTIONS] <COMMAND>
 Commands:
