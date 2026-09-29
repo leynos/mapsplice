@@ -57,7 +57,10 @@ fn assert_not_contains(haystack: &str, needle: &str) {
 }
 
 fn assert_invalid_roadmap(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::InvalidRoadmap { .. }));
+    assert!(
+        matches!(error, MapspliceError::InvalidRoadmap { .. }),
+        "expected invalid roadmap"
+    );
 }
 
 #[rstest]
