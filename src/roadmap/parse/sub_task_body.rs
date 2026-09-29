@@ -22,6 +22,7 @@ pub(super) fn parse_sub_task_body(children: &[Node], source_text: &str) -> Resul
     Ok(body)
 }
 
+/// Detect a numbered task or sub-task list beneath a sub-task.
 fn is_nested_roadmap_list(node: &Node) -> bool {
     matches!(
         node,

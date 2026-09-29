@@ -41,9 +41,12 @@ use super::{
 };
 use crate::error::{MapspliceError, Result};
 
+/// Source identity and text needed while parsing one roadmap item.
 #[derive(Clone, Copy)]
 pub(super) struct ParseContext<'source> {
+    /// Distinguish target content from inserted fragment content.
     source: SourceId,
+    /// Retain the original Markdown for source-preserving nodes.
     source_text: &'source str,
 }
 
@@ -71,6 +74,7 @@ pub fn parse_roadmap(markdown: &str) -> Result<RoadmapDocument> {
     document::parse_document_root(parse_root(markdown)?, SourceId::Target, markdown)
 }
 
+/// Parse the checklist items in a task list, preserving target source spans.
 pub(super) fn parse_task_list(
     list: &List,
     source: SourceId,
@@ -109,6 +113,7 @@ pub(super) fn parse_task_list(
         .collect()
 }
 
+/// Reject tasks whose number names a different parent step.
 pub(super) fn validate_tasks_belong_to_step(
     step_number: StepNumber,
     tasks: &[TaskEntry],
@@ -154,6 +159,7 @@ fn parse_task_item(
     })
 }
 
+/// Separate body Markdown and numbered sub-tasks in their original order.
 fn split_task_children(
     children: &[Node],
     parent: TaskNumber,
@@ -177,6 +183,7 @@ fn split_task_children(
     Ok(task_children.finish())
 }
 
+/// Parse a nested checklist and enforce consecutive sub-task ordinals.
 fn parse_sub_task_list(
     list: &List,
     parent: TaskNumber,
@@ -260,6 +267,7 @@ fn original_item_source(item: &ListItem, context: ParseContext<'_>) -> Option<St
         .flatten()
 }
 
+/// Check a sub-task's parent and expected position in document order.
 fn validate_sub_task_number(
     parent: TaskNumber,
     expected_ordinal: u32,
@@ -278,6 +286,7 @@ fn validate_sub_task_number(
     Ok(())
 }
 
+/// Extract a task number and summary nodes from its opening paragraph.
 fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)> {
     let (anchor, summary) = parse_numbered_paragraph(paragraph, RoadmapItemLevel::Task, "task")?;
     let RoadmapAnchor::Task(number) = anchor else {
@@ -288,6 +297,7 @@ fn parse_task_paragraph(paragraph: &Paragraph) -> Result<(TaskNumber, Vec<Node>)
     Ok((number, summary))
 }
 
+/// Extract a sub-task number and summary nodes from its opening paragraph.
 fn parse_sub_task_paragraph(paragraph: &Paragraph) -> Result<(SubTaskNumber, Vec<Node>)> {
     let (anchor, summary) =
         parse_numbered_paragraph(paragraph, RoadmapItemLevel::SubTask, "sub-task")?;
@@ -299,6 +309,7 @@ fn parse_sub_task_paragraph(paragraph: &Paragraph) -> Result<(SubTaskNumber, Vec
     Ok((number, summary))
 }
 
+/// Replace a paragraph's numbered prefix with its remaining summary text.
 fn parse_numbered_paragraph(
     paragraph: &Paragraph,
     level: RoadmapItemLevel,
@@ -340,14 +351,17 @@ pub(super) fn split_numbered_prefix(
     Ok((anchor, remainder.to_owned()))
 }
 
+/// Detect whether a list starts with a numbered task item.
 pub(super) fn looks_like_task_list(list: &List) -> bool {
     looks_like_numbered_list(list, RoadmapItemLevel::Task)
 }
 
+/// Detect whether a list starts with a numbered sub-task item.
 pub(super) fn looks_like_sub_task_list(list: &List) -> bool {
     looks_like_numbered_list(list, RoadmapItemLevel::SubTask)
 }
 
+/// Match the first list item's prefix against a roadmap level.
 fn looks_like_numbered_list(list: &List, level: RoadmapItemLevel) -> bool {
     let Some(Node::ListItem(item)) = list.children.first() else {
         return false;
@@ -361,6 +375,7 @@ fn looks_like_numbered_list(list: &List, level: RoadmapItemLevel) -> bool {
     split_numbered_prefix(&text.value, level).is_ok()
 }
 
+/// Parse GFM Markdown and require an mdast root node.
 pub(super) fn parse_root(markdown: &str) -> Result<Root> {
     match to_mdast(markdown, &ParseOptions::gfm()).map_err(|error| MapspliceError::Markdown {
         message: error.to_string(),
