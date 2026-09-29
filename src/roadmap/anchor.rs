@@ -16,21 +16,27 @@ pub struct PhaseNumber(u32);
 /// A step number such as `8.2`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct StepNumber {
+    /// Parent phase of this step.
     phase: PhaseNumber,
+    /// One-based step ordinal within the phase.
     step: u32,
 }
 
 /// A task number such as `8.2.3`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct TaskNumber {
+    /// Parent step of this task.
     step: StepNumber,
+    /// One-based task ordinal within the step.
     task: u32,
 }
 
 /// A sub-task number such as `8.2.3.4`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct SubTaskNumber {
+    /// Parent task of this sub-task.
     task: TaskNumber,
+    /// One-based sub-task ordinal within the task.
     sub_task: u32,
 }
 
@@ -291,18 +297,22 @@ pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
     }
 }
 
+/// Validate and assemble a step from its numeric components.
 fn build_step_number(phase: u32, step: u32) -> Result<StepNumber> {
     StepNumber::new(PhaseNumber::new(phase)?, step)
 }
 
+/// Validate and assemble a task from its numeric components.
 fn build_task_number(phase: u32, step: u32, task: u32) -> Result<TaskNumber> {
     TaskNumber::new(build_step_number(phase, step)?, task)
 }
 
+/// Validate and assemble a sub-task from its numeric components.
 fn build_sub_task_number(phase: u32, step: u32, task: u32, sub_task: u32) -> Result<SubTaskNumber> {
     SubTaskNumber::new(build_task_number(phase, step, task)?, sub_task)
 }
 
+/// Reject zero, leading zeroes, and non-canonical numeric anchor parts.
 fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
     let number = part
         .parse::<u32>()
@@ -317,6 +327,7 @@ fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
     Ok(number)
 }
 
+/// Reject a zero-valued component of a roadmap number.
 fn validate_positive(label: &str, number: u32) -> Result<u32> {
     if number == 0 {
         return Err(MapspliceError::InvalidAnchor {

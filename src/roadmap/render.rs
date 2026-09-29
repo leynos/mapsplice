@@ -134,13 +134,16 @@ fn validate_task_for_render(task: &TaskEntry) -> Result<()> {
         }
     })
 }
+/// Check that a sub-task summary and body can render canonically.
 fn validate_sub_task_for_render(sub_task: &SubTaskEntry) -> Result<()> {
     render_inline(sub_task.summary.nodes())?;
     render_nested_body(&sub_task.body, 4)?;
     Ok(())
 }
+/// Remove separator newlines outside a preserved task-list body.
 fn trim_preserved_task_source(original: &str) -> &str { original.trim_end_matches('\n') }
 
+/// Render a checklist marker or an empty prefix for a plain list item.
 const fn checkbox_marker(checked: Option<bool>) -> &'static str {
     match checked {
         Some(true) => "[x] ",
@@ -149,6 +152,7 @@ const fn checkbox_marker(checked: Option<bool>) -> &'static str {
     }
 }
 
+/// Render task body blocks while retaining required blank separators.
 fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
     let rendered_blocks = render_markdown_nodes(markdown, indent)?;
     let paragraph_count = markdown
@@ -178,12 +182,14 @@ fn render_nested_body(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<Str
     Ok(nested_blocks)
 }
 
+/// Append one blank block unless the previous block is already blank.
 fn push_blank_separator(blocks: &mut Vec<String>) {
     if !blocks.last().is_some_and(String::is_empty) {
         blocks.push(String::new());
     }
 }
 
+/// Indent continuation lines of a task or sub-task summary.
 fn render_item_summary(summary: &str, continuation_indent: usize) -> String {
     let mut lines = summary.lines();
     let Some(first) = lines.next() else {
@@ -194,6 +200,7 @@ fn render_item_summary(summary: &str, continuation_indent: usize) -> String {
     rendered.join("\n")
 }
 
+/// Reuse preserved blocks where available and render the others canonically.
 fn render_markdown_nodes(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<String>> {
     markdown
         .nodes()
@@ -208,6 +215,7 @@ fn render_markdown_nodes(markdown: &MarkdownNodes, indent: usize) -> Result<Vec<
         .collect()
 }
 
+/// Render a sequence of Markdown block nodes at one indentation level.
 fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
     nodes
         .iter()
@@ -215,6 +223,7 @@ fn render_blocks(nodes: &[Node], indent: usize) -> Result<Vec<String>> {
         .collect()
 }
 
+/// Render one supported Markdown block or reject an unsupported node.
 fn render_block(node: &Node, indent: usize) -> Result<String> {
     match node {
         Node::Paragraph(paragraph) => {
@@ -253,6 +262,7 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
     }
 }
 
+/// Prefix rendered blockquote lines and preserve separators between parts.
 fn render_blockquote_parts(parts: Vec<String>) -> String {
     parts
         .into_iter()

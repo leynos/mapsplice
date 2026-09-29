@@ -12,6 +12,7 @@ use cap_std::{ambient_authority, fs::OpenOptions, fs_utf8::Dir};
 
 use crate::error::{MapspliceError, Result};
 
+/// Distinguish temporary names created within the same process and timestamp.
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Read a UTF-8 file through a capability directory.
@@ -44,6 +45,7 @@ pub fn rewrite_utf8(path: &Utf8Path, contents: &str) -> Result<()> {
     )
 }
 
+/// Write through a sibling file using injectable operations for failure tests.
 fn rewrite_utf8_with_strategy<W, OpenTemp, ReplaceTarget>(
     cap: &FileCap,
     temp_name: &str,
@@ -88,11 +90,15 @@ where
     Ok(())
 }
 
+/// Operations used to create and replace a temporary sibling file.
 struct RewriteStrategy<OpenTemp, ReplaceTarget> {
+    /// Create a new temporary file for the pending contents.
     open_temp: OpenTemp,
+    /// Replace the target with the completed temporary file.
     replace_target: ReplaceTarget,
 }
 
+/// Attempt to remove a temporary file after a failed rewrite.
 fn discard_temporary_file(cap: &FileCap, temp_name: &str) {
     if let Err(source) = cap.dir.remove_file(temp_name) {
         tracing::debug!(
@@ -104,9 +110,13 @@ fn discard_temporary_file(cap: &FileCap, temp_name: &str) {
     }
 }
 
+/// Capability and path metadata for one file's parent directory.
 struct FileCap {
+    /// Directory capability used for file operations.
     dir: Dir,
+    /// File name relative to the directory capability.
     file_name: String,
+    /// Absolute path retained for error reporting.
     absolute: Utf8PathBuf,
 }
 
