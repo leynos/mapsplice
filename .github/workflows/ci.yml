@@ -26,13 +26,13 @@ jobs:
         uses: leynos/shared-actions/.github/actions/setup-rust@8a83824b29dfe8f861714b544dc85fb925ed010c
         with:
           install-mold: 'true'
-      - name: Install mold linker
+      - name: Install clang and lld
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang mold
+            && sudo apt-get install --yes --no-install-recommends clang
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
