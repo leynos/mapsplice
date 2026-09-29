@@ -173,7 +173,7 @@ where
 
 /// Top-level clap parser before configuration defaults are resolved.
 #[derive(Debug, Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = None, long_about = None)]
 struct Cli {
     /// Global flags that may be merged with other configuration sources.
     #[command(flatten)]
