@@ -32,3 +32,9 @@ jobs:
       # --all-features) so the test command exercised against mutants
       # mirrors what gates pull requests.
       extra-args: "--all-features"
+      # .cargo/config.toml links with mold on Linux, and the reusable workflow has
+      # no `install-mold` input, so the mutants job installs it here.
+      setup-commands: |
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends mold
