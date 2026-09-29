@@ -8,26 +8,39 @@ use crate::{
     roadmap::preservation_events::{CanonicalFallbackReason, PreservationRenderOutcome},
 };
 
+/// Marker kind used to detect unstable list numbering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ListMarker {
+    /// Numbered marker carrying its ordinal.
     Ordered(u32),
+    /// Bullet marker without an ordinal.
     Unordered,
 }
 
+/// Opening character and width of a Markdown code fence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Fence {
+    /// Backtick or tilde used by the opener.
     character: char,
+    /// Number of repeated opener characters.
     length: usize,
 }
 
 /// Stateful linear scan for formatter-unstable task-list content.
 struct TaskListStabilityScan {
+    /// Fence currently shielding list-like lines from marker checks.
     open_fence: Option<Fence>,
+    /// Indentation of the first task checklist marker, when present.
     checklist_indent: Option<usize>,
+    /// Whether the preceding source line was blank.
     previous_line_was_blank: bool,
+    /// Whether an indented code block is active in the task body.
     in_indented_code: bool,
+    /// Most recent list marker and its indentation.
     previous_marker: Option<(usize, ListMarker)>,
+    /// Indentation stack for nested list markers.
     marker_indents: Vec<usize>,
+    /// Whether a fence requires canonical rendering.
     has_unstable_code_fence: bool,
 }
 
