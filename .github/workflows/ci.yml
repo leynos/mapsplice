@@ -46,6 +46,8 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install Mermaid validators
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           uv tool install --python "${{ env.NIXIE_PYTHON_VERSION }}" --managed-python "nixie-cli==${{ env.NIXIE_CLI_VERSION }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
