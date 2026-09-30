@@ -29,14 +29,9 @@ WORKFLOW_PATH = (
 #: modules outside ``#[cfg(test)]``, so the caller only mirrors the CI
 #: baseline's feature flags (``make test`` runs --all-features).
 EXPECTED_WITH = {
+    # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
+    "install-mold": "true",
     "extra-args": "--all-features",
-    # The reusable workflow has no install-mold input, so the mutants job installs
-    # mold through a setup command; .cargo/config.toml links with it on Linux.
-    "setup-commands": (
-        "export DEBIAN_FRONTEND=noninteractive\n"
-        "sudo apt-get update\n"
-        "sudo apt-get install --yes --no-install-recommends mold\n"
-    ),
 }
 
 
