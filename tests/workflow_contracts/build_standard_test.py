@@ -20,7 +20,7 @@ SETUP_RUST = (
     "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
 )
 DEV_FLAGS = ("-Zthreads=8", "-fuse-ld=mold")
-MOLD_DIGESTS = {
+LINKER_DIGESTS = {
     "x86_64": "a3696680d99e692970590a178bc3a33d78d60d1c6dc9db7a11b557b02b751f5d",
     "aarch64": "946de2774b06a71346bd59b55fddba610b65b8d93c3a4a1559cc84e103472710",
 }
@@ -106,7 +106,7 @@ def validate_suite_provisioning(document: dict[str, object]) -> None:
             if step.get("uses") == SETUP_RUST
             and step.get("with", {}).get("install-mold") == "true"
         ]
-        assert len(installs) == 1, f"{name} needs one pinned mold install"
+        assert len(installs) == 1, f"{name} needs one pinned linker install"
         install = steps[installs[0]]
         assert "if" not in install and install.get("continue-on-error") is not True, (
             f"{name} installer must be unconditional and binding"
@@ -269,20 +269,20 @@ def test_missing_tool_reports_an_installation_route() -> None:
 
 
 @pytest.mark.skipif(
-    platform.system() != "Linux" or platform.machine() not in MOLD_DIGESTS,
-    reason="mold is only provisioned for supported Linux architectures",
+    platform.system() != "Linux" or platform.machine() not in LINKER_DIGESTS,
+    reason="the pinned linker is only provisioned for supported Linux architectures",
 )
-def test_installer_repairs_a_missing_mold_companion(tmp_path: Path) -> None:
+def test_installer_repairs_a_missing_linker_companion(tmp_path: Path) -> None:
     """A marker and `mold` alone must not make the installer exit early."""
     prefix = tmp_path / "tools"
     bin_dir = prefix / "bin"
     bin_dir.mkdir(parents=True)
     version = "2.41.0"
-    digest = MOLD_DIGESTS[platform.machine()]
+    digest = LINKER_DIGESTS[platform.machine()]
     (bin_dir / f".mold-{version}-{digest}").touch()
-    mold = bin_dir / "mold"
-    mold.write_text(f"#!/bin/sh\necho 'mold {version} (test)'\n", encoding="utf-8")
-    mold.chmod(0o755)
+    linker_binary = bin_dir / "mold"
+    linker_binary.write_text(f"#!/bin/sh\necho 'mold {version} (test)'\n", encoding="utf-8")
+    linker_binary.chmod(0o755)
 
     tools = tmp_path / "commands"
     tools.mkdir()
@@ -310,12 +310,12 @@ def test_installer_repairs_a_missing_mold_companion(tmp_path: Path) -> None:
     assert curl_marker.exists(), "the missing ld.mold must trigger a reinstall"
 
 
-@pytest.mark.skipif(platform.system() != "Linux", reason="mold is a Linux linker")
-def test_clang_wrapper_selects_pinned_mold_and_excludes_release(tmp_path: Path) -> None:
+@pytest.mark.skipif(platform.system() != "Linux", reason="the pinned linker is Linux-only")
+def test_clang_wrapper_selects_pinned_linker_and_excludes_release(tmp_path: Path) -> None:
     """Clang must resolve the PATH linker, not a stale system ld.mold."""
     linker = shutil.which("ld.mold")
     assert linker is not None, "the build-tool installer must precede this test"
-    wrapper = ROOT / "scripts" / "clang-mold.sh"
+    wrapper = ROOT / "scripts" / "clang-linker.sh"
     common = [str(wrapper), "-###", "-x", "c", "/dev/null", "-o", str(tmp_path / "probe")]
     dev = subprocess.run(
         [*common, "-fuse-ld=mold"], capture_output=True, text=True, check=True
@@ -325,14 +325,14 @@ def test_clang_wrapper_selects_pinned_mold_and_excludes_release(tmp_path: Path) 
     assert "ld.mold" not in release.stderr
 
 
-@pytest.mark.skipif(platform.system() != "Linux", reason="mold is a Linux linker")
+@pytest.mark.skipif(platform.system() != "Linux", reason="the pinned linker is Linux-only")
 def test_clang_wrapper_rejects_an_unpinned_linker(tmp_path: Path) -> None:
-    """A PATH entry with an older mold cannot silently satisfy the wrapper."""
+    """A PATH entry with an older linker cannot silently satisfy the wrapper."""
     fake = tmp_path / "ld.mold"
     fake.write_text("#!/bin/sh\necho 'mold 2.40.4 (untrusted)'\n", encoding="utf-8")
     fake.chmod(0o755)
     result = subprocess.run(
-        [str(ROOT / "scripts" / "clang-mold.sh"), "-###", "-fuse-ld=mold"],
+        [str(ROOT / "scripts" / "clang-linker.sh"), "-###", "-fuse-ld=mold"],
         cwd=ROOT,
         env={"PATH": f"{tmp_path}:{os.environ['PATH']}"},
         capture_output=True,

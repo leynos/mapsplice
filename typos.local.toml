@@ -16,7 +16,8 @@ accepted = []
 # the form it appears in rather than accepted as a word.
 # `mold` and -fuse-ld=mold: the linker's name, in backticks or in the
 # link-arg that selects it; the common noun stays a spelling error.
-# `install-mold`: the setup-rust input that installs the linker.
+# Other `mold` forms below are fixed tool, release-archive, path, and action
+# interfaces. CARGO_TERM_COLOR and labeled are Cargo/GitHub Actions API names.
 # `color`: the documentation style guide's own example of a US spelling kept
 # inside an API name.
 # flavor = "current_thread": the tokio::test attribute argument, quoted from
@@ -29,7 +30,26 @@ accepted = []
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
+    "\\bCARGO_TERM_COLOR\\b",
+    "types: \\[opened, reopened, synchronize, labeled, ready_for_review\\]",
+    "install-mold",
     "`install-mold`",
+    "command -v mold",
+    "mold --version",
+    "ld\\.mold",
+    "bin/mold",
+    "mold-\\$version-",
+    "\\.mold-\\{version\\}-\\{digest\\}",
+    "mold 2\\.41\\.0",
+    "mold 2\\.40\\.4",
+    "mold \\$version",
+    "mold \\{version\\} \\(test\\)",
+    "rui314/mold",
+    '/ "mold"',
+    "No mold default",
+    "Pinned mold archive checksum failed",
+    "Installed mold does not report",
+    "Installed mold %s",
     "`color`",
     "flavor = \"current_thread\"",
     "`artifact\\.kind = \"[a-z_]+\"`",

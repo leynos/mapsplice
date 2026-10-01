@@ -20,10 +20,10 @@ RUST_FLAGS := -D warnings $(RUST_FLAGS)
 # the auto-discovered development flags as well as the warning policy.
 HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
-# Cargo only has committed mold linker routes for these Linux targets. Parse
+# Cargo only has committed `mold` linker routes for these Linux targets. Parse
 # command-line, environment and --config target selectors. Conflicting input
 # fails closed so an uncertain effective target never receives the ELF linker.
-SUPPORTED_MOLD_TARGETS = x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+SUPPORTED_LINKER_TARGETS = x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
 CARGO_CONFIG_BUILD_TARGET := $(shell python3 scripts/resolve-cargo-build-target.py)
 ifneq ($(.SHELLSTATUS),0)
 CARGO_CONFIG_BUILD_TARGET := $(error $(CARGO_CONFIG_BUILD_TARGET))
@@ -32,16 +32,16 @@ targets_from_words = $(if $(strip $(1)),$(if $(filter --target,$(firstword $(1))
 config_targets_from_words = $(if $(strip $(1)),$(if $(filter --config,$(firstword $(1))),$(patsubst build.target=%,%,$(filter build.target=%,$(word 2,$(1)))) $(call config_targets_from_words,$(wordlist 3,$(words $(1)),$(1))),$(if $(filter --config=build.target=%,$(firstword $(1))),$(patsubst --config=build.target=%,%,$(firstword $(1))) $(call config_targets_from_words,$(wordlist 2,$(words $(1)),$(1))),$(call config_targets_from_words,$(wordlist 2,$(words $(1)),$(1))))))
 target_input_present = $(strip $(filter --target --target=%,$(1)) $(filter --config=build.target=%,$(1)) $(call config_targets_from_words,$(1)) $(CARGO_BUILD_TARGET) $(CARGO_CONFIG_BUILD_TARGET))
 requested_targets = $(strip $(call targets_from_words,$(1)) $(call config_targets_from_words,$(1)) $(CARGO_BUILD_TARGET) $(CARGO_CONFIG_BUILD_TARGET))
-native_mold_flag = $(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-C link-arg=-fuse-ld=mold))
-mold_flag_for = $(if $(call target_input_present,$(1)),$(if $(filter 1,$(words $(sort $(call requested_targets,$(1))))),$(if $(filter $(SUPPORTED_MOLD_TARGETS),$(call requested_targets,$(1))),-C link-arg=-fuse-ld=mold)),$(native_mold_flag))
-gate_rust_flags = $(RUST_FLAGS) -Zthreads=8 $(call mold_flag_for,$(1))
+native_linker_flag = $(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-C link-arg=-fuse-ld=mold))
+linker_flag_for = $(if $(call target_input_present,$(1)),$(if $(filter 1,$(words $(sort $(call requested_targets,$(1))))),$(if $(filter $(SUPPORTED_LINKER_TARGETS),$(call requested_targets,$(1))),-C link-arg=-fuse-ld=mold)),$(native_linker_flag))
+gate_rust_flags = $(RUST_FLAGS) -Zthreads=8 $(call linker_flag_for,$(1))
 empty :=
 space := $(empty) $(empty)
 unit_separator := $(shell printf '\037')
 encode_rust_flags = $(subst $(space),$(unit_separator),$(strip $(1)))
 # Keep caller policy flags, but remove only development-owned arguments before
 # selecting a route. This prevents a caller's encoded Rust flags from leaking
-# Cranelift, the parallel frontend, or mold into release and verification.
+# Cranelift, the parallel frontend, or `mold` into release and verification.
 filter_encoded_rust_flags = $$(bash -c 'set -euo pipefail; encoded=$${CARGO_ENCODED_RUSTFLAGS-}; separator=$$(printf "\\037"); arguments=(); if [[ -n $$encoded ]]; then IFS=$$separator read -r -a arguments <<< "$$encoded"; fi; pending=; kept=(); for current in "$${arguments[@]}"; do if [[ -n $$pending ]]; then case "$$pending:$$current" in -Z:threads=8|-Z:codegen-backend=cranelift|-C:link-arg=-fuse-ld=mold) pending=; continue;; *) kept+=("$$pending"); pending=;; esac; fi; case $$current in -Z|-C) pending=$$current;; -Zthreads=8|-Zcodegen-backend=cranelift|-Clink-arg=-fuse-ld=mold) ;; *) kept+=("$$current");; esac; done; if [[ -n $$pending ]]; then kept+=("$$pending"); fi; (IFS=$$separator; printf "%s" "$${kept[*]}")')
 append_filtered_encoded_rust_flags = $$(filtered=$(call filter_encoded_rust_flags); if [ -n "$$filtered" ]; then printf '%s$(unit_separator)%s' "$$filtered" "$(call encode_rust_flags,$(1))"; else printf '%s' "$(call encode_rust_flags,$(1))"; fi)
 RUSTDOC_FLAGS ?=
@@ -153,7 +153,7 @@ markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
 
 spelling: ## Enforce en-GB-oxendict spelling
-	$(TYPOS_CONFIG_BUILDER) gate --repository .
+	$(TYPOS_CONFIG_BUILDER) gate --repository . --scope all
 
 markdownlint-paths: ## Lint Markdown files listed in MARKDOWN_PATHS
 	$(call require_markdown_paths)

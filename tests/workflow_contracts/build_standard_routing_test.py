@@ -124,11 +124,11 @@ def route_for(
     return matches[0]
 
 
-def assert_development_route(invocation: RouteInvocation, *, uses_mold: bool) -> None:
+def assert_development_route(invocation: RouteInvocation, *, uses_pinned_linker: bool) -> None:
     """Require one evaluated development route to restore its selected defaults."""
     expected = [*COMPATIBLE_FLAGS, "-D", "warnings", "-Zthreads=8"]
     rust_flags = ["-D", "warnings", "-Zthreads=8"]
-    if uses_mold:
+    if uses_pinned_linker:
         expected.extend(["-C", "link-arg=-fuse-ld=mold"])
         rust_flags.extend(["-C", "link-arg=-fuse-ld=mold"])
     assert list(invocation.encoded_flags) == expected
@@ -185,7 +185,7 @@ def test_cargo_defaults_keep_the_frontend_without_cranelift() -> None:
     for triple in ("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"):
         target = config["target"][triple]
         flags = " ".join(target["rustflags"])
-        assert target["linker"] == "scripts/clang-mold.sh"
+        assert target["linker"] == "scripts/clang-linker.sh"
         assert "codegen-backend=cranelift" not in flags
         assert all(flag in flags for flag in DEV_FLAGS)
 
@@ -230,21 +230,21 @@ def test_nextest_and_doctest_record_distinct_development_routes(tmp_path: Path) 
             "DOC_TEST_TARGETS": "true", "TEST_CMD": "nextest run --no-tests pass",
         },
     )
-    uses_mold = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
-    assert_development_route(route_for(invocations, ("nextest", "run")), uses_mold=uses_mold)
+    uses_pinned_linker = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
+    assert_development_route(route_for(invocations, ("nextest", "run")), uses_pinned_linker=uses_pinned_linker)
     doctest = route_for(invocations, ("test", "--doc"))
-    assert_development_route(doctest, uses_mold=uses_mold)
+    assert_development_route(doctest, uses_pinned_linker=uses_pinned_linker)
     assert doctest.rustdoc_flags == ("-D", "warnings")
 
 
 def test_rustdoc_and_clippy_record_distinct_development_routes(tmp_path: Path) -> None:
     """Documentation and Clippy each preserve their own evaluated route."""
     invocations = execute_make_route(tmp_path, "lint-clippy")
-    uses_mold = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
+    uses_pinned_linker = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
     documentation = route_for(invocations, ("doc",))
-    assert_development_route(documentation, uses_mold=uses_mold)
+    assert_development_route(documentation, uses_pinned_linker=uses_pinned_linker)
     assert documentation.rustdoc_flags == ("-D", "warnings")
-    assert_development_route(route_for(invocations, ("clippy",)), uses_mold=uses_mold)
+    assert_development_route(route_for(invocations, ("clippy",)), uses_pinned_linker=uses_pinned_linker)
 
 
 def test_build_preflights_and_restores_development_defaults(tmp_path: Path) -> None:
@@ -252,8 +252,8 @@ def test_build_preflights_and_restores_development_defaults(tmp_path: Path) -> N
     lines = make_plan("build")
     build_index = next(index for index, line in enumerate(lines) if "probe-cargo build" in line)
     assert lines.index("bash scripts/check-build-tools.sh") < build_index
-    uses_mold = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
-    assert_development_route(route_for(execute_make_route(tmp_path, "build"), ("build",)), uses_mold=uses_mold)
+    uses_pinned_linker = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
+    assert_development_route(route_for(execute_make_route(tmp_path, "build"), ("build",)), uses_pinned_linker=uses_pinned_linker)
 
 
 def test_inherited_make_dry_run_flags_do_not_skip_route_probe(tmp_path: Path) -> None:
@@ -269,7 +269,7 @@ def test_inherited_make_dry_run_flags_do_not_skip_route_probe(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize(
-    ("variables", "should_use_mold"),
+    ("variables", "should_use_pinned_linker"),
     [
         ({"CARGO_FLAGS": "--workspace --config build.target=aarch64-unknown-linux-gnu"}, True),
         ({"CARGO_FLAGS": "--config=build.target=aarch64-unknown-linux-gnu"}, True),
@@ -280,11 +280,11 @@ def test_inherited_make_dry_run_flags_do_not_skip_route_probe(tmp_path: Path) ->
     ],
 )
 def test_target_selectors_choose_only_one_supported_linux_linker_route(
-    tmp_path: Path, variables: dict[str, str], should_use_mold: bool,
+    tmp_path: Path, variables: dict[str, str], should_use_pinned_linker: bool,
 ) -> None:
     """CLI, environment and --config selectors fail closed when they conflict."""
     route = route_for(execute_make_route(tmp_path, "typecheck", variables=variables), ("check",))
-    assert_development_route(route, uses_mold=should_use_mold)
+    assert_development_route(route, uses_pinned_linker=should_use_pinned_linker)
 
 
 @pytest.mark.parametrize(
@@ -312,43 +312,43 @@ def test_target_selectors_choose_only_one_supported_linux_linker_route(
         ),
     ],
 )
-def test_windows_development_routes_exclude_inherited_mold(
+def test_windows_development_routes_exclude_inherited_linker(
     tmp_path: Path, goal: str, variables: dict[str, str], command: tuple[str, ...],
 ) -> None:
-    """Test, typecheck and Clippy must not retain mold for a Windows target."""
+    """Test, typecheck and Clippy must not retain the Linux linker for a Windows target."""
     route = route_for(execute_make_route(
         tmp_path, goal, variables=variables,
     ), command)
-    assert_development_route(route, uses_mold=False)
+    assert_development_route(route, uses_pinned_linker=False)
 
 
 @pytest.mark.parametrize(
-    ("target", "should_use_mold"),
+    ("target", "should_use_pinned_linker"),
     [
         ("x86_64-pc-windows-gnu", False),
         ("aarch64-unknown-linux-gnu", True),
     ],
 )
 def test_cargo_home_target_controls_the_evaluated_route(
-    tmp_path: Path, target: str, should_use_mold: bool,
+    tmp_path: Path, target: str, should_use_pinned_linker: bool,
 ) -> None:
     """A config-only effective target cannot silently inherit the native linker."""
     environment = cargo_home_with_target(tmp_path, target)
     route = route_for(execute_make_route(
         tmp_path, "typecheck", environment=environment,
     ), ("check",))
-    assert_development_route(route, uses_mold=should_use_mold)
+    assert_development_route(route, uses_pinned_linker=should_use_pinned_linker)
 
 
-def test_cargo_home_target_conflict_fails_closed_for_mold(tmp_path: Path) -> None:
-    """An inherited config target and a conflicting environment target lose mold."""
+def test_cargo_home_target_conflict_fails_closed_for_linker(tmp_path: Path) -> None:
+    """An inherited config target and a conflicting environment target lose the Linux linker."""
     route = route_for(execute_make_route(
         tmp_path,
         "typecheck",
         variables={"CARGO_BUILD_TARGET": "x86_64-pc-windows-gnu"},
         environment=cargo_home_with_target(tmp_path, "aarch64-unknown-linux-gnu"),
     ), ("check",))
-    assert_development_route(route, uses_mold=False)
+    assert_development_route(route, uses_pinned_linker=False)
 
 
 def test_config_resolver_prefers_nearer_ancestor_over_cargo_home(tmp_path: Path) -> None:
