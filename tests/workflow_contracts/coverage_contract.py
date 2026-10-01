@@ -7,12 +7,21 @@ from pathlib import Path
 
 import yaml
 
-ACTION_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
-GENERATE = f"leynos/shared-actions/.github/actions/generate-coverage@{ACTION_PIN}"
-UPLOAD = f"leynos/shared-actions/.github/actions/upload-codescene-coverage@{ACTION_PIN}"
+COVERAGE_GENERATE_PIN = "abf0dcf2686de1eaf79b6dc9a16662b631bed149"
+UPLOADER_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
+SETUP_RUST_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
+DEPENDABOT_PIN = "abf0dcf2686de1eaf79b6dc9a16662b631bed149"
+GENERATE = (
+    "leynos/shared-actions/.github/actions/generate-coverage@"
+    f"{COVERAGE_GENERATE_PIN}"
+)
+UPLOAD = (
+    "leynos/shared-actions/.github/actions/upload-codescene-coverage@"
+    f"{UPLOADER_PIN}"
+)
 DEPENDABOT_AUTOMERGE = (
     "leynos/shared-actions/.github/workflows/dependabot-automerge.yml@"
-    f"{ACTION_PIN}"
+    f"{DEPENDABOT_PIN}"
 )
 TOKEN_CHECK = 'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"'
 TOKEN_INPUT = "${{ secrets.CS_ACCESS_TOKEN }}"
@@ -213,7 +222,7 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     }, "PR and main coverage compiler routes differ"
     setup = [step for step in main_steps if "setup-rust@" in str(step.get("uses", ""))]
     assert len(setup) == 1 and setup[0].get("uses") == (
-        f"leynos/shared-actions/.github/actions/setup-rust@{ACTION_PIN}"
+        f"leynos/shared-actions/.github/actions/setup-rust@{SETUP_RUST_PIN}"
     )
     assert setup[0].get("with") == {"install-mold": "true", "rustflags": ""}
     preflight = [step for step in main_steps if step.get("run") == "make check-build-tools"]
