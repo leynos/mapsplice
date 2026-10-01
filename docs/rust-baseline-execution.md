@@ -4,14 +4,37 @@ This record tracks the single delivery branch and its measured state. A passing
 local gate applies only to the commit and live inputs named here; it is not
 final acceptance or evidence of a hosted review.
 
+## Current delivery checkpoint
+
+- Draft PR [#116](https://github.com/leynos/mapsplice/pull/116) targets the
+  discovered default branch `main`, base
+  `2a9c6224422069d1984310ac8016a60fc7b1e874`. The delivery branch is
+  `rust-baseline-hardening-mapsplice`, at
+  `8cefe59bf49a3f697d185f927dabf8c10146caaf`; local and remote heads matched at
+  this checkpoint. The PR remains draft and blocked.
+- The PR body groups the 19 committed delivery changes into an ordered
+  work-batch map. The proposed twentieth commit addresses the hosted Whitaker
+  cold-driver failure described below; its source repair is still pending, so
+  no gates or CI result are attributed to it.
+- Managed CodeRabbit queue `ae3a9049` is pending. No review verdict is
+  available yet. Hosted CI run `36878449649`, job `110423802511`, failed the
+  Whitaker lint step at the current head; the failure and proposed repair are
+  recorded below.
+- Required external blockers are unchanged: the protected `codescene`
+  environment is absent, its one authorized creation attempt returned HTTP 403,
+  and token provisioning/removal and the CodeScene project identity are
+  unverified. The frozen Concordat revision and repository contain no approved
+  `disallowed_methods` environment-access list. Neither blocker has been
+  cleared by this checkpoint.
+
 ## Git boundary and ownership
 
 - Repository: `leynos/mapsplice`; delivery branch:
   `rust-baseline-hardening-mapsplice`.
-- Rebased delivery head: `43b70e80d79c5398c3b8ffa1ccddc8cff9883252`.
+- Current delivery head: `8cefe59bf49a3f697d185f927dabf8c10146caaf`.
   Its verified base is fetched default `main` at
-  `2a9c6224422069d1984310ac8016a60fc7b1e874`. New-head gates have not yet run;
-  all gate results below from earlier heads are historical.
+  `2a9c6224422069d1984310ac8016a60fc7b1e874`. Exact-head local gates have run;
+  their results and the subsequent hosted failure are recorded below.
 - The completed textual `zdiff3` rebase replayed 18 commits from the exclusive
   original boundary `8d8535664655477a0e2f7bef9196cab77abfac19`. The old
   delivery head was `68fb6f0cc3d08c6956c871bb9ce13190e16b87e5`; recovery refs
@@ -34,13 +57,14 @@ final acceptance or evidence of a hosted review.
   coverage generator and mutation reusable pins, and approved Whitaker action
   pin `6dea5677a84fec60ca51b07202570e3af12ffdb4`, while preserving the branch's
   coverage and workflow contracts. The branch's later user-approved Cranelift
-  input removal is also preserved. Coverage workflow and contract edits remain
-  an uncommitted three-file patch: align the generator pin with PR CI, keep the
-  uploader and setup action at `d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79`, and
-  retain the `abf0dcf` Dependabot reusable pin. Validation is pending.
-  `git check-attr` reports `merge: unspecified` for the sampled paths; global
-  Weave was not selected. The conflict used textual `zdiff3`; final
-  action-contract validation remains pending.
+  input removal is also preserved. The coverage workflow and contract
+  reconciliation is committed in the delivery history: PR and publisher use the
+  `abf0dcf` generator while the uploader and setup action remain at
+  `d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79`. Exact-head local and contract
+  evidence is recorded below; CV-005 remains blocked on protected-environment
+  provisioning. `git check-attr` reports `merge: unspecified` for the sampled
+  paths; global Weave was not selected. The conflict used textual `zdiff3`; the
+  exact-head contract result is recorded below.
 - The full 13-commit branch range changes 78 paths, with 3,814 insertions and
   1,407 deletions against the replay boundary. The final Lody archive commit
   `ee8d82b` itself changes 44 paths, with 2,341 insertions and 384 deletions
@@ -106,12 +130,10 @@ policy SHA-256 is
   endpoint, and provide successful GET read-back of the environment and
   policies. No secret value was inspected or moved; secret metadata remains
   unresolved after a separate 403.
-- No remote delivery branch or PR has been established by the supervisor's
-  live check. Publication is authorized by the task, but current-head gates
-  remain pending and the environment and policy blockers below prevent a
-  reviewable complete draft PR. The rebase is complete; the next candidate must
-  include accepted coverage edits and pass the new-head gates before a blocked
-  draft PR is opened.
+- At the earlier pre-publication snapshot, no remote delivery branch or PR had
+  been established. The current draft PR and its blocked state are recorded in
+  the delivery checkpoint above. The protected-environment and policy blockers
+  remain unresolved.
 - The maintainer approved excluding Cranelift from all development defaults
   after the pinned compiler's unwind failure. Revisit the backend on 2027-04-01
   in [issue #115](https://github.com/leynos/mapsplice/issues/115). The issue is
@@ -232,16 +254,16 @@ available as provenance:
 
 ## Open acceptance map
 
-| Requirement    | Observed state                                                                                                                                                                                                                           | Required next evidence                                                                                               |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Build standard | `41f2549` selects LLVM, retains `-Zthreads=8` and the pinned Linux linker, and records the approved Cranelift exception. Pre-rebase gates passed 293/293 tests, 12 doctests, verbose bare Cargo/Make route checks, and the frozen audit. | Reconfirm all requirements on the final combined PR head and CI.                                                     |
-| CV-005         | Publisher/contract working patch aligns the generator pin with PR CI, separates uploader/setup at `d4d248b`, and preserves the `abf0dcf` Dependabot reusable pin; validation is pending.                                                 | Contract/gate audit, protected `codescene` environment read-back, token migration owner evidence, current-head CI.   |
-| Markdown       | Direct tool wiring is present; frozen audit passes at `ee8d82b`.                                                                                                                                                                         | Prove untracked selection, format the ledger, rerun full Markdown gates on integrated head.                          |
-| Whitaker       | Approved merged action `6dea5677a84fec60ca51b07202570e3af12ffdb4`, binding local gate, and frozen audit pass.                                                                                                                            | Observe rolling suite revision, CI installation and gate, final-head audit.                                          |
-| Spelling       | Builder `v0.1.3` and canonical AGENTS block are present; isolated `--scope all` batch passes twice on the same shared base and is integrated as `ecd4b0c`.                                                                               | Compare the canonical block, then rerun spelling and audit on the combined tree.                                     |
-| Source lints   | `e476656` removes the three stderr suppressions; Clippy and Whitaker passed before rebase. The approved environment-method policy is still absent.                                                                                       | Re-run source gates; policy owner supplies the approved method list, then measure and fix any resulting findings.    |
-| Integration    | The 18-commit textual `zdiff3` rebase is complete at `43b70e8` on main `2a9c622`; the three-file coverage patch remains uncommitted.                                                                                                     | Finish and verify the coverage patch, then run sequential gates and frozen audits on the resulting exact tree.       |
-| PR/review      | None established.                                                                                                                                                                                                                        | Open one blocked draft PR after current-head gates; record environment and policy blockers and resolve review items. |
+| Requirement    | Observed state                                                                                                                                                                                                                                | Required next evidence                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Build standard | `41f2549` selects LLVM, retains `-Zthreads=8` and the pinned Linux linker, and records the approved Cranelift exception. The frozen build audit and full local suite pass at PR head `8cefe59`.                                               | Reconfirm on the head containing the pending Whitaker repair and in hosted CI.                                               |
+| CV-005         | At `8cefe59`, the frozen audit and workflow contract retain only the absent protected `codescene` environment finding; the other four audits pass.                                                                                            | Obtain protected environment read-back, token migration owner evidence, and project identity; rerun after any changes.       |
+| Markdown       | Direct tool wiring, `make markdownlint`, and the frozen Markdown audit pass at `8cefe59`.                                                                                                                                                     | Preserve these results for the integrated head; rerun if files or configuration change.                                      |
+| Whitaker       | Approved action `6dea5677a84fec60ca51b07202570e3af12ffdb4` and frozen provisioning audit pass. Local lint passed at `8cefe59`, but hosted run `36878449649` failed on Dylint's cold driver bootstrap after successful installer provisioning. | Integrate the pending Cargo unstable opt-in repair, then rerun the local binding gate, audit, and hosted CI on the new head. |
+| Spelling       | Builder `v0.1.3`, canonical AGENTS block, `make spelling`, and frozen spelling audit pass at `8cefe59`; the audit package does not inspect `--scope all`.                                                                                     | Preserve evidence for the integrated head; rerun if spelling inputs or configuration change.                                 |
+| Source lints   | `e476656` removes the three stderr suppressions; Clippy and local Whitaker passed at `8cefe59`. The approved environment-method policy is still absent.                                                                                       | Policy owner supplies the approved method list, then measure and fix any resulting findings.                                 |
+| Integration    | The 18-commit textual `zdiff3` rebase and subsequent integration commits are present at `8cefe59` on main `2a9c622`; the coverage changes are committed. The 19-commit PR map is published, with the twentieth Whitaker repair pending.       | Integrate the bounded Whitaker routing repair and validate the resulting exact head.                                         |
+| PR/review      | Draft [PR #116](https://github.com/leynos/mapsplice/pull/116) is open. Managed CodeRabbit queue `ae3a9049` is pending; hosted run `36878449649` has a Whitaker cold-driver failure at `8cefe59`.                                              | Address and remeasure the Whitaker failure; resolve required review findings and external blockers before ready or merge.    |
 
 ## Findings map and evidence status
 
@@ -327,6 +349,33 @@ available as provenance:
   zero findings; its receipt is
   `/tmp/mapsplice-llvm-batch-20261001/run3/rust-build-defaults-audit.out`. The
   rule was not changed or weakened.
+- Hosted PR run `36878449649`, job `110423802511`, failed at head `8cefe59` in
+  the Whitaker lint step after cold-cache installation succeeded. The approved
+  shared action pin `6dea5677a84fec60ca51b07202570e3af12ffdb4` installed
+  Whitaker installer `0.2.9`; its check resolved the rolling suite to
+  `a77c4d252fad81c1fe571851cf505b212a0fa636` for `nightly-2026-05-28`. The
+  installer reported `suite-source=prebuilt`, fetched the published suite and
+  Dylint assets, and completed successfully with its no-source-fallback
+  contract intact. The later failure came from Dylint `6.0.1` building its
+  missing per-toolchain driver in a temporary directory: Cargo `1.98.0-nightly`
+  there reported that the `codegen-backend` feature is required to use the
+  inherited LLVM profile override. That directory did not discover the
+  repository's unstable Cargo opt-in. This is Dylint's cold runtime bootstrap,
+  not an installer fallback or a missing published Whitaker suite asset. The
+  local warm-cache `make lint` pass at this head did not exercise that cold
+  driver path. The hosted log is
+  `/tmp/mapsplice-pr116-review-20261001/initial/job-110423802511.log`.
+- A bounded Cargo routing experiment at the same pinned Whitaker nightly
+  reproduced the nested-project failure with
+  `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`,
+  `CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm`, and `RUSTFLAGS=-D warnings`:
+  control without the Cargo opt-in exited 101; treatment with
+  `CARGO_UNSTABLE_CODEGEN_BACKEND=true` exited 0, and verbose output selected
+  LLVM. This proves the narrow Cargo opt-in for a temporary project, not a
+  Dylint build or a green Whitaker rerun. The approved consumer repair is to
+  retain the explicit LLVM profile overrides and add that Whitaker-only opt-in;
+  source implementation and binding-gate revalidation are pending. Logs are
+  under `/tmp/mapsplice-whitaker-codegen-optin-20261001/`.
 - The first explicit `typos-config-builder gate --repository . --scope all`
   measurement found 92 raw occurrences. They cluster around fixed external
   Cargo's terminal-colour setting, the GitHub label event, and the
@@ -367,8 +416,22 @@ available as provenance:
   `e768ba5833df5db16e44c361e19ee724997baab9`. The workflow-contract target was
   not rerun for this source-only batch; its inherited result remains 122 pass,
   one failure for the missing protected `codescene` environment. Run3 logs are
-  under `/tmp/mapsplice-stderr-batch-20261001/run3/`. The spelling replay is
-  integrated spelling change has not passed gates on the combined head.
+  under `/tmp/mapsplice-stderr-batch-20261001/run3/`. At that pre-rebase
+  checkpoint, the spelling replay had not yet passed gates on the combined
+  tree; the integrated spelling gate passed at PR head `8cefe59` in run 2.
+
+### Rebased PR-head local gates
+
+At the rebased delivery head `8cefe59`, sequential run 2 recorded
+`make check-fmt`, `make lint`, `make test`, `make typecheck`, `make spelling`,
+`make markdownlint`, and `make nixie` as passing. Nextest passed 295/295 tests
+with none skipped; docsrs doctests passed 12 with two ignored. Four frozen
+audits for build defaults, Markdown, spelling, and Whitaker provisioning were
+compliant. The fifth audit, CV-005, and `make test-workflow-contracts` still
+failed only on the absent protected `codescene` environment (129 contract cases
+passed, one failed). Logs and receipts are under
+`/tmp/mapsplice-rebased-checkpoint-20261001/run2/`. These local results do not
+supersede the subsequent cold-driver failure in hosted CI recorded above.
 
 ### Historical exact-head baseline gates
 
@@ -439,33 +502,34 @@ Each audit's output and `.meta` receipt are under
 `audit-<rule>-mapsplice-rust-baseline-hardening-mapsplice`. No verdict is
 claimed for later source changes until the audit is rerun at their head.
 
-## Proposed bounded sequence
+## Current next actions
 
-1. Keep the frozen Concordat revision and completed surface inventory fixed;
-   maintain the external environment and method-list blockers explicitly.
-2. Complete the three-file coverage workflow/contract patch and independently
-   validate generator parity, action pins, and writer constraints.
-3. Validate the integrated spelling replay and canonical `AGENTS.md` block
-   against the combined delivery tree.
-4. Resolve the approved environment-method policy gap, then measure and fix
-   any findings it exposes. The protected CodeScene environment and its
-   provisioning evidence remain an independent blocker to the complete one-PR
-   objective.
-5. Run the full local gate set and frozen audits sequentially on the final
-   rebased tree; all earlier gate results are historical. Keep the exact
-   command, configuration, toolchain, and live-input receipts.
-6. Open or update the single blocked draft PR after those gates, then address
-   current-head CI and review findings. Do not mark it ready or merge while
-   required environment or policy prerequisites remain unresolved.
+1. Complete the approved Whitaker-only Cargo opt-in repair as the next commit
+   on the existing PR branch. Keep LLVM profile routing and do not add
+   development `RUSTFLAGS` to the Whitaker toolchain.
+2. Validate the Make-evaluated Whitaker route with the minimal outside-cwd
+   Cargo probe and run the required serial local gates and frozen audits on the
+   resulting head. Then request a fresh hosted run, whose runner can exercise
+   the cold Dylint driver bootstrap without clearing a local cache or building
+   installer components from source. Keep the current hosted failure open until
+   that run passes.
+3. Obtain the protected `codescene` environment, its main-only policy, and the
+   required token/project provisioning evidence from an authorized owner.
+   Obtain the approved `disallowed_methods` policy source and revision from the
+   baseline owner. Keep both blockers visible until independently verified.
+4. Resolve the pending CodeRabbit queue and other current-head review findings.
+   Keep PR #116 draft and unmerged until the complete one-PR acceptance
+   criteria and required external prerequisites are satisfied.
 
 ## Gate and publication ledger
 
-| Head                                                 | Batch                                         | Owner                                                             | Gate evidence                                                                                                                                                                                                                                                                                                                                        | CI/review      | Next action                                                                                |
-| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
-| `ee8d82b`                                            | Existing branch/archive baseline              | Scrutineer                                                        | Historical check-fmt, lint, typecheck, default-scope spelling, Markdown lint, and Nixie passed; contracts 112/113; default test 81 passed, 2 failed, 210 not run.                                                                                                                                                                                    | No delivery PR | Historical Cranelift failure and protected-environment blocker recorded above.             |
-| `ee8d82b`                                            | Explicit LLVM and frozen-policy measurement   | Scrutineer                                                        | Historical LLVM run: 293 ordinary tests, 12 doctests passed and 2 ignored; docsrs passed; four of five audits compliant; full-scope spelling found 92 raw occurrences.                                                                                                                                                                               | No delivery PR | Reconfirm after integrated changes.                                                        |
-| Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                    | Spelling Journeyman; Scrutineer gates                             | `make spelling` twice passed with stable overlay and recorded hashes; targeted negative samples failed as intended; contracts 112 passed/1 inherited CV-005 failure. Patch is integrated as `ecd4b0c`; combined-tree gates and audit remain pending.                                                                                                 | No separate PR | Re-run spelling and workflow contracts on the combined tree.                               |
-| Pre-rebase `faa8c94`                                 | Approved Cranelift exception and LLVM default | Integration Journeyman; contract Artisan, docs Scribe, Scrutineer | Focused contracts 81 passed; 293 ordinary tests and 12 doctests passed/2 ignored; check-fmt, lint, typecheck, Markdown lint, spelling, and Nixie passed; verbose routes prove frontend/linker and no Cranelift; frozen build audit compliant. Workflow contracts 122 pass/1 inherited CV-005 failure. Results are historical after rebase.           | No delivery PR | Reconfirm on final integrated head; preserve admin and policy blockers.                    |
-| Pre-rebase `5513e0c`                                 | Fallible stderr output and lint cleanup       | Integration Journeyman; source Artisan; Scrutineer                | Focused stderr tests 2/2; sequential run3 check-fmt, lint (including Whitaker), full test 295/295 plus 12 doctests/2 ignored, typecheck, spelling, Markdown lint, and Nixie passed. No generated spelling drift. Workflow contracts were not rerun; inherited 122 pass/1 protected-environment failure remains. Results are historical after rebase. | No delivery PR | Re-run all gates on the combined tree.                                                     |
-| Pre-rebase `ce7204a`                                 | Binding docsrs Rustdoc route                  | Integration Journeyman; contract Artisan; docs Scribe             | Focused route contracts 33 passed; check-fmt, lint, test (295/295 plus 12 docsrs doctests), typecheck, spelling, Markdown lint, and Nixie passed. Full workflow contracts retained only the known CV-005 environment failure. These results are historical after rebase.                                                                             | No delivery PR | Re-run route contracts and sequential gates on the combined tree.                          |
-| `43b70e8`                                            | Rebased committed tree                        | Integration Journeyman; rebase owner                              | Rebased from `68fb6f0` onto `2a9c622` by textual `zdiff3`; 18 commits replayed. No post-rebase gates have run. A three-file coverage workflow/contract patch is currently uncommitted and not included in this head.                                                                                                                                 | No delivery PR | Accept and validate coverage patch, then run all final gates/audits on the resulting tree. |
+| Head                                                 | Batch                                         | Owner                                                             | Gate evidence                                                                                                                                                                                                                                                                                                                                                                                        | CI/review                                          | Next action                                                                                                      |
+| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ee8d82b`                                            | Existing branch/archive baseline              | Scrutineer                                                        | Historical check-fmt, lint, typecheck, default-scope spelling, Markdown lint, and Nixie passed; contracts 112/113; default test 81 passed, 2 failed, 210 not run.                                                                                                                                                                                                                                    | No delivery PR                                     | Historical Cranelift failure and protected-environment blocker recorded above.                                   |
+| `ee8d82b`                                            | Explicit LLVM and frozen-policy measurement   | Scrutineer                                                        | Historical LLVM run: 293 ordinary tests, 12 doctests passed and 2 ignored; docsrs passed; four of five audits compliant; full-scope spelling found 92 raw occurrences.                                                                                                                                                                                                                               | No delivery PR                                     | Reconfirm after integrated changes.                                                                              |
+| Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                    | Spelling Journeyman; Scrutineer gates                             | `make spelling` twice passed with stable overlay and recorded hashes; targeted negative samples failed as intended; contracts 112 passed/1 inherited CV-005 failure. Patch is integrated as `ecd4b0c`; combined-tree gates and audit remain pending.                                                                                                                                                 | No separate PR                                     | Re-run spelling and workflow contracts on the combined tree.                                                     |
+| Pre-rebase `faa8c94`                                 | Approved Cranelift exception and LLVM default | Integration Journeyman; contract Artisan, docs Scribe, Scrutineer | Focused contracts 81 passed; 293 ordinary tests and 12 doctests passed/2 ignored; check-fmt, lint, typecheck, Markdown lint, spelling, and Nixie passed; verbose routes prove frontend/linker and no Cranelift; frozen build audit compliant. Workflow contracts 122 pass/1 inherited CV-005 failure. Results are historical after rebase.                                                           | No delivery PR                                     | Reconfirm on final integrated head; preserve admin and policy blockers.                                          |
+| Pre-rebase `5513e0c`                                 | Fallible stderr output and lint cleanup       | Integration Journeyman; source Artisan; Scrutineer                | Focused stderr tests 2/2; sequential run3 check-fmt, lint (including Whitaker), full test 295/295 plus 12 doctests/2 ignored, typecheck, spelling, Markdown lint, and Nixie passed. No generated spelling drift. Workflow contracts were not rerun; inherited 122 pass/1 protected-environment failure remains. Results are historical after rebase.                                                 | No delivery PR                                     | Re-run all gates on the combined tree.                                                                           |
+| Pre-rebase `ce7204a`                                 | Binding docsrs Rustdoc route                  | Integration Journeyman; contract Artisan; docs Scribe             | Focused route contracts 33 passed; check-fmt, lint, test (295/295 plus 12 docsrs doctests), typecheck, spelling, Markdown lint, and Nixie passed. Full workflow contracts retained only the known CV-005 environment failure. These results are historical after rebase.                                                                                                                             | No delivery PR                                     | Re-run route contracts and sequential gates on the combined tree.                                                |
+| `43b70e8`                                            | Rebase checkpoint (superseded)                | Integration Journeyman; rebase owner                              | Rebased from `68fb6f0` onto `2a9c622` by textual `zdiff3`; 18 commits replayed. At that intermediate checkpoint, post-rebase gates had not run and the coverage patch was uncommitted. This row is historical; see `8cefe59` below.                                                                                                                                                                  | Superseded                                         | No action; current delivery state is recorded at `8cefe59`.                                                      |
+| `8cefe59`                                            | Current PR head and local baseline checkpoint | Integration Journeyman; Scrutineer                                | Sequential run 2: check-fmt, lint, test (295/295, none skipped; docsrs doctests 12 passed/2 ignored), typecheck, spelling, Markdown lint, and Nixie passed. Four frozen audits compliant; workflow contracts 129 passed/1 failed on missing protected environment. Hosted run `36878449649`, job `110423802511`, failed Dylint's cold driver bootstrap after installer and prebuilt suite succeeded. | Draft PR #116; CodeRabbit queue `ae3a9049` pending | Integrate the Whitaker-only Cargo opt-in repair, then rerun binding and hosted gates; resolve external blockers. |
