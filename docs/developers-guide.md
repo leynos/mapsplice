@@ -162,15 +162,25 @@ append preservation across generated task-list shapes.
 
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
-[`../.cargo/config.toml`](../.cargo/config.toml). The repository requires
-Cranelift code generation through `codegen-backend = "cranelift"`, the parallel
-rustc frontend, and, on supported Linux targets, `clang` plus pinned `mold`.
-Cargo discovers these defaults from `.cargo/config.toml`; Make restates the
-flags on gate recipes that set `RUSTFLAGS`. Run `make install-build-tools` and
-`make check-build-tools` before development builds. The pinned toolchain
-includes rustfmt, Clippy, rust-analyzer, LLVM tools, and Cranelift. Coverage,
-release, and Whitaker use explicit non-development routes; see
-[the contributing guide](contributing.md) for local setup.
+[`../.cargo/config.toml`](../.cargo/config.toml). The development default uses
+LLVM code generation, the parallel rustc frontend, and, on supported Linux
+targets, `clang` plus pinned `mold`. Cargo discovers these defaults from
+`.cargo/config.toml`; Make restates the flags on gate recipes that set
+`RUSTFLAGS`. Run `make install-build-tools` and `make check-build-tools` before
+development builds. The pinned toolchain includes rustfmt, Clippy,
+rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
+non-development routes; see [the contributing guide](contributing.md) for local
+setup.
+
+### Cranelift exception
+
+Cranelift is excluded from the development default. On the pinned
+`nightly-2026-03-26`, the `catch_unwind` probe failed and a spawned-thread
+panic aborted the test process; the explicit LLVM route passed the full suite
+(293/293). See the
+[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
+Review this exception under
+[issue #115](https://github.com/leynos/mapsplice/issues/115) on 2027-04-01.
 
 Run these gates before committing Rust changes:
 
@@ -258,10 +268,10 @@ backlog.
 This package has no Cargo workspace. If it gains one, put the authoritative
 tables under `[workspace.lints.*]` and make every member inherit them with
 `[lints] workspace = true`. Use the components in
-[`rust-toolchain.toml`](../rust-toolchain.toml), including rustfmt, Clippy, and
-Cranelift; the build and verification routes also require their documented
-tools. Keep environment access at an explicit CLI configuration boundary and
-inject an environment reader into code that needs deterministic testing. The
+[`rust-toolchain.toml`](../rust-toolchain.toml), including rustfmt and Clippy;
+the build and verification routes also require their documented tools. Keep
+environment access at an explicit CLI configuration boundary and inject an
+environment reader into code that needs deterministic testing. The
 `disallowed_methods` lint level is enabled, but an approved method list has not
 yet been selected for this repository; it does not currently enforce the
 environment-access rule.

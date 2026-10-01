@@ -120,8 +120,8 @@ lint-clippy: check-build-tools ## Check Rust documentation and run Clippy
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,$(CLIPPY_FLAGS)))" RUSTFLAGS="$(call gate_rust_flags,$(CLIPPY_FLAGS))" $(CARGO) clippy $(CLIPPY_FLAGS)
 
 # Whitaker uses its installer-managed toolchain. A warnings-only RUSTFLAGS
-# assignment displaces Cargo's development flags; LLVM replaces the dev/test
-# Cranelift profile backend without introducing a suite pin.
+# assignment keeps its route separate from the parallel development frontend
+# and linker; explicit profile overrides also reject inherited backend input.
 lint-whitaker: ## Run the rolling Whitaker suite over every workspace package
 	$(WHITAKER_ENV) $(WHITAKER) --all $(foreach package,$(WHITAKER_PACKAGES),--package $(package)) -- $(CARGO_FLAGS)
 
