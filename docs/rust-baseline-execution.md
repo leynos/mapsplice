@@ -4,6 +4,35 @@ This record tracks the single delivery branch and its measured state. A passing
 local gate applies only to the commit and live inputs named here; it is not
 final acceptance or evidence of a hosted review.
 
+## Rebase checkpoint: 2026-10-02
+
+PR [#116](https://github.com/leynos/mapsplice/pull/116) was rebased from old
+base `2a9c6224422069d1984310ac8016a60fc7b1e874` and old head
+`9885885f4c479aa694bb30e4517e643f26e10b34` onto fetched live `main` at
+`c6ba81beea4c12b59328e728837a6a6424ff69df`. The rebase replayed 20 linear
+commits. Its new head before the pending follow-up is
+`3760cbd8de1e2c0ce21b6ffe49d1d1e9c6aabfbe`; recovery refs use prefix
+`refs/recovery/rust-baseline-hardening-mapsplice/20261002T000000Z`.
+
+The `ci.yml` Setup Rust conflict retains the target's `setup-rust` pin
+`ff1dd759...` and the branch's `install-mold: true`, empty `rustflags`,
+`clang`, and build-tool preflight settings. The action definition at that
+immutable pin supports both inputs. The `Cargo.lock` resolution keeps the
+target's `thiserror` 2.0.21 and the branch's `temp-env`; the target's
+Dependabot workflow remains byte-identical. Git automatically combined the
+mutation reusable workflow's target `ff1dd759...` pin with the branch's setup
+commands.
+
+Two local workflow-contract pin expectation updates remain uncommitted: one for
+the build-standard setup pin and one for the coverage contract's Dependabot
+reusable-workflow pin. Read-only inspection confirmed that the target
+Dependabot workflow blob `931290b9d32e42c6a28ae1b05a4960f3c427bad7` is
+byte-identical to the previously approved `abf` version and contains no
+CodeScene, token, or environment route. Gates for the new head are pending, so
+no result is attributed to it. The protected `codescene` environment remains
+absent and continues to block the required coverage contract and final
+acceptance.
+
 ## Current delivery checkpoint
 
 - Draft PR [#116](https://github.com/leynos/mapsplice/pull/116) targets the
