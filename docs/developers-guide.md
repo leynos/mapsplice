@@ -176,6 +176,17 @@ rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
 non-development routes; see [the contributing guide](contributing.md) for local
 setup.
 
+Whitaker receives explicit LLVM development and test profile overrides without
+the repository's development frontend or linker flags. Keep
+`CARGO_UNSTABLE_CODEGEN_BACKEND=true` on this route: Dylint may build a driver
+from a temporary Cargo project outside the repository, where Cargo cannot
+discover the root `.cargo/config.toml` that enables the unstable profile
+setting. The environment variable opts that nested invocation into the Cargo
+setting; it does not select Cranelift. On a cold runner, Dylint can still build
+its per-toolchain driver as part of that runtime bootstrap. This is separate
+from the installer's prohibited source fallback: Whitaker's suite library and
+Dylint tool archive must come from published assets.
+
 ### Cranelift exception
 
 Cranelift is excluded from the development default. On the pinned
