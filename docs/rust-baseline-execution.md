@@ -278,11 +278,12 @@ original stderr worktree remains available as provenance:
   `print_stderr` suppressions also hide source findings. Keep configuration
   drift, source findings, operational audit errors, and skipped surfaces
   separate.
-- The standalone docsrs probe passed with
+- At the baseline head, the standalone docsrs probe passed with
   `RUSTDOCFLAGS='--cfg docsrs -D warnings'`, but the binding Make lint route
-  currently defaults `RUSTDOC_FLAGS` to `-D warnings` without `--cfg docsrs`.
-  The final lint-enforcement batch must add that flag and verify the evaluated
-  `cargo doc` invocation. A separate passing probe does not prove Make wiring.
+  lacked `--cfg docsrs`. The working candidate at `ce7204a` adds the flag to
+  the workspace/no-deps documentation command and the doctest route. Contract
+  and gate validation are pending; the standalone probe does not prove the Make
+  wiring.
 - At the pre-stderr LLVM head, focused build/Whitaker/component contracts passed
   81/81. The full workflow contract target passed 122 and failed its one
   inherited CV-005 environment assertion. `make lint`, `make typecheck`,
@@ -445,3 +446,4 @@ claimed for later source changes until the audit is rerun at their head.
 | Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                    | Spelling Journeyman; Scrutineer gates                             | `make spelling` twice passed with stable overlay and recorded hashes; targeted negative samples failed as intended; contracts 112 passed/1 inherited CV-005 failure. Delivery replay remains in progress.                                                                                                       | No commit or PR | Finish replay, then run combined-head gates and audit.                         |
 | `faa8c94`                                            | Approved Cranelift exception and LLVM default | Integration Journeyman; contract Artisan, docs Scribe, Scrutineer | Focused contracts 81 passed; 293 ordinary tests and 12 doctests passed/2 ignored; check-fmt, lint, typecheck, Markdown lint, spelling, and Nixie passed; verbose routes prove frontend/linker and no Cranelift; frozen build audit compliant. Workflow contracts 122 pass/1 inherited CV-005 failure.           | No delivery PR  | Reconfirm on final integrated head; preserve admin and policy blockers.        |
 | `5513e0c`                                            | Fallible stderr output and lint cleanup       | Integration Journeyman; source Artisan; Scrutineer                | Focused stderr tests 2/2; sequential run3 check-fmt, lint (including Whitaker), full test 295/295 plus 12 doctests/2 ignored, typecheck, spelling, Markdown lint, and Nixie passed. No generated spelling drift. Workflow contracts were not rerun; inherited 122 pass/1 protected-environment failure remains. | No delivery PR  | Finish spelling replay and run combined-head gates.                            |
+| `ce7204a`                                            | Binding docsrs Rustdoc route                  | Integration Journeyman; contract Artisan; docs Scribe             | Working Make candidate adds `--cfg docsrs -D warnings` to `cargo doc --workspace --no-deps` and doctests. Validation is pending.                                                                                                                                                                                | No delivery PR  | Run route contracts and sequential gates; record exact-head results.           |
