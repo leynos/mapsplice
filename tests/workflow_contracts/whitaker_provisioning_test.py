@@ -118,7 +118,7 @@ def _validate(workflows: dict[str, dict]) -> None:
         assert install.get("continue-on-error") is not True, (
             f"{filename}/{name}: installer may fail softly"
         )
-        assert install.get("with") == {"cranelift": "true"}, (
+        assert install.get("with", {}) == {}, (
             f"{filename}/{name}: unsupported Whitaker inputs"
         )
         lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
@@ -165,6 +165,7 @@ def test_workflow_reader_rejects_duplicate_keys() -> None:
         ("wrong_pin", "require one pinned action"),
         ("suite_pin", "unsupported Whitaker inputs"),
         ("installer_pin", "unsupported Whitaker inputs"),
+        ("cranelift_input", "unsupported Whitaker inputs"),
         ("after_suite", "installed after lint"),
         ("conditional", "installer is conditional"),
         ("soft_install", "installer may fail softly"),
@@ -190,9 +191,11 @@ def test_ci_contract_rejects_regressions(mutation: str, expected: str) -> None:
     elif mutation == "wrong_pin":
         install["uses"] = ACTION.replace("6dea5677", "00000000")
     elif mutation == "suite_pin":
-        install["with"]["suite-version"] = "v1"
+        install.setdefault("with", {})["suite-version"] = "v1"
     elif mutation == "installer_pin":
-        install["with"]["installer-version"] = "0.2.8"
+        install.setdefault("with", {})["installer-version"] = "0.2.8"
+    elif mutation == "cranelift_input":
+        install.setdefault("with", {})["cranelift"] = "true"
     elif mutation == "after_suite":
         steps.insert(lint_index + 1, steps.pop(install_index))
     elif mutation == "conditional":

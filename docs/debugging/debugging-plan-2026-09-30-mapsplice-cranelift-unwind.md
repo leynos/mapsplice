@@ -2,7 +2,8 @@
 
 - **Generated:** 2026-09-30 00:15 Europe/Berlin
 - **Issue ID:** `build_standard_panic` regression probe
-- **Severity:** High — the configured development backend fails two tests
+- **Disposition:** Resolved by an approved LLVM development default; Cranelift
+  remains excluded pending review
 - **Falsification sub-agent:** `alchemist`
 **Planning agent boundary**: This document was prepared by the planning agent.
 Falsification must be executed by the named sub-agent, not by the planning
@@ -10,14 +11,16 @@ agent.
 
 ## Problem Statement
 
-On Linux x86_64, the development test suite configured with Cranelift fails
-`catch_unwind_catches_a_development_panic` and aborts during
-`spawned_thread_panic_does_not_abort_the_process`. The corresponding explicit
-LLVM-profile suite passes all 293 tests, including all three panic probes.
-Determine whether explicitly selecting `panic = "unwind"` for the Cranelift
-test profile makes the focused probes pass. That hypothesis has since been
-falsified; the repository still needs an approved test-routing decision or an
-evidence-backed backend fix before it can meet the development-build baseline.
+At the time of investigation, on Linux x86_64, the development test suite
+configured with Cranelift failed `catch_unwind_catches_a_development_panic` and
+aborts during `spawned_thread_panic_does_not_abort_the_process`. The
+corresponding explicit LLVM-profile suite passes all 293 tests, including all
+three panic probes. The explicit `panic = "unwind"` hypothesis was falsified,
+and a later bare `rustc` comparison isolated the failure to the Cranelift
+backend. The approved route therefore uses LLVM for all development builds and
+tests while retaining the parallel frontend and pinned Linux linker. Reconsider
+Cranelift only after the evidence is reviewed under
+[issue #115](https://github.com/leynos/mapsplice/issues/115) on 2027-04-01.
 
 ## Context Summary
 
@@ -57,11 +60,13 @@ as a fix; it does not establish the upstream cause.
 
 The full pinned-toolchain `make test` run failed the two panic tests, with 212
 tests not run after the abort. The explicit LLVM route previously passed all
-293 tests. The task's request to route tests through LLVM while keeping
-Cranelift as the development build default is still pending user approval; no
-exception has been adopted. The next step is an approved routing decision or
-another evidence-backed backend fix. Do not present a Cranelift exception as
-decided.
+293 tests. The approved routing decision excludes Cranelift from every
+development default, including builds and checks, rather than limiting the
+exception to tests. A bare-compiler experiment further isolates the observed
+failure from Cargo routing and development flags; it does not identify the
+underlying cause. This is a scoped exception to the selected build-default
+rule, pending the review date in issue #115; it is not evidence that Cranelift
+is generally incompatible.
 
 ______________________________________________________________________
 
@@ -108,23 +113,41 @@ ______________________________________________________________________
 ## Recommended Execution Order
 
 1. **H1** — Complete. Explicit rustc unwind did not resolve the Cranelift
-   failures. The next action is an approved test-routing decision or a new,
-   evidence-backed backend investigation.
+   failures. The approved development route uses LLVM pending the review in
+   issue #115.
 
 ## Termination Criteria
 
 - **Probe question resolved**: H1 is falsified by a confirmed Cranelift and
   `panic=unwind` invocation with the same failures. This does not identify the
   underlying compiler/runtime cause or approve an exception.
-- **Next decision**: Obtain approval for an explicit non-development test route
-  or provide evidence for a different backend fix. The routing request remains
-  pending.
+- **Routing decision**: Resolved. LLVM is the development default for build,
+  check, lint, documentation, and test commands. Reconsider Cranelift at the
+  issue review date, or earlier if a new backend fix is demonstrated.
 
 ## Notes for Executing Agent
 
 The focused tests described here have been run. Their evidence is recorded
-below. Do not change the default backend, modify tests, or infer an approved
-exception from the result.
+below. Preserve the approved LLVM default until the issue review; do not infer
+that Cranelift can be re-enabled from a passing test on another target or
+toolchain.
+
+### H2: The panic failures come from Cargo or the development wrappers
+
+**Claim**: Removing Cargo, dependencies, the parallel frontend, and the
+development linker from the experiment makes the unchanged panic-probe source
+pass under Cranelift.
+
+**Result**: Falsified on the pinned `nightly-2026-03-26` compiler. The same
+source compiled and passed under LLVM (compile exit 0, test exit 0); under
+Cranelift it compiled (exit 0) and failed the panic probes (test exit 101).
+This isolates the observed behaviour from Cargo routing and the development
+flags, but does not identify the compiler or runtime cause.
+
+The experiment used bare `rustc` with the original
+`tests/build_standard_panic.rs` source. Logs are
+`/tmp/mapsplice-cranelift-plan-20261001/h2-llvm-run.out` and
+`/tmp/mapsplice-cranelift-plan-20261001/h2-cranelift-run.out`.
 
 ## Latest experiment disposition
 
@@ -152,9 +175,11 @@ with no injected panic-strategy flag. Logs:
 - `/tmp/cranelift-20260913-spawned-panic-mapsplice-20260930T020000Z.out`
 - `/tmp/cranelift-20260913-should-panic-mapsplice-20260930T020000Z.out`
 
-The current pinned full `make test` run failed the same two panic tests; 212 of
-293 tests did not run after the abort. See
+The historical pinned full `make test` run failed the same two panic tests; 212
+of 293 tests did not run after the abort. See
 `/tmp/test-034e7665-13aa-4a68-b7b0-1ce103d5e371-rust-baseline-hardening-mapsplice-20260930T0300.out`.
-The explicit LLVM full suite previously passed 293/293. The test-routing
-exception request remains pending; no exception is approved. Resolve the next
-step through an approved routing decision or a separately evidenced backend fix.
+The explicit LLVM full suite passed 293/293. The current approved route uses
+LLVM for all development gates. Issue #115 names `leynos` as owner in its body
+and schedules review for 2027-04-01; GitHub assignee metadata was unavailable
+to this run. A future change to the route needs fresh evidence and a recorded
+decision.

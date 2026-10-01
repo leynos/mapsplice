@@ -99,6 +99,17 @@ policy SHA-256 is
   live check. Publication is authorized by the task, but the failing required
   gates and unresolved provenance prevent a reviewable draft PR now. History
   rewrite awaits worker reconciliation, recovery refs, and a gated candidate.
+- The maintainer approved excluding Cranelift from all development defaults
+  after the pinned compiler's unwind failure. Revisit the backend on 2027-04-01
+  in [issue #115](https://github.com/leynos/mapsplice/issues/115). The issue is
+  open and names `leynos` as owner in its body. GitHub's assignee mutation
+  returned `Resource not accessible by integration`, so its assignee metadata
+  remains empty; no repeat write was attempted.
+- Cargo's unstable `codegen-backend` feature switch remains enabled for
+  explicit LLVM profile overrides in coverage and Whitaker. The switch alone
+  does not select Cranelift; the development profile no longer names it.
+  Retaining the switch keeps those non-development routes isolated from
+  inherited backend settings. Current-head compiler proof remains pending.
 - Integration owner: this journeyman. Terra High is unavailable in the
   provided model list; review remediation replacement is a `gpt-6-sol`
   journeyman at medium reasoning, to be recorded on dispatch.
@@ -196,16 +207,16 @@ Active isolated work is not part of the delivery branch yet:
 
 ## Open acceptance map
 
-| Requirement    | Observed state                                                                                                               | Required next evidence                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Build standard | Cargo/Make defaults are present; current-head Cranelift failed two unwind probes and the explicit LLVM route passed 293/293. | User decision on scoped test route, then final-head routing and full-suite proof.                                           |
-| CV-005         | Main publisher workflow and PR lane edits in archive.                                                                        | Contract/gate audit, protected `codescene` environment read-back, token migration owner evidence, current-head CI.          |
-| Markdown       | Direct tool wiring is present; frozen audit passes at `ee8d82b`.                                                             | Prove untracked selection, format the ledger, rerun full Markdown gates on integrated head.                                 |
-| Whitaker       | Approved merged action `6dea5677a84fec60ca51b07202570e3af12ffdb4`, binding local gate, and frozen audit pass.                | Observe rolling suite revision, CI installation and gate, final-head audit.                                                 |
-| Spelling       | Builder `v0.1.3` and canonical AGENTS block are present; isolated `--scope all` batch passes twice on the same shared base.  | Integrate reviewed patch, compare block, rerun gate and audit on combined head.                                             |
-| Source lints   | Current-head Clippy and Whitaker pass, but three stderr suppressions and absent environment method policy remain.            | Integrate isolated stderr remedy after gates; policy owner supplies approved method list, then re-measure and fix findings. |
-| Integration    | 13 commits diverged from current main; archive overlaps dirty worker trees.                                                  | Worker hand-offs, semantic overlap audit, accepted commits, safe rebase, final exact-head gates.                            |
-| PR/review      | None established.                                                                                                            | One draft PR after coherent gated branch; Codex, CodeScene, CodeRabbit, CI and pre-merge dispositions.                      |
+| Requirement    | Observed state                                                                                                                                        | Required next evidence                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Build standard | LLVM candidate passed 293/293 tests, 12 doctests, verbose bare Cargo/Make route checks, and the frozen audit with its documented Cranelift exception. | Commit the accepted batch, then reconfirm the final combined PR head and CI.                                                |
+| CV-005         | Main publisher workflow and PR lane edits in archive.                                                                                                 | Contract/gate audit, protected `codescene` environment read-back, token migration owner evidence, current-head CI.          |
+| Markdown       | Direct tool wiring is present; frozen audit passes at `ee8d82b`.                                                                                      | Prove untracked selection, format the ledger, rerun full Markdown gates on integrated head.                                 |
+| Whitaker       | Approved merged action `6dea5677a84fec60ca51b07202570e3af12ffdb4`, binding local gate, and frozen audit pass.                                         | Observe rolling suite revision, CI installation and gate, final-head audit.                                                 |
+| Spelling       | Builder `v0.1.3` and canonical AGENTS block are present; isolated `--scope all` batch passes twice on the same shared base.                           | Integrate reviewed patch, compare block, rerun gate and audit on combined head.                                             |
+| Source lints   | Current-head Clippy and Whitaker pass, but three stderr suppressions and absent environment method policy remain.                                     | Integrate isolated stderr remedy after gates; policy owner supplies approved method list, then re-measure and fix findings. |
+| Integration    | 13 commits diverged from current main; archive overlaps dirty worker trees.                                                                           | Worker hand-offs, semantic overlap audit, accepted commits, safe rebase, final exact-head gates.                            |
+| PR/review      | None established.                                                                                                                                     | One draft PR after coherent gated branch; Codex, CodeScene, CodeRabbit, CI and pre-merge dispositions.                      |
 
 ## Findings map and evidence status
 
@@ -221,9 +232,15 @@ Active isolated work is not part of the delivery branch yet:
   successfully under `rustc 1.96.0-nightly (80d0e4be6)`; the source SHA-256 was
   `9948b1f1fd3deb1c9f3bad63d8b7a6a29dfc6aefc6401e4650d5be945f007a85`. Logs are
   `/tmp/mapsplice-cranelift-plan-20261001/h2-llvm-run.out` and
-  `/tmp/mapsplice-cranelift-plan-20261001/h2-cranelift-run.out`. A scoped
-  development-test route exception is awaiting user approval; no dependent
-  route has been changed.
+  `/tmp/mapsplice-cranelift-plan-20261001/h2-cranelift-run.out`. The maintainer
+  approved excluding Cranelift from all development routes, with a revisit in
+  issue #115 on 2027-04-01. The current batch removes its default and installer
+  requirement. The uncommitted candidate passed all 293 ordinary tests and 12
+  doctests (two ignored) under its default LLVM route; bare Cargo and Make
+  verbose builds showed the parallel frontend and pinned Linux linker without a
+  Cranelift selector. Receipts are under
+  `/tmp/mapsplice-llvm-batch-20261001/run2/`. Revalidate after the commit or
+  any routing change.
 - `git diff --check 58da927..ee8d82b` exits 2 for two intentional CR-only
   fixture files. Audit their authored bytes and test use before any change.
 - The frozen-policy audits at `ee8d82b` report build defaults, Markdown,
@@ -255,6 +272,33 @@ Active isolated work is not part of the delivery branch yet:
   `print_stderr` suppressions also hide source findings. Keep configuration
   drift, source findings, operational audit errors, and skipped surfaces
   separate.
+- The standalone docsrs probe passed with
+  `RUSTDOCFLAGS='--cfg docsrs -D warnings'`, but the binding Make lint route
+  currently defaults `RUSTDOC_FLAGS` to `-D warnings` without `--cfg docsrs`.
+  The final lint-enforcement batch must add that flag and verify the evaluated
+  `cargo doc` invocation. A separate passing probe does not prove Make wiring.
+- At the LLVM candidate, focused build/Whitaker/component contracts passed
+  81/81. The full workflow contract target passed 122 and failed its one
+  inherited CV-005 environment assertion. `make lint`, `make typecheck`,
+  `make check-fmt`, `make markdownlint`, `make spelling`, and `make nixie`
+  passed. Whitaker used suite revision
+  `e768ba5833df5db16e44c361e19ee724997baab9` under `nightly-2026-05-28`;
+  library and driver SHA-256 values were
+  `1258389d774dacc281737e12d2018302cccd10ea918415123725a980b4ff7aac` and
+  `b338910add5934f960307d978e5137321b86361a2c51e39c12aeeb87c772c9e8`. The
+  default-scope spelling run left generated `typos.toml` unchanged at SHA-256
+  `2091fd7d4dc408285458a4153e82ff841350becdd8cb2cf50cef14bde2254676`; the live
+  shared-base content SHA-256 was
+  `d67b4110813615a4eda3e8962e898466191e4af25b2e28baedcbab348696aeac`. These
+  results do not clear the wider spelling scope or CV-005 blocker.
+- The first frozen `rust-build-defaults` audit on this LLVM candidate returned
+  BD-004 noncompliant: the developer guide stated the exception only in prose.
+  The frozen rule requires a `Cranelift`-named heading in that guide and the
+  pinned channel within its section. A bounded guide edit added both. The
+  second audit under the same Concordat `902d034` rule returned compliant with
+  zero findings; its receipt is
+  `/tmp/mapsplice-llvm-batch-20261001/run3/rust-build-defaults-audit.out`. The
+  rule was not changed or weakened.
 - The first explicit `typos-config-builder gate --repository . --scope all`
   measurement found 92 raw occurrences. They cluster around fixed external
   Cargo's terminal-colour setting, the GitHub label event, and the
@@ -365,12 +409,14 @@ claimed for later source changes until the audit is rerun at their head.
 2. Reconcile each dirty worker tree against archive content without modifying
    worker state. Assign one coherent remaining batch per owner; do not absorb
    partial patches merely because the archive contains their files.
-3. Preserve the measured H2 compiler evidence. Await the user's decision on
-   the scoped LLVM full-test route before changing the default test recipe.
+3. Preserve the measured H2 compiler evidence. Apply the approved LLVM
+   default across build, check, lint, documentation, and tests; prove actual
+   compiler invocations and keep issue #115 as the dated follow-up.
 4. Review the isolated stderr and spelling patches. Complete independent
    spelling and Markdown preparation, but do not commit or publish a candidate
    while the required current-head gates fail. Arrange sequential Scrutineer
-   validation after integrating an authorized route and available admin state.
+   validation of the LLVM batch; the protected environment remains an
+   independent blocker to the complete one-PR objective.
 5. Complete onboarding batches in dependency order, with sequential
    Scrutineer gates before each commit.
 6. Establish recovery refs and an explicit semantic conflict plan before a
@@ -380,9 +426,10 @@ claimed for later source changes until the audit is rerun at their head.
 
 ## Gate and publication ledger
 
-| Head                                                 | Batch                                       | Owner                                         | Gate evidence                                                                                                                                                                  | CI/review       | Next action                                                                   |
-| ---------------------------------------------------- | ------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- | ----------------------------------------------------------------------------- |
-| `ee8d82b`                                            | Existing branch/archive baseline            | Scrutineer                                    | check-fmt, lint, typecheck, default-scope spelling, Markdown lint, Nixie pass; contracts 112/113; default test 81 pass, 2 fail, 210 not run                                    | No delivery PR  | Cranelift exception and protected environment decisions pending.              |
-| `ee8d82b`                                            | Explicit LLVM and frozen-policy measurement | Scrutineer                                    | 293 ordinary tests pass, 12 doctests pass and 2 ignored; docsrs pass; four of five audits compliant; full-scope spelling finds 92 raw occurrences                              | No delivery PR  | Integrate reviewed fixes only after required gate path is resolved.           |
-| Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                  | Spelling Journeyman; Scrutineer gates         | `make spelling` twice pass with stable overlay, shared-base and generated hashes recorded above; targeted negative samples fail; contracts 112 pass/1 inherited CV-005 failure | No commit or PR | Integrate after required route/admin blockers and rerun combined-head gates.  |
-| Isolated `rust-baseline-stderr-remedy` at `ee8d82b`  | Remove three stderr lint suppressions       | Artisan; independent static Scrutineer review | Static byte/exit/error review found no defect; unit and repository gates have not run                                                                                          | No commit or PR | Run unit/full gates under approved route, then integrate and remeasure lints. |
+| Head                                                 | Batch                                         | Owner                                                             | Gate evidence                                                                                                                                                                                                                                                                                                          | CI/review       | Next action                                                                          |
+| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
+| `ee8d82b`                                            | Existing branch/archive baseline              | Scrutineer                                                        | check-fmt, lint, typecheck, default-scope spelling, Markdown lint, Nixie pass; contracts 112/113; default test 81 pass, 2 fail, 210 not run                                                                                                                                                                            | No delivery PR  | Cranelift exception and protected environment decisions pending.                     |
+| `ee8d82b`                                            | Explicit LLVM and frozen-policy measurement   | Scrutineer                                                        | 293 ordinary tests pass, 12 doctests pass and 2 ignored; docsrs pass; four of five audits compliant; full-scope spelling finds 92 raw occurrences                                                                                                                                                                      | No delivery PR  | Integrate reviewed fixes only after required gate path is resolved.                  |
+| Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                    | Spelling Journeyman; Scrutineer gates                             | `make spelling` twice pass with stable overlay, shared-base and generated hashes recorded above; targeted negative samples fail; contracts 112 pass/1 inherited CV-005 failure                                                                                                                                         | No commit or PR | Integrate after required route/admin blockers and rerun combined-head gates.         |
+| Isolated `rust-baseline-stderr-remedy` at `ee8d82b`  | Remove three stderr lint suppressions         | Artisan; independent static Scrutineer review                     | Static byte/exit/error review found no defect; unit and repository gates have not run                                                                                                                                                                                                                                  | No commit or PR | Run unit/full gates under approved route, then integrate and remeasure lints.        |
+| `68cc5d5` + LLVM working patch                       | Approved Cranelift exception and LLVM default | Integration Journeyman; contract Artisan, docs Scribe, Scrutineer | Focused contracts 81 pass; default Nextest 293 pass and doctests 12 pass/2 ignored; check-fmt, lint, typecheck, Markdown lint, spelling, Nixie pass; bare Cargo/Make verbose routes prove frontend/linker and no Cranelift; frozen build audit compliant. Full workflow contracts 122 pass/1 inherited CV-005 failure. | No delivery PR  | Commit the bounded batch after doc checks; preserve admin and final policy blockers. |
