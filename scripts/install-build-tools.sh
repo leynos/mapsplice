@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision the pinned nightly and digest-verified Linux mold release.
+# Provision the pinned nightly and digest-verified Linux `mold` release.
 set -euo pipefail
 
 toolchain=$(awk -F '"' '/^[[:space:]]*channel[[:space:]]*=/ { print $2; exit }' rust-toolchain.toml)
