@@ -48,6 +48,8 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install Mermaid validators
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           uv tool install --python "${{ env.NIXIE_PYTHON_VERSION }}" --managed-python "nixie-cli==${{ env.NIXIE_CLI_VERSION }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -121,7 +123,7 @@ jobs:
           # measurement, so it takes neither the parallel frontend nor the mold linker.
           # Assigning RUSTFLAGS displaces every `rustflags` table in .cargo/config.toml.
           RUSTFLAGS: -D warnings
-        uses: leynos/shared-actions/.github/actions/generate-coverage@4fb8eb7ad52454678a0662865d81d3cd17aa6e0e
+        uses: leynos/shared-actions/.github/actions/generate-coverage@abf0dcf2686de1eaf79b6dc9a16662b631bed149
         with:
           output-path: lcov.info
           format: lcov
