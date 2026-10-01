@@ -233,8 +233,9 @@ def test_nextest_and_doctest_record_distinct_development_routes(tmp_path: Path) 
     uses_pinned_linker = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
     assert_development_route(route_for(invocations, ("nextest", "run")), uses_pinned_linker=uses_pinned_linker)
     doctest = route_for(invocations, ("test", "--doc"))
+    assert doctest.arguments == ("test", "--doc", "--workspace", "--all-features")
     assert_development_route(doctest, uses_pinned_linker=uses_pinned_linker)
-    assert doctest.rustdoc_flags == ("-D", "warnings")
+    assert doctest.rustdoc_flags == ("--cfg", "docsrs", "-D", "warnings")
 
 
 def test_rustdoc_and_clippy_record_distinct_development_routes(tmp_path: Path) -> None:
@@ -242,8 +243,9 @@ def test_rustdoc_and_clippy_record_distinct_development_routes(tmp_path: Path) -
     invocations = execute_make_route(tmp_path, "lint-clippy")
     uses_pinned_linker = platform.system() == "Linux" and platform.machine() in {"x86_64", "aarch64"}
     documentation = route_for(invocations, ("doc",))
+    assert documentation.arguments == ("doc", "--workspace", "--no-deps")
     assert_development_route(documentation, uses_pinned_linker=uses_pinned_linker)
-    assert documentation.rustdoc_flags == ("-D", "warnings")
+    assert documentation.rustdoc_flags == ("--cfg", "docsrs", "-D", "warnings")
     assert_development_route(route_for(invocations, ("clippy",)), uses_pinned_linker=uses_pinned_linker)
 
 

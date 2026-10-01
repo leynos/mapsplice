@@ -45,7 +45,7 @@ encode_rust_flags = $(subst $(space),$(unit_separator),$(strip $(1)))
 filter_encoded_rust_flags = $$(bash -c 'set -euo pipefail; encoded=$${CARGO_ENCODED_RUSTFLAGS-}; separator=$$(printf "\\037"); arguments=(); if [[ -n $$encoded ]]; then IFS=$$separator read -r -a arguments <<< "$$encoded"; fi; pending=; kept=(); for current in "$${arguments[@]}"; do if [[ -n $$pending ]]; then case "$$pending:$$current" in -Z:threads=8|-Z:codegen-backend=cranelift|-C:link-arg=-fuse-ld=mold) pending=; continue;; *) kept+=("$$pending"); pending=;; esac; fi; case $$current in -Z|-C) pending=$$current;; -Zthreads=8|-Zcodegen-backend=cranelift|-Clink-arg=-fuse-ld=mold) ;; *) kept+=("$$current");; esac; done; if [[ -n $$pending ]]; then kept+=("$$pending"); fi; (IFS=$$separator; printf "%s" "$${kept[*]}")')
 append_filtered_encoded_rust_flags = $$(filtered=$(call filter_encoded_rust_flags); if [ -n "$$filtered" ]; then printf '%s$(unit_separator)%s' "$$filtered" "$(call encode_rust_flags,$(1))"; else printf '%s' "$(call encode_rust_flags,$(1))"; fi)
 RUSTDOC_FLAGS ?=
-RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
+override RUSTDOC_FLAGS := --cfg docsrs -D warnings $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --workspace --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
@@ -116,7 +116,7 @@ target/release/$(TARGET): ## Build the production binary with LLVM
 lint: lint-clippy lint-whitaker ## Run Clippy, then the Whitaker Dylint suite
 
 lint-clippy: check-build-tools ## Check Rust documentation and run Clippy
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,$(CLIPPY_FLAGS)))" RUSTFLAGS="$(call gate_rust_flags,$(CLIPPY_FLAGS))" $(CARGO) clippy $(CLIPPY_FLAGS)
 
 # Whitaker uses its installer-managed toolchain. A warnings-only RUSTFLAGS

@@ -333,3 +333,9 @@ environment reader into code that needs deterministic testing. The
 `disallowed_methods` lint level is enabled, but an approved method list has not
 yet been selected for this repository; it does not currently enforce the
 environment-access rule.
+
+The binding `make lint` documentation check runs
+`cargo doc --workspace --no-deps` with
+`RUSTDOCFLAGS='--cfg docsrs -D warnings'`. The doctest route uses the same
+Rustdoc flags. This enables docs.rs-only documentation paths in both checks
+while denying Rustdoc warnings.
