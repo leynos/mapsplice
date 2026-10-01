@@ -85,20 +85,20 @@ fn standard_insertions_preserve_target_source(
 fn insert_task_preserves_indented_code_markers(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_output_case(
-            "insert_task_preserves_indented_code_markers",
-            GoldenCommand::InsertAfter { anchor: "1.1.2" },
-            true,
-            SuccessOutput::StdoutPreservedSource {
-                expected: golden_fixture(
-                    "insert_task_preserves_indented_code_markers",
-                    "expected.md",
-                ),
-            },
-        ),
-    )
+    let mut case = golden_success_output_case(
+        "insert_task_preserves_indented_code_markers",
+        GoldenCommand::InsertAfter { anchor: "1.1.2" },
+        true,
+        SuccessOutput::StdoutPreservedSource {
+            expected: golden_fixture(
+                "insert_task_preserves_indented_code_markers",
+                "expected.txt",
+            ),
+        },
+    );
+    case.target = golden_fixture("insert_task_preserves_indented_code_markers", "target.txt");
+
+    assert_golden_case(&workspace?, case)
 }
 
 #[rstest]

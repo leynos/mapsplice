@@ -182,7 +182,7 @@ const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[
     "tests/fixtures/golden/nested_bullets/target.md",
     "tests/fixtures/golden/c4_addendum_render_fidelity/target.md",
     "tests/fixtures/golden/literal_backslash_escape/target.md",
-    "tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md",
+    "tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.txt",
     "tests/fixtures/reference_rewrite/multi_id_requires.input.md",
     "tests/fixtures/reference_rewrite/section_reference.input.md",
     "tests/fixtures/reference_rewrite/substring_non_match.input.md",
@@ -197,7 +197,7 @@ fn conformant_round_trip_fixture_paths() -> Result<Vec<Utf8PathBuf>, String> {
     collect_named_fixture_paths(
         &repository,
         Utf8Path::new("tests/fixtures/golden"),
-        &["expected.md", "target.md"],
+        &["expected.md", "target.md", "expected.txt", "target.txt"],
         &mut fixture_paths,
     )?;
     collect_suffixed_fixture_paths(

@@ -15,8 +15,9 @@ On Linux x86_64, the development test suite configured with Cranelift fails
 `spawned_thread_panic_does_not_abort_the_process`. The corresponding explicit
 LLVM-profile suite passes all 293 tests, including all three panic probes.
 Determine whether explicitly selecting `panic = "unwind"` for the Cranelift
-test profile makes the focused probes pass before deciding how the repository
-can meet the development-build baseline.
+test profile makes the focused probes pass. That hypothesis has since been
+falsified; the repository still needs an approved test-routing decision or an
+evidence-backed backend fix before it can meet the development-build baseline.
 
 ## Context Summary
 
@@ -40,23 +41,27 @@ The second occurrence terminates with `SIGABRT`. The standalone
 suite passes all 293 tests. The repository pins `nightly-2026-03-26`; the
 measured compiler is `rustc 1.96.0-nightly (80d0e4be6 2026-03-25)`.
 
-### Information Gaps
+### Evidence and Remaining Questions
 
 The full Cranelift component provenance is not recorded in the Rust toolchain
-manifest. Current upstream documentation says panic unwinding is unsupported or
-experimental, but it does not establish the behaviour of the component
-installed for this pinned nightly. The first focused attempt set
-`CARGO_PROFILE_TEST_PANIC=unwind`; Cargo warned that the panic setting is
-ignored for the test profile and reused a cached executable. That result was
-inconclusive because rustc did not receive the requested strategy. Two later
-attempts confirmed both Cranelift and `-C panic=unwind` reached rustc, but the
-compiler could not create a helper thread before the test target recompiled.
-The first resource snapshot showed 512 tasks against a limit of 574. A later
-read-only host inspection showed 9,151 Linux threads and 8,133 tasks in
-`lody-daemon.service` against `pids.max=8192`; a subsequent read showed about
-7,990 tasks. The current process listing is about 8,984 threads. These are
-different snapshots and scopes; the small latest decrease is not enough to
-justify another compile attempt. No process was stopped.
+manifest. A focused candidate using the installed `nightly-2026-09-13`
+component falsified the version-fix hypothesis: both
+`catch_unwind_catches_a_development_panic` and
+`spawned_thread_panic_does_not_abort_the_process` fail or abort there, while
+`should_panic_tests_keep_their_expected_result` passes. A sequential comparison
+of those same isolated tests on the pinned `nightly-2026-03-26` and installed
+`nightly-2026-09-13` found the same outcomes on both toolchains. Verbose rustc
+logs confirm Cranelift was active and no explicit panic-strategy flag was
+injected in this comparison. This rules out the tested toolchain-version change
+as a fix; it does not establish the upstream cause.
+
+The full pinned-toolchain `make test` run failed the two panic tests, with 212
+tests not run after the abort. The explicit LLVM route previously passed all
+293 tests. The task's request to route tests through LLVM while keeping
+Cranelift as the development build default is still pending user approval; no
+exception has been adopted. The next step is an approved routing decision or
+another evidence-backed backend fix. Do not present a Cranelift exception as
+decided.
 
 ______________________________________________________________________
 
@@ -64,24 +69,24 @@ ______________________________________________________________________
 
 ### H1: Passing unwind directly to rustc resolves the Cranelift failures
 
-**Claim**: The failing Cranelift tests can unwind if rustc receives
-`-C panic=unwind`; forcing that compiler flag on the focused test target will
-make the `catch_unwind`, joined-thread panic, and `#[should_panic]` probes pass.
+**Claim**: Explicitly passing `-C panic=unwind` to rustc makes the failing
+Cranelift panic probes pass.
 
-**Plausibility**: Low — upstream Cranelift documentation currently lists panic
-unwinding as unsupported or experimental, but the exact installed component is
-unverified and Cargo's test-profile environment override was ignored.
+**Plausibility**: Falsified for the tested Cranelift component and target.
+Upstream support status and the underlying runtime/compiler cause remain
+unverified.
 
-**Prediction**: If this hypothesis holds, the focused target will pass all
-three tests when Make passes `-C panic=unwind` through `RUST_FLAGS`, while
-retaining the repository's Cranelift backend and development flags.
+**Prediction**: If this hypothesis held, the focused target would pass all
+three tests when Make passed `-C panic=unwind` through `RUST_FLAGS`, while
+retaining the repository's Cranelift backend and development flags. The retry
+did not pass the two affected tests, so this prediction was not met.
 
-#### H1 Falsification Plan
+#### H1 Falsification Test
 
-| Step | Action                                                                                                                                                                                                  | Expected Negative Result                                                                                                                                            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Run only `build_standard_panic` through `make test` with `RUST_FLAGS='-D warnings -C panic=unwind'`, `CARGO_PROFILE_TEST_CODEGEN_BACKEND=cranelift`, verbose Cargo output, and one test-harness thread. | Rustc receives both `-Zcodegen-backend=cranelift` and `-C panic=unwind`, yet `catch_unwind` still fails or the joined-thread panic still aborts. This falsifies H1. |
-| 2    | If rustc does not receive both settings or the target is reused without recompilation, report the experiment as inconclusive. Do not alter repository configuration or run the full suite.              | Missing effective settings cannot discriminate H1.                                                                                                                  |
+| Step | Action                                                                                                                                                                                                  | Result                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Run only `build_standard_panic` through `make test` with `RUST_FLAGS='-D warnings -C panic=unwind'`, `CARGO_PROFILE_TEST_CODEGEN_BACKEND=cranelift`, verbose Cargo output, and one test-harness thread. | An initial retry reached rustc with both settings but failed to create a helper thread before compiling the target; it was inconclusive. |
+| 2    | Retry with `CARGO_BUILD_JOBS=1`, after resource pressure eased, and capture the rustc invocation and test result.                                                                                       | Rustc received Cranelift and `-C panic=unwind`; the panic failures remained. H1 was falsified.                                           |
 
 **Tooling**: Run
 `make test DOC_TEST_TARGETS=false
@@ -93,48 +98,63 @@ limit while retaining the compiler's configured frontend flags. Capture the
 exact rustc invocation and test result. The alchemist may run only this focused
 experiment.
 
-**Confidence on falsification**: High if rustc receives `-C panic=unwind` and
-`-Zcodegen-backend=cranelift` and the same panic failures remain. A successful
-focused run supports H1 but still requires the full suite and backend evidence.
+**Confidence on falsification**: High. The retry recompiled the target with
+`-C panic=unwind` and `-Zcodegen-backend=cranelift`; the catch-unwind test
+still failed and the spawned-thread panic still aborted. A separate sequential
+comparison also reproduced the two failures on both tested nightly toolchains.
 
 ______________________________________________________________________
 
 ## Recommended Execution Order
 
-1. **H1** — This single focused run tests explicit rustc unwind support without
-   repeating the full workspace suite.
+1. **H1** — Complete. Explicit rustc unwind did not resolve the Cranelift
+   failures. The next action is an approved test-routing decision or a new,
+   evidence-backed backend investigation.
 
 ## Termination Criteria
 
-- **Root cause identified**: H1 is falsified by a confirmed Cranelift and
-  `panic=unwind` invocation with the same failures, or supported by all three
-  focused tests passing under those explicit settings.
-- **Escalation trigger**: The setting is not observable in rustc output, the
-  focused target fails to compile for an unrelated reason, or results differ
-  from the two full-suite observations.
+- **Probe question resolved**: H1 is falsified by a confirmed Cranelift and
+  `panic=unwind` invocation with the same failures. This does not identify the
+  underlying compiler/runtime cause or approve an exception.
+- **Next decision**: Obtain approval for an explicit non-development test route
+  or provide evidence for a different backend fix. The routing request remains
+  pending.
 
 ## Notes for Executing Agent
 
-Use the current delivery worktree and shared Cargo cache. No repository gate
-may run concurrently with this experiment. Do not edit files, change the
-default backend, modify tests, or infer an approved exception from the result.
-Return the command, exact rustc panic setting, three test results, and log path.
+The focused tests described here have been run. Their evidence is recorded
+below. Do not change the default backend, modify tests, or infer an approved
+exception from the result.
 
 ## Latest experiment disposition
 
 The initial `CARGO_PROFILE_TEST_PANIC=unwind` run was inconclusive because
 Cargo ignored the setting for the test profile and reused a cached executable.
-The explicit `-C panic=unwind` retry and its `CARGO_BUILD_JOBS=1` retry both
-reached rustc with Cranelift selected, but Cranelift failed to create a helper
-thread while compiling a dependency. Neither run reached the panic target, so
-H1 remains inconclusive. Logs:
+The first explicit `-C panic=unwind` attempt also failed before compiling the
+target because the compiler could not create a helper thread. The later
+`CARGO_BUILD_JOBS=1` retry recompiled the target and falsified H1: catch-unwind
+still failed, `#[should_panic]` passed, and the spawned-thread panic aborted.
+Log:
 
 - `/tmp/cranelift-unwind-mapsplice-rust-baseline-hardening-20260930T001500Z.out`
 - `/tmp/cranelift-explicit-unwind-mapsplice-rust-baseline-hardening-20260930T002800Z.out`
 - `/tmp/cranelift-explicit-unwind-jobs1-mapsplice-rust-baseline-hardening-20260930T004500Z.out`
 
-The full suite evidence remains 291/293 under the development Cranelift route
-and 293/293 under the explicit LLVM route. Do not infer a Cranelift exception
-from these results; the user's approved resolution is still required. Wait for
-a material reduction in shared thread pressure before requesting another
-minimal alchemist experiment.
+The `nightly-2026-03-26` versus `nightly-2026-09-13` sequential comparison
+produced matching results: catch-unwind failed, spawned-thread panic aborted,
+and `#[should_panic]` passed on both. Verbose rustc output confirmed Cranelift
+with no injected panic-strategy flag. Logs:
+
+- `/tmp/cranelift-20260326-catch-unwind-mapsplice-20260930T020000Z.out`
+- `/tmp/cranelift-20260326-spawned-panic-mapsplice-20260930T020000Z.out`
+- `/tmp/cranelift-20260326-should-panic-mapsplice-20260930T020000Z.out`
+- `/tmp/cranelift-20260913-catch-unwind-mapsplice-20260930T020000Z.out`
+- `/tmp/cranelift-20260913-spawned-panic-mapsplice-20260930T020000Z.out`
+- `/tmp/cranelift-20260913-should-panic-mapsplice-20260930T020000Z.out`
+
+The current pinned full `make test` run failed the same two panic tests; 212 of
+293 tests did not run after the abort. See
+`/tmp/test-034e7665-13aa-4a68-b7b0-1ce103d5e371-rust-baseline-hardening-mapsplice-20260930T0300.out`.
+The explicit LLVM full suite previously passed 293/293. The test-routing
+exception request remains pending; no exception is approved. Resolve the next
+step through an approved routing decision or a separately evidenced backend fix.

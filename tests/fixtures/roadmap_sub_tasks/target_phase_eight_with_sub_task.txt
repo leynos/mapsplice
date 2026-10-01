@@ -1,0 +1,56 @@
+# Example
+
+## 1. Phase one
+
+### 1.1. Step one
+
+- [ ] 1.1.1. First phase task.
+
+## 2. Phase two
+
+### 2.1. Step two
+
+- [ ] 2.1.1. Second phase task.
+
+## 3. Phase three
+
+### 3.1. Step three
+
+- [ ] 3.1.1. Third phase task.
+
+## 4. Phase four
+
+### 4.1. Step four
+
+- [ ] 4.1.1. Fourth phase task.
+
+## 5. Phase five
+
+### 5.1. Step five
+
+- [ ] 5.1.1. Fifth phase task.
+
+## 6. Phase six
+
+### 6.1. Step six
+
+- [ ] 6.1.1. Sixth phase task.
+
+## 7. Phase seven
+
+### 7.1. Step seven
+
+- [ ] 7.1.1. Seventh phase task.
+
+## 8. Phase eight
+
+### 8.1. Step eight one
+
+- [ ] 8.1.1. Earlier phase eight task.
+
+### 8.2. Step eight two
+
+- [ ] 8.2.1. First task.
+- [ ] 8.2.2. Second task.
+- [ ] 8.2.3. Parent task. Requires 8.2.3.1.
+  - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.

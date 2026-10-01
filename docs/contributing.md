@@ -10,22 +10,26 @@ For architecture, public API, observability, and verification guidance, see the
 ## Local build prerequisites
 
 The repository uses the pinned nightly toolchain in
-[`rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
-[`.cargo/config.toml`](../.cargo/config.toml). Local builds must use the
-Cranelift code generation backend through `codegen-backend = "cranelift"` and
-the configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold`.
+[`rust-toolchain.toml`](../rust-toolchain.toml) and the auto-discovered
+[`.cargo/config.toml`](../.cargo/config.toml). Bare Cargo development commands
+use Cranelift, the parallel compiler frontend (`-Zthreads=8`), and, on
+supported Linux targets, `clang` with the pinned `mold` linker. Standard Make
+build, test, lint, and typecheck routes use the same development flags even
+where their recipes assign `RUSTFLAGS` to deny warnings.
 
-Provision a matching local environment with:
+Provision the matching local toolchain and pinned linker with:
 
 ```bash
-rustup toolchain install nightly-2026-03-26 \
-  --component rustfmt \
-  --component clippy \
-  --component rustc-codegen-cranelift-preview
+make install-build-tools
+make check-build-tools
 ```
 
-The checked-in `rust-toolchain.toml` selects this toolchain for commands run in
-the repository.
+The checked-in toolchain file selects the nightly, rustfmt, Clippy,
+rust-analyzer, LLVM tools, and the Cranelift component. The install target
+verifies the published `mold` binary by SHA-256 on supported Linux
+architectures. Put `$HOME/.local/bin` on `PATH` to use it locally. The check
+target fails with an installation hint if a required component or tool is
+missing.
 
 Install `clang` when it is not already present:
 
@@ -34,17 +38,12 @@ sudo apt install clang
 brew install llvm
 ```
 
-Install `mold` through the system package manager or from the published binary
-releases at <https://github.com/rui314/mold/releases>:
-
-```bash
-sudo apt install mold
-brew install mold
-```
-
-The `.cargo/config.toml` file enables the required unstable Cargo and Rust
-compiler features for this repository. Do not override those settings during
-normal development; they keep local builds aligned with CI.
+Coverage sets LLVM profiles and an explicit warnings-only `RUSTFLAGS` value;
+release builds and the Whitaker driver also exclude the development flags.
+Installed development tools are therefore not active on every route. The
+mutation workflow installs the same pinned linker before its test-bearing
+builds. The `.cargo/config.toml` file is the default for ordinary development;
+avoid overriding it without checking the route you intend to run.
 
 ## Development gates
 
@@ -58,14 +57,16 @@ make typecheck
 make test
 make fmt
 make markdownlint
+make spelling
 make nixie
 ```
 
 `make check-fmt`, `make lint`, `make typecheck`, and `make test` are required
-for Rust changes. `make fmt`, `make markdownlint`, and `make nixie` are
-required for Markdown changes, especially documents with Mermaid diagrams.
-`make nixie` uses the CI-installed `merman-cli` renderer, validates tracked
-Markdown files one at a time, and defaults `NIXIE_MAX_CONCURRENCY=1` plus
-`NIXIE_RENDERER_THREADS=1` for deterministic serial validation. Override
-`NIXIE_MAX_CONCURRENCY` only when comparing local renderer concurrency; the
-default command remains the required gate.
+for Rust changes. `make fmt` formats Markdown; `make markdownlint`,
+`make spelling`, and `make nixie` are distinct required checks for Markdown
+changes, especially documents with Mermaid diagrams. `make nixie` uses the
+CI-installed `merman-cli` renderer, validates tracked Markdown files one at a
+time, and defaults `NIXIE_MAX_CONCURRENCY=1` plus `NIXIE_RENDERER_THREADS=1`
+for deterministic serial validation. Override `NIXIE_MAX_CONCURRENCY` only when
+comparing local renderer concurrency; the default command remains the required
+gate.
