@@ -23,14 +23,16 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@774cc5a01e457714aede66e14a97b3e257812fc2
-      - name: Install mold linker
+        uses: leynos/shared-actions/.github/actions/setup-rust@8a83824b29dfe8f861714b544dc85fb925ed010c
+        with:
+          install-mold: 'true'
+      - name: Install clang and lld
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang mold
+            && sudo apt-get install --yes --no-install-recommends clang
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
@@ -116,6 +118,11 @@ jobs:
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
+        env:
+          # One of the two exclusions from the build standard: a coverage build is a
+          # measurement, so it takes neither the parallel frontend nor the mold linker.
+          # Assigning RUSTFLAGS displaces every `rustflags` table in .cargo/config.toml.
+          RUSTFLAGS: -D warnings
         uses: leynos/shared-actions/.github/actions/generate-coverage@abf0dcf2686de1eaf79b6dc9a16662b631bed149
         with:
           output-path: lcov.info

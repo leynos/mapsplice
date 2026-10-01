@@ -16,6 +16,7 @@ accepted = []
 # the form it appears in rather than accepted as a word.
 # `mold` and -fuse-ld=mold: the linker's name, in backticks or in the
 # link-arg that selects it; the common noun stays a spelling error.
+# `install-mold`: the setup-rust input that installs the linker.
 # `color`: the documentation style guide's own example of a US spelling kept
 # inside an API name.
 # flavor = "current_thread": the tokio::test attribute argument, quoted from
@@ -26,6 +27,7 @@ accepted = []
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
+    "`install-mold`",
     "`color`",
     "flavor = \"current_thread\"",
     "`artifact\\.kind = \"[a-z_]+\"`",
