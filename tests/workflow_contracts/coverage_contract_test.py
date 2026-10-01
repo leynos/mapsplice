@@ -135,7 +135,7 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
             "name: Second\non:\n  push:\n    branches: [main]\n"
             "jobs:\n  write:\n    runs-on: ubuntu-latest\n"
             "    steps:\n      - uses: leynos/shared-actions/.github/actions/generate-coverage@"
-            "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79\n"
+            "abf0dcf2686de1eaf79b6dc9a16662b631bed149\n"
             "        with: {with-ratchet: 'true'}\n"
         )
     elif mutation == "remove_environment":
