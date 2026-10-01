@@ -64,9 +64,11 @@ ______________________________________________________________________
 
 Local builds use the pinned nightly toolchain in
 [`rust-toolchain.toml`](rust-toolchain.toml) and the build configuration in
-[`.cargo/config.toml`](.cargo/config.toml). The repository requires
-`codegen-backend = "cranelift"` plus the configured Rust flags, including
-`-Zthreads=8` and `link-arg=-fuse-ld=mold`, during builds.
+[`.cargo/config.toml`](.cargo/config.toml). Development builds use LLVM with
+the configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold`
+on supported Linux targets. Cranelift is excluded from the development default
+because the pinned backend fails panic-unwinding probes; see
+[issue #115](https://github.com/leynos/mapsplice/issues/115).
 
 Provision the core local tooling with:
 
@@ -74,7 +76,8 @@ Provision the core local tooling with:
 rustup toolchain install nightly-2026-03-26 \
   --component rustfmt \
   --component clippy \
-  --component rustc-codegen-cranelift-preview
+  --component rust-analyzer \
+  --component llvm-tools-preview
 ```
 
 The checked-in `rust-toolchain.toml` selects this toolchain for commands run in

@@ -12,10 +12,10 @@ For architecture, public API, observability, and verification guidance, see the
 The repository uses the pinned nightly toolchain in
 [`rust-toolchain.toml`](../rust-toolchain.toml) and the auto-discovered
 [`.cargo/config.toml`](../.cargo/config.toml). Bare Cargo development commands
-use Cranelift, the parallel compiler frontend (`-Zthreads=8`), and, on
-supported Linux targets, `clang` with the pinned `mold` linker. Standard Make
-build, test, lint, and typecheck routes use the same development flags even
-where their recipes assign `RUSTFLAGS` to deny warnings.
+use LLVM, the parallel compiler frontend (`-Zthreads=8`), and, on supported
+Linux targets, `clang` with the pinned `mold` linker. Standard Make build,
+test, lint, and typecheck routes use the same development flags even where
+their recipes assign `RUSTFLAGS` to deny warnings.
 
 Provision the matching local toolchain and pinned linker with:
 
@@ -25,11 +25,14 @@ make check-build-tools
 ```
 
 The checked-in toolchain file selects the nightly, rustfmt, Clippy,
-rust-analyzer, LLVM tools, and the Cranelift component. The install target
-verifies the published `mold` binary by SHA-256 on supported Linux
-architectures. Put `$HOME/.local/bin` on `PATH` to use it locally. The check
-target fails with an installation hint if a required component or tool is
-missing.
+rust-analyzer, and LLVM tools. Cranelift is excluded from the development
+default because the pinned backend fails the panic-unwinding probes; see
+[the investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
+and [issue #115](https://github.com/leynos/mapsplice/issues/115), scheduled
+for review on 2027-04-01. The install target verifies the published `mold`
+binary by SHA-256 on supported Linux architectures. Put `$HOME/.local/bin` on
+`PATH` to use it locally. The check target fails with an installation hint if a
+required component or tool is missing.
 
 Install `clang` when it is not already present:
 
@@ -38,12 +41,12 @@ sudo apt install clang
 brew install llvm
 ```
 
-Coverage sets LLVM profiles and an explicit warnings-only `RUSTFLAGS` value;
-release builds and the Whitaker driver also exclude the development flags.
-Installed development tools are therefore not active on every route. The
-mutation workflow installs the same pinned linker before its test-bearing
-builds. The `.cargo/config.toml` file is the default for ordinary development;
-avoid overriding it without checking the route you intend to run.
+Coverage sets LLVM profiles and explicit instrumentation flags; release builds
+and the Whitaker driver also exclude the development flags. Installed
+development tools are therefore not active on every route. The mutation
+workflow installs the same pinned linker before its test-bearing builds. The
+`.cargo/config.toml` file is the default for ordinary development; avoid
+overriding it without checking the route you intend to run.
 
 ## Development gates
 

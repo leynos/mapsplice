@@ -10,7 +10,7 @@ fail() {
 command -v rustc >/dev/null 2>&1 || fail 'rustc'
 command -v rustup >/dev/null 2>&1 || fail 'rustup'
 components=$(rustup component list --installed) || fail 'pinned Rust toolchain'
-for component in rustfmt clippy rust-analyzer llvm-tools rustc-codegen-cranelift; do
+for component in rustfmt clippy rust-analyzer llvm-tools; do
   if ! grep -q "^${component}-" <<<"$components"; then
     fail "$component for the selected nightly"
   fi

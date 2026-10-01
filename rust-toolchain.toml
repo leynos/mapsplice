@@ -5,5 +5,4 @@ components = [
   "clippy",
   "rust-analyzer",
   "llvm-tools-preview",
-  "rustc-codegen-cranelift-preview",
 ]

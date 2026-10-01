@@ -91,8 +91,6 @@ jobs:
           markdownlint-cli2 --version
       - name: Install Whitaker
         uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
-        with:
-          cranelift: 'true'
       - name: Lint
         run: make lint
       - name: Setup uv

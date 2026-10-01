@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 ACTION = (
     "leynos/shared-actions/.github/actions/install-whitaker"
-    "@6dea5677a84fec60ca51b07202570e3af12ffdb4"
+    "@2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
 )
 MAKE_CALL = re.compile(r"(?<![\w-])make\s+(?:--[\w-]+\s+)*([a-z][\w-]*)")
 DIRECT_GATE = re.compile(r"(?<![\w-])whitaker\s+--all\b")
@@ -118,7 +118,7 @@ def _validate(workflows: dict[str, dict]) -> None:
         assert install.get("continue-on-error") is not True, (
             f"{filename}/{name}: installer may fail softly"
         )
-        assert install.get("with") == {"cranelift": "true"}, (
+        assert install.get("with", {}) == {}, (
             f"{filename}/{name}: unsupported Whitaker inputs"
         )
         lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
@@ -165,6 +165,7 @@ def test_workflow_reader_rejects_duplicate_keys() -> None:
         ("wrong_pin", "require one pinned action"),
         ("suite_pin", "unsupported Whitaker inputs"),
         ("installer_pin", "unsupported Whitaker inputs"),
+        ("cranelift_input", "unsupported Whitaker inputs"),
         ("after_suite", "installed after lint"),
         ("conditional", "installer is conditional"),
         ("soft_install", "installer may fail softly"),
@@ -188,11 +189,13 @@ def test_ci_contract_rejects_regressions(mutation: str, expected: str) -> None:
     if mutation == "remove_action":
         steps.pop(install_index)
     elif mutation == "wrong_pin":
-        install["uses"] = ACTION.replace("6dea5677", "00000000")
+        install["uses"] = ACTION.replace("2ddf19b3", "00000000")
     elif mutation == "suite_pin":
-        install["with"]["suite-version"] = "v1"
+        install.setdefault("with", {})["suite-version"] = "v1"
     elif mutation == "installer_pin":
-        install["with"]["installer-version"] = "0.2.8"
+        install.setdefault("with", {})["installer-version"] = "0.2.8"
+    elif mutation == "cranelift_input":
+        install.setdefault("with", {})["cranelift"] = "true"
     elif mutation == "after_suite":
         steps.insert(lint_index + 1, steps.pop(install_index))
     elif mutation == "conditional":
