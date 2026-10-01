@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import replace
+import json
+import os
 import re
+import shlex
 import subprocess
+import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -147,6 +151,87 @@ def _validate(workflows: dict[str, dict]) -> None:
         )
 
 
+def _run_whitaker_environment_probe(
+    tmp_path: Path, *, make_variables: tuple[str, ...] = (),
+) -> dict[str, str]:
+    """Capture the environment seen by an injected Make Whitaker executable."""
+    probe = tmp_path / "whitaker-environment-probe"
+    output = tmp_path / "whitaker-environment.json"
+    probe.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os\n"
+        "names = ('CARGO_UNSTABLE_CODEGEN_BACKEND', 'CARGO_PROFILE_DEV_CODEGEN_BACKEND', "
+        "'CARGO_PROFILE_TEST_CODEGEN_BACKEND', 'CARGO_ENCODED_RUSTFLAGS', 'RUSTFLAGS')\n"
+        "with open(os.environ['WHITAKER_PROBE_OUTPUT'], 'w', encoding='utf-8') as stream:\n"
+        "    json.dump({name: os.environ.get(name, '') for name in names}, stream)\n",
+        encoding="utf-8",
+    )
+    probe.chmod(0o755)
+    environment = os.environ.copy()
+    for name in (
+        "CARGO_UNSTABLE_CODEGEN_BACKEND",
+        "CARGO_PROFILE_DEV_CODEGEN_BACKEND",
+        "CARGO_PROFILE_TEST_CODEGEN_BACKEND",
+        "RUSTFLAGS",
+    ):
+        environment.pop(name, None)
+    environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
+        (
+            "-Zthreads=8",
+            "-Zcodegen-backend=cranelift",
+            "-C",
+            "link-arg=-fuse-ld=mold",
+            "--cfg",
+            "caller_policy",
+        )
+    )
+    environment["WHITAKER_PROBE_OUTPUT"] = str(output)
+    environment["RUST_FLAGS"] = ""
+    subprocess.run(
+        [
+            "make",
+            "--silent",
+            "--always-make",
+            "lint-whitaker",
+            "CARGO=true",
+            "CARGO_FLAGS=",
+            "DOC_TEST_TARGETS=false",
+            f"WHITAKER={probe}", *make_variables,
+        ],
+        cwd=ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return json.loads(output.read_text(encoding="utf-8"))
+
+
+def _assert_whitaker_environment(environment: dict[str, str]) -> None:
+    """Require the Whitaker invocation to receive Cargo's supported backend route."""
+    assert environment["CARGO_UNSTABLE_CODEGEN_BACKEND"] == "true", (
+        "Whitaker must opt in to Cargo's unstable codegen-backend setting"
+    )
+    assert environment["CARGO_PROFILE_DEV_CODEGEN_BACKEND"] == "llvm"
+    assert environment["CARGO_PROFILE_TEST_CODEGEN_BACKEND"] == "llvm"
+    encoded_flags = environment["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+    rust_flags = shlex.split(environment["RUSTFLAGS"])
+    flags = [*encoded_flags, *rust_flags]
+    forbidden = {
+        "-Zthreads=8",
+        "-Zcodegen-backend=cranelift",
+        "-Clink-arg=-fuse-ld=mold",
+    }
+    assert not forbidden.intersection(flags), "Whitaker inherited development flags"
+    forbidden_pairs = {
+        ("-Z", "threads=8"),
+        ("-Z", "codegen-backend=cranelift"),
+        ("-C", "link-arg=-fuse-ld=mold"),
+    }
+    pairs = {tuple(flags[index:index + 2]) for index in range(len(flags) - 1)}
+    assert not forbidden_pairs.intersection(pairs), "Whitaker inherited development flags"
+
+
 def test_ci_provisions_whitaker_before_each_lint_route() -> None:
     """The real workflow keeps a binding binary-only provisioning path."""
     _validate(_workflows())
@@ -234,6 +319,22 @@ def test_make_lint_order_and_whitaker_flags(tmp_path: Path) -> None:
     )
     assert clippy_index < whitaker_index
     assert_whitaker_route(route_for(execute_make_route(tmp_path, "lint"), ("--all",)))
+
+
+def test_make_whitaker_invocation_carries_cargo_opt_in(tmp_path: Path) -> None:
+    """The evaluated Whitaker recipe opts in while retaining explicit LLVM routing."""
+    environment = _run_whitaker_environment_probe(tmp_path)
+    _assert_whitaker_environment(environment)
+
+    without_opt_in = _run_whitaker_environment_probe(
+        tmp_path,
+        make_variables=(
+            "WHITAKER_ENV=CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm "
+            "CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm",
+        ),
+    )
+    with pytest.raises(AssertionError, match="unstable codegen-backend setting"):
+        _assert_whitaker_environment(without_opt_in)
 
 
 @pytest.mark.parametrize(
