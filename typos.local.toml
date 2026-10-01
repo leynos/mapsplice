@@ -23,12 +23,15 @@ accepted = []
 # `artifact.kind = "..."`: a JSON field name in the validation output
 # design, scoped to the backticked field assignment so the common noun is
 # still corrected everywhere else.
+# AlignKind::Center: pulldown-cmark's fixed variant name; the common noun
+# remains subject to British spelling.
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
     "`color`",
     "flavor = \"current_thread\"",
     "`artifact\\.kind = \"[a-z_]+\"`",
+    "AlignKind::Center",
 ]
 
 [files]

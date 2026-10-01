@@ -163,9 +163,14 @@ append preservation across generated task-list shapes.
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
 [`../.cargo/config.toml`](../.cargo/config.toml). The repository requires
-Cranelift code generation through `codegen-backend = "cranelift"`, `clang`, and
-`mold` via `link-arg=-fuse-ld=mold`. The pinned toolchain must include
-`rustc-codegen-cranelift-preview`.
+Cranelift code generation through `codegen-backend = "cranelift"`, the parallel
+rustc frontend, and, on supported Linux targets, `clang` plus pinned `mold`.
+Cargo discovers these defaults from `.cargo/config.toml`; Make restates the
+flags on gate recipes that set `RUSTFLAGS`. Run `make install-build-tools` and
+`make check-build-tools` before development builds. The pinned toolchain
+includes rustfmt, Clippy, rust-analyzer, LLVM tools, and Cranelift. Coverage,
+release, and Whitaker use explicit non-development routes; see
+[the contributing guide](contributing.md) for local setup.
 
 Run these gates before committing Rust changes:
 
@@ -189,10 +194,9 @@ make nixie
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
 `make fmt` remains repository-wide and can reformat unrelated Markdown files.
 The `make fmt` and `make check-fmt` targets select tracked and unignored
-Markdown files. They deliberately exclude
-`tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md`
-and `expected.md`, whose non-contiguous ordered-looking lines are indented-code
-fixtures for byte-identical source preservation and are not formatter-stable.
+untracked Markdown files directly through mdtablefix. The two indented-code
+golden fixtures that are not formatter-stable have `.txt` extensions; their
+contents remain byte-identical to the authored test data.
 
 `make nixie` validates Mermaid diagrams in tracked Markdown files through the
 CI-installed `merman-cli` renderer. The target runs one Markdown file at a time
@@ -238,3 +242,26 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## Lint baseline
+
+[`Cargo.toml`](../Cargo.toml) holds the package's Clippy, Rust, and rustdoc
+lint levels. [`clippy.toml`](../clippy.toml) sets the complexity ceiling to 9,
+the argument limit to 4, the line limit to 70, and the nesting limit to 4. The
+selected estate baseline is Concordat revision
+`902d034d9da8e7ca33a0d4032770519dd1609de2`; this repository also requires
+`missing_assert_message`, `missing_docs_in_private_items`, and
+`unsafe_code = "forbid"`. Fix findings in source. Any unavoidable exception
+needs a narrow scope and a stated reason; do not use `#[allow]` to carry a
+backlog.
+
+This package has no Cargo workspace. If it gains one, put the authoritative
+tables under `[workspace.lints.*]` and make every member inherit them with
+`[lints] workspace = true`. Use the components in
+[`rust-toolchain.toml`](../rust-toolchain.toml), including rustfmt, Clippy, and
+Cranelift; the build and verification routes also require their documented
+tools. Keep environment access at an explicit CLI configuration boundary and
+inject an environment reader into code that needs deterministic testing. The
+`disallowed_methods` lint level is enabled, but an approved method list has not
+yet been selected for this repository; it does not currently enforce the
+environment-access rule.

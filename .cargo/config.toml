@@ -7,10 +7,12 @@ codegen-backend = true
 [profile.dev]
 codegen-backend = "cranelift"
 
+# Cargo uses a matching target's rustflags instead of merging [build].rustflags.
+# Keep the parallel frontend in both supported Linux linker routes.
 [target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+linker = "scripts/clang-mold.sh"
+rustflags = ["-Zthreads=8", "-C", "link-arg=-fuse-ld=mold"]
 
 [target.aarch64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+linker = "scripts/clang-mold.sh"
+rustflags = ["-Zthreads=8", "-C", "link-arg=-fuse-ld=mold"]

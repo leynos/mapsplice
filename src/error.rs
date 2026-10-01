@@ -14,7 +14,7 @@ pub enum MapspliceError {
     /// The provided anchor string is invalid.
     #[error("invalid roadmap anchor `{anchor}`")]
     InvalidAnchor {
-        /// Unparseable anchor text.
+        /// Unparsable anchor text.
         anchor: String,
     },
 

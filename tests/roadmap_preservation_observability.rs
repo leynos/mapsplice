@@ -188,39 +188,25 @@ fn unstable_sources_record_only_their_canonical_fallback_reason(
     #[case] source: &str,
     #[case] expected_list_fallbacks: u64,
     #[case] expected_code_fence_fallbacks: u64,
-) {
+) -> TestResult {
+    let (before, after) = fallback_metrics_after_operation(source)?;
     assert_fallback_reason(
-        source,
+        before,
+        after,
         expected_list_fallbacks,
         expected_code_fence_fallbacks,
     );
+    Ok(())
 }
 
-/// Assert that exactly the expected canonical-fallback reason is recorded for
-/// a generated unstable task source.
+/// Assert that an unstable source records only its expected fallback reason.
+#[track_caller]
 fn assert_fallback_reason(
-    source: &str,
+    before: MetricsSnapshot,
+    after: MetricsSnapshot,
     expected_list_fallbacks: u64,
     expected_code_fence_fallbacks: u64,
 ) {
-    let before = metrics_snapshot();
-    let target = format!(
-        "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n- [ ] 1.1.2. Anchor task.\n"
-    );
-    let _stdout = match run_preservation_operation(
-        &target,
-        "- [ ] 1.1.1. Inserted task.\n",
-        PreservationOperation {
-            operation: "insert",
-            anchor: "1.1.2",
-            placement: Some("--after"),
-        },
-    ) {
-        Ok(stdout) => stdout,
-        Err(error) => panic!("formatter fallback operation should succeed: {error}"),
-    };
-    let after = metrics_snapshot();
-
     let list_fallbacks = delta(
         before.canonical_fallbacks_unstable_list_marker,
         after.canonical_fallbacks_unstable_list_marker,
@@ -250,6 +236,26 @@ fn assert_fallback_reason(
         0,
         "formatter fallback should not invalidate preserved source"
     );
+}
+
+/// Run an unstable source operation and return the metrics around it.
+fn fallback_metrics_after_operation(
+    source: &str,
+) -> TestResult<(MetricsSnapshot, MetricsSnapshot)> {
+    let before = metrics_snapshot();
+    let target = format!(
+        "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n- [ ] 1.1.2. Anchor task.\n"
+    );
+    run_preservation_operation(
+        &target,
+        "- [ ] 1.1.1. Inserted task.\n",
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.2",
+            placement: Some("--after"),
+        },
+    )?;
+    Ok((before, metrics_snapshot()))
 }
 
 /// Run one structural operation in a temporary workspace and return its output.
