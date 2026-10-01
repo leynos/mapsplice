@@ -10,7 +10,7 @@ import yaml
 COVERAGE_GENERATE_PIN = "abf0dcf2686de1eaf79b6dc9a16662b631bed149"
 UPLOADER_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
 SETUP_RUST_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
-DEPENDABOT_PIN = "abf0dcf2686de1eaf79b6dc9a16662b631bed149"
+DEPENDABOT_PIN = "ff1dd759dfffc0db3459e30e833f52437ee62b57"
 GENERATE = (
     "leynos/shared-actions/.github/actions/generate-coverage@"
     f"{COVERAGE_GENERATE_PIN}"
