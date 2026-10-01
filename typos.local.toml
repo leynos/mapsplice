@@ -31,6 +31,8 @@ accepted = []
 # masks no English word: the only a-f-only token of that length in the
 # tracked docs is the fake checksum `deadbeef`, which is inside a fenced code
 # block and so was never checked.
+# AlignKind::Center: pulldown-cmark's fixed variant name; the common noun
+# remains subject to British spelling.
 ignore = [
     "`mold`",
     "-fuse-ld=mold",
@@ -39,6 +41,7 @@ ignore = [
     "flavor = \"current_thread\"",
     "`artifact\\.kind = \"[a-z_]+\"`",
     "`[0-9a-f]{7,40}`",
+    "AlignKind::Center",
 ]
 
 [files]

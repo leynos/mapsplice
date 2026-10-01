@@ -2,13 +2,13 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
-#[path = "support/workspace.rs"]
-mod support;
+#[path = "support/roadmap_workspace.rs"]
+mod workspace_support;
 
 use assertions::assert_contains;
 use mapsplice::run_from_args;
 use rstest::rstest;
-use support::{TestResult, create_workspace};
+use workspace_support::{TestResult, Workspace, workspace};
 
 const PHASE_FRAGMENT: &str = concat!(
     "## 9. Inserted phase\n\n",
@@ -16,60 +16,33 @@ const PHASE_FRAGMENT: &str = concat!(
     "- [ ] 9.1.1. Added task. Requires 9.1.1.\n",
 );
 
-const TWO_SPACE_TARGET: &str = concat!(
-    "# Roadmap\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [x] 1.1.1. Untouched task wraps across this source-authored line\n",
-    "  without changing its continuation indentation.\n",
-    "- [x] 1.1.2. Edited task wraps across this source-authored line\n",
-    "  before the requested operation changes it.\n",
-);
+const TWO_SPACE_TARGET: &str =
+    include_str!("fixtures/roadmap_append_preservation/two_space_target.txt");
 
 const UNTOUCHED_TWO_SPACE_TASK: &str = concat!(
     "- [x] 1.1.1. Untouched task wraps across this source-authored line\n",
     "  without changing its continuation indentation.",
 );
 
-const TWO_SPACE_FRAGMENT: &str = concat!(
-    "- [ ] 9.9.9. New task wraps across a canonical continuation line\n",
-    "  before it is inserted.\n",
-);
+const TWO_SPACE_FRAGMENT: &str =
+    include_str!("fixtures/roadmap_append_preservation/two_space_fragment.txt");
 
-const INDENTED_TASK_TARGET: &str = concat!(
-    "# Roadmap\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "  - [x] 1.1.1. Surviving task.\n",
-    "  - [x] 1.1.2. Deleted task.\n",
-);
+const INDENTED_TASK_TARGET: &str =
+    include_str!("fixtures/roadmap_append_preservation/indented_task_target.txt");
 
-const INDENTED_TASK_DELETE_OUTPUT: &str = concat!(
-    "# Roadmap\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "  - [x] 1.1.1. Surviving task.\n",
-);
+const INDENTED_TASK_DELETE_OUTPUT: &str =
+    include_str!("fixtures/roadmap_append_preservation/indented_task_delete_output.txt");
 
-const CR_ONLY_TASK_TARGET: &str = concat!(
-    "# Roadmap\r\r",
-    "## 1. Phase one\r\r",
-    "### 1.1. Step one\r\r",
-    "- [x] 1.1.1. Surviving task.\r",
-    "- [x] 1.1.2. Deleted task.\r",
-);
+const CR_ONLY_TASK_TARGET: &str =
+    include_str!("fixtures/roadmap_append_preservation/cr_only_task_target.txt");
 
-const CR_ONLY_TASK_DELETE_OUTPUT: &str = concat!(
-    "# Roadmap\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [x] 1.1.1. Surviving task.\r\n",
-);
+const CR_ONLY_TASK_DELETE_OUTPUT: &str =
+    include_str!("fixtures/roadmap_append_preservation/cr_only_task_delete_output.txt");
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn append_preserves_existing_loose_task_spacing() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn append_preserves_existing_loose_task_spacing(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
     let preserved_phase = concat!(
         "## 1. Existing phase\n\n",
         "### 1.1. Existing step\n\n",
@@ -104,8 +77,10 @@ fn append_preserves_existing_loose_task_spacing() -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn insert_preserves_untouched_two_space_task_source() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn insert_preserves_untouched_two_space_task_source(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace.write_target(TWO_SPACE_TARGET)?;
     test_workspace.write_fragment(TWO_SPACE_FRAGMENT)?;
 
@@ -126,8 +101,10 @@ fn insert_preserves_untouched_two_space_task_source() -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn delete_preserves_surviving_two_space_task_source() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn delete_preserves_surviving_two_space_task_source(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace.write_target(TWO_SPACE_TARGET)?;
 
     let output = run_from_args([
@@ -145,8 +122,10 @@ fn delete_preserves_surviving_two_space_task_source() -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn delete_does_not_leave_next_task_indentation_behind() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn delete_does_not_leave_next_task_indentation_behind(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace.write_target(INDENTED_TASK_TARGET)?;
 
     let output = run_from_args([
@@ -174,8 +153,10 @@ fn delete_does_not_leave_next_task_indentation_behind() -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn delete_cr_only_task_does_not_preserve_the_document_prefix() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn delete_cr_only_task_does_not_preserve_the_document_prefix(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace.write_target(CR_ONLY_TASK_TARGET)?;
 
     let output = run_from_args([
@@ -203,8 +184,10 @@ fn delete_cr_only_task_does_not_preserve_the_document_prefix() -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
-fn replace_preserves_untouched_two_space_task_source() -> TestResult {
-    let test_workspace = create_workspace()?;
+fn replace_preserves_untouched_two_space_task_source(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
     test_workspace.write_target(TWO_SPACE_TARGET)?;
     test_workspace.write_fragment(TWO_SPACE_FRAGMENT)?;
 

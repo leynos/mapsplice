@@ -16,38 +16,8 @@ use rstest::rstest;
 use sub_task_support::TARGET_WITH_SUB_TASKS;
 use workspace_support::{TestResult, Workspace, workspace};
 
-const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str = concat!(
-    "# Example\n\n",
-    "## 1. Phase one\n\n",
-    "### 1.1. Step one\n\n",
-    "- [ ] 1.1.1. First phase task.\n\n",
-    "## 2. Phase two\n\n",
-    "### 2.1. Step two\n\n",
-    "- [ ] 2.1.1. Second phase task.\n\n",
-    "## 3. Phase three\n\n",
-    "### 3.1. Step three\n\n",
-    "- [ ] 3.1.1. Third phase task.\n\n",
-    "## 4. Phase four\n\n",
-    "### 4.1. Step four\n\n",
-    "- [ ] 4.1.1. Fourth phase task.\n\n",
-    "## 5. Phase five\n\n",
-    "### 5.1. Step five\n\n",
-    "- [ ] 5.1.1. Fifth phase task.\n\n",
-    "## 6. Phase six\n\n",
-    "### 6.1. Step six\n\n",
-    "- [ ] 6.1.1. Sixth phase task.\n\n",
-    "## 7. Phase seven\n\n",
-    "### 7.1. Step seven\n\n",
-    "- [ ] 7.1.1. Seventh phase task.\n\n",
-    "## 8. Phase eight\n\n",
-    "### 8.1. Step eight one\n\n",
-    "- [ ] 8.1.1. Earlier phase eight task.\n\n",
-    "### 8.2. Step eight two\n\n",
-    "- [ ] 8.2.1. First task.\n",
-    "- [ ] 8.2.2. Second task.\n",
-    "- [ ] 8.2.3. Parent task. Requires 8.2.3.1.\n",
-    "  - [ ] 8.2.3.1. Nested sub-task. Requires 8.2.3.\n",
-);
+const TARGET_PHASE_EIGHT_WITH_SUB_TASK: &str =
+    include_str!("fixtures/roadmap_sub_tasks/target_phase_eight_with_sub_task.txt");
 
 fn assert_not_contains(haystack: &str, needle: &str) {
     assert!(

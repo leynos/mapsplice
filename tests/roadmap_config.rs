@@ -1,21 +1,17 @@
 //! `rstest` coverage for CLI environment and file configuration defaults.
 
+#[path = "support/assertions.rs"]
+mod assertions;
 #[path = "support/config.rs"]
 mod support;
 
 use std::{env, fmt::Debug};
 
+use assertions::assert_contains;
 use camino::Utf8PathBuf;
 use mapsplice::{MapspliceError, run_from_args};
 use rstest::rstest;
 use support::{ProcessState, TARGET_TWO_TASKS, TASK_FRAGMENT, TestResult, Workspace, workspace};
-
-fn assert_contains(haystack: &str, needle: &str) {
-    assert!(
-        haystack.contains(needle),
-        "expected `{needle}` in `{haystack}`"
-    );
-}
 
 fn assert_equal<T>(actual: &T, expected: &T)
 where
