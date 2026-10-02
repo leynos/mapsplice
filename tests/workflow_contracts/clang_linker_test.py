@@ -16,11 +16,11 @@ def _executable(path: Path, body: str) -> None:
 
 
 @pytest.mark.parametrize("target", ["native", "aarch64"])
-@pytest.mark.parametrize("uses_mold", [False, True])
+@pytest.mark.parametrize("uses_pinned_linker", [False, True])
 def test_clang_route_forwards_target_and_linker(
     tmp_path: Path,
     target: str,
-    uses_mold: bool,
+    uses_pinned_linker: bool,
 ) -> None:
     """The AArch64 route always passes its triple through the shared wrapper."""
     commands = tmp_path / "commands"
@@ -32,7 +32,7 @@ def test_clang_route_forwards_target_and_linker(
     _executable(commands / "ld.mold", "echo 'mold 2.41.0 (test)'\n")
     wrapper = "clang-aarch64-linker.sh" if target == "aarch64" else "clang-linker.sh"
     arguments = ["-o", "out"]
-    if uses_mold:
+    if uses_pinned_linker:
         arguments.append("-fuse-ld=mold")
     recording = tmp_path / "clang-arguments"
     result = subprocess.run(
@@ -49,17 +49,17 @@ def test_clang_route_forwards_target_and_linker(
     )
     assert result.returncode == 0, result.stderr
     observed = recording.read_text(encoding="utf-8").splitlines()
-    expected = ["-B", str(commands)] if uses_mold else []
+    expected = ["-B", str(commands)] if uses_pinned_linker else []
     if target == "aarch64":
         expected.append("--target=aarch64-unknown-linux-gnu")
     expected.extend(arguments)
     assert observed == expected
 
 
-@pytest.mark.parametrize("ld_mold_version", [None, "mold 2.40.0", "mold 2.41.0 (test)"])
-def test_preflight_checks_path_ld_mold_even_when_mold_is_correct(
+@pytest.mark.parametrize("linker_version", [None, "mold 2.40.4", "mold 2.41.0 (test)"])
+def test_preflight_checks_linker_even_when_driver_is_correct(
     tmp_path: Path,
-    ld_mold_version: str | None,
+    linker_version: str | None,
 ) -> None:
     """An absent or stale linker companion cannot pass the preflight."""
     commands = tmp_path / "commands"
@@ -76,8 +76,8 @@ def test_preflight_checks_path_ld_mold_even_when_mold_is_correct(
     _executable(commands / "clang", "exit 0\n")
     _executable(commands / "mold", "echo 'mold 2.41.0 (test)'\n")
     (commands / "grep").symlink_to("/usr/bin/grep")
-    if ld_mold_version is not None:
-        _executable(commands / "ld.mold", f"echo '{ld_mold_version}'\n")
+    if linker_version is not None:
+        _executable(commands / "ld.mold", f"echo '{linker_version}'\n")
     result = subprocess.run(
         ["/bin/bash", "scripts/check-build-tools.sh"],
         cwd=ROOT,
@@ -86,7 +86,7 @@ def test_preflight_checks_path_ld_mold_even_when_mold_is_correct(
         text=True,
         check=False,
     )
-    if ld_mold_version == "mold 2.41.0 (test)":
+    if linker_version == "mold 2.41.0 (test)":
         assert result.returncode == 0, result.stderr
     else:
         assert result.returncode != 0
