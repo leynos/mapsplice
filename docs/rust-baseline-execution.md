@@ -4,6 +4,91 @@ This record tracks the single delivery branch and its measured state. A passing
 local gate applies only to the commit and live inputs named here; it is not
 final acceptance or evidence of a hosted review.
 
+## Testing completion checkpoint: 2026-10-03
+
+Local validation passed on exact HEAD
+`90d9d73137369912c8fb6ec8b6b82a7753d80609`, based on PR head
+`e12381cea6f023cdf60f875bce87104f7cf73d69`. An SSH fetch as `leynos` found
+`main` at `052987d9ff865eeec8c118a78ac2657556aa60dc`, identical to the PR base
+and an ancestor of the validated head, so no rebase was needed. Before this
+unpublished local work, the GitHub API read as `leynos` showed PR #116 with
+`draft: false` at `e12381c`.
+
+All 16 commands below passed sequentially on HEAD `90d9d73` with zero warnings:
+
+1. `make check-build-tools` passed.
+2. Focused Python tests passed: 18 tests in
+   `clang_linker_test.py` and `cargo_target_resolution_test.py`:
+
+   ```sh
+   uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' pytest \
+     tests/workflow_contracts/clang_linker_test.py \
+     tests/workflow_contracts/cargo_target_resolution_test.py -q
+   ```
+
+3. `cargo test --test cli_process_contract` passed all eight tests.
+4. `make test-workflow-contracts` passed all 186 tests.
+5. Ruff format check passed for the resolver and two Python contract files.
+6. Ruff lint passed for the resolver and two Python contract files.
+7. `make check-fmt` passed.
+8. `make lint` passed.
+9. `make typecheck` passed.
+10. `make test` passed: 303 tests and 12 doctests passed; two doctests were
+    ignored.
+11. `make markdownlint` passed.
+12. `make spelling` passed.
+13. `make nixie` passed.
+14. `shellcheck scripts/check-build-tools.sh` passed.
+15. `mbake validate Makefile` passed.
+16. `git diff --check` passed.
+
+The preflight matrix is covered by
+`test_linux_preflight_requires_linker_tools_and_pinned_companion`. Generated
+configuration coverage includes
+`test_generated_valid_chains_match_reference_model`,
+`test_generated_invalid_configurations_fail_closed`,
+`test_legacy_config_and_missing_target_preserve_home_selection`, and
+`test_unreadable_configuration_fails_closed_with_fault_injection`. The eight
+process tests in `tests/cli_process_contract.rs` cover help, invalid input,
+ordinary command failures, `/dev/full` stdout and stderr failures, and closed
+stdout pipes:
+
+```text
+top_level_and_command_help_use_stdout_without_diagnostics
+invalid_input_has_only_a_stderr_diagnostic_and_fails
+ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails
+roadmap_stdout_write_failure_reports_stderr_and_fails
+help_stdout_write_failure_reports_stderr_and_fails
+clap_diagnostic_stderr_write_failure_fails_without_panicking
+command_diagnostic_stderr_write_failure_fails_without_panicking
+broken_stdout_pipes_succeed_for_roadmap_output_and_help
+```
+
+Regression-sensitivity checks ran in an isolated scratch copy outside `/tmp`.
+Removing the `clang` prerequisite caused the two missing-clang cases to fail (2
+failed, 8 passed, 4 deselected). Changing the stdout write-failure result to
+success failed `roadmap_stdout_write_failure_reports_stderr_and_fails` with
+observed status 0 instead of 1. Reversing configuration precedence failed
+`test_generated_valid_chains_match_reference_model`, which selected
+`home-target` instead of `near-target`. Each mutation was restored
+byte-for-byte and the scratch copy was removed. Mutation and gate logs:
+
+```text
+/tmp/mutation-clang-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/mutation-stdout-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/mutation-config-precedence-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/*-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice-head90d9.out
+```
+
+The host was Rocky Linux x86_64. Process tests are Linux-gated; the AArch64
+preflight route used stubs, and no actual AArch64 cross-link was performed.
+These results are local test and static-validation evidence only. Hosted PR
+coverage on HEAD `90d9d73` has no result because this work was not published.
+This checkpoint records no administrative verification or protected main
+publication. Environment token and project identity, obsolete-token removal,
+and the approved Rust environment-access `disallowed_methods` policy remain
+separate prerequisites; these tests do not clear unrelated PR blockers.
+
 ## Post-rebase publication checkpoint: 2026-10-02
 
 The branch was rebased from PR head `5e32d0626442c4eac1cd8957735a3d4bcdc5efec`
