@@ -56,12 +56,24 @@ def test_clang_route_forwards_target_and_linker(
     assert observed == expected
 
 
-@pytest.mark.parametrize("linker_version", [None, "mold 2.40.4", "mold 2.41.0 (test)"])
-def test_preflight_checks_linker_even_when_driver_is_correct(
+@pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
+@pytest.mark.parametrize(
+    ("missing_tool", "linker_version"),
+    [
+        (None, "mold 2.41.0 (test)"),
+        ("clang", "mold 2.41.0 (test)"),
+        ("mold", "mold 2.41.0 (test)"),
+        ("ld.mold", None),
+        ("ld.mold", "mold 2.40.4 (test)"),
+    ],
+)
+def test_linux_preflight_requires_linker_tools_and_pinned_companion(
     tmp_path: Path,
+    architecture: str,
+    missing_tool: str | None,
     linker_version: str | None,
 ) -> None:
-    """An absent or stale linker companion cannot pass the preflight."""
+    """Linux tool checks run on both supported architectures in an isolated PATH."""
     commands = tmp_path / "commands"
     commands.mkdir()
     _executable(commands / "rustc", "exit 0\n")
@@ -71,24 +83,41 @@ def test_preflight_checks_linker_even_when_driver_is_correct(
     )
     _executable(
         commands / "uname",
-        'if [ "$1" = -s ]; then echo Linux; else echo x86_64; fi\n',
+        'if [ "$1" = -s ]; then echo Linux; else echo "$BUILD_ARCH"; fi\n',
     )
-    _executable(commands / "clang", "exit 0\n")
-    _executable(commands / "mold", "echo 'mold 2.41.0 (test)'\n")
-    (commands / "grep").symlink_to("/usr/bin/grep")
+    if missing_tool != "clang":
+        _executable(commands / "clang", "exit 0\n")
+    if missing_tool != "mold":
+        _executable(commands / "mold", "echo 'mold 2.41.0 (test)'\n")
+    _executable(
+        commands / "grep",
+        """[ \"$1\" = -q ] || exit 2
+pattern=${2#^}
+while IFS= read -r component; do
+  case \"$component\" in \"$pattern\"*) exit 0 ;; esac
+done
+exit 1
+""",
+    )
     if linker_version is not None:
         _executable(commands / "ld.mold", f"echo '{linker_version}'\n")
     result = subprocess.run(
         ["/bin/bash", "scripts/check-build-tools.sh"],
         cwd=ROOT,
-        env={"PATH": str(commands)},
+        env={"PATH": str(commands), "BUILD_ARCH": architecture},
         capture_output=True,
         text=True,
         check=False,
     )
-    if linker_version == "mold 2.41.0 (test)":
+    if missing_tool is None:
         assert result.returncode == 0, result.stderr
-    else:
-        assert result.returncode != 0
-        assert "Build prerequisite missing: ld.mold 2.41.0" in result.stderr
-        assert "make install-build-tools" in result.stderr
+        return
+
+    prerequisite = "clang" if missing_tool == "clang" else f"{missing_tool} 2.41.0"
+    if missing_tool == "ld.mold" and linker_version is not None:
+        prerequisite = "ld.mold 2.41.0"
+    assert result.returncode == 1, result.stderr
+    assert f"Build prerequisite missing: {prerequisite}" in result.stderr
+    assert "make install-build-tools" in result.stderr
+    if missing_tool == "clang":
+        assert "system package manager" in result.stderr

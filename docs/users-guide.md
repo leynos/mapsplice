@@ -67,11 +67,13 @@ By default the rewritten roadmap is written to standard output. Use
 
 Use `mapsplice --help` for the command list or `mapsplice help insert` for help
 on one operation. Top-level help begins with the stable usage line
-`Usage: mapsplice [OPTIONS] <COMMAND>`. Successful help is written to standard
-output and exits successfully. Invalid command-line input writes a diagnostic
-to standard error and exits unsuccessfully. Errors from reading, validating, or
-editing roadmap files are also reported on standard error with an unsuccessful
-exit status.
+`Usage: mapsplice [OPTIONS] <COMMAND>`. Successful roadmap output and help text
+are written to standard output. If a reader closes that output pipe, including
+while writing roadmap output or help, `mapsplice` exits successfully. Other
+standard-output write failures produce a diagnostic on standard error and an
+unsuccessful exit. Invalid command-line input and errors from reading,
+validating, or editing roadmap files also produce diagnostics on standard error
+and exit unsuccessfully.
 
 ## Worked example
 
