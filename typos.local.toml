@@ -28,9 +28,11 @@ accepted = []
 # AlignKind::Center: pulldown-cmark's fixed variant name; the common noun
 # remains subject to British spelling.
 # These exact patterns name `mold` in the missing-tool fixture only.
+# NO_COLOR is the standard environment variable controlling child output.
 ignore = [
     '\("mold", "mold 2\.41\.0 \(test\)"\),',
     'if missing_tool != "mold":',
+    '\.env\("NO_COLOR", "1"\)',
     "`mold`",
     "-fuse-ld=mold",
     "\\bCARGO_TERM_COLOR\\b",

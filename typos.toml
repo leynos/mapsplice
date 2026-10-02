@@ -44,6 +44,7 @@ extend-ignore-re = [
     "No mold default",
     "Pinned mold archive checksum failed",
     "\\(\"mold\", \"mold 2\\.41\\.0 \\(test\\)\"\\),",
+    "\\.env\\(\"NO_COLOR\", \"1\"\\)",
     "\\.mold-\\{version\\}-\\{digest\\}",
     "\\b(?:background|theme)_color\\b",
     "\\b(?:carousel|dropdown|footer|indicator|items|navbar|toast)-center\\b",
