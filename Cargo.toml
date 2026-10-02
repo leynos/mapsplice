@@ -24,6 +24,7 @@ serial_test = "3.2.0"
 temp-env = "0.3.6"
 tempfile = "3.27.0"
 trybuild = "1.0.114"
+wait-timeout = "0.2.1"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import os
-import sys
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 
 class ConfigurationError(Exception):
@@ -41,10 +41,28 @@ def cargo_home() -> Path:
     return Path.home() / ".cargo"
 
 
-def configuration_paths(start: Path) -> list[Path]:
+def configuration_paths(
+    start: Path,
+    *,
+    cargo_home_directory: Path | None = None,
+    root_directory: Path | None = None,
+) -> list[Path]:
     """List Cargo configuration files from lowest to highest precedence."""
-    directories = [start, *start.parents]
-    paths = [cargo_configuration_path(cargo_home())]
+    start = start.resolve()
+    if root_directory is None:
+        directories = [start, *start.parents]
+    else:
+        root = root_directory.resolve()
+        if not start.is_relative_to(root):
+            raise ConfigurationError(
+                f"Cargo configuration search start {start} is outside root {root}"
+            )
+        directories = [start]
+        while directories[-1] != root:
+            directories.append(directories[-1].parent)
+
+    cargo_directory = cargo_home_directory or cargo_home()
+    paths = [cargo_configuration_path(cargo_directory.resolve())]
     paths.extend(configuration_path(directory) for directory in reversed(directories))
     unique_paths: list[Path] = []
     for path in paths:
@@ -58,7 +76,9 @@ def configured_target(path: Path) -> str | None:
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
-        raise ConfigurationError(f"cannot read Cargo configuration {path}: {error}") from error
+        raise ConfigurationError(
+            f"cannot read Cargo configuration {path}: {error}"
+        ) from error
     build = document.get("build")
     if build is None:
         return None
@@ -74,10 +94,19 @@ def configured_target(path: Path) -> str | None:
     return target
 
 
-def resolve_target(start: Path) -> str | None:
+def resolve_target(
+    start: Path,
+    *,
+    cargo_home_directory: Path | None = None,
+    root_directory: Path | None = None,
+) -> str | None:
     """Apply Cargo's nearer-directory-over-home configuration precedence."""
     target = None
-    for path in configuration_paths(start):
+    for path in configuration_paths(
+        start,
+        cargo_home_directory=cargo_home_directory,
+        root_directory=root_directory,
+    ):
         selected = configured_target(path)
         if selected is not None:
             target = selected
