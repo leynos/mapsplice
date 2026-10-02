@@ -5,11 +5,11 @@ from __future__ import annotations
 from copy import deepcopy
 
 import pytest
-
 from coverage_contract import parse_workflow, pr_reachable, read_workflows, validate
 
 
-def _ready() -> dict[str, dict[object, object]]:
+def _workflow_shape_fixture() -> dict[str, dict[object, object]]:
+    """Model the intended YAML declaration, without proving live protection."""
     workflows = deepcopy(read_workflows())
     workflows["coverage-main.yml"]["jobs"]["coverage-publisher"]["environment"] = (
         "codescene"
@@ -25,9 +25,9 @@ def _pr_steps(workflows: dict[str, dict[object, object]]) -> list[dict[str, obje
     return workflows["ci.yml"]["jobs"]["build-test"]["steps"]
 
 
-def test_intended_workflows_with_protected_environment() -> None:
-    """The prepared publisher passes after the environment is provisioned."""
-    validate(_ready())
+def test_workflow_shape_with_publisher_declaration() -> None:
+    """The intended workflow shape passes without claiming API provision."""
+    validate(_workflow_shape_fixture())
 
 
 def test_live_coverage_contract() -> None:
@@ -77,7 +77,7 @@ def test_strict_yaml_rejects_ambiguous_or_empty_input(source: str, reason: str) 
     ],
 )
 def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
-    workflows = _ready()
+    workflows = _workflow_shape_fixture()
     main = workflows["coverage-main.yml"]
     steps = _main_steps(workflows)
     if mutation == "pr_token":
@@ -123,11 +123,25 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
     elif mutation == "coverage_parity":
         steps[-3]["with"]["format"] = "cobertura"
     elif mutation == "remove_preflight":
-        steps[:] = [step for step in steps if step.get("run") != "make check-build-tools"]
+        steps[:] = [
+            step for step in steps if step.get("run") != "make check-build-tools"
+        ]
     elif mutation == "preflight_after_suite":
-        check = next(step for step in steps if step.get("run") == "make check-build-tools")
+        check = next(
+            step for step in steps if step.get("run") == "make check-build-tools"
+        )
         steps.remove(check)
-        steps.insert(steps.index(next(step for step in steps if "generate-coverage@" in str(step.get("uses", "")))) + 1, check)
+        steps.insert(
+            steps.index(
+                next(
+                    step
+                    for step in steps
+                    if "generate-coverage@" in str(step.get("uses", ""))
+                )
+            )
+            + 1,
+            check,
+        )
     elif mutation == "secret_in_extra_step":
         steps.insert(-2, {"run": "echo ${{ secrets.CS_ACCESS_TOKEN }}"})
     elif mutation == "duplicate_writer":
@@ -153,7 +167,7 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
 
 
 def test_pr_closure_follows_workflow_run_chain() -> None:
-    workflows = _ready()
+    workflows = _workflow_shape_fixture()
     workflows["after-pr.yml"] = parse_workflow(
         "name: After PR\non:\n  workflow_run:\n"
         "    workflows: [CI]\n    types: [completed]\n"

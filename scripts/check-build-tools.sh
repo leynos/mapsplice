@@ -20,5 +20,5 @@ if [[ $(uname -s) == Linux && $(uname -m) =~ ^(x86_64|aarch64)$ ]]; then
   command -v clang >/dev/null 2>&1 || fail 'clang'
   command -v mold >/dev/null 2>&1 || fail 'mold 2.41.0'
   command -v ld.mold >/dev/null 2>&1 || fail 'ld.mold 2.41.0'
-  [[ $(mold --version) == 'mold 2.41.0 '* ]] || fail 'mold 2.41.0'
+  [[ $(ld.mold --version) == 'mold 2.41.0 '* ]] || fail 'ld.mold 2.41.0'
 fi

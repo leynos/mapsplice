@@ -63,6 +63,16 @@ mapsplice replace <target> <anchor> <file-to-replace-with>
 By default the rewritten roadmap is written to standard output. Use
 `--in-place` or `-i` to rewrite the target file instead.
 
+### Help and diagnostics
+
+Use `mapsplice --help` for the command list or `mapsplice help insert` for help
+on one operation. Top-level help begins with the stable usage line
+`Usage: mapsplice [OPTIONS] <COMMAND>`. Successful help is written to standard
+output and exits successfully. Invalid command-line input writes a diagnostic
+to standard error and exits unsuccessfully. Errors from reading, validating, or
+editing roadmap files are also reported on standard error with an unsuccessful
+exit status.
+
 ## Worked example
 
 Start with a target roadmap:

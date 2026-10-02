@@ -4,6 +4,175 @@ This record tracks the single delivery branch and its measured state. A passing
 local gate applies only to the commit and live inputs named here; it is not
 final acceptance or evidence of a hosted review.
 
+## Current session repair checkpoint: 2026-10-02
+
+For Mapsplice PR [#116](https://github.com/leynos/mapsplice/pull/116), the
+owner-authorized repair provisioned the GitHub `codescene` environment. Its
+deployment protection has `protected_branches: false` and
+`custom_branch_policies: true`, with one deployment branch policy for `main`.
+This records the environment policy only; secret configuration and CodeScene
+project mapping have not been verified.
+
+The Lody wrapper's identity-preference verification failed with “Cannot verify
+GitHub identity preferences with Lody” and stated that no GitHub operation was
+attempted. For individual commands, unsetting inherited `GIT_CONFIG_*`,
+`BASH_ENV`, `GH_TOKEN`, and `GITHUB_TOKEN` restored the standard `gh` identity
+`leynos` (repository admin access verified) and resolved the pinned
+`typos-config-builder` Git dependency. No global configuration was changed. The
+underlying reason for the wrapper verification failure remains unknown.
+
+At 17:59 UTC, the corrected live verifier passed and reported the `codescene`
+environment's main-only deployment branch policy as verified. It validates
+repository metadata and the numeric canonical policies path, and rejects links
+to unrelated repositories. After a fresh protection readback,
+`coverage-main.yml` declares `environment: codescene` for the publisher job.
+Secret configuration and CodeScene project mapping remain unverified.
+
+Scrutineer passed `check-build-tools`, `check-fmt`, `lint`, `typecheck`, `test`
+(295 tests plus doctests), `markdownlint`, `nixie`, `spelling`, and ShellCheck.
+The spelling dependency resolution recovered and `make spelling` passed. After
+correcting initial Ruff formatting/import findings and the canonical workflow
+`ISC004` regression, final Ruff formatting checks reported eight files already
+formatted, Ruff lint passed, and `make test-workflow-contracts` passed all 175
+tests after the final changes and probe extraction. Python and workflow
+contract validation is complete; final documentation checks precede
+publication. No commit SHA is recorded yet. This checkpoint makes no claim of
+PR readiness or merge readiness. The dated checkpoints below are historical
+snapshots; their earlier statements about the environment being absent, the
+identity check being blocked, and spelling dependency resolution failing are
+superseded by this checkpoint where noted.
+
+## PR #116 review repair checkpoint: 2026-10-02
+
+The review comments were checked against the current checkout at PR head
+`7bac34c32a3917f25a0252ef11e15ca0db686c87`. These dispositions describe the
+uncommitted worktree; the commit head has not changed.
+
+- **Keep the publisher environment absent:** still valid while owner evidence
+  for the protected `codescene` environment is unavailable. The declaration
+  remains withheld and the strict live contract failure remains intentional.
+- **Check the `ld.mold` version:** verified current and updated to check the
+  PATH-resolved `ld.mold` 2.41.0 used by the Clang linker wrapper.
+- **Add Markdown contract diagnostics:** verified current and updated so
+  assertions name the requirement and report observed configuration, index, or
+  Make-output values.
+- **Forward the AArch64 target to Clang:** verified current and repaired with a
+  dedicated wrapper that supplies `--target=aarch64-unknown-linux-gnu`. A
+  suitable cross sysroot and supporting tools remain host prerequisites.
+- **Documentation:** corrected the shared `ProcessState` fixture description,
+  added user-facing CLI help and error-channel details, and recorded the
+  AArch64 linker prerequisites in the guides.
+
+The latest user instruction requests that PR #116 be marked ready for review;
+it supersedes the earlier draft instruction. The attempt to verify the required
+`leynos` identity stopped at the Lody identity verification error, which stated
+that no GitHub operation was attempted. Ready status is therefore not
+confirmed, and the requested CodeRabbit issue-comment watch was not performed.
+
+Scrutineer validation completed at 2026-10-02T17:38:56Z against this unchanged
+head and the uncommitted worktree:
+
+- Phase 3: Ruff formatting and lint passed for the three new Python files;
+  Ruff lint passed for `markdown_tools_test.py`; 46 focused tests passed. The
+  focused coverage and administrative tests had 61 passes and one failure at
+  the strict live contract. `make test-workflow-contracts` had 170 passes and
+  the same single live-contract failure.
+- Phase 2: `make lint`, `make typecheck`, and `make test` passed; the test gate
+  ran 295 tests, with 12 doctests passing and two intentionally ignored.
+  `make fmt`, `make check-fmt`, `make markdownlint`, `make nixie`, and
+  `make spelling` passed.
+- Phase 1's Ruff I001/format findings in `build_standard_routing_test.py` and
+  I001 finding in `coverage_contract_test.py` were present at the reviewed
+  head; they are baseline findings, not regressions from this repair.
+- A Clang `-###` probe with version 21.1.8 selected the AArch64 Linux target.
+  This verifies routing only; a full cross-link with the host sysroot was not
+  demonstrated.
+- Phase 4 documentation gates: `make fmt`, `make check-fmt`,
+  `make markdownlint`, `make nixie`, and `git diff --check` passed. The earlier
+  phase-2 spelling run passed, but the final `make spelling` attempt failed
+  with exit 2 before the builder ran: `uv` could not resolve the pinned
+  `typos-config-builder` Git requirement (`Git operation failed`). `typos.toml`
+  remained unchanged, so phase 4 provides no final spelling result.
+
+Logs are under `/tmp/mapsplice-pr116-review-20261002/phase{1,2,3,4}/`. These
+results establish static validation only. The protected environment declaration
+remains withheld because owner evidence is unavailable; the administrative
+recheck was blocked by Lody identity verification. Hosted PR coverage and
+protected main publication are unavailable. The separate approved Rust
+environment-access `disallowed_methods` prerequisite remains open. The strict
+live-contract failure prevents a commit under `AGENTS.md`; no commit or push
+was made, and no PR-ready status or CodeRabbit update was confirmed.
+
+## CV-005 administrative repair checkpoint: 2026-10-02
+
+The live PR head and clean starting checkout were
+`7bac34c32a3917f25a0252ef11e15ca0db686c87`. The inspected reference
+`9885885f4c479aa694bb30e4517e643f26e10b34` is historical: the rebase and
+accessible compiler-routing diagram have since been published over
+owner-authorized SSH. At that earlier checkpoint, PR #116 was draft under the
+then-current instruction. The later request to mark it ready supersedes that
+historical status; see the review repair checkpoint above.
+
+Fresh read-only administrative checks returned HTTP 404 for
+`GET repos/leynos/mapsplice/environments/codescene` and `total_count: 0`,
+`environments: []` for the environment inventory. The current identity
+therefore cannot provide protection evidence. No administrative write was
+attempted. HTTP 404 is distinct from the earlier HTTP 403 write denial and must
+not be treated as proof of authorized provisioning.
+
+The repair adds a read-only verifier with pure policy validation and an
+injectable API client, offline API-response tests, an explicit workflow-shape
+fixture name, and a diagnostic naming the affected publisher and owner
+prerequisite. The trusted process is documented in
+[the developer's guide](developers-guide.md#9-coverage-administration-and-readiness).
+Validation ran sequentially on the uncommitted repair above that exact head.
+At 12:30 UTC, the final Python candidate had these SHA-256 identities:
+
+| File                                                     | SHA-256                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `scripts/verify_codescene_environment.py`                | `4c57e38338ba8276462712912d9de3db9aa77a524a714553f22180451b1ee7f4` |
+| `tests/workflow_contracts/codescene_environment_test.py` | `b7083022fa4e988869e6556cc14e3a2e41e2fccba6f794061e6bf2f4145066de` |
+| `tests/workflow_contracts/coverage_contract.py`          | `b6dfa2d1b88b8c91653522b15feb2ec669b6cbe3df0cd34f0891b756706b77e7` |
+| `tests/workflow_contracts/coverage_contract_test.py`     | `4a4b16da732a8c848f4707d6c2796266a37d836548be0ef484dfb8a39b87b9dd` |
+
+*Table 1. Tested source identities; the ledger and guide are documentation
+updates, not remote protection evidence.*
+
+- Focused coverage and verifier tests: 61 passed, one failed. The sole failure
+  is the unchanged strict `test_live_coverage_contract` assertion at line 203,
+  naming the missing publisher declaration and owner prerequisite.
+- `make test-workflow-contracts`: 163 passed, one failed at that same live
+  assertion. No skip, expected-failure mark, or suppression was added.
+- New Python files: Ruff formatting, lint, and compilation passed. They are
+  372 and 397 lines respectively, within the module size limit.
+- `make test`: all 295 tests passed; 12 doctests passed and two were
+  intentionally ignored. `make typecheck` and `make lint` passed, including
+  Rustdoc, Clippy, and Whitaker.
+- After correcting the guide's API-reference paragraph, `make fmt`,
+  `make check-fmt`, `make markdownlint`, and `make nixie` passed.
+  `make spelling` passed and generated `typos.toml` stayed unchanged.
+- The read-only verifier, using the authenticated `leynos` identity, exited
+  one with a bounded `not-found` diagnostic distinguishing HTTP 404. It did not
+  emit response data or credential values. Administrative protection remains
+  unverified; no declaration was added.
+
+Logs are under `/tmp/mapsplice-cv005-admin-20261002/run2/`. Earlier formatting,
+lint, and mocked-count failures are retained there and in `run1/`; they were
+fixed before the final Python test results. No result is attributed to a new
+commit, hosted PR coverage run, or protected main publication. The binding live
+gate remains red, so the repair is left uncommitted under the repository's
+commit-gate rule. PR #116 was draft at this checkpoint; later review-status
+requests are tracked separately above.
+
+The live `coverage-main.yml` declaration remains withheld until fresh
+owner-authorized evidence confirms the protected `codescene` environment. The
+strict live contract remains binding. Environment token metadata, obsolete
+token exposure removal, and CodeScene project identity remain unverified. The
+approved Rust environment-access `disallowed_methods` list and current-head
+review convergence remain separate prerequisites. Local static tests,
+administrative read-back, hosted PR coverage, and the first protected main
+publication must each have their own evidence.
+
 ## Rebase checkpoint: 2026-10-02
 
 PR [#116](https://github.com/leynos/mapsplice/pull/116) was rebased from old
