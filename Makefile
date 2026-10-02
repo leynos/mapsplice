@@ -106,7 +106,7 @@ ifeq ($(DOC_TEST_TARGETS),true)
 endif
 
 test-workflow-contracts: ## Validate the mutation-testing caller contract
-	uv run --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
+	uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' pytest tests/workflow_contracts -q
 
 target/debug/$(TARGET): | check-build-tools ## Build the development binary
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" $(CARGO) build $(BUILD_JOBS) --bin $(TARGET)
