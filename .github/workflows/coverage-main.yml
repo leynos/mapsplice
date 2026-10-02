@@ -1,0 +1,58 @@
+name: Coverage (main)
+
+'on':
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  coverage-publisher:
+    environment: codescene
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: leynos/shared-actions/.github/actions/setup-rust@d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79
+        with:
+          install-mold: 'true'
+          rustflags: ''
+      - name: Install clang linker driver
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update \
+            && sudo apt-get install --yes --no-install-recommends clang
+      - name: Check build tools
+        run: make check-build-tools
+      - name: Generate coverage
+        env:
+          RUSTFLAGS: '-D warnings'
+        uses: leynos/shared-actions/.github/actions/generate-coverage@ff1dd759dfffc0db3459e30e833f52437ee62b57
+        with:
+          output-path: lcov.info
+          format: lcov
+          with-ratchet: 'true'
+          publish-artefact: 'false'
+      - name: Check CodeScene token
+        id: codescene-token
+        run: echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Upload coverage data to CodeScene
+        if: steps.codescene-token.outputs.available == 'true' && github.ref == 'refs/heads/main'
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79
+        with:
+          path: lcov.info
+          format: lcov
+          mode: upload
+          access-token: ${{ secrets.CS_ACCESS_TOKEN }}

@@ -188,39 +188,25 @@ fn unstable_sources_record_only_their_canonical_fallback_reason(
     #[case] source: &str,
     #[case] expected_list_fallbacks: u64,
     #[case] expected_code_fence_fallbacks: u64,
-) {
+) -> TestResult {
+    let (before, after) = fallback_metrics_after_operation(source)?;
     assert_fallback_reason(
-        source,
+        before,
+        after,
         expected_list_fallbacks,
         expected_code_fence_fallbacks,
     );
+    Ok(())
 }
 
-/// Assert that exactly the expected canonical-fallback reason is recorded for
-/// a generated unstable task source.
+/// Assert that an unstable source records only its expected fallback reason.
+#[track_caller]
 fn assert_fallback_reason(
-    source: &str,
+    before: MetricsSnapshot,
+    after: MetricsSnapshot,
     expected_list_fallbacks: u64,
     expected_code_fence_fallbacks: u64,
 ) {
-    let before = metrics_snapshot();
-    let target = format!(
-        "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n- [ ] 1.1.2. Anchor task.\n"
-    );
-    let _stdout = match run_preservation_operation(
-        &target,
-        "- [ ] 1.1.1. Inserted task.\n",
-        PreservationOperation {
-            operation: "insert",
-            anchor: "1.1.2",
-            placement: Some("--after"),
-        },
-    ) {
-        Ok(stdout) => stdout,
-        Err(error) => panic!("formatter fallback operation should succeed: {error}"),
-    };
-    let after = metrics_snapshot();
-
     let list_fallbacks = delta(
         before.canonical_fallbacks_unstable_list_marker,
         after.canonical_fallbacks_unstable_list_marker,
@@ -229,19 +215,47 @@ fn assert_fallback_reason(
         before.canonical_fallbacks_unstable_code_fence,
         after.canonical_fallbacks_unstable_code_fence,
     );
-    assert_eq!(list_fallbacks, expected_list_fallbacks);
-    assert_eq!(fence_fallbacks, expected_code_fence_fallbacks);
+    assert_eq!(
+        list_fallbacks, expected_list_fallbacks,
+        "unstable list-marker fallback count"
+    );
+    assert_eq!(
+        fence_fallbacks, expected_code_fence_fallbacks,
+        "code-fence fallback count"
+    );
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        1
+        1,
+        "formatter instability should cause one canonical fallback"
     );
     assert_eq!(
         delta(
             before.preserved_source_invalidations,
             after.preserved_source_invalidations
         ),
-        0
+        0,
+        "formatter fallback should not invalidate preserved source"
     );
+}
+
+/// Run an unstable source operation and return the metrics around it.
+fn fallback_metrics_after_operation(
+    source: &str,
+) -> TestResult<(MetricsSnapshot, MetricsSnapshot)> {
+    let before = metrics_snapshot();
+    let target = format!(
+        "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n- [ ] 1.1.2. Anchor task.\n"
+    );
+    run_preservation_operation(
+        &target,
+        "- [ ] 1.1.1. Inserted task.\n",
+        PreservationOperation {
+            operation: "insert",
+            anchor: "1.1.2",
+            placement: Some("--after"),
+        },
+    )?;
+    Ok((before, metrics_snapshot()))
 }
 
 /// Run one structural operation in a temporary workspace and return its output.
@@ -280,11 +294,13 @@ fn assert_no_preservation_mutation_or_fallback(before: MetricsSnapshot, after: M
             before.preserved_source_invalidations,
             after.preserved_source_invalidations
         ),
-        0
+        0,
+        "stable source should not be invalidated"
     );
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        0
+        0,
+        "stable source should not need canonical fallback"
     );
 }
 
@@ -292,21 +308,24 @@ fn assert_no_preservation_mutation_or_fallback(before: MetricsSnapshot, after: M
 fn assert_no_canonical_fallback(before: MetricsSnapshot, after: MetricsSnapshot) {
     assert_eq!(
         delta(before.canonical_fallbacks, after.canonical_fallbacks),
-        0
+        0,
+        "mutation should not trigger canonical fallback"
     );
     assert_eq!(
         delta(
             before.canonical_fallbacks_unstable_list_marker,
             after.canonical_fallbacks_unstable_list_marker,
         ),
-        0
+        0,
+        "mutation should not trigger a list-marker fallback"
     );
     assert_eq!(
         delta(
             before.canonical_fallbacks_unstable_code_fence,
             after.canonical_fallbacks_unstable_code_fence,
         ),
-        0
+        0,
+        "mutation should not trigger a code-fence fallback"
     );
 }
 
