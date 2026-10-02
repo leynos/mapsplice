@@ -176,6 +176,44 @@ rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
 non-development routes; see [the contributing guide](contributing.md) for local
 setup.
 
+```mermaid
+flowchart TD
+    accTitle: Mapsplice compiler flag and linker routes
+    accDescr {
+        Development uses Cargo defaults or Make's composed flags with the parallel frontend.
+        Supported Linux targets use mold. Coverage, release, and Whitaker use separate LLVM routes
+        without development frontend or mold flags.
+    }
+    Start[Build or test command] --> Assigned{Explicit flags assigned?}
+    Assigned -->|No| Config[Cargo config defaults]
+    Assigned -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
+    Assigned -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
+    Assigned -->|Release| Release[LLVM release profile and warning flags]
+    Assigned -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
+    Config --> Fast[Parallel rustc frontend]
+    Compose --> Fast
+    Fast --> Linux{Supported Linux target?}
+    Linux -->|Yes| Mold[Use clang and pinned mold]
+    Linux -->|No| Platform[Use platform linker]
+    Coverage --> Platform
+    Release --> Platform
+    Whitaker --> Platform
+```
+
+*Figure 1. Compiler flag routing for Mapsplice. Bare development commands use
+Cargo defaults; Make development gates compose warning and policy flags with
+the parallel frontend flags. The supported Linux targets are
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, which use `clang`
+and pinned `mold`; other targets use their platform linker. Coverage, release,
+and Whitaker use LLVM without the development frontend or `mold` flags. Release
+uses the pinned nightly Cargo, while Whitaker uses its installer-managed
+toolchain.*
+
+Make also filters development-owned arguments from inherited
+`CARGO_ENCODED_RUSTFLAGS` before composing each route, preserving other caller
+policy flags. Encoded flags take precedence over `RUSTFLAGS`, so both flag
+sources must follow the selected route.
+
 Whitaker receives explicit LLVM development and test profile overrides without
 the repository's development frontend or linker flags. Keep
 `CARGO_UNSTABLE_CODEGEN_BACKEND=true` on this route: Dylint may build a driver
