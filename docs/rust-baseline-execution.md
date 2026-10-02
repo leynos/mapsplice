@@ -4,6 +4,41 @@ This record tracks the single delivery branch and its measured state. A passing
 local gate applies only to the commit and live inputs named here; it is not
 final acceptance or evidence of a hosted review.
 
+## Post-rebase publication checkpoint: 2026-10-02
+
+The branch was rebased from PR head `5e32d0626442c4eac1cd8957735a3d4bcdc5efec`
+onto fetched `main` `052987d9ff865eeec8c118a78ac2657556aa60dc`, whose previous
+base was `c6ba81beea4c12b59328e728837a6a6424ff69df`. The new local head is
+`d1a79f0360232162f4dfe6d8a3a7673018b7c3f4`. The 24-commit range-diff retained
+all commits; one CI conflict was resolved while preserving the newer `main`
+generation pin `ff1dd759dfffc0db3459e30e833f52437ee62b57` and the PR workflow's
+flag and secret boundaries. Recovery refs are
+`refs/recovery/pr116-rebase-20261002-head`,
+`refs/recovery/pr116-rebase-20261002-base`, and
+`refs/recovery/pr116-rebase-20261002-target`.
+
+The standard GitHub CLI identity was verified as `leynos` using the updated
+keyring instructions. SSH authentication also succeeded as `leynos`. PR #116
+was marked ready and read back with `isDraft: false`, but its remote head still
+points to `5e32d0626442c4eac1cd8957735a3d4bcdc5efec`; the rebased branch has
+not been published or read back remotely. A small follow-up to align the
+publisher and coverage contract pin was validated with the rebase. Scrutineer
+passed `check-build-tools`, `check-fmt`, `lint`, `typecheck`, and `test` (295
+tests; 12 doctests passed and two were intentionally ignored). The focused
+coverage and administrative tests passed all 66 tests, and
+`make test-workflow-contracts` passed all 175 tests. Ruff format and lint
+passed for the coverage contract; `markdownlint` and `nixie` passed.
+`make spelling` passed after the clean environment resolved builder version
+0.1.3 at `c8a4f95`; `typos.toml` was unchanged.
+
+A separate read-only administrative check as `leynos` verified the live
+main-only deployment branch policy. This does not verify secret scope or
+CodeScene project identity. CodeRabbit's issue comment was checked; no rate
+limit was verified, so no new review request was made. These results do not
+establish hosted PR coverage or a protected main publication. The rebased
+branch has not been published or read back remotely, and this checkpoint makes
+no claim of publication or merge readiness.
+
 ## Current session repair checkpoint: 2026-10-02
 
 For Mapsplice PR [#116](https://github.com/leynos/mapsplice/pull/116), the
