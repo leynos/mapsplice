@@ -12,18 +12,17 @@ UPLOADER_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
 SETUP_RUST_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
 DEPENDABOT_PIN = "ff1dd759dfffc0db3459e30e833f52437ee62b57"
 GENERATE = (
-    "leynos/shared-actions/.github/actions/generate-coverage@"
-    f"{COVERAGE_GENERATE_PIN}"
+    f"leynos/shared-actions/.github/actions/generate-coverage@{COVERAGE_GENERATE_PIN}"
 )
 UPLOAD = (
-    "leynos/shared-actions/.github/actions/upload-codescene-coverage@"
-    f"{UPLOADER_PIN}"
+    f"leynos/shared-actions/.github/actions/upload-codescene-coverage@{UPLOADER_PIN}"
 )
 DEPENDABOT_AUTOMERGE = (
-    "leynos/shared-actions/.github/workflows/dependabot-automerge.yml@"
-    f"{DEPENDABOT_PIN}"
+    f"leynos/shared-actions/.github/workflows/dependabot-automerge.yml@{DEPENDABOT_PIN}"
 )
-TOKEN_CHECK = 'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"'
+TOKEN_CHECK = (
+    'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"'
+)
 TOKEN_INPUT = "${{ secrets.CS_ACCESS_TOKEN }}"
 UPLOAD_GUARD = (
     "steps.codescene-token.outputs.available == 'true' && "
@@ -47,9 +46,7 @@ def _mapping(loader: StrictLoader, node: yaml.MappingNode) -> dict[object, objec
     return result
 
 
-StrictLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping
-)
+StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
 
 
 def parse_workflow(source: str) -> dict[object, object]:
@@ -64,7 +61,9 @@ def read_workflows(root: Path = WORKFLOW_ROOT) -> dict[str, dict[object, object]
     """Read every workflow in the selected repository directory."""
     paths = sorted((*root.glob("*.yml"), *root.glob("*.yaml")))
     assert paths, "no workflows found"
-    return {path.name: parse_workflow(path.read_text(encoding="utf-8")) for path in paths}
+    return {
+        path.name: parse_workflow(path.read_text(encoding="utf-8")) for path in paths
+    }
 
 
 def _triggers(workflow: Mapping[object, object]) -> dict[str, object]:
@@ -72,7 +71,9 @@ def _triggers(workflow: Mapping[object, object]) -> dict[str, object]:
     if isinstance(raw, str):
         return {raw: None}
     if isinstance(raw, list):
-        assert raw and all(isinstance(item, str) for item in raw), "invalid trigger list"
+        assert raw and all(isinstance(item, str) for item in raw), (
+            "invalid trigger list"
+        )
         return dict.fromkeys(raw)
     assert isinstance(raw, dict) and raw, "workflow triggers are missing"
     assert all(isinstance(key, str) for key in raw), "invalid trigger key"
@@ -107,7 +108,8 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
     names = {document.get("name"): path for path, document in workflows.items()}
     assert len(names) == len(workflows), "workflow names must be unique"
     reached = {
-        path for path, workflow in workflows.items()
+        path
+        for path, workflow in workflows.items()
         if {"pull_request", "pull_request_target"} & _triggers(workflow).keys()
     }
     assert reached, "no pull-request workflow found"
@@ -121,7 +123,9 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
                 assert isinstance(called, str), "job uses must be a literal"
                 if called.startswith("./.github/workflows/"):
                     target = called.removeprefix("./.github/workflows/")
-                    assert target in workflows, f"local workflow call is missing: {target}"
+                    assert target in workflows, (
+                        f"local workflow call is missing: {target}"
+                    )
                     reached.add(target)
                 else:
                     assert not called.startswith("leynos/mapsplice/"), (
@@ -153,7 +157,9 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
 
 def _coverage_steps(workflow: Mapping[object, object]) -> list[dict[str, object]]:
     return [
-        step for job in _jobs(workflow).values() if "steps" in job
+        step
+        for job in _jobs(workflow).values()
+        if "steps" in job
         for step in _steps(job)
         if "generate-coverage@" in str(step.get("uses", ""))
     ]
@@ -166,14 +172,16 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     assert "ci.yml" in reachable and "coverage-main.yml" not in reachable
     for path in reachable:
         content = _serialized(workflows[path]).lower()
-        assert not any(term in content for term in (
-            "codescene", "cs-coverage", "cs_access_token", "upload-codescene"
-        )), (
-            f"PR-reachable CodeScene route in {path}"
-        )
-        assert "secrets" not in content, (
-            f"unproved PR secret route in {path}"
-        )
+        assert not any(
+            term in content
+            for term in (
+                "codescene",
+                "cs-coverage",
+                "cs_access_token",
+                "upload-codescene",
+            )
+        ), f"PR-reachable CodeScene route in {path}"
+        assert "secrets" not in content, f"unproved PR secret route in {path}"
         for step in _coverage_steps(workflows[path]):
             assert step.get("with", {}).get("publish-baseline") != "always", (
                 f"PR workflow {path} could write a coverage baseline"
@@ -201,7 +209,10 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     assert list(jobs) == ["coverage-publisher"], "publisher must have one job"
     job = jobs["coverage-publisher"]
     assert job.get("environment") in ("codescene", {"name": "codescene"}), (
-        "publisher job needs the protected codescene environment"
+        ".github/workflows/coverage-main.yml job coverage-publisher must "
+        "declare the protected codescene environment; its owner must provision "
+        "and freshly verify main-only protection before adding the declaration "
+        "(scripts/verify_codescene_environment.py)"
     )
     assert job.get("permissions") == {"contents": "read"}
     assert "CS_ACCESS_TOKEN" not in _serialized(job.get("env", {}))
@@ -209,7 +220,8 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
         for name, other_job in _jobs(workflow).items():
             if path != "coverage-main.yml" or name != "coverage-publisher":
                 assert other_job.get("environment") not in (
-                    "codescene", {"name": "codescene"}
+                    "codescene",
+                    {"name": "codescene"},
                 ), f"unexpected codescene environment in {path}:{name}"
     main_steps = _steps(job)
     coverage = _coverage_steps(main)
@@ -217,34 +229,52 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     main_inputs = coverage[0].get("with")
     assert isinstance(main_inputs, dict)
     assert main_inputs == pr_inputs, "PR and main coverage inputs differ"
-    assert coverage[0].get("env") == pr_coverage.get("env") == {
-        "RUSTFLAGS": "-D warnings"
-    }, "PR and main coverage compiler routes differ"
+    assert (
+        coverage[0].get("env") == pr_coverage.get("env") == {"RUSTFLAGS": "-D warnings"}
+    ), "PR and main coverage compiler routes differ"
     setup = [step for step in main_steps if "setup-rust@" in str(step.get("uses", ""))]
     assert len(setup) == 1 and setup[0].get("uses") == (
         f"leynos/shared-actions/.github/actions/setup-rust@{SETUP_RUST_PIN}"
     )
     assert setup[0].get("with") == {"install-mold": "true", "rustflags": ""}
-    preflight = [step for step in main_steps if step.get("run") == "make check-build-tools"]
+    preflight = [
+        step for step in main_steps if step.get("run") == "make check-build-tools"
+    ]
     assert len(preflight) == 1, "publisher suite needs build-tool preflight"
     assert not any(key in preflight[0] for key in ("if", "continue-on-error"))
-    assert main_steps.index(setup[0]) < main_steps.index(preflight[0]) < main_steps.index(coverage[0])
-    assert [step.get("name") for step in main_steps].count("Check CodeScene token") == 1, (
-        "Check CodeScene token step must be unique"
+    assert (
+        main_steps.index(setup[0])
+        < main_steps.index(preflight[0])
+        < main_steps.index(coverage[0])
     )
-    token = next(step for step in main_steps if step.get("name") == "Check CodeScene token")
+    assert [step.get("name") for step in main_steps].count(
+        "Check CodeScene token"
+    ) == 1, "Check CodeScene token step must be unique"
+    token = next(
+        step for step in main_steps if step.get("name") == "Check CodeScene token"
+    )
     assert token.get("id") == "codescene-token" and token.get("run") == TOKEN_CHECK
     assert not any(key in token for key in ("env", "uses", "continue-on-error", "if"))
-    uploads = [step for step in main_steps if "upload-codescene-coverage@" in str(step.get("uses", ""))]
+    uploads = [
+        step
+        for step in main_steps
+        if "upload-codescene-coverage@" in str(step.get("uses", ""))
+    ]
     assert len(uploads) == 1 and uploads[0].get("uses") == UPLOAD
     upload = uploads[0]
-    assert main_steps.index(coverage[0]) < main_steps.index(token) < main_steps.index(upload)
+    assert (
+        main_steps.index(coverage[0])
+        < main_steps.index(token)
+        < main_steps.index(upload)
+    )
     assert upload.get("if") == UPLOAD_GUARD
     assert not any(key in upload for key in ("env", "run", "continue-on-error")), (
         "upload may receive CS_ACCESS_TOKEN only through its action input"
     )
     assert upload.get("with") == {
-        "path": "lcov.info", "format": "lcov", "mode": "upload",
+        "path": "lcov.info",
+        "format": "lcov",
+        "mode": "upload",
         "access-token": TOKEN_INPUT,
     }
     for step in main_steps:
@@ -252,17 +282,25 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
             assert "CS_ACCESS_TOKEN" not in _serialized(step), (
                 "only the token check and uploader may refer to the secret"
             )
-    assert "CS_ACCESS_TOKEN" not in _serialized({
-        key: value for key, value in main.items() if key != "jobs"
-    })
-    writers = [path for path, workflow in workflows.items()
-               if path not in reachable and any(
-                   step.get("with", {}).get("with-ratchet") == "true"
-                   for step in _coverage_steps(workflow)
-               )]
+    assert "CS_ACCESS_TOKEN" not in _serialized(
+        {key: value for key, value in main.items() if key != "jobs"}
+    )
+    writers = [
+        path
+        for path, workflow in workflows.items()
+        if path not in reachable
+        and any(
+            step.get("with", {}).get("with-ratchet") == "true"
+            for step in _coverage_steps(workflow)
+        )
+    ]
     assert writers == ["coverage-main.yml"], f"baseline writers: {writers}"
-    all_uploads = [path for path, workflow in workflows.items()
-                   for job in _jobs(workflow).values() if "steps" in job
-                   for step in _steps(job)
-                   if "upload-codescene-coverage@" in str(step.get("uses", ""))]
+    all_uploads = [
+        path
+        for path, workflow in workflows.items()
+        for job in _jobs(workflow).values()
+        if "steps" in job
+        for step in _steps(job)
+        if "upload-codescene-coverage@" in str(step.get("uses", ""))
+    ]
     assert all_uploads == ["coverage-main.yml"], f"uploaders: {all_uploads}"

@@ -84,8 +84,11 @@ Future optional configuration settings must document which loader owns their
 discovery path. Add or update `tests/roadmap_config.rs` coverage for every
 source and precedence claim before changing the users' guide.
 
-Configuration tests must serialize process environment and current-directory
-mutation with the shared `ProcessStateGuard` in `tests/support/config.rs`.
+Configuration tests use the shared `ProcessState` fixture in
+`tests/support/config.rs`. `set_env`, `remove_env`, and `enter_dir` configure
+changes that take effect only inside `run`; `Workspace::enter_root` selects the
+workspace directory through `enter_dir`. `run` holds a shared lock while the
+closure executes, then restores the environment and working directory.
 
 ## 5. Observability
 
@@ -171,6 +174,13 @@ development builds. The pinned toolchain includes rustfmt, Clippy,
 rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
 non-development routes; see [the contributing guide](contributing.md) for local
 setup.
+
+On supported Linux hosts, `make check-build-tools` checks that `clang` and
+`ld.mold` 2.41.0 are available on `PATH`; the Clang wrapper resolves that
+linker from `PATH`. The AArch64 route uses a dedicated wrapper that passes
+`--target=aarch64-unknown-linux-gnu` to Clang. Cross-linking still requires a
+compatible AArch64 linker sysroot and supporting tools on the host; the
+preflight does not install or supply them.
 
 ```mermaid
 flowchart TD
@@ -301,6 +311,110 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## 9. Coverage administration and readiness
+
+CV-005 has separate static and administrative prerequisites. The offline
+`make test-workflow-contracts` gate validates the actual workflow files. Its
+workflow-shape fixtures modify copies for mutation testing; they cannot prove
+that a GitHub environment exists or that a secret has the correct scope. Keep
+the live contract strict when an administrative prerequisite is missing.
+
+The sole publisher is `coverage-main.yml`, job `coverage-publisher`, which runs
+on pushes to `main`. Before adding its `environment: codescene` declaration,
+the repository owner must provision and freshly verify the environment.
+Declaring an unprovisioned environment in a workflow can create an environment
+without the intended protection. Workflows must never create or repair
+administrative protection. PR workflows remain secret-free and cannot upload to
+CodeScene or write the persistent coverage baseline.
+
+### Trusted owner checks
+
+Run the read-only administrative verifier from an owner-reviewed checkout in a
+trusted local session. Authenticate GitHub CLI as an authorized repository
+owner or administrator with permission to read environments and deployment
+policies. Keep those credentials outside PR workflows, logs, and committed
+files. Review the verifier before executing it with administrative access;
+executing arbitrary PR code with those credentials is not a readiness check.
+
+```bash
+python3 scripts/verify_codescene_environment.py --repo leynos/mapsplice
+```
+
+This command performs only GitHub API `GET` requests and exits non-zero when
+the protection cannot be verified. It does not provision environments, read
+secret values, upload coverage, or write a baseline. Its injected API client
+and pure validation functions support offline tests without administrative
+access; it is deliberately separate from `make test-workflow-contracts`.
+
+The verifier must read the `codescene` environment and enumerate every
+deployment branch policy. Require `protected_branches: false` and
+`custom_branch_policies: true`, with exactly one policy whose `name` is `main`
+and whose `type` is `branch`. Tags, additional branches, and wildcard patterns
+are not permitted. Missing or unreadable state, malformed responses, incomplete
+pagination, and policy drift must block readiness. HTTP 403 means access was
+denied; HTTP 404 means the resource was not found or was concealed from the
+current identity. Neither response proves protection.
+
+Before readiness and again immediately before merge, the owner must complete
+these actions and record non-secret evidence:
+
+1. Provision `codescene` through the trusted administrative process, then run
+   a fresh policy read-back. Record the repository, authenticated identity, UTC
+   time, inspected Git head, policy flags, complete pagination, and the sole
+   permitted branch policy. A committed response snapshot is historical
+   evidence, never a substitute for the live check.
+2. Provision `CS_ACCESS_TOKEN` as an environment-scoped secret. Read its
+   metadata through the environment secrets API and record only its name,
+   scope, and creation/update timestamps. Never retrieve, print, or commit its
+   value. Token existence does not establish the policy or project identity.
+3. Remove obsolete repository-level or organization-level token exposure
+   through an authorized owner action. Read back repository secret metadata and
+   any applicable organization secret access configuration to establish that
+   PR-accessible routes no longer expose `CS_ACCESS_TOKEN`. If either inventory
+   is unreadable or incomplete, record an unresolved prerequisite; do not infer
+   removal.
+4. Confirm in the trusted CodeScene administrative interface that the token
+   belongs to the intended project for `leynos/mapsplice` and that the project
+   tracks this repository and the main coverage publication. Record the
+   verified project identity and mapping without its token. Do not invent a
+   project identifier or treat a fixture as confirmation.
+5. Only after authorized protection evidence is available, add
+   `jobs.coverage-publisher.environment: codescene` to the existing publisher.
+   Preserve its action pins, compiler route, coverage parity, concurrency,
+   permissions, token guard, and sole baseline writer. Rerun the strict live
+   contract and the full workflow-contract gate.
+
+Repeat the live policy and secret-scope checks at least weekly and after
+changes to environment settings, deployment policies, secret scope, or
+administrative access. Any drift blocks readiness and merge until the owner
+repairs and re-verifies it. A read-back is a point-in-time observation, not an
+atomic guarantee that settings cannot subsequently change.
+
+### Evidence boundaries
+
+- **Static validation:** Offline mocked API tests exercise verifier behaviour;
+  workflow contracts enforce the checked-out YAML trust boundary. Record the
+  exact head and any uncommitted patch identity with their actual results.
+- **Administrative verification:** Fresh owner-authorized reads establish
+  environment policy and secret metadata. Record missing evidence explicitly.
+- **Hosted PR coverage:** An actual run on the current PR head measures the
+  secret-free PR lane. Local tests do not prove that hosted measurement.
+- **Protected main publication:** The first post-merge main run must enter
+  the protected environment and demonstrate the sole publisher's baseline write
+  and guarded upload to the verified CodeScene project. PR coverage does not
+  prove that publication.
+
+Merge remains blocked while the administrative prerequisites or required gates
+are incomplete. CV-005 verification does not clear the separate approved Rust
+environment-access `disallowed_methods` policy prerequisite or outstanding
+review findings. PR review status is tracked separately from merge readiness.
+
+The GitHub API references are:
+
+- [Environments](https://docs.github.com/en/rest/deployments/environments)
+- [Deployment branch policies](https://docs.github.com/en/rest/deployments/branch-policies)
+- [Environment secret metadata](https://docs.github.com/en/rest/actions/secrets#get-an-environment-secret)
 
 ## Lint baseline
 
