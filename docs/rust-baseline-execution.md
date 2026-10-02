@@ -35,9 +35,23 @@ correcting initial Ruff formatting/import findings and the canonical workflow
 `ISC004` regression, final Ruff formatting checks reported eight files already
 formatted, Ruff lint passed, and `make test-workflow-contracts` passed all 175
 tests after the final changes and probe extraction. Python and workflow
-contract validation is complete; final documentation checks precede
-publication. No commit SHA is recorded yet. This checkpoint makes no claim of
-PR readiness or merge readiness. The dated checkpoints below are historical
+contract validation is complete. The implementation is committed locally as
+`ec4a0d8`. Its HTTPS push was rejected because the OAuth token lacks workflow
+scope; standard SSH identity was verified as `leynos`, and the SSH remote is
+readable. The user requires pushes via SSH, so publication and remote readback
+are recorded separately and are not yet claimed here.
+
+The follow-up includes targeted spelling repairs in the newly tracked
+`clang_linker_test.py` and Markdown formatting in this ledger. The spelling
+gate found 12 technical-name findings in the test; its parameters are now
+`uses_pinned_linker` and `linker_version`, and the test function has a neutral
+name. The stale-linker fixture remains `2.40.4` and still fails the pinned
+`2.41.0` requirement. No broad spelling exceptions or `typos.toml` changes were
+made. Upgrading `mdtablefix` to 0.6.1 exposed four added and five removed lines
+in this ledger under `check-fmt`; `make fmt` corrected the ledger formatting.
+The implementation gates above remain valid for `ec4a0d8`; final gates are
+rerunning and precede publication. This checkpoint makes no claim of PR
+readiness or merge readiness. The dated checkpoints below are historical
 snapshots; their earlier statements about the environment being absent, the
 identity check being blocked, and spelling dependency resolution failing are
 superseded by this checkpoint where noted.
@@ -280,11 +294,10 @@ acceptance.
   cherry-picked. Compare their changes with the archive and seek worker
   hand-off before accepting a batch.
 - Live upstream checks report shared-actions #522 merged as
-  `6dea5677a84fec60ca51b07202570e3af12ffdb4`, agent-helper-scripts
-  #170 merged as `cedfe6f3f60af4908788ab21efdf2ca11d44ef2c`, and Concordat
-  #223 merged as `817081292ccfe6beb1937dfa3502211fc34a322d`.
-  The approved frozen policy snapshot for this run is
-  `902d034d9da8e7ca33a0d4032770519dd1609de2`.
+  `6dea5677a84fec60ca51b07202570e3af12ffdb4`, agent-helper-scripts #170 merged
+  as `cedfe6f3f60af4908788ab21efdf2ca11d44ef2c`, and Concordat #223 merged as
+  `817081292ccfe6beb1937dfa3502211fc34a322d`. The approved frozen policy
+  snapshot for this run is `902d034d9da8e7ca33a0d4032770519dd1609de2`.
 - That snapshot contains `rust-build-defaults` 0.1.1,
   `main-owned-codescene-coverage` 0.3.0, `markdown-formatting-baseline` 0.1.0,
   `spelling-config-baseline` 0.1.0, and `whitaker-provisioning` 0.1.0. Its
