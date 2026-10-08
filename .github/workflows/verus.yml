@@ -1,0 +1,52 @@
+name: Verus
+
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# A push to a pull request supersedes the run already in flight, and there is
+# nothing left to learn from the superseded one. Cancellation is conditioned
+# on the event so a hand-run dispatch, which has no successor waiting, always
+# runs to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Must equal `tools/verus/VERSION`. `tests/verus_harness.rs` enforces that,
+  # and the cache key below is derived from it, so a bump to one without the
+  # other would either red the harness test or silently restore the wrong
+  # verifier.
+  VERUS_VERSION: 0.2025.04.19.1b16620
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Setup Rust
+        uses: leynos/shared-actions/.github/actions/setup-rust@82feb2b7aac45b7efff40c9c4bb632551b14521c
+      # `rust-prover-tools` installs Verus into `.verus/<version>`, which
+      # `make verus-install` reuses rather than re-downloading. The key is
+      # pinned to the version so a bumped verifier cannot be served a cached
+      # archive of its predecessor.
+      - name: Cache Verus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .verus/${{ env.VERUS_VERSION }}
+          key: verus-${{ runner.os }}-${{ runner.arch }}-${{ env.VERUS_VERSION }}
+      # The proofs, and the check that the verifier rejects a proof it should.
+      # Both are required: a run whose verifier never started reports success
+      # on the first step and failure on the second.
+      - name: Verify proofs
+        run: make verus
+      - name: Verify the harness rejects false proofs
+        run: make verus-selftest

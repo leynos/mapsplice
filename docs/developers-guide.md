@@ -158,6 +158,29 @@ Property tests cover generated invalid dependency tokens, incidental numeric
 text, scoped reference preservation beside mapped `Requires` references, and
 append preservation across generated task-list shapes.
 
+Which answer a reference resolves through is a separate, proven boundary.
+`RenumberPlan::resolve_reference` in `src/roadmap/model.rs` calls
+`select_resolution` in `src/roadmap/ops/remap_kernel.rs`, a pure `const fn`
+over two already-computed anchors and a `bool` source flag; it performs no
+lookup and cannot fail. The kernel's body is shared as a `macro_rules!`
+definition in `src/roadmap/ops/select_resolution.macro.rs`, expanded by both
+the production `const fn` and the proof in `verus/lib.rs`, so the verified text
+and the compiled text are one artefact rather than two that can drift. The body
+is domain-owned and the proof reaches into `src/` for it, so the dependency
+runs from verification infrastructure to the domain kernel rather than the
+reverse. The splice is a macro rather than a bare `include!` because Whitaker's
+`bumpy_road_function` lint cannot see through `include!` and aborts the
+compiler; `verus/lib.rs` documents that convention, and
+[mapsplice-design.md](mapsplice-design.md) records the dependency-clause
+grammar the rewriter recognizes.
+
+`TaskEntry::body_children_mut` in `src/roadmap/model_task_entry.rs` is what
+lets a rewrite reach a `Requires` clause in a nested task-body bullet: it
+exposes the task's structural child sequence, which is where the parser drains
+nested body Markdown. A clause is reachable through a task's body blocks rather
+than through its summary. `docs/verification.md` records the proof obligations
+and the boundary of what is proven — the clause recognizer is not verified.
+
 ## 7. Local tooling
 
 Local builds use the pinned nightly toolchain in
@@ -184,6 +207,65 @@ MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownlint-
 make markdownlint
 make nixie
 ```
+
+### 7.1 Verus proofs
+
+`make verus` verifies the production-used kernels, and `make verus-selftest`
+runs a deliberately false proof that must be rejected. Both are required in CI:
+a run whose verifier never started reports success on the first target and
+failure on the second, so the pair cannot pass vacuously. `make lint` depends on
+`check-verification-ledger`, which requires `rg` (ripgrep) on `PATH` — a fresh
+environment without it fails the lint gate before compiling anything. The
+domain-purity gate described below shares that same prerequisite target.
+
+The pinned inputs are `tools/verus/VERSION` (the release),
+`tools/verus/SHA256SUMS` (its archive digests), and
+`tools/rust-prover-tools/REF` (the commit of the runner that resolves and
+invokes it). `tests/verus_harness.rs` asserts the workflow's `VERUS_VERSION`
+matches `tools/verus/VERSION`, because the CI cache key derives from it and a
+mismatch would silently restore the wrong verifier.
+`scripts/check-verification-ledger.sh` requires every symbol named in the
+ledger's claim table to exist as a declaration below `src/`, so a renamed
+kernel cannot leave a claim behind as prose. A row whose executable-function
+cell reads `Pending` is exempt, because it declares work that has not landed
+rather than asserting a result.
+
+Proofs complement the property and end-to-end tests rather than replacing them.
+The kernel's trusted boundary and the obligations that were deliberately left
+unproved are recorded in [verification.md](verification.md); the Markdown
+clause recognizer is outside every proof, which is why the CLI regressions and
+golden fixtures carry that part of the contract.
+
+### 7.2 The domain-purity gate
+
+`make lint` also depends on `check-domain-purity`, which runs
+`scripts/check-domain-purity.sh`. The roadmap domain owns the Markdown model,
+the splice, and the rendering; whatever reads a file, reads an environment
+variable, or walks the filesystem belongs to an adapter that calls the domain,
+never to the domain itself. Filesystem access lives in `src/fs.rs`. The gate
+scans the production sources under `src/roadmap` and fails if any of them names
+infrastructure — `fs`, `path`, `io`, `process`, `env`, `net`, or `thread` —
+through a `use` declaration, a grouped import, a qualified module path, a
+process call, or a build-time macro such as `env!` or `include_str!`. The rule
+matters because nothing in the compiler enforces it: the resolved kernel is
+spliced with a macro, and the obvious way to locate a file for `include!` is
+`env!("CARGO_MANIFEST_DIR")`, which an earlier revision of this repository did.
+
+Test files are exempt by name, since `src/roadmap/render_tests.rs` drives the
+rendering path through the built binary and legitimately names `std::process`.
+The exemption is by file rather than by region, so no brace count has to be
+trusted, and `tests/domain_purity.rs` asserts it from both sides: the same text
+in a production file must fail.
+
+Like the verification-ledger check, the gate is necessary rather than
+sufficient, and matching is textual. A name surviving only in a doc comment
+triggers it, so a comment discussing an escape hatch is treated as an escape
+hatch — the conservative direction, and visible in review rather than silent.
+
+Both this gate and the verification-ledger check run through the shared
+`check-ripgrep` prerequisite, so a missing `rg` fails `make lint` before either
+scan starts rather than inside one of them. `RG` selects a different executable
+when ripgrep is installed under another name.
 
 `MARKDOWN_PATHS` is a whitespace-separated list of existing Markdown paths to
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;

@@ -49,9 +49,7 @@ pub(super) fn rewrite_text_value(
                 result.push_str(candidate);
             }
             DependencyReferenceClassification::Reference(anchor) => {
-                let mapping = plan
-                    .resolve(source, anchor)
-                    .or_else(|| plan.resolve_unique(anchor));
+                let mapping = plan.resolve_reference(source, anchor);
                 if let Some(mapped) = mapping {
                     rewrite_count += u64::from(mapped != anchor);
                     result.push_str(&mapped.to_string());
