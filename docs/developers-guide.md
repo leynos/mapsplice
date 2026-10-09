@@ -231,7 +231,10 @@ development target on a Linux host and a macOS host (each keeping the caller's
 own `RUSTFLAGS`) and for the release target (the coverage exclusion is checked
 in the workflow steps) on a Linux host, and the `setup-rust` steps of the CI
 workflows (each must pass `install-mold`), so a flag lost through a recipe or
-workflow edit fails there.
+workflow edit fails there. The decision is recorded in
+[ADR 001](adr-001-rust-build-standard.md). The contract runs `make -n`, so a
+direct `cargo test` needs GNU make on the `PATH`. It fails when `make` is
+missing instead of skipping, so a missing tool cannot read as a pass.
 
 ### Cold-cache allowance for the trybuild tests
 
