@@ -28,7 +28,11 @@ WORKFLOW_PATH = (
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
 #: modules outside ``#[cfg(test)]``, so the caller only mirrors the CI
 #: baseline's feature flags (``make test`` runs --all-features).
-EXPECTED_WITH = {"extra-args": "--all-features"}
+EXPECTED_WITH = {
+    # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
+    "install-mold": "true",
+    "extra-args": "--all-features",
+}
 
 
 def _load() -> dict[str, object]:
