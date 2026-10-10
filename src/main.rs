@@ -60,7 +60,7 @@ fn emit_clap_display(error: &clap::Error) -> ExitCode {
 ///
 /// For example, an invalid roadmap emits its diagnostic before exiting.
 fn report_error(error: &MapspliceError) -> ExitCode {
-    tracing::error!(error = %error, error_class = error.class(), "mapsplice command failed");
+    tracing::error!(error_class = error.class(), "mapsplice command failed");
     report_stderr_diagnostic(error);
     ExitCode::FAILURE
 }
@@ -175,5 +175,82 @@ mod stderr_tests {
             .expect_err("the writer error should be returned");
 
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    }
+}
+
+#[cfg(test)]
+mod diagnostic_tracing_tests {
+    //! Tests that structured tracing excludes unbounded user diagnostics.
+
+    use std::sync::{Arc, Mutex};
+
+    use tracing_subscriber::fmt::MakeWriter;
+
+    use super::{MapspliceError, report_error};
+
+    /// Shared bytes captured from the scoped tracing subscriber.
+    #[derive(Clone)]
+    struct SharedWriter(Arc<Mutex<Vec<u8>>>);
+
+    /// Write guard that appends one event's formatted bytes to shared storage.
+    struct SharedWriterGuard(Arc<Mutex<Vec<u8>>>);
+
+    impl<'a> MakeWriter<'a> for SharedWriter {
+        type Writer = SharedWriterGuard;
+
+        fn make_writer(&'a self) -> Self::Writer { SharedWriterGuard(Arc::clone(&self.0)) }
+    }
+
+    impl std::io::Write for SharedWriterGuard {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let mut output = self
+                .0
+                .lock()
+                .map_err(|_| std::io::Error::other("captured tracing output was poisoned"))?;
+            output.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    }
+
+    #[test]
+    fn command_trace_keeps_error_class_without_user_supplied_message() {
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = tracing_subscriber::fmt()
+            .without_time()
+            .with_ansi(false)
+            .with_writer(SharedWriter(Arc::clone(&captured)))
+            .finish();
+        let marker = "user-supplied-diagnostic-marker";
+        let error = MapspliceError::InvalidRoadmap {
+            message: marker.to_owned(),
+        };
+
+        let exit_code = tracing::subscriber::with_default(subscriber, || report_error(&error));
+
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+        let output_bytes = captured
+            .lock()
+            .expect("captured tracing output should remain available")
+            .clone();
+        let trace_output =
+            String::from_utf8(output_bytes).expect("formatted tracing event should be valid UTF-8");
+        assert!(
+            trace_output.contains("error_class=\"invalid_roadmap\""),
+            "trace omitted the stable error class: {trace_output:?}"
+        );
+        assert!(
+            trace_output.contains("mapsplice command failed"),
+            "trace omitted its static event message: {trace_output:?}"
+        );
+        assert!(
+            !trace_output.contains("error="),
+            "trace retained the unbounded error field: {trace_output:?}"
+        );
+        assert!(
+            !trace_output.contains(marker),
+            "trace exposed the user-supplied error message: {trace_output:?}"
+        );
     }
 }

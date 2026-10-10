@@ -136,10 +136,10 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
                     assert not called.startswith("leynos/mapsplice/"), (
                         "qualified self-call cannot be proved local"
                     )
-                    path, separator, ref = called.partition("@")
+                    called_workflow, separator, ref = called.partition("@")
                     assert (
                         separator
-                        and path == DEPENDABOT_WORKFLOW
+                        and called_workflow == DEPENDABOT_WORKFLOW
                         and re.fullmatch(r"[0-9a-f]{40}", ref)
                     ), f"unproved external workflow call: {called}"
                     assert "secrets" not in job, "external PR call passes secrets"

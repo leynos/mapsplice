@@ -344,14 +344,17 @@ nested build alone can exceed 180 s on a GitHub-hosted runner.
 
 ### Cranelift
 
-Cranelift is the development-profile codegen backend. The full suite was
-measured under it on the pinned `nightly-2026-03-26` on 2026-09-28: all 290
-nextest tests and the doctests pass. Coverage selects LLVM explicitly
-(`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`), because instrumentation needs it,
-and release builds use the release profile, which Cranelift does not touch.
-Re-measure the whole suite on the next toolchain bump; if it fails, record the
-failing tests here as an exception and remove the backend from
-`.cargo/config.toml`.
+Cranelift is currently excluded from development builds; LLVM is the
+development default. Before the exclusion, the full suite was measured with
+Cranelift on the pinned `nightly-2026-03-26` on 2026-09-28: all 290 nextest
+tests and the doctests passed. This is historical evidence from before the
+`catch_unwind` probe failed and a spawned-thread panic aborted the test process
+on that toolchain. See the
+[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
+Coverage selects LLVM explicitly (`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`),
+because instrumentation needs it, and release builds use the release profile,
+which Cranelift does not affect. Before enabling Cranelift again, re-measure
+the full suite and reconsider the exception based on the results.
 
 ## 8. Workflow pins and Dependabot
 
