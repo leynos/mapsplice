@@ -14,6 +14,10 @@ identifier, API, proper-name, or fixture exceptions to `typos.local.toml`;
 hand-editing `typos.toml` is not supported and any edits are overwritten on the
 next run.
 
+`TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
+`typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
+together with the regenerated `typos.toml`, never on its own.
+
 ## 1. Normative references
 
 The source-of-truth documents for internal changes are:
