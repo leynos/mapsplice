@@ -404,7 +404,10 @@ and merge. If its policy is missing or has drifted, repair it through the
 trusted administrative process and perform a fresh read-back. Do not remove the
 workflow declaration or rely on a workflow to create or repair administrative
 protection. PR workflows remain secret-free and cannot upload to CodeScene or
-write the persistent coverage baseline.
+write the persistent coverage baseline. If `CS_ACCESS_TOKEN` is unavailable,
+the publisher emits a fixed GitHub Actions warning that coverage was not
+published; the upload step remains guarded. This warning reports a skipped
+upload and does not prove that the environment or token has been provisioned.
 
 ### Trusted owner checks
 

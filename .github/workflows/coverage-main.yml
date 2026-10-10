@@ -48,6 +48,9 @@ jobs:
       - name: Check CodeScene token
         id: codescene-token
         run: echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Report skipped CodeScene upload
+        if: steps.codescene-token.outputs.available != 'true'
+        run: echo "::warning::CodeScene coverage was not published because the environment token is unavailable."
       - name: Upload coverage data to CodeScene
         if: steps.codescene-token.outputs.available == 'true' && github.ref == 'refs/heads/main'
         uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79
