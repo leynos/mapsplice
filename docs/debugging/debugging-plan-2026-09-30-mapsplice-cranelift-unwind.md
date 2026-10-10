@@ -50,13 +50,13 @@ The full Cranelift component provenance is not recorded in the Rust toolchain
 manifest. A focused candidate using the installed `nightly-2026-09-13`
 component falsified the version-fix hypothesis: both
 `catch_unwind_catches_a_development_panic` and
-`spawned_thread_panic_does_not_abort_the_process` fail or abort there, while
-`should_panic_tests_keep_their_expected_result` passes. A sequential comparison
-of those same isolated tests on the pinned `nightly-2026-03-26` and installed
-`nightly-2026-09-13` found the same outcomes on both toolchains. Verbose rustc
-logs confirm Cranelift was active and no explicit panic-strategy flag was
-injected in this comparison. This rules out the tested toolchain-version change
-as a fix; it does not establish the upstream cause.
+`spawned_thread_panic_does_not_abort_the_process` failed or aborted there, while
+`should_panic_tests_keep_their_expected_result` passes. A sequential
+comparison of those same isolated tests on the pinned `nightly-2026-03-26` and
+installed `nightly-2026-09-13` found the same outcomes on both toolchains.
+Verbose rustc logs confirm Cranelift was active and no explicit panic-strategy
+flag was injected in this comparison. This rules out the tested
+toolchain-version change as a fix; it does not establish the upstream cause.
 
 The full pinned-toolchain `make test` run failed the two panic tests, with 212
 tests not run after the abort. The explicit LLVM route previously passed all
