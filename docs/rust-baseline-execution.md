@@ -1025,3 +1025,54 @@ The `codescene` environment deployment policy was verified earlier. Its
 `CS_ACCESS_TOKEN` metadata, obsolete token exposure removal, CodeScene project
 identity, and the approved Rust environment-access `disallowed_methods` policy
 remain separate unresolved prerequisites; CI success does not clear them.
+
+### 2026-10-10: Spelling repair and current PR evidence
+
+Hosted run `38073984850` failed on prior head
+`d6993efa1d4cf058f39dd5b45730fc1f5277227d` at spelling only. The checker
+reported a false positive for the Python child-environment mapping that
+disables terminal-colour output at
+`tests/workflow_contracts/codescene_cli_process_test.py:97`. The repair adds a
+narrow exact-pattern ignore to `typos.local.toml` and its generated
+`typos.toml` entry; it changes no runtime behaviour.
+
+Local validation ran at base HEAD `d6993efa1d4cf058f39dd5b45730fc1f5277227d`
+plus the two-line configuration diff (SHA-256
+`c405539c811838eca4de94106db159939e35a661263f2bd5d1db7d8c09c1b9a8`), then was
+committed as `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`, tree
+`0c0595b86990cf69f2a2c697956cd6d03b2a9a53`. Sequential checks passed:
+`make spelling`, `make check-fmt` (190 files unchanged), `make lint`,
+`make typecheck`, `make test` (439 tests and 12 doctests passed; two ignored),
+`make markdownlint`, `make nixie`, `make test-workflow-contracts` (196 passed),
+`make check-build-tools`, `mbake validate Makefile`, and focused CodeScene
+Python tests (4 passed). The first `make markdownlint` pass emitted a warning
+because inherited terminal-colour variables conflicted; rerunning with those
+variables unset passed with zero warnings. Gate logs are under
+`/tmp/*-3c141d42-...-rust-baseline-hardening-mapsplice-5.out`; the clean
+Markdown lint log is
+`/tmp/markdownlint-clean-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out`.
+
+Hosted Actions run
+[`38075140130`](https://github.com/leynos/mapsplice/actions/runs/38075140130)
+(attempt 1) inspected exact head `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`
+against base `9bae3a275cad6d7514d172d39e934614a1c24885`. It passed from
+`18:17:32Z` to `18:28:27Z`; build-test job `114280432420` completed all 26
+steps, including Workflow contract tests and Test and Measure Coverage, with 13
+notices, zero warnings, and zero failures. The Dependabot-automerge run
+`38075139151`, Kody review, and Sourcery review were skipped. The test host was
+Rocky Linux 10 x86_64; preflight tests simulated both supported x86_64 and
+AArch64 routes. No native AArch64 execution occurred. These are local and
+hosted PR results, not evidence of the first protected-main publication.
+
+At approximately `18:30Z`, GitHub showed PR #116 open and ready (not draft),
+head `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`, base
+`9bae3a275cad6d7514d172d39e934614a1c24885`, `mergeStateStatus=CLEAN`, and
+`reviewDecision=CHANGES_REQUESTED`; `build-test` was green. CodeRabbit queue
+item `ff9d1d11` remained pending and its check reported `Review paused`, so
+review equilibrium was not established. The only unresolved review thread
+concerns the protected CodeScene environment. Its main-only deployment policy
+was verified earlier, but environment-scoped `CS_ACCESS_TOKEN` metadata,
+removal of obsolete repository-level token exposure, CodeScene project
+identity, and the approved Rust environment-access `disallowed_methods` policy
+remain unverified separate prerequisites. CI success does not clear them; no
+merge or first protected-main publication is claimed.
