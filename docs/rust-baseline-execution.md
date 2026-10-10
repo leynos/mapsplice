@@ -1005,3 +1005,23 @@ files unchanged), `make lint`, `make typecheck`, and `make test` (439 tests and
 local results. Hosted run `38067683802` remains red on the previous head; no
 new hosted run has been triggered. Existing administrative and Rust
 environment-access blockers recorded above remain unresolved.
+
+### 2026-10-10: Hosted rerun and PR state
+
+GitHub Actions run `38068781620` succeeded on PR #116 head
+`be10d727a35db2cd8b01533da593bf9bfd5d935b`, based on
+`9bae3a275cad6d7514d172d39e934614a1c24885`. It started at `16:42:58Z` and
+completed at `16:54:16Z`; build-test job `114261746668` succeeded. Format,
+typecheck, Markdown lint, Mermaid, lint, spelling, Workflow contract tests, and
+Test and Measure Coverage all succeeded. This is hosted evidence, distinct from
+the local results above.
+
+The PR was read as `OPEN`, ready (not draft), `CLEAN`, and `MERGEABLE`, with
+`CHANGES_REQUESTED`. The latest submitted CodeRabbit review remains on stale
+head `4d0978a8fcb4d0863d65ba1e201f7ac89330d532`; comenq full review request
+`ff9d1d11` remains pending. Review equilibrium and merge are not established.
+
+The `codescene` environment deployment policy was verified earlier. Its
+`CS_ACCESS_TOKEN` metadata, obsolete token exposure removal, CodeScene project
+identity, and the approved Rust environment-access `disallowed_methods` policy
+remain separate unresolved prerequisites; CI success does not clear them.
