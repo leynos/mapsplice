@@ -982,3 +982,26 @@ hosted failure. The CodeScene token metadata, obsolete repository-level token
 exposure removal, and project identity remain unverified. The approved Rust
 environment-access `disallowed_methods` policy remains a separate blocker;
 neither prerequisite is resolved by these test results.
+
+### 2026-10-10: Installer fixture portability repair
+
+GitHub Actions run `38067683802` (attempt 1) inspected PR head
+`70b07c138e8fc8a56e1697ec9dd8fd3f5d5f9d3c` and failed its Workflow contract
+tests: 2 failed, 196 passed. Both failures were cases of
+`test_installer_checks_ld_mold_before_writing_success_marker`. The curl fixture
+used Bash-only `while (($#))` and `[[ ]]` under `#!/bin/sh`; the tar fixture
+had the same latent portability issue. Both test stubs now use POSIX `[ ... ]`
+syntax. This repairs test-fixture portability and does not change installer
+behaviour.
+
+Local validation used HEAD `70b07c138e8fc8a56e1697ec9dd8fd3f5d5f9d3c` plus the
+four-insertion/four-deletion test diff, SHA-256
+`7808e748e8dad2b74c68b3afd94ca852c12e28f5e650d03a74fddf7027d789af`. Focused
+Python tests passed (2); `make test-workflow-contracts` passed (198). The
+following also passed: `make check-build-tools`, pinned `make check-fmt` (190
+files unchanged), `make lint`, `make typecheck`, and `make test` (439 tests and
+12 doctests passed; two ignored). `make markdownlint`, `make nixie`,
+`make spelling`, `mbake validate Makefile`, and ShellCheck passed. These are
+local results. Hosted run `38067683802` remains red on the previous head; no
+new hosted run has been triggered. Existing administrative and Rust
+environment-access blockers recorded above remain unresolved.
