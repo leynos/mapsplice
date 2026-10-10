@@ -9,7 +9,7 @@ use std::fmt::Debug;
 
 use assertions::assert_contains;
 use mapsplice::{
-    MapspliceError,
+    MapspliceError::{self, AnchorNotFound, LevelMismatch},
     RoadmapOperation,
     apply_command,
     metrics_snapshot,
@@ -34,15 +34,17 @@ fn assert_equal<T>(actual: &T, expected: &T)
 where
     T: Debug + PartialEq,
 {
-    assert_eq!(actual, expected);
+    assert_eq!(actual, expected, "roadmap operation result differs");
 }
 
 fn assert_level_mismatch(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
+    let is_level_mismatch = matches!(error, LevelMismatch { .. });
+    assert!(is_level_mismatch, "expected level mismatch");
 }
 
 fn assert_anchor_not_found(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
+    let is_anchor_not_found = matches!(error, AnchorNotFound { .. });
+    assert!(is_anchor_not_found, "expected missing anchor");
 }
 
 #[rstest]

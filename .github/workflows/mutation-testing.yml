@@ -28,9 +28,20 @@ jobs:
       id-token: write # OIDC workflow-source resolution
     uses: leynos/shared-actions/.github/workflows/mutation-cargo.yml@c17d433f99daa94e53ca5eb566088518a312cb71
     with:
-      # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
+      # .cargo/config.toml links with `mold` on Linux; the reusable workflow installs it.
       install-mold: 'true'
       # Match the CI baseline (`make test` runs --workspace --all-targets
       # --all-features) so the test command exercised against mutants
       # mirrors what gates pull requests.
       extra-args: "--all-features"
+      # The reusable workflow runs this before cargo-mutants. Its setup-rust
+      # default assigns warnings-only RUSTFLAGS, so restate development flags
+      # for the later step after installing the same pinned linker locally.
+      setup-commands: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends clang
+        make install-build-tools
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        make check-build-tools
+        echo 'RUSTFLAGS=-D warnings -Zthreads=8 -C link-arg=-fuse-ld=mold' >> "$GITHUB_ENV"

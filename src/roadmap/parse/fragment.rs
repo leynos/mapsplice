@@ -184,19 +184,28 @@ fn parse_sub_task_fragment_root(root: Root, source_text: &str) -> Result<Roadmap
     )
 }
 
+/// Parse task items as fragment content without target source preservation.
 fn parse_task_fragment_list(list: &List, source_text: &str) -> Result<Vec<TaskEntry>> {
     parse_task_list(list, SourceId::Fragment, source_text)
 }
 
+/// Operations and messages for parsing one kind of list fragment.
 struct SingleListFragmentParser<T> {
+    /// Errors for invalid list count or empty contents.
     messages: SingleListFragmentMessages,
+    /// Convert the Markdown list into typed roadmap items.
     parse_list: fn(&List, &str) -> Result<Vec<T>>,
+    /// Check that parsed items are valid siblings.
     validate: fn(&[T]) -> Result<()>,
+    /// Wrap validated items in their fragment variant.
     wrap: fn(Vec<T>) -> RoadmapFragment,
 }
 
+/// Error messages specific to a list-fragment kind.
 struct SingleListFragmentMessages {
+    /// Explain that the fragment must contain exactly one list.
     single_list: &'static str,
+    /// Explain that the sole list must contain at least one item.
     empty_list: &'static str,
 }
 

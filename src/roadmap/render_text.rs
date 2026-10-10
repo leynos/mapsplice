@@ -44,6 +44,7 @@ pub(super) fn indent_block(block: &str, spaces: usize) -> String {
         .join("\n")
 }
 
+/// Combine optional language and metadata in the opening fence's info string.
 fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
     match (lang, meta) {
         (Some(language), Some(metadata)) => format!("{language} {metadata}"),
@@ -53,10 +54,12 @@ fn code_fence_info(lang: Option<&str>, meta: Option<&str>) -> String {
     }
 }
 
+/// Choose at least three backticks, longer than any run in the content.
 fn safe_code_fence(value: &str) -> String {
     "`".repeat(longest_backtick_run(value).saturating_add(1).max(3))
 }
 
+/// Find the longest contiguous run of backticks in the content.
 fn longest_backtick_run(value: &str) -> usize {
     let mut longest = 0;
     let mut current = 0;
@@ -71,6 +74,7 @@ fn longest_backtick_run(value: &str) -> usize {
     longest
 }
 
+/// Identify characters that plain-text rendering must escape in Markdown.
 const fn is_markdown_metacharacter(character: char) -> bool {
     matches!(
         character,

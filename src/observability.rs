@@ -62,16 +62,27 @@ pub struct MetricsSnapshot {
     pub canonical_fallbacks_unstable_code_fence: u64,
 }
 
+/// Process-local count of failed commands, excluding help and version output.
 static FAILURES: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of completed in-place target rewrites.
 static IN_PLACE_REWRITES: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of dependency text replacements.
 static DEPENDENCY_REWRITES: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of stable sources rendered without canonicalization.
 static PRESERVED_SOURCE_RENDERS: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of preserved sources invalidated by a mutation.
 static PRESERVED_SOURCE_INVALIDATIONS: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of preservation fallbacks to canonical rendering.
 static CANONICAL_FALLBACKS: AtomicU64 = AtomicU64::new(0);
+/// Invalidations caused by renumbering a preserved source.
 static INVALIDATIONS_RENUMBER: AtomicU64 = AtomicU64::new(0);
+/// Invalidations caused by rewriting dependency text.
 static INVALIDATIONS_DEPENDENCY_REWRITE: AtomicU64 = AtomicU64::new(0);
+/// Invalidations caused by mutating a preserved parent's child.
 static INVALIDATIONS_CHILD_MUTATION: AtomicU64 = AtomicU64::new(0);
+/// Canonical fallbacks caused by an unstable list marker.
 static CANONICAL_FALLBACKS_UNSTABLE_LIST_MARKER: AtomicU64 = AtomicU64::new(0);
+/// Canonical fallbacks caused by an unstable code fence.
 static CANONICAL_FALLBACKS_UNSTABLE_CODE_FENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Record one failed command.

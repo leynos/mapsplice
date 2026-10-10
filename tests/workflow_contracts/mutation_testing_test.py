@@ -26,13 +26,9 @@ WORKFLOW_PATH = (
 
 #: mapsplice is a single root crate with all mutable source under
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
-#: modules outside ``#[cfg(test)]``, so the caller only mirrors the CI
-#: baseline's feature flags (``make test`` runs --all-features).
-EXPECTED_WITH = {
-    # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
-    "install-mold": "true",
-    "extra-args": "--all-features",
-}
+#: modules outside ``#[cfg(test)]``, so the caller mirrors the CI baseline's
+#: feature flags and provisions the development linker before mutant builds.
+EXPECTED_WITH_KEYS = {"extra-args", "install-mold", "setup-commands"}
 
 
 def _load() -> dict[str, object]:
@@ -130,10 +126,17 @@ def test_triggers_keep_schedule_and_plain_dispatch() -> None:
 
 
 def test_with_block_carries_the_caller_configuration() -> None:
-    """The caller passes exactly the feature args mirroring CI."""
+    """The caller passes feature args and the supported setup hook."""
     with_block = _mutation_job(_load()).get("with")
-    assert with_block == EXPECTED_WITH, (
-        f"jobs.mutation.with must be exactly {EXPECTED_WITH!r} (mirror the "
-        f"CI baseline's --all-features and rely on the shared workflow's "
-        f"defaults for everything else), got {with_block!r}"
+    assert isinstance(with_block, dict) and set(with_block) == EXPECTED_WITH_KEYS, (
+        f"jobs.mutation.with must contain {EXPECTED_WITH_KEYS!r}, got {with_block!r}"
     )
+    assert with_block["extra-args"] == "--all-features", (
+        "mutation testing must retain CI's all-features selection"
+    )
+    assert with_block["install-mold"] == "true", (
+        "mutation builds must provision the committed Linux linker"
+    )
+    assert isinstance(with_block["setup-commands"], str) and with_block[
+        "setup-commands"
+    ].strip(), "the build-tool setup hook must not be empty"

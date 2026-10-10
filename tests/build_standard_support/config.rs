@@ -209,7 +209,7 @@ impl Flags {
             return Err(format!("gets {THREADS_FLAG} wrong: {:?}", self.0));
         }
         if self.names_linker() != takes_linker_flag {
-            return Err(format!("gets mold wrong: {:?}", self.0));
+            return Err(format!("gets `mold` wrong: {:?}", self.0));
         }
         Ok(())
     }
@@ -229,7 +229,7 @@ impl Source {
     fn is_all_linux(&self) -> bool { self.table == ALL_LINUX_TABLE }
 
     /// Returns what is wrong with the source's flags for a pin: the frontend
-    /// flag on a nightly pin only, and mold in a Linux table only.
+    /// flag on a nightly pin only, and `mold` in a Linux table only.
     fn problem(&self, pin: Pin) -> Option<String> {
         let reason = self.flags.meets(pin, self.is_linux()).err()?;
         Some(format!("[{}] {reason}", self.table))
@@ -341,7 +341,7 @@ fn shape_problems(found: &[Source], pin: Pin) -> Problems {
         ),
         (
             found.iter().any(Source::is_linux) && !found.iter().any(Source::is_all_linux),
-            "no `cfg(target_os = \"linux\")` table carries rustflags, so mold reaches one Linux \
+            "no `cfg(target_os = \"linux\")` table carries rustflags, so `mold` reaches one Linux \
              architecture only",
         ),
         (

@@ -97,6 +97,7 @@ where
         })
 }
 
+/// Exclude requested help and version output from failed-command metrics.
 fn should_record_failure(error: &MapspliceError) -> bool {
     !matches!(
         error,
@@ -195,6 +196,7 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     }
 }
 
+/// Load a fragment only for commands that consume one.
 fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment>> {
     match request.command.fragment_path() {
         Some(path) => {
@@ -206,6 +208,7 @@ fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment
     }
 }
 
+/// Translate the parsed CLI command into the roadmap operation to apply.
 const fn operation_from_command(command: &cli::CommandKind) -> RoadmapOperationInner {
     match command {
         CommandKind::Append { .. } => RoadmapOperationInner::Append,
@@ -228,6 +231,7 @@ pub struct RunOutcome {
 }
 
 impl RunOutcome {
+    /// Wrap rendered text for a command that writes to standard output.
     const fn stdout(rendered: String) -> Self {
         Self {
             stdout: Some(rendered),
@@ -235,6 +239,7 @@ impl RunOutcome {
         }
     }
 
+    /// Record the target path for a successful in-place rewrite.
     const fn in_place(path: Utf8PathBuf) -> Self {
         Self {
             stdout: None,

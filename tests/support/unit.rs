@@ -5,7 +5,6 @@ mod workspace_support;
 
 use std::{
     env,
-    ffi::OsString,
     path::PathBuf,
     sync::{Mutex, MutexGuard},
 };
@@ -89,43 +88,6 @@ impl Workspace {
     }
 
     pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
-}
-
-pub struct EnvVarGuard {
-    _lock: MutexGuard<'static, ()>,
-    key: &'static str,
-    previous: Option<OsString>,
-}
-
-impl EnvVarGuard {
-    pub fn set(key: &'static str, value: impl AsRef<str>) -> TestResult<Self> {
-        let lock = ENV_LOCK.lock()?;
-        let previous = env::var_os(key);
-        // SAFETY: tests mutate process environment only while holding ENV_LOCK,
-        // and the guard restores the previous value before releasing it.
-        unsafe {
-            env::set_var(key, value.as_ref());
-        }
-        Ok(Self {
-            _lock: lock,
-            key,
-            previous,
-        })
-    }
-}
-
-impl Drop for EnvVarGuard {
-    fn drop(&mut self) {
-        // SAFETY: EnvVarGuard owns ENV_LOCK for its full lifetime, serializing
-        // environment mutation and restoration in tests.
-        unsafe {
-            if let Some(previous) = &self.previous {
-                env::set_var(self.key, previous);
-            } else {
-                env::remove_var(self.key);
-            }
-        }
-    }
 }
 
 pub struct CwdGuard {

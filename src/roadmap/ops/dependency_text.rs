@@ -6,15 +6,21 @@ use crate::roadmap::{RoadmapAnchor, model::SourceId};
 /// Classification for an anchor-shaped candidate in a text value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DependencyReferenceClassification {
+    /// Valid anchor appearing in a dependency clause.
     Reference(RoadmapAnchor),
+    /// Dependency token that cannot be parsed as a valid anchor.
     InvalidDependencyToken,
+    /// Candidate outside a supported dependency context.
     NotDependencyReference,
 }
 
 /// Dependency-reference rewrite details for one text value.
 pub(super) struct DependencyRewriteReport {
+    /// Text after eligible anchor rewrites.
     pub(super) value: String,
+    /// Number of references whose anchor changed.
     pub(super) rewrite_count: u64,
+    /// Valid dependency anchors with no resolvable mapping.
     pub(super) unresolved: Vec<RoadmapAnchor>,
 }
 

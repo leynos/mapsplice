@@ -33,11 +33,17 @@ pub(crate) fn parse_document_root(
     parser.finish()
 }
 
+/// Accumulate phases and steps while walking one Markdown document.
 struct DocumentParser<'source> {
+    /// Completed roadmap content, including the preamble.
     document: RoadmapDocument,
+    /// Phase receiving the current step and body nodes.
     current_phase: Option<PhaseSection>,
+    /// Current step and any completed steps awaiting the phase.
     steps: StepAccumulator<'source>,
+    /// Distinguish target content from inserted fragment content.
     source: SourceId,
+    /// Original Markdown used to preserve source spans.
     source_text: &'source str,
 }
 

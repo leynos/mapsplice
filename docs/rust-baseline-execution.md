@@ -1,0 +1,1134 @@
+# Mapsplice Rust baseline execution ledger
+
+This record tracks the single delivery branch and its measured state. A passing
+local gate applies only to the commit and live inputs named here; it is not
+final acceptance or evidence of a hosted review.
+
+## Testing completion checkpoint: 2026-10-03
+
+Local validation passed on exact HEAD
+`90d9d73137369912c8fb6ec8b6b82a7753d80609`, based on PR head
+`e12381cea6f023cdf60f875bce87104f7cf73d69`. An SSH fetch as `leynos` found
+`main` at `052987d9ff865eeec8c118a78ac2657556aa60dc`, identical to the PR base
+and an ancestor of the validated head, so no rebase was needed. Before this
+unpublished local work, the GitHub API read as `leynos` showed PR #116 with
+`draft: false` at `e12381c`.
+
+All 16 commands below passed sequentially on HEAD `90d9d73` with zero warnings:
+
+1. `make check-build-tools` passed.
+2. Focused Python tests passed: 18 tests in
+   `clang_linker_test.py` and `cargo_target_resolution_test.py`:
+
+   ```sh
+   uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' pytest \
+     tests/workflow_contracts/clang_linker_test.py \
+     tests/workflow_contracts/cargo_target_resolution_test.py -q
+   ```
+
+3. `cargo test --test cli_process_contract` passed all eight tests.
+4. `make test-workflow-contracts` passed all 186 tests.
+5. Ruff format check passed for the resolver and two Python contract files.
+6. Ruff lint passed for the resolver and two Python contract files.
+7. `make check-fmt` passed.
+8. `make lint` passed.
+9. `make typecheck` passed.
+10. `make test` passed: 303 tests and 12 doctests passed; two doctests were
+    ignored.
+11. `make markdownlint` passed.
+12. `make spelling` passed.
+13. `make nixie` passed.
+14. `shellcheck scripts/check-build-tools.sh` passed.
+15. `mbake validate Makefile` passed.
+16. `git diff --check` passed.
+
+The preflight matrix is covered by
+`test_linux_preflight_requires_linker_tools_and_pinned_companion`. Generated
+configuration coverage includes
+`test_generated_valid_chains_match_reference_model`,
+`test_generated_invalid_configurations_fail_closed`,
+`test_legacy_config_and_missing_target_preserve_home_selection`, and
+`test_unreadable_configuration_fails_closed_with_fault_injection`. The eight
+process tests in `tests/cli_process_contract.rs` cover help, invalid input,
+ordinary command failures, `/dev/full` stdout and stderr failures, and closed
+stdout pipes:
+
+```text
+top_level_and_command_help_use_stdout_without_diagnostics
+invalid_input_has_only_a_stderr_diagnostic_and_fails
+ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails
+roadmap_stdout_write_failure_reports_stderr_and_fails
+help_stdout_write_failure_reports_stderr_and_fails
+clap_diagnostic_stderr_write_failure_fails_without_panicking
+command_diagnostic_stderr_write_failure_fails_without_panicking
+broken_stdout_pipes_succeed_for_roadmap_output_and_help
+```
+
+Regression-sensitivity checks ran in an isolated scratch copy outside `/tmp`.
+Removing the `clang` prerequisite caused the two missing-clang cases to fail (2
+failed, 8 passed, 4 deselected). Changing the stdout write-failure result to
+success failed `roadmap_stdout_write_failure_reports_stderr_and_fails` with
+observed status 0 instead of 1. Reversing configuration precedence failed
+`test_generated_valid_chains_match_reference_model`, which selected
+`home-target` instead of `near-target`. Each mutation was restored
+byte-for-byte and the scratch copy was removed. Mutation and gate logs:
+
+```text
+/tmp/mutation-clang-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/mutation-stdout-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/mutation-config-precedence-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out
+/tmp/*-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice-head90d9.out
+```
+
+The host was Rocky Linux x86_64. Process tests are Linux-gated; the AArch64
+preflight route used stubs, and no actual AArch64 cross-link was performed.
+These results are local test and static-validation evidence only. Hosted PR
+coverage on HEAD `90d9d73` has no result because this work was not published.
+This checkpoint records no administrative verification or protected main
+publication. Environment token and project identity, obsolete-token removal,
+and the approved Rust environment-access `disallowed_methods` policy remain
+separate prerequisites; these tests do not clear unrelated PR blockers.
+
+## Post-rebase publication checkpoint: 2026-10-02
+
+The branch was rebased from PR head `5e32d0626442c4eac1cd8957735a3d4bcdc5efec`
+onto fetched `main` `052987d9ff865eeec8c118a78ac2657556aa60dc`, whose previous
+base was `c6ba81beea4c12b59328e728837a6a6424ff69df`. The new local head is
+`d1a79f0360232162f4dfe6d8a3a7673018b7c3f4`. The 24-commit range-diff retained
+all commits; one CI conflict was resolved while preserving the newer `main`
+generation pin `ff1dd759dfffc0db3459e30e833f52437ee62b57` and the PR workflow's
+flag and secret boundaries. Recovery refs are
+`refs/recovery/pr116-rebase-20261002-head`,
+`refs/recovery/pr116-rebase-20261002-base`, and
+`refs/recovery/pr116-rebase-20261002-target`.
+
+The standard GitHub CLI identity was verified as `leynos` using the updated
+keyring instructions. SSH authentication also succeeded as `leynos`. PR #116
+was marked ready and read back with `isDraft: false`, but its remote head still
+points to `5e32d0626442c4eac1cd8957735a3d4bcdc5efec`; the rebased branch has
+not been published or read back remotely. A small follow-up to align the
+publisher and coverage contract pin was validated with the rebase. Scrutineer
+passed `check-build-tools`, `check-fmt`, `lint`, `typecheck`, and `test` (295
+tests; 12 doctests passed and two were intentionally ignored). The focused
+coverage and administrative tests passed all 66 tests, and
+`make test-workflow-contracts` passed all 175 tests. Ruff format and lint
+passed for the coverage contract; `markdownlint` and `nixie` passed.
+`make spelling` passed after the clean environment resolved builder version
+0.1.3 at `c8a4f95`; `typos.toml` was unchanged.
+
+A separate read-only administrative check as `leynos` verified the live
+main-only deployment branch policy. This does not verify secret scope or
+CodeScene project identity. CodeRabbit's issue comment was checked; no rate
+limit was verified, so no new review request was made. These results do not
+establish hosted PR coverage or a protected main publication. The rebased
+branch has not been published or read back remotely, and this checkpoint makes
+no claim of publication or merge readiness.
+
+## Current session repair checkpoint: 2026-10-02
+
+For Mapsplice PR [#116](https://github.com/leynos/mapsplice/pull/116), the
+owner-authorized repair provisioned the GitHub `codescene` environment. Its
+deployment protection has `protected_branches: false` and
+`custom_branch_policies: true`, with one deployment branch policy for `main`.
+This records the environment policy only; secret configuration and CodeScene
+project mapping have not been verified.
+
+The Lody wrapper's identity-preference verification failed with “Cannot verify
+GitHub identity preferences with Lody” and stated that no GitHub operation was
+attempted. For individual commands, unsetting inherited `GIT_CONFIG_*`,
+`BASH_ENV`, `GH_TOKEN`, and `GITHUB_TOKEN` restored the standard `gh` identity
+`leynos` (repository admin access verified) and resolved the pinned
+`typos-config-builder` Git dependency. No global configuration was changed. The
+underlying reason for the wrapper verification failure remains unknown.
+
+At 17:59 UTC, the corrected live verifier passed and reported the `codescene`
+environment's main-only deployment branch policy as verified. It validates
+repository metadata and the numeric canonical policies path, and rejects links
+to unrelated repositories. After a fresh protection readback,
+`coverage-main.yml` declares `environment: codescene` for the publisher job.
+Secret configuration and CodeScene project mapping remain unverified.
+
+Scrutineer passed `check-build-tools`, `check-fmt`, `lint`, `typecheck`, `test`
+(295 tests plus doctests), `markdownlint`, `nixie`, `spelling`, and ShellCheck.
+The spelling dependency resolution recovered and `make spelling` passed. After
+correcting initial Ruff formatting/import findings and the canonical workflow
+`ISC004` regression, final Ruff formatting checks reported eight files already
+formatted, Ruff lint passed, and `make test-workflow-contracts` passed all 175
+tests after the final changes and probe extraction. Python and workflow
+contract validation is complete. The implementation is committed locally as
+`ec4a0d8`. Its HTTPS push was rejected because the OAuth token lacks workflow
+scope; standard SSH identity was verified as `leynos`, and the SSH remote is
+readable. The user requires pushes via SSH, so publication and remote readback
+are recorded separately and are not yet claimed here.
+
+The follow-up includes targeted spelling repairs in the newly tracked
+`clang_linker_test.py` and Markdown formatting in this ledger. The spelling
+gate found 12 technical-name findings in the test; its parameters are now
+`uses_pinned_linker` and `linker_version`, and the test function has a neutral
+name. The stale-linker fixture remains `2.40.4` and still fails the pinned
+`2.41.0` requirement. No broad spelling exceptions or `typos.toml` changes were
+made. Upgrading `mdtablefix` to 0.6.1 exposed four added and five removed lines
+in this ledger under `check-fmt`; `make fmt` corrected the ledger formatting.
+The implementation gates above remain valid for `ec4a0d8`; final gates are
+rerunning and precede publication. This checkpoint makes no claim of PR
+readiness or merge readiness. The dated checkpoints below are historical
+snapshots; their earlier statements about the environment being absent, the
+identity check being blocked, and spelling dependency resolution failing are
+superseded by this checkpoint where noted.
+
+## PR #116 review repair checkpoint: 2026-10-02
+
+The review comments were checked against the current checkout at PR head
+`7bac34c32a3917f25a0252ef11e15ca0db686c87`. These dispositions describe the
+uncommitted worktree; the commit head has not changed.
+
+- **Keep the publisher environment absent:** still valid while owner evidence
+  for the protected `codescene` environment is unavailable. The declaration
+  remains withheld and the strict live contract failure remains intentional.
+- **Check the `ld.mold` version:** verified current and updated to check the
+  PATH-resolved `ld.mold` 2.41.0 used by the Clang linker wrapper.
+- **Add Markdown contract diagnostics:** verified current and updated so
+  assertions name the requirement and report observed configuration, index, or
+  Make-output values.
+- **Forward the AArch64 target to Clang:** verified current and repaired with a
+  dedicated wrapper that supplies `--target=aarch64-unknown-linux-gnu`. A
+  suitable cross sysroot and supporting tools remain host prerequisites.
+- **Documentation:** corrected the shared `ProcessState` fixture description,
+  added user-facing CLI help and error-channel details, and recorded the
+  AArch64 linker prerequisites in the guides.
+
+The latest user instruction requests that PR #116 be marked ready for review;
+it supersedes the earlier draft instruction. The attempt to verify the required
+`leynos` identity stopped at the Lody identity verification error, which stated
+that no GitHub operation was attempted. Ready status is therefore not
+confirmed, and the requested CodeRabbit issue-comment watch was not performed.
+
+Scrutineer validation completed at 2026-10-02T17:38:56Z against this unchanged
+head and the uncommitted worktree:
+
+- Phase 3: Ruff formatting and lint passed for the three new Python files;
+  Ruff lint passed for `markdown_tools_test.py`; 46 focused tests passed. The
+  focused coverage and administrative tests had 61 passes and one failure at
+  the strict live contract. `make test-workflow-contracts` had 170 passes and
+  the same single live-contract failure.
+- Phase 2: `make lint`, `make typecheck`, and `make test` passed; the test gate
+  ran 295 tests, with 12 doctests passing and two intentionally ignored.
+  `make fmt`, `make check-fmt`, `make markdownlint`, `make nixie`, and
+  `make spelling` passed.
+- Phase 1's Ruff I001/format findings in `build_standard_routing_test.py` and
+  I001 finding in `coverage_contract_test.py` were present at the reviewed
+  head; they are baseline findings, not regressions from this repair.
+- A Clang `-###` probe with version 21.1.8 selected the AArch64 Linux target.
+  This verifies routing only; a full cross-link with the host sysroot was not
+  demonstrated.
+- Phase 4 documentation gates: `make fmt`, `make check-fmt`,
+  `make markdownlint`, `make nixie`, and `git diff --check` passed. The earlier
+  phase-2 spelling run passed, but the final `make spelling` attempt failed
+  with exit 2 before the builder ran: `uv` could not resolve the pinned
+  `typos-config-builder` Git requirement (`Git operation failed`). `typos.toml`
+  remained unchanged, so phase 4 provides no final spelling result.
+
+Logs are under `/tmp/mapsplice-pr116-review-20261002/phase{1,2,3,4}/`. These
+results establish static validation only. The protected environment declaration
+remains withheld because owner evidence is unavailable; the administrative
+recheck was blocked by Lody identity verification. Hosted PR coverage and
+protected main publication are unavailable. The separate approved Rust
+environment-access `disallowed_methods` prerequisite remains open. The strict
+live-contract failure prevents a commit under `AGENTS.md`; no commit or push
+was made, and no PR-ready status or CodeRabbit update was confirmed.
+
+## CV-005 administrative repair checkpoint: 2026-10-02
+
+The live PR head and clean starting checkout were
+`7bac34c32a3917f25a0252ef11e15ca0db686c87`. The inspected reference
+`9885885f4c479aa694bb30e4517e643f26e10b34` is historical: the rebase and
+accessible compiler-routing diagram have since been published over
+owner-authorized SSH. At that earlier checkpoint, PR #116 was draft under the
+then-current instruction. The later request to mark it ready supersedes that
+historical status; see the review repair checkpoint above.
+
+Fresh read-only administrative checks returned HTTP 404 for
+`GET repos/leynos/mapsplice/environments/codescene` and `total_count: 0`,
+`environments: []` for the environment inventory. The current identity
+therefore cannot provide protection evidence. No administrative write was
+attempted. HTTP 404 is distinct from the earlier HTTP 403 write denial and must
+not be treated as proof of authorized provisioning.
+
+The repair adds a read-only verifier with pure policy validation and an
+injectable API client, offline API-response tests, an explicit workflow-shape
+fixture name, and a diagnostic naming the affected publisher and owner
+prerequisite. The trusted process is documented in
+[the developer's guide](developers-guide.md#9-coverage-administration-and-readiness).
+Validation ran sequentially on the uncommitted repair above that exact head.
+At 12:30 UTC, the final Python candidate had these SHA-256 identities:
+
+| File                                                     | SHA-256                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `scripts/verify_codescene_environment.py`                | `4c57e38338ba8276462712912d9de3db9aa77a524a714553f22180451b1ee7f4` |
+| `tests/workflow_contracts/codescene_environment_test.py` | `b7083022fa4e988869e6556cc14e3a2e41e2fccba6f794061e6bf2f4145066de` |
+| `tests/workflow_contracts/coverage_contract.py`          | `b6dfa2d1b88b8c91653522b15feb2ec669b6cbe3df0cd34f0891b756706b77e7` |
+| `tests/workflow_contracts/coverage_contract_test.py`     | `4a4b16da732a8c848f4707d6c2796266a37d836548be0ef484dfb8a39b87b9dd` |
+
+*Table 1. Tested source identities; the ledger and guide are documentation
+updates, not remote protection evidence.*
+
+- Focused coverage and verifier tests: 61 passed, one failed. The sole failure
+  is the unchanged strict `test_live_coverage_contract` assertion at line 203,
+  naming the missing publisher declaration and owner prerequisite.
+- `make test-workflow-contracts`: 163 passed, one failed at that same live
+  assertion. No skip, expected-failure mark, or suppression was added.
+- New Python files: Ruff formatting, lint, and compilation passed. They are
+  372 and 397 lines respectively, within the module size limit.
+- `make test`: all 295 tests passed; 12 doctests passed and two were
+  intentionally ignored. `make typecheck` and `make lint` passed, including
+  Rustdoc, Clippy, and Whitaker.
+- After correcting the guide's API-reference paragraph, `make fmt`,
+  `make check-fmt`, `make markdownlint`, and `make nixie` passed.
+  `make spelling` passed and generated `typos.toml` stayed unchanged.
+- The read-only verifier, using the authenticated `leynos` identity, exited
+  one with a bounded `not-found` diagnostic distinguishing HTTP 404. It did not
+  emit response data or credential values. Administrative protection remains
+  unverified; no declaration was added.
+
+Logs are under `/tmp/mapsplice-cv005-admin-20261002/run2/`. Earlier formatting,
+lint, and mocked-count failures are retained there and in `run1/`; they were
+fixed before the final Python test results. No result is attributed to a new
+commit, hosted PR coverage run, or protected main publication. The binding live
+gate remains red, so the repair is left uncommitted under the repository's
+commit-gate rule. PR #116 was draft at this checkpoint; later review-status
+requests are tracked separately above.
+
+The live `coverage-main.yml` declaration remains withheld until fresh
+owner-authorized evidence confirms the protected `codescene` environment. The
+strict live contract remains binding. Environment token metadata, obsolete
+token exposure removal, and CodeScene project identity remain unverified. The
+approved Rust environment-access `disallowed_methods` list and current-head
+review convergence remain separate prerequisites. Local static tests,
+administrative read-back, hosted PR coverage, and the first protected main
+publication must each have their own evidence.
+
+## Rebase checkpoint: 2026-10-02
+
+PR [#116](https://github.com/leynos/mapsplice/pull/116) was rebased from old
+base `2a9c6224422069d1984310ac8016a60fc7b1e874` and old head
+`9885885f4c479aa694bb30e4517e643f26e10b34` onto fetched live `main` at
+`c6ba81beea4c12b59328e728837a6a6424ff69df`. The rebase replayed 20 linear
+commits. Its new head before the pending follow-up is
+`3760cbd8de1e2c0ce21b6ffe49d1d1e9c6aabfbe`; recovery refs use prefix
+`refs/recovery/rust-baseline-hardening-mapsplice/20261002T000000Z`.
+
+The `ci.yml` Setup Rust conflict retains the target's `setup-rust` pin
+`ff1dd759...` and the branch's `install-mold: true`, empty `rustflags`,
+`clang`, and build-tool preflight settings. The action definition at that
+immutable pin supports both inputs. The `Cargo.lock` resolution keeps the
+target's `thiserror` 2.0.21 and the branch's `temp-env`; the target's
+Dependabot workflow remains byte-identical. Git automatically combined the
+mutation reusable workflow's target `ff1dd759...` pin with the branch's setup
+commands.
+
+Two local workflow-contract pin expectation updates remain uncommitted: one for
+the build-standard setup pin and one for the coverage contract's Dependabot
+reusable-workflow pin. Read-only inspection confirmed that the target
+Dependabot workflow blob `931290b9d32e42c6a28ae1b05a4960f3c427bad7` is
+byte-identical to the previously approved `abf` version and contains no
+CodeScene, token, or environment route. Gates for the new head are pending, so
+no result is attributed to it. At this checkpoint, the protected `codescene`
+environment was absent and blocked the required coverage contract and final
+acceptance.
+
+## Historical delivery checkpoint at `8cefe59`
+
+The statements in this checkpoint describe the branch and PR state observed at
+`8cefe59`; they are retained as historical evidence and are superseded by later
+branch work. Their readiness and blocker labels are not current status.
+
+- Draft PR [#116](https://github.com/leynos/mapsplice/pull/116) targets the
+  discovered default branch `main`, base
+  `2a9c6224422069d1984310ac8016a60fc7b1e874`. The delivery branch is
+  `rust-baseline-hardening-mapsplice`, at
+  `8cefe59bf49a3f697d185f927dabf8c10146caaf`; local and remote heads matched at
+  this checkpoint. PR #116 was draft and blocked at that time.
+- The PR body groups the 19 committed delivery changes into an ordered
+  work-batch map. The proposed twentieth commit addresses the hosted Whitaker
+  cold-driver failure described below; its source repair is still pending, so
+  no gates or CI result are attributed to it.
+- Managed CodeRabbit queue `ae3a9049` is pending. No review verdict is
+  available yet. Hosted CI run `36878449649`, job `110423802511`, failed the
+  Whitaker lint step at this checkpoint's head; the failure and proposed repair
+  are recorded below.
+- Required external blockers were unresolved at this checkpoint: the protected
+  `codescene` environment was absent, its one authorized creation attempt
+  returned HTTP 403, and token provisioning/removal and the CodeScene project
+  identity were unverified. The frozen Concordat revision and repository
+  contained no approved `disallowed_methods` environment-access list. Neither
+  blocker had been cleared by this checkpoint.
+
+## Git boundary and ownership
+
+- Repository: `leynos/mapsplice`; delivery branch:
+  `rust-baseline-hardening-mapsplice`.
+- Delivery head at this checkpoint: `8cefe59bf49a3f697d185f927dabf8c10146caaf`.
+  Its verified base is fetched default `main` at
+  `2a9c6224422069d1984310ac8016a60fc7b1e874`. Exact-head local gates have run;
+  their results and the subsequent hosted failure are recorded below.
+- The completed textual `zdiff3` rebase replayed 18 commits from the exclusive
+  original boundary `8d8535664655477a0e2f7bef9196cab77abfac19`. The old
+  delivery head was `68fb6f0cc3d08c6956c871bb9ce13190e16b87e5`; recovery refs
+  use prefix
+  `refs/recovery/rust-baseline-hardening-mapsplice/20261001T141649Z`. The
+  ordered work-batch map below records the pre-rebase history; commit IDs from
+  that map are historical and must not be used as current-head evidence.
+- The five later main commits include API step-level auth #108,
+  Dependabot automerge pin #111, mutation reusable pin #113, coverage action
+  pin #109, and shared Whitaker installation #114. They touch CI, Dependabot
+  automerge, and mutation workflows. Both sides edit `.github/workflows/ci.yml`
+  and `.github/workflows/mutation-testing.yml`; preserve both sides' action
+  pins and job routing in those conflict resolutions. More precisely, the main
+  CI delta adds step-level `GITHUB_TOKEN` to Mermaid installation and bumps
+  `generate-coverage` to `abf0dcf2686de1eaf79b6dc9a16662b631bed149`; the
+  archive removes PR-lane CodeScene upload and uses older
+  `d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79`. The mutation workflow preserves
+  main's `abf0dcf` reusable pin and branch build-tool setup. One CI conflict
+  was resolved by retaining main's step-scoped `GITHUB_TOKEN`, `abf0dcf` PR
+  coverage generator and mutation reusable pins, and approved Whitaker action
+  pin `6dea5677a84fec60ca51b07202570e3af12ffdb4`, while preserving the branch's
+  coverage and workflow contracts. The branch's later user-approved Cranelift
+  input removal is also preserved. The coverage workflow and contract
+  reconciliation is committed in the delivery history: PR and publisher use the
+  `abf0dcf` generator while the uploader and setup action remain at
+  `d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79`. Exact-head local and contract
+  evidence is recorded below; CV-005 remains blocked on protected-environment
+  provisioning. `git check-attr` reports `merge: unspecified` for the sampled
+  paths; global Weave was not selected. The conflict used textual `zdiff3`; the
+  exact-head contract result is recorded below.
+- The full 13-commit branch range changes 78 paths, with 3,814 insertions and
+  1,407 deletions against the replay boundary. The final Lody archive commit
+  `ee8d82b` itself changes 44 paths, with 2,341 insertions and 384 deletions
+  against its parent. It mixes build defaults, CV-005, spelling, test quality,
+  source, and workflow contracts. It was archived before its combined gates
+  ran; the baseline results below now measure this commit.
+  `sem diff --format json` reports 212 entity-level changes across 46
+  recognized files (117 added, 62 modified, 13 deleted, 1 renamed, and 19
+  orphan entities); its read-only output is
+  `/tmp/mapsplice-rust-baseline-archive-sem-20261001.json`. The two
+  `git diff --check` findings occur in intentional CR-only fixture data and
+  need byte-preservation review.
+- The six worker worktrees at `e695429` contain overlapping staged or unstaged
+  work. They are independently owned and must not be reset, cleaned, or blindly
+  cherry-picked. Compare their changes with the archive and seek worker
+  hand-off before accepting a batch.
+- Live upstream checks report shared-actions #522 merged as
+  `6dea5677a84fec60ca51b07202570e3af12ffdb4`, agent-helper-scripts #170 merged
+  as `cedfe6f3f60af4908788ab21efdf2ca11d44ef2c`, and Concordat #223 merged as
+  `817081292ccfe6beb1937dfa3502211fc34a322d`. The approved frozen policy
+  snapshot for this run is `902d034d9da8e7ca33a0d4032770519dd1609de2`.
+- That snapshot contains `rust-build-defaults` 0.1.1,
+  `main-owned-codescene-coverage` 0.3.0, `markdown-formatting-baseline` 0.1.0,
+  `spelling-config-baseline` 0.1.0, and `whitaker-provisioning` 0.1.0. Its
+  `spelling-config-baseline` rule verifies the pinned binding gate but does not
+  inspect `--scope all`, although the canonical README requires that argument.
+  The eight-file spelling batch, including that argument, is now integrated in
+  `ecd4b0c`; combined-tree gate and audit validation remain pending.
+
+### Frozen rule artefacts
+
+The selected `rule.yaml` SHA-256 values are fixed for this run:
+
+| Package                         | Version | Manifest SHA-256                                                   |
+| ------------------------------- | ------- | ------------------------------------------------------------------ |
+| `rust-build-defaults`           | 0.1.1   | `1fa3d07c7d666314ec23b8ba0381fab5bc082d7faf5ddcd7a030bf71cb55c551` |
+| `main-owned-codescene-coverage` | 0.3.0   | `b46d5566d8ef87a250e337acbfef41c2967c3f8709133bee71ff24da8b47c9aa` |
+| `markdown-formatting-baseline`  | 0.1.0   | `2ef3cbabbb9bb1fcff2bc12c7a41a812bfd25b968e2987501e10732461ac2626` |
+| `spelling-config-baseline`      | 0.1.0   | `905b08a399dc8ce651aa49c996a4bb62b48b77ebaf2506aa7ffab6fc90844cb3` |
+| `whitaker-provisioning`         | 0.1.0   | `009abf41480130a1b9c438eb24567a999b29cf600d430a08ce710cbd7a3df412` |
+
+The spelling package README SHA-256 is
+`99e5d6e0b26ed09e6830ee61cf8d6557917131bdc3ac52347a76d5fa6cd265a5`; its Rego
+policy SHA-256 is
+`f90ca770936f9cb022b16bb03fa1649fc51fdfaca75754cb316bbc819d18cfdd`.
+
+### Administrative state
+
+- `codescene` environment does not exist (API GET total_count=0), and secret
+  metadata lookup returned 403. Authenticated GitHub user `leynos` has
+  collaborator `admin`/`role_name` `admin`, but one authorized
+  `gh api --method PUT repos/leynos/mapsplice/environments/codescene --input -`
+  with this body returned HTTP 403 `Resource not accessible by integration`
+  (exit 1):
+
+  ```json
+  {"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
+  ```
+
+  No retry or alternate write route was used. The environment was absent at
+  this read-back. Its owner must create it, add `main` through the deployment
+  branch policy endpoint, and provide successful GET read-back of the
+  environment and policies. No secret value was inspected or moved; secret
+  metadata remains unresolved after a separate 403.
+- At the earlier pre-publication snapshot, no remote delivery branch or PR had
+  been established. The then-current draft PR and its blocked state are
+  recorded in the historical delivery checkpoint above. The protected-
+  environment and policy blockers were unresolved at that time.
+- The maintainer approved excluding Cranelift from all development defaults
+  after the pinned compiler's unwind failure. Revisit the backend on 2027-04-01
+  in [issue #115](https://github.com/leynos/mapsplice/issues/115). The issue is
+  open and names `leynos` as owner in its body. GitHub's assignee mutation
+  returned `Resource not accessible by integration`, so its assignee metadata
+  remains empty; no repeat write was attempted.
+- Cargo's unstable `codegen-backend` feature switch remains enabled for
+  explicit LLVM profile overrides in coverage and Whitaker. The switch alone
+  does not select Cranelift; the development profile no longer names it.
+  Retaining the switch keeps those non-development routes isolated from
+  inherited backend settings. Current-head compiler proof remains pending.
+- Integration owner: this journeyman. Terra High is unavailable in the
+  provided model list; review remediation replacement is a `gpt-6-sol`
+  journeyman at medium reasoning, to be recorded on dispatch.
+
+## Rust surfaces and tools
+
+- `cargo metadata --no-deps` finds one Rust 2024 root package, with one lib,
+  one bin, and 18 integration-test crates; no other tracked `Cargo.toml`
+  exists. There is no workspace inheritance requirement for this tree.
+- No MSRV, stable-channel, feature, OS, or broad platform support promise is
+  declared. First-party CI currently exercises Ubuntu only; target-specific GNU
+  settings cover x86_64 and aarch64, while other platforms remain unmeasured.
+  Cargo publication is enabled by default, but no package/publish workflow or
+  route is established. The prior release contract passed; probe the verbose
+  release route at the combined-head checkpoint before claiming release
+  compatibility.
+- No Rust source file exceeds 400 lines. `tests/roadmap_ops.rs` is exactly
+  400 and `src/roadmap/ops/dependency_text.rs` is 396; re-check after fixes.
+- Observed tools on this host: nightly-2026-03-26, rustfmt 1.9.0-nightly,
+  Clippy 0.1.96, mdtablefix 0.6.0, markdownlint-cli2 0.22.1, cargo-dylint 6.0.1,
+  `mold` 2.41.0, and clang 21.1.8. `leta workspace add` worked; CodeGraph
+  reindex was unavailable.
+- The selected spelling builder is `v0.1.3` at tag object
+  `2632c2d6d00a35f4e1f2f610ea0ede0c129d028f`; its executable interface was
+  checked. The baseline spelling gate left `typos.toml` unchanged. The observed
+  shared-base SHA-256 was
+  `d67b4110813615a4eda3e8962e898466191e4af25b2e28baedcbab348696aeac`. The
+  shared dictionary remains live by design, so a later run needs its own
+  observed base identity.
+
+### Configuration hashes at `ee8d82b`
+
+These SHA-256 hashes identify the local policy inputs measured by the first
+gate run. The spelling builder's live shared dictionary is a separate input;
+its observed hashes for the later spelling run are recorded below.
+
+| File                                  | SHA-256                                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `Cargo.toml`                          | `3b0d97c8b28b076357b265672b2b60074dd65c229bbd1d5ed3d8e545c554bdd5` |
+| `clippy.toml`                         | `22e06d5eca866af56282df39e7103cdb59ed6cc20ce59e52033ccfd208790ef5` |
+| `.cargo/config.toml`                  | `ed9c4fca65ed48c040ca1312a88995f221b123be8ab2e2677f0b55c2a79ff945` |
+| `.rustfmt.toml`                       | `98110ec77cefac6e5559ebf2e2ce73f67540d4fdce8265e82f3d455fdf6e2eb3` |
+| `Makefile`                            | `af270051c62929563a6355a85ec323fba56124ff113e7973ba9a120bf38fef34` |
+| `rust-toolchain.toml`                 | `96065a27e4308fb846b011c39566e9951d76cfed2dcbf8dcdcddf566bda2bc22` |
+| `.github/workflows/ci.yml`            | `60bf7e9139c60d43a2c0c6993032931cc24f512534b7310c457131d025ad8fb4` |
+| `.github/workflows/coverage-main.yml` | `9e72b9a996db12a6b21ef3adf511e955981075703162f3e99d5e97e949035b7e` |
+| `.markdownlint-cli2.jsonc`            | `4ec56005a6b935505d98d5e437e25b3bec96f14438b35ef1bc728849d2b00179` |
+| `typos.local.toml`                    | `0bba4267f7ecd044b36e9c76a48aeed8e1468801d38152097b5f2aec4ee40eaf` |
+| `typos.toml`                          | `2091fd7d4dc408285458a4153e82ff841350becdd8cb2cf50cef14bde2254676` |
+| `AGENTS.md`                           | `34afaad1b5762c21506427e413d7a995673726be6e153b9c5570e0abcaeeec14` |
+
+## Prior branch work
+
+- `aeadcb5` through `da47be7` are 11 focused test, documentation, structural,
+  and source commits. `58da927` records the first Cranelift unwind hypothesis,
+  which later experiments falsified; H2 has since isolated the compiler
+  difference without Cargo configuration.
+- `ee8d82b` archives the implementation as it stood before integration. That
+  historical snapshot temporarily selected Cranelift by default; the accepted
+  LLVM batch later removed that default while retaining the pinned linker and
+  parallel frontend routing. The archive also contains Make and CI
+  provisioning, a main coverage workflow, local workflow contracts, partial
+  spelling and Markdown changes, source/test refactors, and fixture material.
+
+The original pre-rebase branch series was linear and child-owned after
+`8d853566`:
+
+| Order | Commit    | Work batch                                        |
+| ----- | --------- | ------------------------------------------------- |
+| 1     | `aeadcb5` | Extract in-place configuration tests              |
+| 2     | `2819efc` | Scope configuration test process state            |
+| 3     | `3d570aa` | Document private CLI parsing model                |
+| 4     | `7f92d7d` | Document private rendering and metrics state      |
+| 5     | `438b4bb` | Split near-limit Rust modules by responsibility   |
+| 6     | `d0f8ee6` | Preserve top-level CLI help without inferred text |
+| 7     | `cb215e2` | Extract task-source operation test helpers        |
+| 8     | `608f049` | Document roadmap parser internals                 |
+| 9     | `9cf12c0` | Document roadmap and filesystem internals         |
+| 10    | `5c71c18` | Document roadmap mutation internals               |
+| 11    | `da47be7` | Document binary helpers and test assertions       |
+| 12    | `58da927` | Record inconclusive Cranelift unwind probes       |
+| 13    | `ee8d82b` | Archive mixed baseline onboarding and source work |
+
+The spelling and stderr batches are integrated in the rebased history as
+`ecd4b0c` and `e476656`, respectively. Their pre-rebase worker trees remain
+available as provenance:
+
+| Branch                           | Base      | Owner and scope                                                     | State                                                                                                                                                                                                                              |
+| -------------------------------- | --------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rust-baseline-stderr-remedy`    | `ee8d82b` | Artisan: `src/main.rs` stderr boundary                              | Patch replayed as pre-rebase commit `5513e0c` (now `e476656`); focused tests and sequential repository gates passed before rebase, so evidence is historical. Preserve this worktree as source provenance.                         |
+| `rust-baseline-spelling-scope`   | `ee8d82b` | Spelling Journeyman: full-scope gate and exact exemptions           | Eight-file patch passes isolated spelling twice on the same shared base; generated output is stable; contracts retain one inherited environment failure; patch is integrated as `ecd4b0c`, with combined-head gates still pending. |
+| Six pre-existing worker branches | `e695429` | CV-005, Markdown, test quality, Whitaker, lint policy, and spelling | Dirty worktrees overlap the archive; preserve and reconcile before integration.                                                                                                                                                    |
+
+### Inherited enforcement conflict
+
+- The current branch already has final lint tables in `Cargo.toml` and the
+  thresholds in `clippy.toml`; the developer guide identifies Concordat
+  `902d034d9da8e7ca33a0d4032770519dd1609de2`, now accepted as this run's frozen
+  policy revision. The exact audit commands and rule-package versions are
+  recorded below. The guide says the `disallowed_methods` list has not been
+  selected, so the environment policy is not yet enforced. No `dylint.toml` is
+  tracked; `make lint` ran Whitaker successfully, but the rolling suite
+  revision was not emitted. Its required exclusions still need policy review.
+  This archived enforcement violates the requested fixes-before-enforcement
+  sequence; preserve it as inherited history and repair at source rather than
+  adding mass lint suppressions.
+
+## Acceptance map at this checkpoint
+
+| Requirement    | Observed state                                                                                                                                                                                                                                | Required next evidence                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Build standard | `41f2549` selects LLVM, retains `-Zthreads=8` and the pinned Linux linker, and records the approved Cranelift exception. The frozen build audit and full local suite pass at PR head `8cefe59`.                                               | Reconfirm on the head containing the pending Whitaker repair and in hosted CI.                                               |
+| CV-005         | At `8cefe59`, the frozen audit and workflow contract retain only the absent protected `codescene` environment finding; the other four audits pass.                                                                                            | Obtain protected environment read-back, token migration owner evidence, and project identity; rerun after any changes.       |
+| Markdown       | Direct tool wiring, `make markdownlint`, and the frozen Markdown audit pass at `8cefe59`.                                                                                                                                                     | Preserve these results for the integrated head; rerun if files or configuration change.                                      |
+| Whitaker       | Approved action `6dea5677a84fec60ca51b07202570e3af12ffdb4` and frozen provisioning audit pass. Local lint passed at `8cefe59`, but hosted run `36878449649` failed on Dylint's cold driver bootstrap after successful installer provisioning. | Integrate the pending Cargo unstable opt-in repair, then rerun the local binding gate, audit, and hosted CI on the new head. |
+| Spelling       | Builder `v0.1.3`, canonical AGENTS block, `make spelling`, and frozen spelling audit pass at `8cefe59`; the audit package does not inspect `--scope all`.                                                                                     | Preserve evidence for the integrated head; rerun if spelling inputs or configuration change.                                 |
+| Source lints   | `e476656` removes the three stderr suppressions; Clippy and local Whitaker passed at `8cefe59`. The approved environment-method policy is still absent.                                                                                       | Policy owner supplies the approved method list, then measure and fix any resulting findings.                                 |
+| Integration    | The 18-commit textual `zdiff3` rebase and subsequent integration commits are present at `8cefe59` on main `2a9c622`; the coverage changes are committed. The 19-commit PR map is published, with the twentieth Whitaker repair pending.       | Integrate the bounded Whitaker routing repair and validate the resulting exact head.                                         |
+| PR/review      | Draft [PR #116](https://github.com/leynos/mapsplice/pull/116) is open. Managed CodeRabbit queue `ae3a9049` is pending; hosted run `36878449649` has a Whitaker cold-driver failure at `8cefe59`.                                              | Address and remeasure the Whitaker failure; resolve required review findings and external blockers before ready or merge.    |
+
+## Findings map and evidence status
+
+- The three `#[expect(clippy::print_stderr)]` calls in `src/main.rs` were
+  removed in the pre-rebase `5513e0c` commit. The new stderr boundary uses
+  fallible writers and retains CLI output semantics. Focused exact-byte and
+  writer-error tests and the historical source gates passed before rebasing;
+  these results are stale for the rebased head. Re-run them on the accepted
+  combined tree.
+- Cranelift: the historical `ee8d82b` full development test route failed the
+  `catch_unwind` and spawned-thread panic probes. A bounded H2 experiment
+  reproduced the compiler difference with a bare, unchanged `catch_unwind`
+  program: LLVM exited 0 and Cranelift exited 101 without Cargo configuration,
+  dependencies, parallel frontend, or the pinned linker. Both compiled
+  successfully under `rustc 1.96.0-nightly (80d0e4be6)`; the source SHA-256 was
+  `9948b1f1fd3deb1c9f3bad63d8b7a6a29dfc6aefc6401e4650d5be945f007a85`. Logs are
+  `/tmp/mapsplice-cranelift-plan-20261001/h2-llvm-run.out` and
+  `/tmp/mapsplice-cranelift-plan-20261001/h2-cranelift-run.out`. The maintainer
+  approved excluding Cranelift from all development routes, with a revisit in
+  issue #115 on 2027-04-01. The current batch removes its default and installer
+  requirement. The candidate later committed as `faa8c94` passed all 293
+  ordinary tests and 12 doctests (two ignored) under its default LLVM route;
+  bare Cargo and Make verbose builds showed the parallel frontend and pinned
+  Linux linker without a Cranelift selector. Receipts are under
+  `/tmp/mapsplice-llvm-batch-20261001/run2/`. Revalidate after the commit or
+  any routing change.
+- `git diff --check 58da927..ee8d82b` exits 2 for two intentional CR-only
+  fixture files. Audit their authored bytes and test use before any change.
+- The frozen-policy audits at `ee8d82b` report build defaults, Markdown,
+  spelling, and Whitaker provisioning compliant. CV-005 is noncompliant: the
+  publisher lacks `environment: codescene`. The spelling audit's passing result
+  does not cover the canonical `--scope all` requirement. The exact commands,
+  revision, receipts, and audit gap appear below.
+- The current coverage workflow does not identify the CodeScene project. Its
+  actual analysed project and branch must be confirmed by the service owner; no
+  exemplar project identifier may be substituted.
+- Scrutineer baseline at `ee8d82b`: check-fmt, lint (Clippy and Whitaker),
+  typecheck, spelling, Markdown lint, and Nixie pass. Workflow contracts run
+  112 passed and one failed: the protected CodeScene environment is absent.
+  `make test` ran 83 of 293 tests: 81 passed, two Cranelift panic/unwind probes
+  failed, and 210 did not run after abort. The gate logs are under
+  `/tmp/mapsplice-baseline-gates-20261001/run1/`, named for each Make target.
+  `make lint` ran rustdoc, Clippy, and Whitaker in that order. The installer
+  managed nightly-2026-05-28; its rolling suite revision was not observed.
+  During lint startup, an unrelated Peregrine Cargo/doc process briefly held
+  the shared package-cache read lock; the interval ended after about 30
+  seconds. No contention-free host claim follows from these gate results. These
+  failures block any gated commit.
+- The current lint tables produced no Clippy, Whitaker, or docsrs findings in
+  their completed runs. The intended environment-access method list is absent
+  from the selected canon and local config, so that policy dimension remains
+  unmeasured. The policy owner must supply an approved list with its source
+  revision and exact methods; then the team can add the policy in scratch,
+  re-measure, repair source findings, and audit the final enforcement. The three
+  `print_stderr` suppressions also hide source findings. Keep configuration
+  drift, source findings, operational audit errors, and skipped surfaces
+  separate.
+- At the baseline head, the standalone docsrs probe passed with
+  `RUSTDOCFLAGS='--cfg docsrs -D warnings'`, but the binding Make lint route
+  lacked `--cfg docsrs`. The working candidate at `ce7204a` adds the flag to
+  the workspace/no-deps documentation command and the doctest route. Contract
+  and gate validation are pending; the standalone probe does not prove the Make
+  wiring.
+- At the pre-stderr LLVM head, focused build/Whitaker/component contracts passed
+  81/81. The full workflow contract target passed 122 and failed its one
+  inherited CV-005 environment assertion. `make lint`, `make typecheck`,
+  `make check-fmt`, `make markdownlint`, `make spelling`, and `make nixie`
+  passed. Whitaker used suite revision
+  `e768ba5833df5db16e44c361e19ee724997baab9` under `nightly-2026-05-28`;
+  library and driver SHA-256 values were
+  `1258389d774dacc281737e12d2018302cccd10ea918415123725a980b4ff7aac` and
+  `b338910add5934f960307d978e5137321b86361a2c51e39c12aeeb87c772c9e8`. The
+  default-scope spelling run left generated `typos.toml` unchanged at SHA-256
+  `2091fd7d4dc408285458a4153e82ff841350becdd8cb2cf50cef14bde2254676`; the live
+  shared-base content SHA-256 was
+  `d67b4110813615a4eda3e8962e898466191e4af25b2e28baedcbab348696aeac`. These
+  results do not clear the wider spelling scope or CV-005 blocker.
+- The first frozen `rust-build-defaults` audit on this LLVM candidate returned
+  BD-004 noncompliant: the developer guide stated the exception only in prose.
+  The frozen rule requires a `Cranelift`-named heading in that guide and the
+  pinned channel within its section. A bounded guide edit added both. The
+  second audit under the same Concordat `902d034` rule returned compliant with
+  zero findings; its receipt is
+  `/tmp/mapsplice-llvm-batch-20261001/run3/rust-build-defaults-audit.out`. The
+  rule was not changed or weakened.
+- Hosted PR run `36878449649`, job `110423802511`, failed at head `8cefe59` in
+  the Whitaker lint step after cold-cache installation succeeded. The approved
+  shared action pin `6dea5677a84fec60ca51b07202570e3af12ffdb4` installed
+  Whitaker installer `0.2.9`; its check resolved the rolling suite to
+  `a77c4d252fad81c1fe571851cf505b212a0fa636` for `nightly-2026-05-28`. The
+  installer reported `suite-source=prebuilt`, fetched the published suite and
+  Dylint assets, and completed successfully with its no-source-fallback
+  contract intact. The later failure came from Dylint `6.0.1` building its
+  missing per-toolchain driver in a temporary directory: Cargo `1.98.0-nightly`
+  there reported that the `codegen-backend` feature is required to use the
+  inherited LLVM profile override. That directory did not discover the
+  repository's unstable Cargo opt-in. This is Dylint's cold runtime bootstrap,
+  not an installer fallback or a missing published Whitaker suite asset. The
+  local warm-cache `make lint` pass at this head did not exercise that cold
+  driver path. The hosted log is
+  `/tmp/mapsplice-pr116-review-20261001/initial/job-110423802511.log`.
+- A bounded Cargo routing experiment at the same pinned Whitaker nightly
+  reproduced the nested-project failure with
+  `CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`,
+  `CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm`, and `RUSTFLAGS=-D warnings`:
+  control without the Cargo opt-in exited 101; treatment with
+  `CARGO_UNSTABLE_CODEGEN_BACKEND=true` exited 0, and verbose output selected
+  LLVM. This proves the narrow Cargo opt-in for a temporary project, not a
+  Dylint build or a green Whitaker rerun. The approved consumer repair is to
+  retain the explicit LLVM profile overrides and add that Whitaker-only opt-in;
+  source implementation and binding-gate revalidation are pending. Logs are
+  under `/tmp/mapsplice-whitaker-codegen-optin-20261001/`.
+- The first explicit `typos-config-builder gate --repository . --scope all`
+  measurement found 92 raw occurrences. They cluster around fixed external
+  Cargo's terminal-colour setting, the GitHub label event, and the
+  `-fuse-ld=mold` linker flag in action inputs, paths, version strings, local
+  identifiers, and tool prose. This is a count of occurrences, not distinct
+  defects. The existing default-scope spelling pass did not measure the same
+  Rust and workflow files. A spelling Journeyman owns exact-context repairs in
+  the isolated `rust-baseline-spelling-scope` tree. The log is
+  `/tmp/mapsplice-baseline-gates-20261001/run2/spelling-all-mapsplice-rust-baseline-hardening-mapsplice.out`.
+- The spelling patch renames the local Clang wrapper to
+  `scripts/clang-linker.sh` without changing its bytes because builder `v0.1.3`
+  cannot ignore only a filename: its ignore patterns apply to content, whereas
+  file exclusions skip the whole file. The wrapper's old and new SHA-256 are
+  both `138be6ef7f61d2bc4d452551ebd43a67b3aa4427e03de5158bdbd13f54f88f24`. An
+  earlier builder run raced final overlay edits; the gate owner then ran
+  `make spelling` twice from the stable overlay. Both runs passed and left the
+  generated SHA-256
+  `e7b68db3a220f0e8268dff9f16a34a64d64415e3cc61703cfd95105cabcc63ea` unchanged.
+  The overlay hash was
+  `6793c0633bfacd97ffe3699961b6cc8a223a6bcdda4b08fd1204713e9137e778`;
+  shared-base TOML was
+  `d67b4110813615a4eda3e8962e898466191e4af25b2e28baedcbab348696aeac` and JSON
+  was `216390a12a035d1b74015496d2e6f3d5a461a05b8b43bd95542dbe2f181205d7`. Logs
+  are under `/tmp/mapsplice-baseline-spelling-20261001/`, with final runs ending
+  `spelling-rust-baseline-spelling-scope-{3,4}.out`. Exact API/tool forms pass
+  while the bare linker name, US spelling for colour, bare label-event term, an
+  extended Cargo colour variable, and a Rust source typo fail the focused
+  negative samples. No generated file was hand-edited, and this isolated pass
+  does not validate the integration head. The isolated workflow contracts ran
+  112 passing cases and retain the single inherited CV-005 environment failure.
+- The stderr remedy was replayed from the preserved
+  `rust-baseline-stderr-remedy` worktree and committed as `5513e0c`. Focused
+  tests passed 2/2. Sequential run3 gates passed `make check-fmt`, `make lint`
+  (including Whitaker), `make test` (295/295 ordinary tests; 12 doctests passed
+  and two were ignored), `make typecheck`, `make spelling`,
+  `make markdownlint`, and `make nixie`. Spelling produced no generated
+  `typos.toml` drift. Whitaker used rolling suite revision
+  `e768ba5833df5db16e44c361e19ee724997baab9`. The workflow-contract target was
+  not rerun for this source-only batch; its inherited result remains 122 pass,
+  one failure for the missing protected `codescene` environment. Run3 logs are
+  under `/tmp/mapsplice-stderr-batch-20261001/run3/`. At that pre-rebase
+  checkpoint, the spelling replay had not yet passed gates on the combined
+  tree; the integrated spelling gate passed at PR head `8cefe59` in run 2.
+
+### Rebased PR-head local gates
+
+At the rebased delivery head `8cefe59`, sequential run 2 recorded
+`make check-fmt`, `make lint`, `make test`, `make typecheck`, `make spelling`,
+`make markdownlint`, and `make nixie` as passing. Nextest passed 295/295 tests
+with none skipped; docsrs doctests passed 12 with two ignored. Four frozen
+audits for build defaults, Markdown, spelling, and Whitaker provisioning were
+compliant. The fifth audit, CV-005, and `make test-workflow-contracts` still
+failed only on the absent protected `codescene` environment (129 contract cases
+passed, one failed). Logs and receipts are under
+`/tmp/mapsplice-rebased-checkpoint-20261001/run2/`. These local results do not
+supersede the subsequent cold-driver failure in hosted CI recorded above.
+
+### Historical exact-head baseline gates
+
+All commands below ran sequentially at the pre-rebase head `ee8d82b` from the
+repository root. Each output file is under
+`/tmp/mapsplice-baseline-gates-20261001/run1/`. The gate owner retained command
+failures through the logging pipeline. These results are retained for
+provenance only; none proves the rebased delivery head.
+
+| Order | Command                        | Result                          | Output file                                                               |
+| ----- | ------------------------------ | ------------------------------- | ------------------------------------------------------------------------- |
+| 1     | `make check-fmt`               | Pass                            | `check-fmt-mapsplice-rust-baseline-hardening-mapsplice.out`               |
+| 2     | `make test-workflow-contracts` | Fail: 112 passed, one failed    | `test-workflow-contracts-mapsplice-rust-baseline-hardening-mapsplice.out` |
+| 3     | `make markdownlint`            | Pass                            | `markdownlint-mapsplice-rust-baseline-hardening-mapsplice.out`            |
+| 4     | `make nixie`                   | Pass                            | `nixie-mapsplice-rust-baseline-hardening-mapsplice.out`                   |
+| 5     | `make spelling`                | Pass                            | `spelling-mapsplice-rust-baseline-hardening-mapsplice.out`                |
+| 6     | `make lint`                    | Pass: rustdoc, Clippy, Whitaker | `lint-mapsplice-rust-baseline-hardening-mapsplice.out`                    |
+| 7     | `make typecheck`               | Pass                            | `typecheck-mapsplice-rust-baseline-hardening-mapsplice.out`               |
+| 8     | `make test`                    | Fail: Cranelift panic probes    | `test-mapsplice-rust-baseline-hardening-mapsplice.out`                    |
+
+### Explicit LLVM and frozen-policy measurement
+
+The first LLVM command included an unsupported `-vv` argument to the selected
+nextest route. It stopped before compilation and is an invocation error, not a
+test verdict. The corrected sequential run at historical head `ee8d82b` used:
+
+```sh
+env CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm \
+  CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm \
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
+  make test RUST_FLAGS='-D warnings' \
+  TEST_FLAGS='--workspace --all-targets --all-features' \
+  BUILD_JOBS='-j 2' 'gate_rust_flags=$(RUST_FLAGS)'
+```
+
+It passed all 293 ordinary tests, with no skipped tests; the doctest leg passed
+12 and ignored two. The log is
+`/tmp/mapsplice-baseline-gates-20261001/run2/test-llvm-corrected-mapsplice-rust-baseline-hardening-mapsplice.out`,
+with the matching `.meta` receipt. Separately,
+`RUSTDOCFLAGS='--cfg docsrs -D warnings' cargo doc --workspace --no-deps`
+passed; its log is in the same run directory as
+`doc-rustdocflags-mapsplice-rust-baseline-hardening-mapsplice.out`. These
+results prove the explicit LLVM route at that historical head only. The
+separate accepted build-default commit `faa8c94` made LLVM the development
+default under the recorded Cranelift exception.
+
+The approved Concordat executable is version 0.1.0 from the checkout fixed at
+`902d034`. Each frozen package was run with this command shape, substituting
+the package ID:
+
+```sh
+/home/leynos/.lody/repos/github---leynos---concordat/worktrees/audit-cabochon-baseline-902d/.venv/bin/concordat \
+  artefact rule run RULE_ID \
+  --repo /home/leynos/.lody/repos/github---leynos---mapsplice/worktrees/3c141d42-0280-4dd8-bff6-2e48ae26ac13 \
+  --format json
+```
+
+| Frozen rule                     | Result                                             |
+| ------------------------------- | -------------------------------------------------- |
+| `rust-build-defaults`           | Compliant                                          |
+| `main-owned-codescene-coverage` | Noncompliant: missing protected job environment    |
+| `markdown-formatting-baseline`  | Compliant                                          |
+| `spelling-config-baseline`      | Compliant, but rule does not inspect `--scope all` |
+| `whitaker-provisioning`         | Compliant                                          |
+
+Each audit's output and `.meta` receipt are under
+`/tmp/mapsplice-baseline-gates-20261001/run2/`, named
+`audit-<rule>-mapsplice-rust-baseline-hardening-mapsplice`. No verdict is
+claimed for later source changes until the audit is rerun at their head.
+
+## Next actions recorded at the historical checkpoint
+
+These actions were current at `8cefe59`; they are retained as history and are
+not the current delivery instructions.
+
+1. Complete the approved Whitaker-only Cargo opt-in repair as the next commit
+   on the existing PR branch. Keep LLVM profile routing and do not add
+   development `RUSTFLAGS` to the Whitaker toolchain.
+2. Validate the Make-evaluated Whitaker route with the minimal outside-cwd
+   Cargo probe and run the required serial local gates and frozen audits on the
+   resulting head. Then request a fresh hosted run, whose runner can exercise
+   the cold Dylint driver bootstrap without clearing a local cache or building
+   installer components from source. Keep the current hosted failure open until
+   that run passes.
+3. Obtain the protected `codescene` environment, its main-only policy, and the
+   required token/project provisioning evidence from an authorized owner.
+   Obtain the approved `disallowed_methods` policy source and revision from the
+   baseline owner. Keep both blockers visible until independently verified.
+4. Resolve the pending CodeRabbit queue and other current-head review findings.
+   Keep PR #116 draft and unmerged until the complete one-PR acceptance
+   criteria and required external prerequisites are satisfied.
+
+## Gate and publication ledger
+
+| Head                                                 | Batch                                            | Owner                                                             | Gate evidence                                                                                                                                                                                                                                                                                                                                                                                        | CI/review                                       | Next action                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `ee8d82b`                                            | Existing branch/archive baseline                 | Scrutineer                                                        | Historical check-fmt, lint, typecheck, default-scope spelling, Markdown lint, and Nixie passed; contracts 112/113; default test 81 passed, 2 failed, 210 not run.                                                                                                                                                                                                                                    | No delivery PR                                  | Historical Cranelift failure and protected-environment blocker recorded above. |
+| `ee8d82b`                                            | Explicit LLVM and frozen-policy measurement      | Scrutineer                                                        | Historical LLVM run: 293 ordinary tests, 12 doctests passed and 2 ignored; docsrs passed; four of five audits compliant; full-scope spelling found 92 raw occurrences.                                                                                                                                                                                                                               | No delivery PR                                  | Reconfirm after integrated changes.                                            |
+| Isolated `rust-baseline-spelling-scope` at `ee8d82b` | Full-scope spelling repair                       | Spelling Journeyman; Scrutineer gates                             | `make spelling` twice passed with stable overlay and recorded hashes; targeted negative samples failed as intended; contracts 112 passed/1 inherited CV-005 failure. Patch is integrated as `ecd4b0c`; combined-tree gates and audit remain pending.                                                                                                                                                 | No separate PR                                  | Re-run spelling and workflow contracts on the combined tree.                   |
+| Pre-rebase `faa8c94`                                 | Approved Cranelift exception and LLVM default    | Integration Journeyman; contract Artisan, docs Scribe, Scrutineer | Focused contracts 81 passed; 293 ordinary tests and 12 doctests passed/2 ignored; check-fmt, lint, typecheck, Markdown lint, spelling, and Nixie passed; verbose routes prove frontend/linker and no Cranelift; frozen build audit compliant. Workflow contracts 122 pass/1 inherited CV-005 failure. Results are historical after rebase.                                                           | No delivery PR                                  | Reconfirm on final integrated head; preserve admin and policy blockers.        |
+| Pre-rebase `5513e0c`                                 | Fallible stderr output and lint cleanup          | Integration Journeyman; source Artisan; Scrutineer                | Focused stderr tests 2/2; sequential run3 check-fmt, lint (including Whitaker), full test 295/295 plus 12 doctests/2 ignored, typecheck, spelling, Markdown lint, and Nixie passed. No generated spelling drift. Workflow contracts were not rerun; inherited 122 pass/1 protected-environment failure remains. Results are historical after rebase.                                                 | No delivery PR                                  | Re-run all gates on the combined tree.                                         |
+| Pre-rebase `ce7204a`                                 | Binding docsrs Rustdoc route                     | Integration Journeyman; contract Artisan; docs Scribe             | Focused route contracts 33 passed; check-fmt, lint, test (295/295 plus 12 docsrs doctests), typecheck, spelling, Markdown lint, and Nixie passed. Full workflow contracts retained only the known CV-005 environment failure. These results are historical after rebase.                                                                                                                             | No delivery PR                                  | Re-run route contracts and sequential gates on the combined tree.              |
+| `43b70e8`                                            | Rebase checkpoint (superseded)                   | Integration Journeyman; rebase owner                              | Rebased from `68fb6f0` onto `2a9c622` by textual `zdiff3`; 18 commits replayed. At that intermediate checkpoint, post-rebase gates had not run and the coverage patch was uncommitted. This row is historical; see the later `8cefe59` checkpoint below.                                                                                                                                             | Superseded                                      | No action; the next checkpoint is recorded at `8cefe59`.                       |
+| `8cefe59`                                            | Historical PR head and local baseline checkpoint | Integration Journeyman; Scrutineer                                | Sequential run 2: check-fmt, lint, test (295/295, none skipped; docsrs doctests 12 passed/2 ignored), typecheck, spelling, Markdown lint, and Nixie passed. Four frozen audits compliant; workflow contracts 129 passed/1 failed on missing protected environment. Hosted run `36878449649`, job `110423802511`, failed Dylint's cold driver bootstrap after installer and prebuilt suite succeeded. | PR #116 and CodeRabbit state at that checkpoint | Historical next action; superseded by later branch work.                       |
+
+## Candidate validation checkpoint: 2026-10-10
+
+The local candidate working tree was based on HEAD
+`9e56d79a0e48ddc5381637fd26a716b809f58b95`. The initial full-gate working diff
+SHA-256 was `0c1e9d9a7d0aaaa84726762c1c43bab5d3ff3e110db8259e1084baa7c5e6b6d8`.
+
+The ledger checkpoint was revalidated at starting diff SHA-256
+`b5f6c95496f429a37df623491e09f10f6b8150a866de98bb8f02e7bc0a92c6f1`; the
+spelling-fix gate snapshot SHA-256 was
+`2b9a5a569bb10ef8cf5bfd1a5c3e3424af41b2309ccb65acf24753425ee597ce`.
+
+Focused results were `cargo test --test build_standard_contract` (135/135),
+`cargo test --test cli_process_contract` (8/8), and
+`make test-workflow-contracts` (198 tests). The full local gates passed:
+`make check-build-tools`, `make check-fmt`, `make lint` (Clippy and Whitaker),
+`make typecheck`, and `make test` (439 tests and 12 doctests passed; two
+doctests ignored). `make markdownlint`, `make spelling`, `make nixie`,
+`mbake validate Makefile`, and ShellCheck passed. These are local results, not
+hosted CI evidence.
+
+### Final post-hook reruns
+
+The tested working tree was based on HEAD
+`9e56d79a0e48ddc5381637fd26a716b809f58b95` plus the pre-ledger working diff
+SHA-256 `058a12c339338c2c3bedcd3c6345870a6f1028463e0bd6db956b71dabf37558e`;
+only this ledger changed afterwards.
+
+Focused Python contracts passed (18 tests):
+
+```sh
+uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' \
+  pytest tests/workflow_contracts/clang_linker_test.py \
+  tests/workflow_contracts/cargo_target_resolution_test.py -q
+```
+
+Post-hook documentation checks passed: `make check-fmt` (190 files unchanged),
+`make markdownlint` (zero errors; colour forcing disabled), `make spelling`
+(current `typos.toml`), and `make nixie` (informational; no charts; colour
+forcing disabled).
+
+Earlier sequential local gates at this same HEAD and unchanged code/test
+content also passed: `make test-workflow-contracts` (198),
+`make check-build-tools`, `cargo test --test build_standard_contract` (135),
+`cargo test --test cli_process_contract` (8), `make lint`, `make typecheck`, and
+`make test` (439 tests and 12 doctests passed; two ignored). These local
+results are separate from hosted CI; no hosted run exists for this candidate.
+
+The following regression demonstrations were detected and restored:
+
+1. Removing the `clang` prerequisite was caught by
+   `test_linux_preflight_requires_linker_tools_and_pinned_companion` in
+   `tests/workflow_contracts/clang_linker_test.py`; both architecture cases
+   failed because the mutated preflight returned 0 instead of 1 (2 failed, 8
+   passed, 4 deselected). Log:
+   `/tmp/mutation-missing-clang-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out`.
+2. Changing the roadmap stdout-write failure result was caught by
+   `roadmap_stdout_write_failure_reports_stderr_and_fails` in
+   `cli_process_contract`; the exact command was:
+   `cargo test --test cli_process_contract roadmap_stdout_write_failure_reports_stderr_and_fails`.
+   The mutated process exited 0 instead of 1. Log:
+   `/tmp/mutation-roadmap-write-result-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out`.
+3. Reversing resolver precedence was caught by
+   `test_generated_valid_chains_match_reference_model` in
+   `tests/workflow_contracts/cargo_target_resolution_test.py`; it selected
+   `home-target` instead of `near-target` (1 failed, 3 deselected). Log:
+   `/tmp/mutation-resolver-precedence-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out`.
+
+The test host was Rocky Linux 10 x86_64. Preflight tests simulated both
+supported architectures. CLI process integration is Linux-only; no native
+AArch64 execution or hosted run on the local candidate occurred. The managed
+sccache server was unreachable during Rust builds; compile admission succeeded
+and the builds completed uncached.
+
+At `2026-10-10T15:33:46Z`, a trusted read as `leynos` verified the `codescene`
+environment's main-only deployment policy. Environment token metadata, obsolete
+token exposure removal, and CodeScene project identity remain unverified. This
+administrative read is separate from local validation.
+
+An earlier point-in-time GitHub PR snapshot showed remote head
+`4d0978a8fcb4d0863d65ba1e201f7ac89330d532`, ready (not draft), `DIRTY`/
+`CONFLICTING`, and `CHANGES_REQUESTED`. Hosted build-test run `37073254894` was
+on that old remote head and timed out in `compile_time_contracts` at 302/303
+after 180 seconds. No hosted run exists for the local candidate. The approved
+Rust environment-access `disallowed_methods` policy remains a separate blocker,
+and the first protected main publication has not been observed.
+
+### Latest PR observation and formatter repair
+
+At `2026-10-10T16:17Z`, a standard GitHub CLI read verified the account as
+`leynos` and read PR #116 as open and ready (not draft), at head
+`4bdb4f1a6c54f7009405ed6eac3eede81719c8f8`, tree
+`985e8448bf1c5e659ca9a519ffd137e3476fd7fc`, based on
+`9bae3a275cad6d7514d172d39e934614a1c24885`. GitHub reported
+`mergeStateStatus=BLOCKED` and `reviewDecision=CHANGES_REQUESTED`. Build-test
+run `38066115369` failed at the Format step on that exact head. Scrutineer
+reproduced the failure with pinned `mdtablefix 0.6.0`; the only required change
+was Markdown wrapping in this ledger.
+
+After that documentation-only formatting repair, the pinned formatter check
+(`make check-fmt` with `MDTABLEFIX=target/mdtablefix-0.6.0/bin/mdtablefix`),
+`make markdownlint`, `make spelling`, and `make nixie` passed on the same code
+and tests. The Markdown lint and Nixie checks ran with colour forcing disabled.
+`make lint` passed at the exact HEAD. The previously recorded full local gates
+and focused tests ran on a staged tree identical to HEAD tree
+`985e8448bf1c5e659ca9a519ffd137e3476fd7fc`. There is no hosted CI rerun after
+the ledger formatting repair, so the local formatting result does not clear the
+hosted failure. The CodeScene token metadata, obsolete repository-level token
+exposure removal, and project identity remain unverified. The approved Rust
+environment-access `disallowed_methods` policy remains a separate blocker;
+neither prerequisite is resolved by these test results.
+
+### 2026-10-10: Installer fixture portability repair
+
+GitHub Actions run `38067683802` (attempt 1) inspected PR head
+`70b07c138e8fc8a56e1697ec9dd8fd3f5d5f9d3c` and failed its Workflow contract
+tests: 2 failed, 196 passed. Both failures were cases of
+`test_installer_checks_ld_mold_before_writing_success_marker`. The curl fixture
+used Bash-only `while (($#))` and `[[ ]]` under `#!/bin/sh`; the tar fixture
+had the same latent portability issue. Both test stubs now use POSIX `[ ... ]`
+syntax. This repairs test-fixture portability and does not change installer
+behaviour.
+
+Local validation used HEAD `70b07c138e8fc8a56e1697ec9dd8fd3f5d5f9d3c` plus the
+four-insertion/four-deletion test diff, SHA-256
+`7808e748e8dad2b74c68b3afd94ca852c12e28f5e650d03a74fddf7027d789af`. Focused
+Python tests passed (2); `make test-workflow-contracts` passed (198). The
+following also passed: `make check-build-tools`, pinned `make check-fmt` (190
+files unchanged), `make lint`, `make typecheck`, and `make test` (439 tests and
+12 doctests passed; two ignored). `make markdownlint`, `make nixie`,
+`make spelling`, `mbake validate Makefile`, and ShellCheck passed. These are
+local results. Hosted run `38067683802` remains red on the previous head; no
+new hosted run has been triggered. Existing administrative and Rust
+environment-access blockers recorded above remain unresolved.
+
+### 2026-10-10: Hosted rerun and PR state
+
+GitHub Actions run `38068781620` succeeded on PR #116 head
+`be10d727a35db2cd8b01533da593bf9bfd5d935b`, based on
+`9bae3a275cad6d7514d172d39e934614a1c24885`. It started at `16:42:58Z` and
+completed at `16:54:16Z`; build-test job `114261746668` succeeded. Format,
+typecheck, Markdown lint, Mermaid, lint, spelling, Workflow contract tests, and
+Test and Measure Coverage all succeeded. This is hosted evidence, distinct from
+the local results above.
+
+The PR was read as `OPEN`, ready (not draft), `CLEAN`, and `MERGEABLE`, with
+`CHANGES_REQUESTED`. The latest submitted CodeRabbit review remains on stale
+head `4d0978a8fcb4d0863d65ba1e201f7ac89330d532`; comenq full review request
+`ff9d1d11` remains pending. Review equilibrium and merge are not established.
+
+The `codescene` environment deployment policy was verified earlier. Its
+`CS_ACCESS_TOKEN` metadata, obsolete token exposure removal, CodeScene project
+identity, and the approved Rust environment-access `disallowed_methods` policy
+remain separate unresolved prerequisites; CI success does not clear them.
+
+### 2026-10-10: Spelling repair and current PR evidence
+
+Hosted run `38073984850` failed on prior head
+`d6993efa1d4cf058f39dd5b45730fc1f5277227d` at spelling only. The checker
+reported a false positive for the Python child-environment mapping that
+disables terminal-colour output at
+`tests/workflow_contracts/codescene_cli_process_test.py:97`. The repair adds a
+narrow exact-pattern ignore to `typos.local.toml` and its generated
+`typos.toml` entry; it changes no runtime behaviour.
+
+Local validation ran at base HEAD `d6993efa1d4cf058f39dd5b45730fc1f5277227d`
+plus the two-line configuration diff (SHA-256
+`c405539c811838eca4de94106db159939e35a661263f2bd5d1db7d8c09c1b9a8`), then was
+committed as `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`, tree
+`0c0595b86990cf69f2a2c697956cd6d03b2a9a53`. Sequential checks passed:
+`make spelling`, `make check-fmt` (190 files unchanged), `make lint`,
+`make typecheck`, `make test` (439 tests and 12 doctests passed; two ignored),
+`make markdownlint`, `make nixie`, `make test-workflow-contracts` (196 passed),
+`make check-build-tools`, `mbake validate Makefile`, and focused CodeScene
+Python tests (4 passed). The first `make markdownlint` pass emitted a warning
+because inherited terminal-colour variables conflicted; rerunning with those
+variables unset passed with zero warnings. Gate logs are under
+`/tmp/*-3c141d42-...-rust-baseline-hardening-mapsplice-5.out`; the clean
+Markdown lint log is
+`/tmp/markdownlint-clean-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice.out`.
+
+Hosted Actions run
+[`38075140130`](https://github.com/leynos/mapsplice/actions/runs/38075140130)
+(attempt 1) inspected exact head `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`
+against base `9bae3a275cad6d7514d172d39e934614a1c24885`. It passed from
+`18:17:32Z` to `18:28:27Z`; build-test job `114280432420` completed all 26
+steps, including Workflow contract tests and Test and Measure Coverage, with 13
+notices, zero warnings, and zero failures. The Dependabot-automerge run
+`38075139151`, Kody review, and Sourcery review were skipped. The test host was
+Rocky Linux 10 x86_64; preflight tests simulated both supported x86_64 and
+AArch64 routes. No native AArch64 execution occurred. These are local and
+hosted PR results, not evidence of the first protected-main publication.
+
+At approximately `18:30Z`, GitHub showed PR #116 open and ready (not draft),
+head `11d0e6b0b6fea55a0db74b2186e3d5a38854966b`, base
+`9bae3a275cad6d7514d172d39e934614a1c24885`, `mergeStateStatus=CLEAN`, and
+`reviewDecision=CHANGES_REQUESTED`; `build-test` was green. CodeRabbit queue
+item `ff9d1d11` remained pending and its check reported `Review paused`, so
+review equilibrium was not established. The only unresolved review thread
+concerns the protected CodeScene environment. Its main-only deployment policy
+was verified earlier, but environment-scoped `CS_ACCESS_TOKEN` metadata,
+removal of obsolete repository-level token exposure, CodeScene project
+identity, and the approved Rust environment-access `disallowed_methods` policy
+remain unverified separate prerequisites. CI success does not clear them; no
+merge or first protected-main publication is claimed.
+
+### 2026-10-10: Final restored-tree validation
+
+Local validation used a seven-file working diff with SHA-256
+`32901c90f16d790d60b7004f6407df797988a308c7ad332f61aeb89b77fdf41f`, based on
+HEAD `6912152ffd34d544d04fe60bae29b76cbe4e9140`. It was committed as
+`3aa5bb929559577f6d3118c2e3062cd54196646d`, tree
+`bb6171cdb49ee9b64f0a3844c59f192d8a779e25`. The tree was verified restored
+before the final gates. Focused commands passed:
+
+```sh
+uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' \
+  pytest tests/workflow_contracts/cargo_target_resolution_test.py \
+  tests/workflow_contracts/clang_linker_test.py -q
+cargo test --test cli_process_contract
+cargo test --bin mapsplice \
+  command_trace_keeps_error_class_without_user_supplied_message
+make test-workflow-contracts
+```
+
+They passed 24 Python tests, 8 CLI integration tests, 1 binary test, and 202
+workflow contract tests, respectively.
+
+Sequential local gates passed: `make check-fmt` (190 files unchanged),
+`make lint`, `make typecheck`, `make test` (440 tests; 12 doctests passed and
+two were ignored), `make markdownlint`, `make spelling`, and `make nixie`.
+There were no compiler or Clippy warnings. Focused Cargo runs reported the
+managed sccache-unreachable fallback and completed uncached; Nixie emitted only
+informational no-chart notices.
+
+Three mutation probes were detected and restored. Removing the `clang`
+prerequisite caused 2 failures, 8 passes, and 4 deselections; see
+`/tmp/mutation-clang-preflight-mapsplice-pr116.out`. Changing roadmap
+stdout-write handling to treat a non-`BrokenPipe` error as success made
+`roadmap_stdout_write_failure_reports_stderr_and_fails` observe exit 0 rather
+than 1 (1 failed, 7 filtered); see
+`/tmp/mutation-cli-output-failure-mapsplice-pr116.out`. Reversing Cargo config
+precedence made `test_generated_valid_chains_match_reference_model` select
+`home-target` instead of `near-target` (1 failed, 9 deselected); see
+`/tmp/mutation-cargo-target-precedence-mapsplice-pr116.out`.
+
+The host was Rocky Linux 10 x86_64. Linker preflight tests simulated both
+x86_64 and AArch64; no native AArch64 run occurred. This local evidence applies
+to the seven-file working diff and has no hosted CI run. At the observation,
+pull request 116 was open and ready at the older published head
+`6912152ffd34d544d04fe60bae29b76cbe4e9140`; hosted build-test and Gecko checks
+passed there. The CodeRabbit check was green, but the review decision remained
+`CHANGES_REQUESTED`; Kody and Sourcery were skipped. The tested working diff
+was not published.
+
+Administrative verification earlier confirmed the `codescene` environment's
+deployment policy only. Its token metadata, obsolete repository-secret exposure
+removal, and CodeScene project identity remain unverified; the approved Rust
+environment-access `disallowed_methods` policy is a separate unresolved
+blocker. No claim is made that the candidate reached review equilibrium or that
+the first protected main publication occurred.
