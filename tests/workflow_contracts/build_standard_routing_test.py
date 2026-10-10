@@ -52,15 +52,16 @@ def test_cargo_defaults_keep_the_frontend_without_cranelift() -> None:
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())
     assert config["build"]["rustflags"] == ["-Zthreads=8"]
     assert_no_cranelift_cargo_default(config, toolchain)
+    linux_target = config["target"]['cfg(target_os = "linux")']
+    flags = " ".join(linux_target["rustflags"])
+    assert "codegen-backend=cranelift" not in flags
+    assert all(flag in flags for flag in DEV_FLAGS)
     for triple, expected_linker in (
         ("x86_64-unknown-linux-gnu", "scripts/clang-linker.sh"),
         ("aarch64-unknown-linux-gnu", "scripts/clang-aarch64-linker.sh"),
     ):
         target = config["target"][triple]
-        flags = " ".join(target["rustflags"])
         assert target["linker"] == expected_linker
-        assert "codegen-backend=cranelift" not in flags
-        assert all(flag in flags for flag in DEV_FLAGS)
 
 
 @pytest.mark.parametrize(
@@ -323,6 +324,62 @@ def test_config_resolver_prefers_nearer_ancestor_over_cargo_home(
         check=True,
     )
     assert result.stdout == "x86_64-unknown-linux-gnu\n"
+
+
+def test_config_resolver_reports_invalid_configuration_on_stderr(
+    tmp_path: Path,
+) -> None:
+    """The target resolver keeps configuration diagnostics off target stdout."""
+    cargo_home = tmp_path / "cargo-home"
+    project = tmp_path / "project"
+    cargo_home.mkdir()
+    project.mkdir()
+    (cargo_home / "config.toml").write_text("[build\n", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(RESOLVER)],
+        cwd=project,
+        env={
+            "CARGO_HOME": str(cargo_home),
+            "HOME": str(tmp_path / "home"),
+            "LC_ALL": "C",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2, f"resolver should fail, got {result.returncode}"
+    assert result.stdout == "", f"resolver stdout was {result.stdout!r}"
+    assert "cannot read Cargo configuration" in result.stderr, (
+        f"resolver stderr was {result.stderr!r}"
+    )
+
+
+def test_make_preserves_resolver_error_when_config_is_invalid(tmp_path: Path) -> None:
+    """Make captures the resolver diagnostic before aborting its route."""
+    cargo_home = tmp_path / "cargo-home"
+    cargo_home.mkdir()
+    (cargo_home / "config.toml").write_text("[build\n", encoding="utf-8")
+    result = subprocess.run(
+        ["make", "--dry-run", "check-fmt", "CARGO=echo"],
+        cwd=ROOT,
+        env={
+            **os.environ,
+            "CARGO_HOME": str(cargo_home),
+            "HOME": str(tmp_path / "home"),
+            "LC_ALL": "C",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0, "Make should reject invalid Cargo configuration"
+    assert "cannot read Cargo configuration" in result.stderr, (
+        f"Make stderr was {result.stderr!r}"
+    )
 
 
 def test_release_filters_development_flags_and_selects_llvm(tmp_path: Path) -> None:

@@ -75,7 +75,8 @@ class ScriptedFetch:
         return queued.pop(0)
 
     def assert_consumed(self) -> None:
-        assert all(not queued for queued in self.replies.values())
+        leftovers = [endpoint for endpoint, queued in self.replies.items() if queued]
+        assert not leftovers, f"unconsumed API replies: {leftovers!r}"
 
 
 def _valid_fetch(

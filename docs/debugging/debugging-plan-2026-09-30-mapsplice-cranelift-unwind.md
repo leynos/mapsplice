@@ -13,7 +13,7 @@ agent.
 
 At the time of investigation, on Linux x86_64, the development test suite
 configured with Cranelift failed `catch_unwind_catches_a_development_panic` and
-aborts during `spawned_thread_panic_does_not_abort_the_process`. The
+aborted during `spawned_thread_panic_does_not_abort_the_process`. The
 corresponding explicit LLVM-profile suite passes all 293 tests, including all
 three panic probes. The explicit `panic = "unwind"` hypothesis was falsified,
 and a later bare `rustc` comparison isolated the failure to the Cranelift

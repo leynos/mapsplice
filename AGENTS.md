@@ -260,9 +260,9 @@ project:
 
 - Validate Markdown files using `make markdownlint`.
 - Quoted APIs and identifiers retain upstream spelling. Fenced code
-  blocks are ignored by the spelling gate, so record each quoted
-  identifier in `typos.local.toml` under `[patterns] ignore`, scoped
-  to the form it appears in, rather than accepting the bare word.
+  blocks are ignored by the spelling gate, so record each quoted identifier in
+  `typos.local.toml` under `[patterns] ignore`, scoped to the form it appears
+  in, rather than accepting the bare word.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.

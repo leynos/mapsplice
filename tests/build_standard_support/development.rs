@@ -1,7 +1,7 @@
 //! The development half of the Makefile reader: the commands `make -n` prints for each development
-//! target, judged against a toolchain pin and a host. Each command must assign `RUSTFLAGS` with the
-//! standard flags and keep the caller's own, the commands that run tests must keep `-D warnings`,
-//! and each target must run the tools the contract recorded for it.
+//! target, judged against a toolchain pin and a host. Each command must assign the route flags to
+//! Cargo's flag sources and preserve caller policy; commands that run tests must keep `-D
+//! warnings`, and each target must run the tools the contract recorded for it.
 
 use super::{
     config::{Pin, Problems},
@@ -52,9 +52,9 @@ fn bare_problem(target: Target<'_>, host: Host, command: &str) -> String {
     )
 }
 
-/// Returns the complaint about one development command, if any: an assigned
-/// `RUSTFLAGS` keeps the caller's own flags and restates the frontend flag on a
-/// nightly pin, and mold on Linux.
+/// Returns the complaint about one development command, if any: its assigned
+/// route preserves caller policy, restates the frontend flag on a nightly pin,
+/// and uses `mold` on Linux.
 pub fn development_problem(
     target: Target<'_>,
     host: Host,
@@ -68,7 +68,7 @@ pub fn development_problem(
     };
     if !inherits {
         return Some(format!(
-            "`make {target}` on {} drops the caller's RUSTFLAGS",
+            "`make {target}` on {} drops the caller's Cargo flag policy",
             host.make_value()
         ));
     }
@@ -192,6 +192,12 @@ fn target_tool_problems(
     problems
 }
 
+/// Whitaker has its own explicit warnings-only route, so its command must not be judged as a
+/// Cargo development-flag assignment. The route itself remains required by `EXPECTED_TOOLS`.
+fn is_whitaker_route(command: &Command) -> bool {
+    tool_key(&command.text).as_deref() == Some("whitaker")
+}
+
 /// Returns every complaint about the development targets on one host, and how
 /// many assignments it read, so a test can refuse to pass over nothing.
 ///
@@ -225,12 +231,14 @@ pub fn development_problems_expecting(
         let commands = make_commands(runner, target, host)?;
         read += commands
             .iter()
+            .filter(|command| !is_whitaker_route(command))
             .filter(|command| matches!(command.assignment, Assignment::Flags(..)))
             .count();
         problems.extend(target_tool_problems(target, host, &commands, expected));
         problems.extend(
             commands
                 .iter()
+                .filter(|command| !is_whitaker_route(command))
                 .filter_map(|command| development_problem(target, host, pin, &command.assignment)),
         );
         problems.extend(test_policy_problems(target, host, &commands));

@@ -45,5 +45,9 @@ install -m 0755 "$scratch/mold-$version-$arch-linux/bin/ld.mold" "$prefix/bin/ld
   echo 'Installed mold does not report the pinned version' >&2
   exit 1
 }
+[[ $("$prefix/bin/ld.mold" --version) == "mold $version "* ]] || {
+  echo 'Installed ld.mold does not report the pinned version' >&2
+  exit 1
+}
 touch "$prefix/bin/.mold-$version-$digest"
 printf 'Installed mold %s into %s/bin; put it before system tools on PATH.\n' "$version" "$prefix"

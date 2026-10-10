@@ -28,7 +28,7 @@ WORKFLOW_PATH = (
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
 #: modules outside ``#[cfg(test)]``, so the caller mirrors the CI baseline's
 #: feature flags and provisions the development linker before mutant builds.
-EXPECTED_WITH_KEYS = {"extra-args", "setup-commands"}
+EXPECTED_WITH_KEYS = {"extra-args", "install-mold", "setup-commands"}
 
 
 def _load() -> dict[str, object]:
@@ -133,6 +133,9 @@ def test_with_block_carries_the_caller_configuration() -> None:
     )
     assert with_block["extra-args"] == "--all-features", (
         "mutation testing must retain CI's all-features selection"
+    )
+    assert with_block["install-mold"] == "true", (
+        "mutation builds must provision the committed Linux linker"
     )
     assert isinstance(with_block["setup-commands"], str) and with_block[
         "setup-commands"
