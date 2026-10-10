@@ -53,16 +53,16 @@ def test_installer_checks_ld_mold_before_writing_success_marker(
     _write_command(
         commands,
         "curl",
-        "#!/bin/sh\nwhile (($#)); do\n"
-        "  if [[ $1 == --output ]]; then archive=$2; shift 2; else shift; fi\n"
+        "#!/bin/sh\nwhile [ \"$#\" -gt 0 ]; do\n"
+        "  if [ \"$1\" = --output ]; then archive=$2; shift 2; else shift; fi\n"
         "done\nprintf '%s\\n' fixture > \"$archive\"\n",
     )
     _write_command(commands, "sha256sum", "#!/bin/sh\nexit 0\n")
     _write_command(
         commands,
         "tar",
-        "#!/bin/sh\ndestination=\nwhile (($#)); do\n"
-        "  if [[ $1 == -C ]]; then destination=$2; shift 2; else shift; fi\n"
+        "#!/bin/sh\ndestination=\nwhile [ \"$#\" -gt 0 ]; do\n"
+        "  if [ \"$1\" = -C ]; then destination=$2; shift 2; else shift; fi\n"
         "done\n"
         f"directory=\"$destination/mold-{VERSION}-x86_64-linux/bin\"\n"
         "mkdir -p \"$directory\"\n"
