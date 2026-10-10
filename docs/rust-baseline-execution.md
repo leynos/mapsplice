@@ -1076,3 +1076,59 @@ removal of obsolete repository-level token exposure, CodeScene project
 identity, and the approved Rust environment-access `disallowed_methods` policy
 remain unverified separate prerequisites. CI success does not clear them; no
 merge or first protected-main publication is claimed.
+
+### 2026-10-10: Final restored-tree validation
+
+Local validation used a seven-file working diff with SHA-256
+`32901c90f16d790d60b7004f6407df797988a308c7ad332f61aeb89b77fdf41f`, based on
+HEAD `6912152ffd34d544d04fe60bae29b76cbe4e9140`. It was committed as
+`3aa5bb929559577f6d3118c2e3062cd54196646d`, tree
+`bb6171cdb49ee9b64f0a3844c59f192d8a779e25`. The tree was verified restored
+before the final gates. Focused commands passed:
+
+```sh
+uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' \
+  pytest tests/workflow_contracts/cargo_target_resolution_test.py \
+  tests/workflow_contracts/clang_linker_test.py -q
+cargo test --test cli_process_contract
+cargo test --bin mapsplice \
+  command_trace_keeps_error_class_without_user_supplied_message
+make test-workflow-contracts
+```
+
+They passed 24 Python tests, 8 CLI integration tests, 1 binary test, and 202
+workflow contract tests, respectively.
+
+Sequential local gates passed: `make check-fmt` (190 files unchanged),
+`make lint`, `make typecheck`, `make test` (440 tests; 12 doctests passed and
+two were ignored), `make markdownlint`, `make spelling`, and `make nixie`.
+There were no compiler or Clippy warnings. Focused Cargo runs reported the
+managed sccache-unreachable fallback and completed uncached; Nixie emitted only
+informational no-chart notices.
+
+Three mutation probes were detected and restored. Removing the `clang`
+prerequisite caused 2 failures, 8 passes, and 4 deselections; see
+`/tmp/mutation-clang-preflight-mapsplice-pr116.out`. Changing roadmap
+stdout-write handling to treat a non-`BrokenPipe` error as success made
+`roadmap_stdout_write_failure_reports_stderr_and_fails` observe exit 0 rather
+than 1 (1 failed, 7 filtered); see
+`/tmp/mutation-cli-output-failure-mapsplice-pr116.out`. Reversing Cargo config
+precedence made `test_generated_valid_chains_match_reference_model` select
+`home-target` instead of `near-target` (1 failed, 9 deselected); see
+`/tmp/mutation-cargo-target-precedence-mapsplice-pr116.out`.
+
+The host was Rocky Linux 10 x86_64. Linker preflight tests simulated both
+x86_64 and AArch64; no native AArch64 run occurred. This local evidence applies
+to the seven-file working diff and has no hosted CI run. At the observation,
+pull request 116 was open and ready at the older published head
+`6912152ffd34d544d04fe60bae29b76cbe4e9140`; hosted build-test and Gecko checks
+passed there. The CodeRabbit check was green, but the review decision remained
+`CHANGES_REQUESTED`; Kody and Sourcery were skipped. The tested working diff
+was not published.
+
+Administrative verification earlier confirmed the `codescene` environment's
+deployment policy only. Its token metadata, obsolete repository-secret exposure
+removal, and CodeScene project identity remain unverified; the approved Rust
+environment-access `disallowed_methods` policy is a separate unresolved
+blocker. No claim is made that the candidate reached review equilibrium or that
+the first protected main publication occurred.
