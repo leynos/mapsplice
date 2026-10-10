@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import importlib.util
 from pathlib import Path
 from typing import NamedTuple
@@ -254,3 +255,114 @@ def test_unreadable_configuration_fails_closed_with_fault_injection(
             cargo_home_directory=cargo_home,
             root_directory=root,
         )
+
+
+def test_configuration_discovery_errors_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A config stat error cannot be mistaken for a missing file."""
+    cargo_home = tmp_path / "cargo-home"
+    root = tmp_path / "workspace"
+    start = root / "nested"
+    selected = cargo_home / "config.toml"
+    selected.parent.mkdir(parents=True)
+    selected.write_text('[build]\ntarget = "home-target"\n', encoding="utf-8")
+    start.mkdir(parents=True)
+    original_stat = Path.stat
+
+    def reject_selected_config(
+        path: Path,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        if path == selected:
+            raise OSError(errno.ELOOP, "injected symlink loop", str(path))
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", reject_selected_config)
+
+    with pytest.raises(
+        RESOLVER.ConfigurationError, match="cannot inspect Cargo configuration"
+    ):
+        RESOLVER.resolve_target(
+            start,
+            cargo_home_directory=cargo_home,
+            root_directory=root,
+        )
+
+
+@pytest.mark.parametrize(
+    ("failed_location", "failure_type"),
+    (
+        ("start", OSError),
+        ("root", OSError),
+        ("cargo_home", OSError),
+        ("start", RuntimeError),
+    ),
+)
+def test_path_resolution_errors_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_location: str,
+    failure_type: type[Exception],
+) -> None:
+    """Every search-root resolution failure has a configuration diagnostic."""
+    cargo_home = tmp_path / "cargo-home"
+    root = tmp_path / "workspace"
+    start = root / "nested"
+    start.mkdir(parents=True)
+    failed_path = {
+        "start": start,
+        "root": root,
+        "cargo_home": cargo_home,
+    }[failed_location]
+    expected_description = {
+        "start": "configuration search start",
+        "root": "workspace root",
+        "cargo_home": "Cargo home",
+    }[failed_location]
+    original_resolve = Path.resolve
+
+    def reject_selected_path(path: Path, *args: object, **kwargs: object) -> Path:
+        if path == failed_path:
+            if failure_type is RuntimeError:
+                raise RuntimeError("injected path resolution failure")
+            raise OSError(errno.EACCES, "injected path resolution failure", str(path))
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", reject_selected_path)
+
+    with pytest.raises(
+        RESOLVER.ConfigurationError,
+        match=f"cannot resolve {expected_description}",
+    ):
+        RESOLVER.resolve_target(
+            start,
+            cargo_home_directory=cargo_home,
+            root_directory=root,
+        )
+
+
+def test_cli_converts_current_directory_failure_to_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    """A cwd lookup error exits cleanly without an unhandled traceback."""
+    def reject_current_directory(cls: type[Path]) -> Path:
+        del cls
+        raise OSError(errno.ENOENT, "injected missing current directory")
+
+    monkeypatch.setattr(Path, "cwd", classmethod(reject_current_directory))
+
+    exit_code = RESOLVER.main()
+
+    captured = capfd.readouterr()
+    assert exit_code == 2, f"CLI exit was {exit_code}, expected configuration failure"
+    assert captured.out == "", f"configuration failure wrote stdout: {captured.out!r}"
+    assert "cannot determine current working directory" in captured.err, (
+        f"cwd failure diagnostic was {captured.err!r}"
+    )
+    assert "Traceback" not in captured.err, (
+        f"cwd failure leaked a traceback: {captured.err!r}"
+    )
