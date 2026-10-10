@@ -240,6 +240,15 @@ workflow edit fails there. The decision is recorded in
 direct `cargo test` needs GNU make on the `PATH`. It fails when `make` is
 missing instead of skipping, so a missing tool cannot read as a pass.
 
+CI also installs `clang` and `lld` through `setup-rust`'s `install-clang-lld`
+input, which installs both on Linux and fails the job unless `clang` and
+`ld.lld` resolve on `PATH`; the workflows carry no hand-rolled `apt-get` step.
+Both inputs skip with a notice on other platforms and set no linker flag, so
+`.cargo/config.toml` and the coverage step's environment still choose which
+linker runs. `tests/linker_provisioning_contract.rs` reads the parsed
+`setup-rust` step of each CI workflow and asserts both inputs are `'true'` and
+that no step installs a linker by hand.
+
 ### Cold-cache allowance for the trybuild tests
 
 `.config/nextest.toml` keeps the 180 s per-test allowance that the coverage
