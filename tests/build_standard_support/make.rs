@@ -11,7 +11,7 @@ use super::{
 /// and none carries a standard flag.
 const HELD_OUT_TARGETS: &[&str] = &["release"];
 
-/// The host `make` is told it runs on, through `BUILD_HOST_OS`.
+/// The host `make` is told it runs on, through `HOST_OS`.
 #[derive(Clone, Copy)]
 pub enum Host {
     Linux,
@@ -27,7 +27,7 @@ impl Host {
         }
     }
 
-    /// Returns whether the host takes mold, which ships for Linux alone.
+    /// Returns whether the host takes `mold`, which ships for Linux alone.
     pub const fn takes_linker_flag(self) -> bool { matches!(self, Self::Linux) }
 }
 
@@ -40,7 +40,7 @@ pub enum Assignment {
     /// A build, test or lint command that assigns nothing. Development recipes must
     /// assign `RUSTFLAGS` there, so the caller's flags and the warning policy reach it.
     Bare(String),
-    /// An assignment, and whether it keeps the caller's own `RUSTFLAGS`.
+    /// An assignment, and whether it preserves the caller's effective Cargo flags.
     Flags(Flags, bool),
 }
 
@@ -51,13 +51,14 @@ pub struct Command {
     pub assignment: Assignment,
 }
 
-/// Reads the `RUSTFLAGS` a `make -n` output line assigns. An unreadable form is
-/// an error, because it still replaces the configuration's sources and so must
-/// not pass.
+/// Reads the raw and encoded flag sources a `make -n` output line assigns.
+/// Encoded routes must filter development-owned flags and append the exact raw
+/// route flags, preserving other caller policy.
 ///
 /// ```text
 /// assigned_rustflags("RUSTFLAGS=\"-Zthreads=8\" cargo test") -> Flags(["-Zthreads=8"], inherits: false)
 /// assigned_rustflags("RUSTFLAGS=\"${RUSTFLAGS:+$RUSTFLAGS }-Zthreads=8\" cargo test") -> inherits: true
+/// assigned_rustflags("CARGO_ENCODED_RUSTFLAGS=... RUSTFLAGS=\"-Zthreads=8\" cargo test") -> inherits: true
 /// assigned_rustflags("cargo test")                           -> Unassigned
 /// assigned_rustflags("RUSTFLAGS=-Zthreads=8 cargo test")     -> Err
 /// assigned_rustflags("RUSTFLAGS=\"${RUSTFLAGS-}-Zthreads=8\" cargo test") -> Err (glued)
@@ -65,16 +66,25 @@ pub struct Command {
 ///
 /// # Errors
 ///
-/// Returns the reason when an assignment is unquoted, unterminated, or glues the
-/// caller's flags to the next one.
+/// Returns the reason when an assignment is unquoted, unterminated, glues the
+/// caller's flags to the next one, or misroutes encoded caller flags.
 pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
-    let Some((_, rest)) = line.split_once("RUSTFLAGS=\"") else {
-        if line.contains("RUSTFLAGS=") {
-            return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
+    let encoded_assignment_start = assignment_start(line, "CARGO_ENCODED_RUSTFLAGS");
+    let Some(flags_start) = assignment_start(line, "RUSTFLAGS") else {
+        if encoded_assignment_start.is_some() {
+            return Err(format!(
+                "CARGO_ENCODED_RUSTFLAGS has no matching RUSTFLAGS route in `{line}`"
+            ));
         }
         return Ok(Assignment::Unassigned);
     };
-    let (assigned, _) = rest
+    let Some(flags_value) = line.get(flags_start + "RUSTFLAGS=".len()..) else {
+        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
+    };
+    let Some(quoted_flags_value) = flags_value.strip_prefix('"') else {
+        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
+    };
+    let (assigned, _) = quoted_flags_value
         .split_once('"')
         .ok_or_else(|| format!("unterminated RUSTFLAGS in `{line}`"))?;
     // The recipes prepend the caller's own flags with these expansions; they are
@@ -89,8 +99,26 @@ pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
             "inherited RUSTFLAGS glued to the next flag in `{line}`"
         ));
     }
-    let inherits =
-        assigned.contains("${RUSTFLAGS:+$RUSTFLAGS }") || assigned.contains("${RUSTFLAGS-}");
+    let encoded_inherits = match encoded_assignment_start {
+        Some(encoded_position) if encoded_position < flags_start => {
+            let Some(encoded_source) = line.get(encoded_position..flags_start) else {
+                return Err(format!(
+                    "CARGO_ENCODED_RUSTFLAGS has no matching RUSTFLAGS route in `{line}`"
+                ));
+            };
+            validate_encoded_source(encoded_source, assigned, line)?;
+            true
+        }
+        Some(_) => {
+            return Err(format!(
+                "CARGO_ENCODED_RUSTFLAGS follows RUSTFLAGS in `{line}`"
+            ));
+        }
+        None => false,
+    };
+    let inherits = encoded_inherits
+        || assigned.contains("${RUSTFLAGS:+$RUSTFLAGS }")
+        || assigned.contains("${RUSTFLAGS-}");
     let own = assigned
         .replace("${RUSTFLAGS:+$RUSTFLAGS }", " ")
         .replace("${RUSTFLAGS-}", " ");
@@ -98,6 +126,64 @@ pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
         Flags::from_words(own.split_whitespace()),
         inherits,
     ))
+}
+
+/// Finds an exact leading shell assignment, not a suffix such as the
+/// `RUSTFLAGS` portion of `CARGO_ENCODED_RUSTFLAGS`.
+fn assignment_start(line: &str, name: &str) -> Option<usize> {
+    let assignment = format!("{name}=");
+    line.match_indices(&assignment).find_map(|(start, _)| {
+        let is_boundary = start == 0
+            || line
+                .get(..start)
+                .and_then(|prefix| prefix.chars().next_back())
+                .is_some_and(char::is_whitespace);
+        is_boundary.then_some(start)
+    })
+}
+
+/// Checks that an encoded route preserves caller policy while filtering only
+/// development-owned flags, then appends the exact route flags.
+fn validate_encoded_source(source: &str, raw_flags: &str, line: &str) -> Result<(), String> {
+    const FILTERED_FORMS: &[&str] = &[
+        "-Z:threads=8",
+        "-Z:codegen-backend=cranelift",
+        "-C:link-arg=-fuse-ld=mold",
+        "-Zthreads=8",
+        "-Zcodegen-backend=cranelift",
+        "-Clink-arg=-fuse-ld=mold",
+    ];
+    const FILTER_STEPS: &[&str] = &[
+        "encoded=${CARGO_ENCODED_RUSTFLAGS-}",
+        "if [[ -n $encoded ]]; then",
+        "IFS=$separator read -r -a arguments <<< \"$encoded\"",
+        "for current in \"${arguments[@]}\"; do",
+        "case \"$pending:$current\" in",
+        "pending=; continue;;",
+        "*) kept+=(\"$pending\"); pending=;; esac",
+        "case $current in",
+        "kept+=(\"$pending\")",
+        "kept+=(\"$current\")",
+        "if [[ -n $pending ]]; then kept+=(\"$pending\"); fi;",
+        "printf \"%s\" \"${kept[*]}\"",
+    ];
+    let preserves_caller = source.contains("encoded=${CARGO_ENCODED_RUSTFLAGS-}")
+        && FILTERED_FORMS.iter().all(|flag| source.contains(flag))
+        && FILTER_STEPS.iter().all(|step| source.contains(step))
+        && source.contains("if [ -n \"$filtered\" ]; then");
+    let encoded_route = raw_flags
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("\u{1f}");
+    let appends_route = source.contains(&format!("'%s\u{1f}%s' \"$filtered\" \"{encoded_route}\""))
+        && source.contains(&format!("printf '%s' \"{encoded_route}\""));
+    if preserves_caller && appends_route {
+        Ok(())
+    } else {
+        Err(format!(
+            "CARGO_ENCODED_RUSTFLAGS does not preserve and route caller flags in `{line}`"
+        ))
+    }
 }
 
 /// Reads the assignment of each cargo or whitaker command `make -n` printed. A line that chains
@@ -201,7 +287,9 @@ fn held_out_command_problems(target: Target<'_>, assignment: &Assignment) -> Pro
     // A release build keeps the caller's own flags (a sanitizer, a target feature) while it drops
     // the standard's; only the coverage build, a measurement, ignores them.
     if target.name() == "release" && !inherits {
-        problems.push(format!("`make {target}` drops the caller's RUSTFLAGS"));
+        problems.push(format!(
+            "`make {target}` drops the caller's Cargo flag policy"
+        ));
     }
     problems
 }

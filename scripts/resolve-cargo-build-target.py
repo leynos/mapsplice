@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import tomllib
@@ -118,7 +119,7 @@ def main() -> int:
     try:
         target = resolve_target(Path.cwd().resolve())
     except ConfigurationError as error:
-        print(f"error: {error}")
+        print(f"error: {error}", file=sys.stderr)
         return 2
     if target is not None:
         print(target)

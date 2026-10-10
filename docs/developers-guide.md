@@ -47,6 +47,12 @@ boundary, and roadmap domain modules:
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
+- The private `render::inline` module, implemented in
+  `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
+  and reports unsupported nodes as roadmap errors.
+- The private `anchor::deserialize` module, implemented in
+  `src/roadmap/anchor_deserialize.rs`, validates serialized phase, step, task,
+  and sub-task numbers through their domain constructors.
 - `src/fs.rs` is the capability-oriented filesystem adapter. Filesystem
   failures must surface as `MapspliceError::Io`, not roadmap validation errors.
 
@@ -180,11 +186,21 @@ non-development routes; see [the contributing guide](contributing.md) for local
 setup.
 
 On supported Linux hosts, `make check-build-tools` checks that `clang` and
-`ld.mold` 2.41.0 are available on `PATH`; the Clang wrapper resolves that
-linker from `PATH`. The AArch64 route uses a dedicated wrapper that passes
-`--target=aarch64-unknown-linux-gnu` to Clang. Cross-linking still requires a
-compatible AArch64 linker sysroot and supporting tools on the host; the
-preflight does not install or supply them.
+`mold` are available on `PATH`, and that `ld.mold` reports version 2.41.0; the
+Clang wrapper resolves that linker from `PATH`. The AArch64 route uses a
+dedicated wrapper to pass `--target=aarch64-unknown-linux-gnu` to Clang.
+Cross-linking still requires a compatible AArch64 linker sysroot and supporting
+tools on the host; the preflight does not install or supply them.
+
+Make's compiler and linker routing also accounts for Cargo target selection.
+The Make recipes inspect `--target`, `CARGO_BUILD_TARGET`, and
+`--config build.target` selectors. The `scripts/resolve-cargo-build-target.py`
+helper resolves inherited `build.target` values from `CARGO_HOME` and ancestor
+`.cargo/config` or `.cargo/config.toml` files, with nearer project
+configuration overriding earlier values. A missing target leaves the current
+selection unchanged. Ambiguous filenames, unreadable or malformed files, empty
+targets, and other unsupported target values fail closed so Make cannot
+silently choose the wrong linker route.
 
 ```mermaid
 flowchart TD
@@ -290,15 +306,18 @@ flag lives in a Linux-only table and macOS and Windows keep their platform
 linker. Cargo selects one `rustflags` source rather than merging them, so every
 source repeats the same flags apart from the linker.
 
-An assigned `RUSTFLAGS` replaces the configuration's flags, so the Makefile
-recipes that set it compose the standard's flags onto any inherited value (CI's
-`setup-rust` exports one). Two builds are deliberately excluded: coverage
-assigns `RUSTFLAGS` without the fast flags, because a measurement should not
-depend on them, and the release recipe and workflow keep the platform linker,
-because they assign `RUSTFLAGS` (even an empty value displaces the
-configuration). Cargo has no per-profile `rustflags`, so a direct
-`cargo build --release` takes the configuration's flags unless `RUSTFLAGS` is
-assigned too.
+An assigned `RUSTFLAGS` replaces the configuration's flags, while Cargo uses
+`CARGO_ENCODED_RUSTFLAGS` in preference when it is set. The Makefile therefore
+assigns both sources: it builds `RUSTFLAGS` from `RUST_FLAGS` and the selected
+route flags, and filters development-owned options from inherited
+`CARGO_ENCODED_RUSTFLAGS` before appending those route flags. This preserves
+other caller-encoded policy while removing `-Zthreads=8`, the Cranelift backend
+selector, and the `mold` linker argument from the inherited source. Coverage
+assigns warnings-only `RUSTFLAGS` and uses LLVM profiling; release uses
+`RUST_FLAGS` and the LLVM release profile. Both routes omit the development
+frontend and `mold` flags. Cargo has no per-profile `rustflags`, so a direct
+`cargo build --release` uses the discovered configuration unless an environment
+flag source is assigned.
 
 On Linux, install `mold` before building: the configuration names it, so a
 build without it fails at link time. CI installs it through `setup-rust`'s
@@ -379,12 +398,13 @@ that a GitHub environment exists or that a secret has the correct scope. Keep
 the live contract strict when an administrative prerequisite is missing.
 
 The sole publisher is `coverage-main.yml`, job `coverage-publisher`, which runs
-on pushes to `main`. Before adding its `environment: codescene` declaration,
-the repository owner must provision and freshly verify the environment.
-Declaring an unprovisioned environment in a workflow can create an environment
-without the intended protection. Workflows must never create or repair
-administrative protection. PR workflows remain secret-free and cannot upload to
-CodeScene or write the persistent coverage baseline.
+on pushes to `main` and already declares `environment: codescene`. The owner
+must verify that this environment is provisioned and protected before readiness
+and merge. If its policy is missing or has drifted, repair it through the
+trusted administrative process and perform a fresh read-back. Do not remove the
+workflow declaration or rely on a workflow to create or repair administrative
+protection. PR workflows remain secret-free and cannot upload to CodeScene or
+write the persistent coverage baseline.
 
 ### Trusted owner checks
 
@@ -417,11 +437,12 @@ current identity. Neither response proves protection.
 Before readiness and again immediately before merge, the owner must complete
 these actions and record non-secret evidence:
 
-1. Provision `codescene` through the trusted administrative process, then run
-   a fresh policy read-back. Record the repository, authenticated identity, UTC
-   time, inspected Git head, policy flags, complete pagination, and the sole
-   permitted branch policy. A committed response snapshot is historical
-   evidence, never a substitute for the live check.
+1. Verify that `codescene` exists and repair it through the trusted
+   administrative process if needed. Then run a fresh policy read-back. Record
+   the repository, authenticated identity, UTC time, inspected Git head, policy
+   flags, complete pagination, and the sole permitted branch policy. A
+   committed response snapshot is historical evidence, never a substitute for
+   the live check.
 2. Provision `CS_ACCESS_TOKEN` as an environment-scoped secret. Read its
    metadata through the environment secrets API and record only its name,
    scope, and creation/update timestamps. Never retrieve, print, or commit its
@@ -437,11 +458,11 @@ these actions and record non-secret evidence:
    tracks this repository and the main coverage publication. Record the
    verified project identity and mapping without its token. Do not invent a
    project identifier or treat a fixture as confirmation.
-5. Only after authorized protection evidence is available, add
-   `jobs.coverage-publisher.environment: codescene` to the existing publisher.
-   Preserve its action pins, compiler route, coverage parity, concurrency,
-   permissions, token guard, and sole baseline writer. Rerun the strict live
-   contract and the full workflow-contract gate.
+5. Keep `jobs.coverage-publisher.environment: codescene` on the existing
+   publisher and proceed only after authorized protection evidence is
+   available. Preserve its action pins, compiler route, coverage parity,
+   concurrency, permissions, token guard, and sole baseline writer. Rerun the
+   strict live contract and the full workflow-contract gate.
 
 Repeat the live policy and secret-scope checks at least weekly and after
 changes to environment settings, deployment policies, secret scope, or

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -10,15 +11,14 @@ import yaml
 COVERAGE_GENERATE_PIN = "ff1dd759dfffc0db3459e30e833f52437ee62b57"
 UPLOADER_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
 SETUP_RUST_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
-DEPENDABOT_PIN = "ff1dd759dfffc0db3459e30e833f52437ee62b57"
+DEPENDABOT_WORKFLOW = (
+    "leynos/shared-actions/.github/workflows/dependabot-automerge.yml"
+)
 GENERATE = (
     f"leynos/shared-actions/.github/actions/generate-coverage@{COVERAGE_GENERATE_PIN}"
 )
 UPLOAD = (
     f"leynos/shared-actions/.github/actions/upload-codescene-coverage@{UPLOADER_PIN}"
-)
-DEPENDABOT_AUTOMERGE = (
-    f"leynos/shared-actions/.github/workflows/dependabot-automerge.yml@{DEPENDABOT_PIN}"
 )
 TOKEN_CHECK = (
     'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"'
@@ -131,9 +131,12 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
                     assert not called.startswith("leynos/mapsplice/"), (
                         "qualified self-call cannot be proved local"
                     )
-                    assert called == DEPENDABOT_AUTOMERGE, (
-                        f"unproved external workflow call: {called}"
-                    )
+                    path, separator, ref = called.partition("@")
+                    assert (
+                        separator
+                        and path == DEPENDABOT_WORKFLOW
+                        and re.fullmatch(r"[0-9a-f]{40}", ref)
+                    ), f"unproved external workflow call: {called}"
                     assert "secrets" not in job, "external PR call passes secrets"
         active_names = {workflows[path].get("name") for path in reached}
         for path, workflow in workflows.items():
@@ -211,7 +214,7 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     assert job.get("environment") in ("codescene", {"name": "codescene"}), (
         ".github/workflows/coverage-main.yml job coverage-publisher must "
         "declare the protected codescene environment; its owner must provision "
-        "and freshly verify main-only protection before adding the declaration "
+        "and freshly verify main-only protection before readiness or merge "
         "(scripts/verify_codescene_environment.py)"
     )
     assert job.get("permissions") == {"contents": "read"}

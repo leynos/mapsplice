@@ -50,37 +50,193 @@ pub fn names_program(word: &str, program: &str) -> bool {
 /// ```text
 /// shell_commands("a && b; c \"x;y\"") -> ["a ", " b", " c \"x;y\""]
 /// ```
-pub fn shell_commands(line: &str) -> Vec<String> {
-    let mut commands = Vec::new();
-    let mut current = String::new();
-    let mut quote: Option<char> = None;
-    let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
-        match (quote, c) {
-            (_, '\\') => {
-                current.push(c);
-                current.extend(chars.next());
-            }
-            (Some(open), _) => {
-                current.push(c);
-                if c == open {
-                    quote = None;
-                }
-            }
-            (None, '\'' | '"') => {
-                current.push(c);
-                quote = Some(c);
-            }
-            (None, ';') => commands.push(std::mem::take(&mut current)),
-            (None, '&' | '|') if chars.peek() == Some(&c) => {
-                chars.next();
-                commands.push(std::mem::take(&mut current));
-            }
-            _ => current.push(c),
+pub fn shell_commands(line: &str) -> Vec<String> { ShellCommandParser::new(line).parse() }
+
+#[derive(Clone, Copy)]
+struct ShellContext {
+    quote: Option<char>,
+    parenthesis_depth: usize,
+    is_substitution: bool,
+}
+
+impl ShellContext {
+    const fn top_level() -> Self {
+        Self {
+            quote: None,
+            parenthesis_depth: 0,
+            is_substitution: false,
         }
     }
-    commands.push(current);
-    commands
+
+    const fn substitution() -> Self {
+        Self {
+            quote: None,
+            parenthesis_depth: 1,
+            is_substitution: true,
+        }
+    }
+}
+
+struct ShellCommandParser {
+    characters: Vec<char>,
+    commands: Vec<String>,
+    current: String,
+    contexts: Vec<ShellContext>,
+    index: usize,
+}
+
+impl ShellCommandParser {
+    fn new(line: &str) -> Self {
+        Self {
+            characters: line.chars().collect(),
+            commands: Vec::new(),
+            current: String::new(),
+            contexts: vec![ShellContext::top_level()],
+            index: 0,
+        }
+    }
+
+    fn parse(mut self) -> Vec<String> {
+        while let Some(character) = self.characters.get(self.index).copied() {
+            self.consume(character);
+        }
+        self.commands.push(self.current);
+        self.commands
+    }
+
+    fn consume(&mut self, character: char) {
+        if self.consume_escape(character) || self.consume_quoted(character) {
+            return;
+        }
+        if self.consume_substitution(character) || self.consume_delimiter(character) {
+            return;
+        }
+        self.current.push(character);
+        self.index += 1;
+    }
+
+    fn consume_escape(&mut self, character: char) -> bool {
+        if character != '\\' || self.active_quote() == Some('\'') {
+            return false;
+        }
+        self.current.push(character);
+        self.index += 1;
+        if let Some(escaped) = self.characters.get(self.index).copied() {
+            self.current.push(escaped);
+            self.index += 1;
+        }
+        true
+    }
+
+    fn consume_quoted(&mut self, character: char) -> bool {
+        let Some(active_quote) = self.active_quote() else {
+            return false;
+        };
+        if active_quote == '"' && self.is_substitution_start(character) {
+            self.open_substitution();
+            return true;
+        }
+        self.current.push(character);
+        if character == active_quote {
+            self.update_context(|context| context.quote = None);
+        }
+        self.index += 1;
+        true
+    }
+
+    fn consume_substitution(&mut self, character: char) -> bool {
+        if !self.is_substitution_start(character) {
+            return false;
+        }
+        self.open_substitution();
+        true
+    }
+
+    fn consume_delimiter(&mut self, character: char) -> bool {
+        let Some(context) = self.contexts.last().copied() else {
+            return false;
+        };
+        match character {
+            '\'' | '"' => {
+                self.update_context(|active_context| active_context.quote = Some(character));
+                self.current.push(character);
+                self.index += 1;
+                true
+            }
+            '(' => {
+                self.update_context(|active_context| active_context.parenthesis_depth += 1);
+                self.current.push(character);
+                self.index += 1;
+                true
+            }
+            ')' if context.parenthesis_depth > 0 => {
+                self.update_context(|active| active.parenthesis_depth -= 1);
+                self.current.push(character);
+                if context.is_substitution && context.parenthesis_depth == 1 {
+                    self.close_substitution();
+                }
+                self.index += 1;
+                true
+            }
+            ';' if self.is_top_level(context) => {
+                self.commands.push(std::mem::take(&mut self.current));
+                self.index += 1;
+                true
+            }
+            '&' | '|' if self.is_top_level(context) => {
+                self.consume_boolean_operator(character);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn consume_boolean_operator(&mut self, character: char) {
+        if self.next_character() == Some(character) {
+            self.commands.push(std::mem::take(&mut self.current));
+            self.index += 2;
+        } else {
+            self.current.push(character);
+            self.index += 1;
+        }
+    }
+
+    fn open_substitution(&mut self) {
+        self.current.push('$');
+        self.current.push('(');
+        self.contexts.push(ShellContext::substitution());
+        self.index += 2;
+    }
+
+    fn close_substitution(&mut self) {
+        let remaining = self.contexts.len().saturating_sub(1);
+        self.contexts.truncate(remaining);
+    }
+
+    const fn is_top_level(&self, context: ShellContext) -> bool {
+        self.contexts.len() == 1 && context.parenthesis_depth == 0
+    }
+
+    fn active_quote(&self) -> Option<char> {
+        self.contexts.last().and_then(|context| context.quote)
+    }
+
+    fn update_context(&mut self, update: impl FnOnce(&mut ShellContext)) {
+        if let Some(context) = self.contexts.last_mut() {
+            update(context);
+        }
+    }
+
+    fn next_character(&self) -> Option<char> {
+        self.index
+            .checked_add(1)
+            .and_then(|index| self.characters.get(index))
+            .copied()
+    }
+
+    fn is_substitution_start(&self, character: char) -> bool {
+        character == '$' && self.next_character() == Some('(')
+    }
 }
 
 /// Returns a command without the shell keywords that lead it: `then`, `else`, `do` and the like.
@@ -135,4 +291,23 @@ fn split_value(after: &str) -> (&str, &str) {
     quoted('"')
         .or_else(|| quoted('\''))
         .unwrap_or_else(|| after.split_once(char::is_whitespace).unwrap_or((after, "")))
+}
+
+#[cfg(test)]
+mod shell_command_tests {
+    //! Keep shell separators inside quoted and nested command substitutions.
+
+    use super::shell_commands;
+
+    #[test]
+    fn nested_substitution_separators_stay_inside_the_assignment() {
+        let line = concat!(
+            "CARGO_ENCODED_RUSTFLAGS=\"$(filtered=$(bash -c ",
+            "'set -euo pipefail; printf \\\"%s\\\" value')); ",
+            "if [ -n \"$filtered\" ]; then printf '%s' \"$filtered\"; fi)\" ",
+            "RUSTFLAGS=\"-D warnings -Zthreads=8\" cargo build"
+        );
+
+        assert_eq!(shell_commands(line), vec![line.to_owned()]);
+    }
 }

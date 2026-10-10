@@ -100,7 +100,7 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
     elif mutation == "pr_external_pin":
         workflows["dependabot-automerge.yml"]["jobs"]["automerge"]["uses"] = (
             "leynos/shared-actions/.github/workflows/dependabot-automerge.yml@"
-            "0000000000000000000000000000000000000000"
+            "main"
         )
     elif mutation == "pr_computed_secret":
         _pr_steps(workflows).append({"run": "echo ${{ toJSON(secrets) }}"})

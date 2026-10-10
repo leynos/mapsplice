@@ -3,7 +3,7 @@
 #[path = "workspace.rs"]
 mod workspace_support;
 
-use std::{env, path::PathBuf, sync::Mutex};
+use std::{env, io::Write, path::PathBuf, sync::Mutex};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use rstest::fixture;
@@ -104,11 +104,56 @@ impl CwdRestore {
 }
 
 impl Drop for CwdRestore {
-    fn drop(&mut self) { if let Err(_error) = env::set_current_dir(&self.0) {} }
+    fn drop(&mut self) {
+        if let Err(error) = env::set_current_dir(&self.0) {
+            let diagnostic = format!(
+                "failed to restore working directory {}: {error}",
+                self.0.display()
+            );
+            if std::thread::panicking() {
+                let _write_result = writeln!(std::io::stderr().lock(), "{diagnostic}");
+            } else {
+                panic!("{diagnostic}");
+            }
+        }
+    }
 }
 
 #[fixture]
 pub fn workspace() -> TestResult<Workspace> {
     let workspace = workspace_support::create_workspace()?;
     Ok(workspace)
+}
+
+#[cfg(test)]
+mod cwd_restore_tests {
+    //! Verify that an un-restorable working directory fails its enclosing test.
+
+    use std::panic::catch_unwind;
+
+    use super::CwdRestore;
+
+    #[test]
+    fn restoration_failure_fails_the_enclosing_test() {
+        let temporary_directory =
+            tempfile::tempdir().expect("temporary directory creation should succeed");
+        let missing_directory = temporary_directory.path().join("removed-working-directory");
+
+        let panic = catch_unwind(|| drop(CwdRestore(missing_directory.clone())));
+        let failure = panic.expect_err("working-directory restore failure must be reported");
+        let diagnostic = failure
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| {
+                failure
+                    .downcast_ref::<&str>()
+                    .map(|message| (*message).to_owned())
+            })
+            .unwrap_or_default();
+
+        assert!(
+            diagnostic.contains(&missing_directory.to_string_lossy().to_string()),
+            "restore diagnostic should name the missing directory; observed {diagnostic:?}"
+        );
+    }
 }

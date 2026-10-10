@@ -28,7 +28,7 @@ jobs:
       id-token: write # OIDC workflow-source resolution
     uses: leynos/shared-actions/.github/workflows/mutation-cargo.yml@c17d433f99daa94e53ca5eb566088518a312cb71
     with:
-      # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
+      # .cargo/config.toml links with `mold` on Linux; the reusable workflow installs it.
       install-mold: 'true'
       # Match the CI baseline (`make test` runs --workspace --all-targets
       # --all-features) so the test command exercised against mutants
