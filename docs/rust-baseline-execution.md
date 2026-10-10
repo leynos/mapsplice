@@ -950,11 +950,35 @@ environment's main-only deployment policy. Environment token metadata, obsolete
 token exposure removal, and CodeScene project identity remain unverified. This
 administrative read is separate from local validation.
 
-The recorded point-in-time GitHub PR read showed remote head
-`4d0978a8fcb4d0863d65ba1e201f7ac89330d532`, ready (not draft),
-`DIRTY`/`CONFLICTING`, and `CHANGES_REQUESTED`. Hosted build-test run
-`37073254894` was on that old remote head and timed out in
-`compile_time_contracts` at 302/303 after 180 seconds. No hosted run exists for
-the local candidate. The approved Rust environment-access `disallowed_methods`
-policy remains a separate blocker, and the first protected main publication has
-not been observed.
+An earlier point-in-time GitHub PR snapshot showed remote head
+`4d0978a8fcb4d0863d65ba1e201f7ac89330d532`, ready (not draft), `DIRTY`/
+`CONFLICTING`, and `CHANGES_REQUESTED`. Hosted build-test run `37073254894` was
+on that old remote head and timed out in `compile_time_contracts` at 302/303
+after 180 seconds. No hosted run exists for the local candidate. The approved
+Rust environment-access `disallowed_methods` policy remains a separate blocker,
+and the first protected main publication has not been observed.
+
+### Latest PR observation and formatter repair
+
+At `2026-10-10T16:17Z`, a standard GitHub CLI read verified the account as
+`leynos` and read PR #116 as open and ready (not draft), at head
+`4bdb4f1a6c54f7009405ed6eac3eede81719c8f8`, tree
+`985e8448bf1c5e659ca9a519ffd137e3476fd7fc`, based on
+`9bae3a275cad6d7514d172d39e934614a1c24885`. GitHub reported
+`mergeStateStatus=BLOCKED` and `reviewDecision=CHANGES_REQUESTED`. Build-test
+run `38066115369` failed at the Format step on that exact head. Scrutineer
+reproduced the failure with pinned `mdtablefix 0.6.0`; the only required change
+was Markdown wrapping in this ledger.
+
+After that documentation-only formatting repair, the pinned formatter check
+(`make check-fmt` with `MDTABLEFIX=target/mdtablefix-0.6.0/bin/mdtablefix`),
+`make markdownlint`, `make spelling`, and `make nixie` passed on the same code
+and tests. The Markdown lint and Nixie checks ran with colour forcing disabled.
+`make lint` passed at the exact HEAD. The previously recorded full local gates
+and focused tests ran on a staged tree identical to HEAD tree
+`985e8448bf1c5e659ca9a519ffd137e3476fd7fc`. There is no hosted CI rerun after
+the ledger formatting repair, so the local formatting result does not clear the
+hosted failure. The CodeScene token metadata, obsolete repository-level token
+exposure removal, and project identity remain unverified. The approved Rust
+environment-access `disallowed_methods` policy remains a separate blocker;
+neither prerequisite is resolved by these test results.
