@@ -61,7 +61,9 @@ def test_strict_yaml_rejects_ambiguous_or_empty_input(source: str, reason: str) 
         ("pr_ratchet_off", "assert"),
         ("pr_artefact_on", "assert"),
         ("remove_token_check", "Check CodeScene token"),
-        ("reorder_token_check", "assert"),
+        ("remove_skip_warning", "missing-token warning"),
+        ("change_skip_warning", "missing-token warning"),
+        ("reorder_token_check", "publisher steps are out of order"),
         ("token_env", "CS_ACCESS_TOKEN"),
         ("bypass_guard", "assert"),
         ("cancel", "concurrency"),
@@ -112,8 +114,33 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
         _pr_steps(workflows)[-1]["with"]["publish-artefact"] = "true"
     elif mutation == "remove_token_check":
         steps[:] = [step for step in steps if step.get("id") != "codescene-token"]
+    elif mutation == "remove_skip_warning":
+        steps[:] = [
+            step
+            for step in steps
+            if step.get("name") != "Report skipped CodeScene upload"
+        ]
+    elif mutation == "change_skip_warning":
+        next(
+            step
+            for step in steps
+            if step.get("name") == "Report skipped CodeScene upload"
+        )["run"] = "echo ${{ secrets.CS_ACCESS_TOKEN }}"
     elif mutation == "reorder_token_check":
-        steps[-2], steps[-1] = steps[-1], steps[-2]
+        token_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("id") == "codescene-token"
+        )
+        warning_index = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("name") == "Report skipped CodeScene upload"
+        )
+        steps[token_index], steps[warning_index] = (
+            steps[warning_index],
+            steps[token_index],
+        )
     elif mutation == "token_env":
         steps[-1]["env"] = {"CS_ACCESS_TOKEN": "${{ secrets.CS_ACCESS_TOKEN }}"}
     elif mutation == "bypass_guard":
@@ -121,7 +148,12 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
     elif mutation == "cancel":
         main["concurrency"]["cancel-in-progress"] = True
     elif mutation == "coverage_parity":
-        steps[-3]["with"]["format"] = "cobertura"
+        coverage_step = next(
+            step
+            for step in steps
+            if "generate-coverage@" in str(step.get("uses", ""))
+        )
+        coverage_step["with"]["format"] = "cobertura"
     elif mutation == "remove_preflight":
         steps[:] = [
             step for step in steps if step.get("run") != "make check-build-tools"

@@ -24,6 +24,11 @@ TOKEN_CHECK = (
     'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"'
 )
 TOKEN_INPUT = "${{ secrets.CS_ACCESS_TOKEN }}"
+SKIP_WARNING_IF = "steps.codescene-token.outputs.available != 'true'"
+SKIP_WARNING_RUN = (
+    'echo "::warning::CodeScene coverage was not published because the '
+    'environment token is unavailable."'
+)
 UPLOAD_GUARD = (
     "steps.codescene-token.outputs.available == 'true' && "
     "github.ref == 'refs/heads/main'"
@@ -258,6 +263,18 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     )
     assert token.get("id") == "codescene-token" and token.get("run") == TOKEN_CHECK
     assert not any(key in token for key in ("env", "uses", "continue-on-error", "if"))
+    skip_warnings = [
+        step
+        for step in main_steps
+        if step.get("name") == "Report skipped CodeScene upload"
+    ]
+    assert len(skip_warnings) == 1, "missing-token warning must be unique"
+    skip_warning = skip_warnings[0]
+    assert skip_warning == {
+        "name": "Report skipped CodeScene upload",
+        "if": SKIP_WARNING_IF,
+        "run": SKIP_WARNING_RUN,
+    }, "missing-token warning must be fixed and secret-free"
     uploads = [
         step
         for step in main_steps
@@ -268,8 +285,9 @@ def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     assert (
         main_steps.index(coverage[0])
         < main_steps.index(token)
+        < main_steps.index(skip_warning)
         < main_steps.index(upload)
-    )
+    ), "publisher steps are out of order"
     assert upload.get("if") == UPLOAD_GUARD
     assert not any(key in upload for key in ("env", "run", "continue-on-error")), (
         "upload may receive CS_ACCESS_TOKEN only through its action input"
