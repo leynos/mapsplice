@@ -69,8 +69,8 @@ def _check_contract(document: str) -> None:
     steps = _steps(document)
     install_index, installer = _action_step(steps, MDTABLEFIX_ACTION)
     installer_config = installer.get("with")
-    assert installer_config == {"version": "0.6.0"}, (
-        "mdtablefix installer must pin version 0.6.0; "
+    assert installer_config == {"version": "0.6.1"}, (
+        "mdtablefix installer must pin version 0.6.1; "
         f"observed with={installer_config!r}"
     )
     format_index = _step_index(steps, "Format")

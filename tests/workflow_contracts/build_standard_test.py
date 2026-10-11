@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 SETUP_RUST = (
     "leynos/shared-actions/.github/actions/setup-rust@"
-    "ff1dd759dfffc0db3459e30e833f52437ee62b57"
+    "2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
 )
 DEV_FLAGS = ("-Zthreads=8", "-fuse-ld=mold")
 LINKER_DIGESTS = {

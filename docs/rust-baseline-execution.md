@@ -1132,3 +1132,32 @@ removal, and CodeScene project identity remain unverified; the approved Rust
 environment-access `disallowed_methods` policy is a separate unresolved
 blocker. No claim is made that the candidate reached review equilibrium or that
 the first protected main publication occurred.
+
+### 2026-10-11: Rebased candidate validation
+
+Rebased the 41 linear PR commits from original base
+`9bae3a275cad6d7514d172d39e934614a1c24885` onto `main`
+`5116ce1cd1043e1f482673016932f9aea94df4c3`. The range-diff preserved all 41
+commits. Only `.github/workflows/ci.yml` needed semantic resolution at the
+archived snapshot and LLVM transition. Recovery refs are
+`refs/codex/recovery/pr116-before-rebase-e95813b`,
+`refs/codex/recovery/pr116-old-base-9bae3a2`, and
+`refs/codex/recovery/pr116-target-5116ce1`.
+
+The locally tested candidate was HEAD
+`2178fe531ef7fef7f7a9a6c1fce4e956ae6d5bff`, tree
+`3de7d8b5c14682d8d492d87fd21e7acdde45c354`, plus a four-file diff with SHA-256
+`96508b7789dbe48c533d22a1b43a8e14571be10a1880918c00f1a62f449404be`.
+`make install-build-tools`, `make check-build-tools`, `make check-fmt`,
+`make lint`, `make typecheck`, `make test` (440 tests and 12 doctests passed;
+two ignored), `make markdownlint`, `make spelling`, `make nixie`,
+`make test-workflow-contracts` (202 passed), `mbake validate Makefile`, and
+ShellCheck all passed. Rust compile gates ran uncached because sccache was
+unavailable. Logs are under
+`/tmp/<gate>-3c141d42-0280-4dd8-bff6-2e48ae26ac13-rust-baseline-hardening-mapsplice-4.out`.
+Pins were refreshed to `2ddf19b3...`, and the tests were synchronized with
+mdtablefix 0.6.1.
+
+No hosted CI run or fresh review covers this candidate. Until publication, the
+remote branch still points to the older SHA
+`55c406728174806f5553dab61f0fa64534556609`.

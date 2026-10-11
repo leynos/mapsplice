@@ -8,9 +8,9 @@ from pathlib import Path
 
 import yaml
 
-COVERAGE_GENERATE_PIN = "ff1dd759dfffc0db3459e30e833f52437ee62b57"
-UPLOADER_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
-SETUP_RUST_PIN = "d4d248bbbecdcf7b4f5bc79ffd4d6caee370bd79"
+COVERAGE_GENERATE_PIN = "2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
+UPLOADER_PIN = "2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
+SETUP_RUST_PIN = "2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
 DEPENDABOT_WORKFLOW = (
     "leynos/shared-actions/.github/workflows/dependabot-automerge.yml"
 )
