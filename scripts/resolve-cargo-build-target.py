@@ -19,6 +19,22 @@ def configuration_file_exists(path: Path) -> bool:
 
     For example, a missing config returns ``False``, while a symlink loop
     raises ``ConfigurationError`` instead of silently selecting the default.
+
+    Parameters
+    ----------
+    path : Path
+        Candidate Cargo configuration path to inspect.
+
+    Returns
+    -------
+    bool
+        ``True`` if the path can be inspected, or ``False`` if it is missing
+        or one of its parent directories does not exist.
+
+    Raises
+    ------
+    ConfigurationError
+        If inspecting the path fails for another operating-system error.
     """
     try:
         path.stat()
@@ -37,6 +53,24 @@ def resolve_path(path: Path, description: str) -> Path:
 
     For example, an inaccessible search root raises ``ConfigurationError``
     before any target can be selected from an incomplete chain.
+
+    Parameters
+    ----------
+    path : Path
+        Path to resolve.
+    description : str
+        Human-readable name included in a configuration error diagnostic.
+
+    Returns
+    -------
+    Path
+        The resolved path.
+
+    Raises
+    ------
+    ConfigurationError
+        If path resolution fails with an operating-system error or a symlink
+        loop.
     """
     try:
         return path.resolve()
@@ -86,6 +120,16 @@ def current_working_directory() -> Path:
 
     For example, a deleted or inaccessible working directory fails before
     target selection instead of leaking a traceback from the CLI entry point.
+
+    Returns
+    -------
+    Path
+        The resolved current working directory.
+
+    Raises
+    ------
+    ConfigurationError
+        If the current directory cannot be read or resolved.
     """
     try:
         working_directory = Path.cwd()

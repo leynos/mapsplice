@@ -62,17 +62,21 @@ the workflows, so a flag lost through a recipe or workflow edit fails there.
 
 ## Addendum (2026-10-10)
 
-This addendum supersedes only the statements above about Cranelift selection
-and review timing, the coverage backend, and inherited `RUSTFLAGS`. The current
-toolchain is pinned to `nightly-2026-03-26`. LLVM is the development default;
-Cranelift is excluded after the `catch_unwind` probe failed and a
-spawned-thread panic aborted the test process on that toolchain. The
-development route keeps the parallel frontend and uses target-aware Clang
-wrappers with `mold` for supported Linux targets; other platforms use their
-platform linker. Coverage explicitly selects LLVM, and `make release` selects
-the LLVM release profile and uses the platform linker. Make recipes assign
-`RUSTFLAGS` from `RUST_FLAGS` and the selected route flags; inherited
-`RUSTFLAGS` is not retained. They filter development-owned flags from inherited
+This addendum supersedes the statements above about Cranelift selection and
+review timing, the coverage backend, inherited `RUSTFLAGS`, and the Linux
+linker requirement. The current toolchain is pinned to `nightly-2026-03-26`.
+LLVM is the development default. Cranelift is excluded after the `catch_unwind`
+probe failed and a spawned-thread panic aborted the test process on that
+toolchain. The Make-managed development route keeps the parallel frontend and
+uses target-aware Clang wrappers with `mold` for the supported Linux targets
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; other targets use
+their platform linker. This policy is specific to Make: bare Cargo invocations
+still receive `-fuse-ld=mold` for any Linux target from the `.cargo/config.toml`
+`cfg(target_os = "linux")` table. The x86_64 GNU route requires `clang`.
+Coverage explicitly selects LLVM, and `make release` selects the LLVM release
+profile and uses the platform linker. Make recipes assign `RUSTFLAGS` from
+`RUST_FLAGS` and the selected route flags; inherited `RUSTFLAGS` is not
+retained. They filter development-owned flags from inherited
 `CARGO_ENCODED_RUSTFLAGS` before composing the selected route.
 
 Reconsider Cranelift under
