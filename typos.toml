@@ -30,7 +30,9 @@ extend-exclude = [
 [default]
 locale = "en-gb"
 extend-ignore-re = [
+    "          install-mold: \\\\",
     "\"NO_COLOR\": \"1\",",
+    "\"install-mold:true\"",
     "(?s)```.*?```",
     "--[A-Za-z0-9_-]*color(?:ed|s|ing|ize[ds]?|izing)?(?:\\b|_)",
     "-fuse-ld=mold",
@@ -45,6 +47,7 @@ extend-ignore-re = [
     "NEGATED_LINUX_WITH_MOLD",
     "No mold default",
     "Pinned mold archive checksum failed",
+    "[\"']install-mold[\"']",
     "\\(\"mold\", \"mold 2\\.41\\.0 \\(test\\)\"\\),",
     "\\.env\\(\"NO_COLOR\", \"1\"\\)",
     "\\.mold-\\{VERSION\\}-\\{DIGEST\\}",
@@ -62,6 +65,7 @@ extend-ignore-re = [
     "`[0-9a-f]{7,40}`",
     "`artifact\\.kind = \"[a-z_]+\"`",
     "`color`",
+    "`install-mold: true`",
     "`install-mold`",
     "`mold`",
     "`var\\.iamge_id` instead of `var\\.image_id`",
@@ -70,7 +74,7 @@ extend-ignore-re = [
     "currentColor",
     "flavor = \"current_thread\"",
     "if missing_tool != \"mold\":",
-    "install-mold",
+    "install-mold: (?:'true'|'false'|true|false)",
     "ld\\.mold",
     "mold --version",
     "mold 2\\.40\\.4",
