@@ -43,12 +43,13 @@ pub fn names_program(word: &str, program: &str) -> bool {
         .is_some_and(|name| name == program || name.strip_suffix(".exe") == Some(program))
 }
 
-/// Splits one logical line of `make -n` output into the shell commands it runs: at `;`, `&&`,
-/// `||` and a newline, outside quotes, so a probe, a `cargo metadata` and the real command that
-/// share a line are judged one by one.
+/// Splits shell text from `make -n` into commands at `;`, `&&`, `||`, and top-level newlines.
+/// Separators inside quotes, escapes, groups, and command substitutions stay in their command.
+/// Empty input and command fragments are retained. A trailing escape is preserved literally.
 ///
 /// ```text
 /// shell_commands("a && b; c \"x;y\"") -> ["a ", " b", " c \"x;y\""]
+/// shell_commands("a\nb")              -> ["a", "b"]
 /// ```
 pub fn shell_commands(line: &str) -> Vec<String> { ShellCommandParser::new(line).parse() }
 
@@ -178,7 +179,7 @@ impl ShellCommandParser {
                 self.index += 1;
                 true
             }
-            ';' if self.is_top_level(context) => {
+            ';' | '\n' if self.is_top_level(context) => {
                 self.commands.push(std::mem::take(&mut self.current));
                 self.index += 1;
                 true
@@ -294,57 +295,5 @@ fn split_value(after: &str) -> (&str, &str) {
 }
 
 #[cfg(test)]
-mod shell_command_tests {
-    //! Keep shell separators inside quoted and nested command substitutions.
-
-    use proptest::prelude::*;
-
-    use super::shell_commands;
-
-    fn protected_fragment() -> impl Strategy<Value = String> {
-        ("[a-z0-9 ]{0,8}", "[a-z0-9 ]{0,8}", 1usize..=4).prop_map(|(left, right, depth)| {
-            let escaped = format!("{left}\\;{right}\\&\\&{left}\\|\\|{right}");
-            let mut grouped = format!("({left}; {right} && {left} || {right})");
-            for _ in 1..depth {
-                grouped = format!("({grouped}; {right})");
-            }
-            let mut substitution = format!("printf '%s' '{left}; && ||'");
-            for _ in 0..depth {
-                substitution = format!("$(printf '%s' \"{substitution}\")");
-            }
-
-            format!("'{left}; && ||' \"{right}; && ||\" {escaped} {grouped} \"{substitution}\"")
-        })
-    }
-
-    #[test]
-    fn nested_substitution_separators_stay_inside_the_assignment() {
-        let line = concat!(
-            "CARGO_ENCODED_RUSTFLAGS=\"$(filtered=$(bash -c ",
-            "'set -euo pipefail; printf \\\"%s\\\" value')); ",
-            "if [ -n \"$filtered\" ]; then printf '%s' \"$filtered\"; fi)\" ",
-            "RUSTFLAGS=\"-D warnings -Zthreads=8\" cargo build"
-        );
-
-        assert_eq!(shell_commands(line), vec![line.to_owned()]);
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 96,
-            .. ProptestConfig::default()
-        })]
-
-        #[test]
-        fn generated_protected_separators_do_not_split_shell_commands(
-            fragment in protected_fragment(),
-        ) {
-            let line = format!("before; {fragment} && after");
-
-            prop_assert_eq!(
-                shell_commands(&line),
-                vec!["before".to_owned(), format!(" {fragment} "), " after".to_owned()],
-            );
-        }
-    }
-}
+#[path = "shell_command_tests.rs"]
+mod shell_command_tests;
