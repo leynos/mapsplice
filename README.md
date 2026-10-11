@@ -77,7 +77,7 @@ rustup toolchain install nightly-2026-03-26 \
   --component rustfmt \
   --component clippy \
   --component rust-analyzer \
-  --component llvm-tools-preview
+  --component llvm-tools
 ```
 
 The checked-in `rust-toolchain.toml` selects this toolchain for commands run in

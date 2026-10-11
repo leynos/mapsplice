@@ -1161,3 +1161,20 @@ mdtablefix 0.6.1.
 No hosted CI run or fresh review covers this candidate. Until publication, the
 remote branch still points to the older SHA
 `55c406728174806f5553dab61f0fa64534556609`.
+
+### 2026-10-11: Hosted run and component correction
+
+Hosted
+[build-test run 38168820914, attempt 1](https://github.com/leynos/mapsplice/actions/runs/38168820914/attempts/1)
+passed on exact published head `2d20a6f7da4ef73a3fb0d710d88e6e28afd038dc`. All
+job steps passed, including coverage.
+
+The subsequent four-file correction changes the installed component request from
+`llvm-tools-preview` to `llvm-tools`. Sequential local gates all passed:
+`make install-build-tools`, `make check-build-tools`, `make check-fmt`,
+`make lint`, `make typecheck`, `make test` (440 tests and 12 doctests passed;
+two ignored), `make markdownlint`, `make spelling`, `make nixie`,
+`make test-workflow-contracts` (202 passed), `mbake validate Makefile`, and
+ShellCheck. The sccache fallback was informational. The component correction
+remains an unpublished working-tree change; the hosted run above does not
+validate that diff, and its fresh review is pending.

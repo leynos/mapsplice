@@ -90,5 +90,5 @@ def test_build_tool_installer_requests_required_components_without_cranelift(
         for index, argument in enumerate(arguments[:-1])
         if argument == "--component"
     ]
-    assert components == ["rustfmt", "clippy", "rust-analyzer", "llvm-tools-preview"]
+    assert components == ["rustfmt", "clippy", "rust-analyzer", "llvm-tools"]
     assert "rustc-codegen-cranelift-preview" not in components
