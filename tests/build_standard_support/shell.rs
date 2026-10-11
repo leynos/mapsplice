@@ -297,7 +297,25 @@ fn split_value(after: &str) -> (&str, &str) {
 mod shell_command_tests {
     //! Keep shell separators inside quoted and nested command substitutions.
 
+    use proptest::prelude::*;
+
     use super::shell_commands;
+
+    fn protected_fragment() -> impl Strategy<Value = String> {
+        ("[a-z0-9 ]{0,8}", "[a-z0-9 ]{0,8}", 1usize..=4).prop_map(|(left, right, depth)| {
+            let escaped = format!("{left}\\;{right}\\&\\&{left}\\|\\|{right}");
+            let mut grouped = format!("({left}; {right} && {left} || {right})");
+            for _ in 1..depth {
+                grouped = format!("({grouped}; {right})");
+            }
+            let mut substitution = format!("printf '%s' '{left}; && ||'");
+            for _ in 0..depth {
+                substitution = format!("$(printf '%s' \"{substitution}\")");
+            }
+
+            format!("'{left}; && ||' \"{right}; && ||\" {escaped} {grouped} \"{substitution}\"")
+        })
+    }
 
     #[test]
     fn nested_substitution_separators_stay_inside_the_assignment() {
@@ -309,5 +327,24 @@ mod shell_command_tests {
         );
 
         assert_eq!(shell_commands(line), vec![line.to_owned()]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 96,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn generated_protected_separators_do_not_split_shell_commands(
+            fragment in protected_fragment(),
+        ) {
+            let line = format!("before; {fragment} && after");
+
+            prop_assert_eq!(
+                shell_commands(&line),
+                vec!["before".to_owned(), format!(" {fragment} "), " after".to_owned()],
+            );
+        }
     }
 }

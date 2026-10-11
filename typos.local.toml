@@ -34,7 +34,8 @@ accepted = []
 # block and so was never checked.
 # AlignKind::Center: pulldown-cmark's fixed variant name; the common noun
 # remains subject to British spelling.
-# These exact patterns name `mold` in the missing-tool fixture only.
+# These exact patterns name `mold` in fixtures for fixed tool, archive, and
+# marker interfaces.
 # NO_COLOR is the standard environment variable controlling child output.
 ignore = [
     '\("mold", "mold 2\.41\.0 \(test\)"\),',
@@ -66,6 +67,8 @@ ignore = [
     'test_installer_checks_ld_mold_before_writing_success_marker',
     'mold \{VERSION\} \(test\)',
     '\.mold-\{VERSION\}-\{DIGEST\}',
+    'mold-\{VERSION\}-\{architecture\}-linux\.tar\.gz',
+    '\.mold-\{VERSION\}-\{DIGESTS\[architecture\]\}',
     "rui314/mold",
     '/ "mold"',
     "No mold default",

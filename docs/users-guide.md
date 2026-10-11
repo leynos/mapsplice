@@ -73,7 +73,8 @@ while writing roadmap output or help, `mapsplice` exits successfully. Other
 standard-output write failures produce a diagnostic on standard error and an
 unsuccessful exit. Invalid command-line input and errors from reading,
 validating, or editing roadmap files also produce diagnostics on standard error
-and exit unsuccessfully.
+and exit unsuccessfully. The unreleased help and diagnostic logging changes are
+listed in the [0.2.0 migration notes](migrations/0.2.0.md).
 
 ## Worked example
 

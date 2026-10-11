@@ -113,6 +113,8 @@ ______________________________________________________________________
 
 - [Users' Guide](docs/users-guide.md) — command semantics, worked examples,
   roadmap format rules, and compatibility and migration notes
+- [Migration notes for 0.2.0](docs/migrations/0.2.0.md) — unreleased CLI help
+  presentation and diagnostic logging changes
 - [Developers' Guide](docs/developers-guide.md) — APIs, architecture,
   observability, and verification layers
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and

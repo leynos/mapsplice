@@ -208,6 +208,12 @@ rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
 non-development routes; see [the contributing guide](contributing.md) for local
 setup.
 
+Make requires `python3` on `PATH`: it runs
+`scripts/resolve-cargo-build-target.py` while parsing the Makefile. The
+`make test-workflow-contracts` target requires `uv`; it supplies `pytest>=8`,
+`PyYAML>=6`, and `Hypothesis>=6` through `uv run`. Markdown formatting requires
+mdtablefix 0.6.0 or later; CI pins version 0.6.1.
+
 On supported Linux hosts, `make check-build-tools` checks that `clang` and
 `mold` are available on `PATH`, and that `ld.mold` reports version 2.41.0; the
 Clang wrapper resolves that linker from `PATH`. The AArch64 route uses a
