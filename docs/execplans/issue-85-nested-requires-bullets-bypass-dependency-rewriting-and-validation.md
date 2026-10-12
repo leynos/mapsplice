@@ -40,7 +40,7 @@ The four coding-plan tasks:
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
 - `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
 
-The eight CodeRabbit rounds and their response commits:
+The ten CodeRabbit rounds and their response commits:
 
 | Round | Findings | Answered by                                | Evidence artefact                                      |
 | ----- | -------- | ------------------------------------------ | ------------------------------------------------------ |
@@ -52,10 +52,17 @@ The eight CodeRabbit rounds and their response commits:
 | 6     | 6        | `08b62f9`                                  | `/tmp/coderabbit-mapsplice-issue85-round6-1bd792a.out` |
 | 7     | 4        | `067accc`                                  | `/tmp/coderabbit-mapsplice-issue85-round7-bcd0506.out` |
 | 8     | 3        | `ef8cda3`, `bcc6e08`, `fe72e93`, `0ae84d1` | `/tmp/walkthrough-86-0523.md`                          |
-| 9     | 4        | _(pending)_                                | `/tmp/walkthrough-86-round9-31da138.md`                |
+| 9     | 4        | `c15f7a4`, `e7d5c76`                       | `/tmp/walkthrough-86-round9-31da138.md`                |
+| 10    | 1        | `4321e33`                                  | `/tmp/walkthrough-86-round10-d41c3d0.md`               |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
+
+Rounds 9 and 10 both replied to every thread and then re-requested a review
+through `comenq`; those replies and requests are operational steps that leave
+no artefact of their own, so they are recorded in item 11 rather than as a
+column here. What each row anchors is the review that raised the findings and
+the commit that answered them.
 
 Round 9 was the first review the fresh `@coderabbitai review` was asked for,
 and it is the first round where the previously failing rows **pass**: both
@@ -75,7 +82,8 @@ than as a local `coderabbit review --agent` pass. It was triggered by marking
 the PR ready for review, not queued through `comenq`;
 `gh api …/pulls/86/reviews` had shown zero CodeRabbit submissions before it. It
 returned one inline finding plus three failed pre-merge checks for a count of
-four. The tally is therefore 8, 6, 7, 7, 4, 6, 4 and 3.
+four. The tally through round 8 was therefore 8, 6, 7, 7, 4, 6, 4 and 3, and
+rounds 9 and 10 add 4 and 1 for a running total of 50.
 
 Round 8 returned one inline finding and two pre-merge rows for a count of
 three, and its review decision was still `CHANGES_REQUESTED`. All three were
@@ -468,20 +476,20 @@ Constraints confirmed by experiment:
    the tree, and a gate result is only evidence for the tree state whose hash
    is in its verdict line.** A run started on uncommitted work is a label in a
    log, not a candidate.
-9. The final gate set, and the round-8 reply. **Gate set done; reply pending.**
-   The nine gates ran once more, sequentially, against the frozen head
-   `56f3572` with the tree hash identical at both endpoints (08:51:22 and
-   09:11:52) and all nine green — the first genuine single-tree result for this
-   branch. `check-fmt` 203 files unchanged; `lint` with the Whitaker banner
-   present, `No libraries were found` absent, all three stages executed and both
-   `rg`-dependent prerequisites run; `typecheck`; `test` 374 nextest cases
-   passed with 0 skipped, plus 12 doctests passing and 2 ignored;
-   `markdownlint` 0 errors over 60 files; `nixie` 4 charts to 4 SVGs; `spelling`
-   `current: typos.toml`; `verus` `4 verified, 0 errors`; `verus-selftest`
-   exiting 0 because Verus genuinely rejected the false proof
-   (`assertion failed` at `verus/smoke.rs:11:12`, 0 verified with 1 error, both
-   guard-rail failure messages absent). Logs are under
-   `/tmp/<gate>-mapsplice-issue85-final56f3572.out`.
+9. The final gate set, and the round-8 reply. **Gate set done; the round-8
+   reply landed and later rounds superseded it.** The nine gates ran once more,
+   sequentially, against the frozen head `56f3572` with the tree hash identical
+   at both endpoints (08:51:22 and 09:11:52) and all nine green — the first
+   genuine single-tree result for this branch. `check-fmt` 203 files unchanged;
+   `lint` with the Whitaker banner present, `No libraries were found` absent,
+   all three stages executed and both `rg`-dependent prerequisites run;
+   `typecheck`; `test` 374 nextest cases passed with 0 skipped, plus 12
+   doctests passing and 2 ignored; `markdownlint` 0 errors over 60 files;
+   `nixie` 4 charts to 4 SVGs; `spelling` `current: typos.toml`; `verus`
+   `4 verified, 0 errors`; `verus-selftest` exiting 0 because Verus genuinely
+   rejected the false proof (`assertion failed` at `verus/smoke.rs:11:12`, 0
+   verified with 1 error, both guard-rail failure messages absent). Logs are
+   under `/tmp/<gate>-mapsplice-issue85-final56f3572.out`.
 
    **The round-8 reply is posted and each of its three findings is settled.**
    Drafted at `/tmp/cr-round8-reply-draft.md` and queued as comenq `64428446`,
@@ -630,7 +638,7 @@ Constraints confirmed by experiment:
     so the reply posts first, as in round 8.
 
 11. Round 10: one finding, live, and it is the same gate a third time.
-    **Fixed; gates and reply pending.**
+    **Fixed at `4321e33`; gates and reply pending.**
 
     Submission `5329826766` (`CHANGES_REQUESTED` on `d41c3d04`) carries one
     inline comment, `4114898863` at `scripts/check-domain-purity.sh:71`, and it

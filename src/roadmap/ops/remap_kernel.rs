@@ -54,6 +54,27 @@ pub const fn select_resolution<T: Copy>(
     select_resolution_body!(local, cross_unique, source_is_fragment)
 }
 
+// The `const fn` signature above claims the kernel is usable in a constant
+// context; that claim is otherwise only asserted, never exercised, because
+// every other caller resolves references at run time. Evaluating one case per
+// input class here makes the claim compile-time-enforced: dropping `const`
+// from the definition, or introducing a non-const operation into the shared
+// macro body, fails this crate's build rather than surfacing as a caller's
+// error much later. The cases parallel the run-time table below.
+//
+// This is a module-level assertion rather than a `trybuild` fixture on
+// purpose. `select_resolution` is `pub(crate)`, and `tests/ui/` fixtures
+// compile as an external crate against the public surface only, so they
+// cannot reach it however the fixture is written.
+const _: () = {
+    assert!(matches!(
+        select_resolution(Some(1u8), Some(2u8), false),
+        Some(1)
+    ));
+    assert!(matches!(select_resolution(None, Some(2u8), false), None));
+    assert!(matches!(select_resolution(None, Some(2u8), true), Some(2)));
+};
+
 #[cfg(test)]
 mod tests {
     //! Unit coverage for the resolution decision's four input cases.
