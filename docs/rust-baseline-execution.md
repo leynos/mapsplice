@@ -1198,3 +1198,30 @@ validation, the published PR head remained
 Owner-controlled prerequisites remain separate from these local results: the
 canonical Rust `disallowed_methods` policy and the protected CodeScene token
 and project configuration are still outstanding.
+
+### 2026-10-12: CodeScene policy adapter repair
+
+Commit `c554749a5f00c36da22b31546ba41d87184ac11d`, tree
+`77fc803054a0f8564ac280e4ab4d1efb5a943f37`, separates CodeScene pagination
+transport and completeness checks from typed policy validation. It adds direct
+policy tests and adapter mapping and pagination tests. The exact tree passed
+sequential local gates: `make install-build-tools`, `make check-build-tools`,
+`make check-fmt`, `make lint`, `make typecheck`, `make test` (444 tests and 12
+doctests passed; two ignored), `make markdownlint`, `make spelling`,
+`make nixie`, `make test-workflow-contracts` (226 passed),
+`mbake validate Makefile`, ShellCheck, and `cs delta` (no new issues). Logs are
+the `*-2.out` files and named gate logs recorded in
+`/tmp/mapsplice-pr116-pr-babysitting-ledger.md`.
+
+The commit was pushed over SSH; the remote and tracking refs read back at
+`c554749a5f00c36da22b31546ba41d87184ac11d`. Hosted
+[build-test run 38215192449, attempt 1](https://github.com/leynos/mapsplice/actions/runs/38215192449/attempts/1)
+passed on exact head `c554749a5f00c36da22b31546ba41d87184ac11d`; all 26 steps
+succeeded. Gecko also passed. The CodeRabbit check suite remains queued and its
+app status says “Review paused”. No formal review covers this head, so approval
+and merge readiness are not established.
+
+Owner prerequisites remain the approved canonical Rust `disallowed_methods`
+policy and metadata for the environment-only `CS_ACCESS_TOKEN` and intended
+CodeScene project mapping. The first protected-main coverage upload is a
+separate post-merge verification.
