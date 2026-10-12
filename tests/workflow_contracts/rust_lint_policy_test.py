@@ -132,22 +132,51 @@ def _lint_diagnostics(
     """Return lint identifiers and primary source locations from Cargo JSON."""
     diagnostics = []
     for line in f"{result.stdout}\n{result.stderr}".splitlines():
-        try:
-            message = json.loads(line).get("message")
-        except (json.JSONDecodeError, AttributeError):
+        message = _cargo_message(line)
+        if message is None:
             continue
-        if not isinstance(message, dict):
+        lint = _lint_name(message)
+        if lint is None:
             continue
-        code = message.get("code")
-        lint = code.get("code") if isinstance(code, dict) else None
-        if not isinstance(lint, str):
-            continue
-        for span in message.get("spans", []):
-            if span.get("is_primary"):
-                diagnostics.append(
-                    (lint.rsplit("::", maxsplit=1)[-1], span.get("file_name", ""), span.get("line_start", 0))
-                )
+        diagnostics.extend(_primary_span_diagnostics(message, lint))
     return diagnostics
+
+
+def _cargo_message(line: str) -> dict[str, object] | None:
+    """Return a Cargo JSON message object when the line has that shape."""
+    try:
+        record = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    message = record.get("message")
+    return message if isinstance(message, dict) else None
+
+
+def _lint_name(message: dict[str, object]) -> str | None:
+    """Return the normalized lint identifier from a Cargo diagnostic."""
+    code = message.get("code")
+    if not isinstance(code, dict):
+        return None
+    lint = code.get("code")
+    if not isinstance(lint, str):
+        return None
+    return lint.rsplit("::", maxsplit=1)[-1]
+
+
+def _primary_span_diagnostics(
+    message: dict[str, object], lint: str
+) -> list[tuple[str, str, int]]:
+    """Return source locations marked primary by a Cargo diagnostic."""
+    spans = message.get("spans")
+    if not isinstance(spans, list):
+        return []
+    return [
+        (lint, span.get("file_name", ""), span.get("line_start", 0))
+        for span in spans
+        if isinstance(span, dict) and span.get("is_primary")
+    ]
 
 
 def _assert_lint_failure(

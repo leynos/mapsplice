@@ -85,8 +85,8 @@ impl ProcessState {
     pub fn enter_dir(&mut self, path: &Utf8Path) { self.cwd = Some(path.to_path_buf()); }
 
     pub fn run<R>(&self, action: impl FnOnce() -> TestResult<R>) -> TestResult<R> {
-        // The state guards restore changes during unwinding, so a prior test's
-        // panic must not prevent subsequent tests from acquiring this guard.
+        // `temp_env::with_vars` and `CwdRestore` restore changes during unwinding,
+        // so a prior test's panic must not prevent later tests from taking this lock.
         let _lock = ENV_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
