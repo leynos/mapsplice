@@ -13,7 +13,6 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
-      WHITAKER_INSTALLER_VERSION: '0.2.6'
       MARKDOWNLINT_CLI2_VERSION: '0.22.1'
       MERMAN_CLI_VERSION: '0.8.0-alpha.2'
       NIXIE_CLI_VERSION: '1.1.0'
@@ -23,28 +22,31 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@82feb2b7aac45b7efff40c9c4bb632551b14521c
-      - name: Install mold linker
+        uses: leynos/shared-actions/.github/actions/setup-rust@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        with:
+          install-mold: 'true'
+      - name: Install clang and lld
         # ripgrep is listed here rather than left implicit: `make lint` depends
         # on both `check-verification-ledger`, which shells out to `rg` to
         # confirm that every symbol the ledger names still exists in `src/`,
         # and `check-domain-purity`, which uses it to keep infrastructure
         # access out of `src/roadmap`. The `ubuntu-latest` image does not ship
         # `rg`, so without this the lint job fails at its first prerequisite
-        # with "ripgrep (rg) is required for the verification-ledger check",
-        # before any Rust is compiled.
+        # with "ripgrep (rg) is required for the verification-ledger and
+        # domain-purity checks", before any Rust is compiled. `mold` is not
+        # listed because `setup-rust` installs it above.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang mold ripgrep
+            && sudo apt-get install --yes --no-install-recommends clang ripgrep
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@82feb2b7aac45b7efff40c9c4bb632551b14521c
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
-          version: "0.6.0"
+          version: "0.6.1"
       - name: Format
         run: make check-fmt
       - name: Typecheck
@@ -54,6 +56,8 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install Mermaid validators
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           uv tool install --python "${{ env.NIXIE_PYTHON_VERSION }}" --managed-python "nixie-cli==${{ env.NIXIE_CLI_VERSION }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -89,31 +93,14 @@ jobs:
               "markdownlint-cli2@$MARKDOWNLINT_CLI2_VERSION"
           fi
           markdownlint-cli2 --version
-      - name: Cache Whitaker installation
-        id: cache-whitaker
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/bin/whitaker-installer
-            ~/.local/bin/whitaker
-            ~/.dylint_drivers
-            ~/.local/share/whitaker
-          key: whitaker-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.WHITAKER_INSTALLER_VERSION }}
       - name: Install Whitaker
-        run: |
-          if ! command -v whitaker-installer >/dev/null 2>&1; then
-            if cargo binstall --version >/dev/null 2>&1; then
-              cargo binstall --no-confirm --locked "whitaker-installer@${WHITAKER_INSTALLER_VERSION}"
-            else
-              echo "cargo-binstall unavailable; building whitaker-installer from crates.io"
-              cargo install --locked whitaker-installer --version "${WHITAKER_INSTALLER_VERSION}"
-            fi
-          fi
-          whitaker-installer --cranelift
+        uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        with:
+          cranelift: true
       - name: Lint
         run: make lint
       - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           python-version: '3.13'
           enable-cache: true
@@ -122,7 +109,12 @@ jobs:
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@82feb2b7aac45b7efff40c9c4bb632551b14521c
+        env:
+          # One of the two exclusions from the build standard: a coverage build is a
+          # measurement, so it takes neither the parallel frontend nor the mold linker.
+          # Assigning RUSTFLAGS displaces every `rustflags` table in .cargo/config.toml.
+          RUSTFLAGS: -D warnings
+        uses: leynos/shared-actions/.github/actions/generate-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           output-path: lcov.info
           format: lcov
@@ -130,7 +122,7 @@ jobs:
         env:
           CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
         if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@82feb2b7aac45b7efff40c9c4bb632551b14521c
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           format: lcov
           access-token: ${{ env.CS_ACCESS_TOKEN }}
