@@ -1,4 +1,4 @@
-"""Generated pagination histories for the read-only CodeScene verifier."""
+"""Generated pagination histories for the read-only CodeScene adapter."""
 
 from __future__ import annotations
 
@@ -16,10 +16,16 @@ from hypothesis.strategies import SearchStrategy
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import verify_codescene_environment as verifier
+import mapsplice_codescene_api as adapter
+from mapsplice_codescene_models import (
+    BranchPolicy,
+    DeploymentPolicyPage,
+    VerificationError,
+)
+from mapsplice_codescene_pagination import collect_policies
 
 POLICIES = "repositories/1208786150/environments/codescene/deployment-branch-policies"
-PAGE_SIZE = verifier.PAGE_SIZE
+PAGE_SIZE = adapter.PAGE_SIZE
 MAX_GENERATED_POLICIES = 500
 FAULT_CODES = {
     "short-page": "policy-count",
@@ -48,9 +54,9 @@ def _response(
     items: list[object],
     total: int,
     links: str = "",
-) -> verifier.ApiResponse:
+) -> adapter.ApiResponse:
     headers: Mapping[str, str] = {"Link": links} if links else {}
-    return verifier.ApiResponse(
+    return adapter.ApiResponse(
         200,
         headers,
         {"total_count": total, "branch_policies": items},
@@ -85,7 +91,7 @@ def _page_items(total: int, page: int) -> list[object]:
     return [_policy(identifier) for identifier in range(start + 1, stop + 1)]
 
 
-def _complete_history(total: int) -> dict[int, verifier.ApiResponse]:
+def _complete_history(total: int) -> dict[int, adapter.ApiResponse]:
     pages = _page_count(total)
     responses = {
         page: _response(
@@ -102,13 +108,13 @@ def _complete_history(total: int) -> dict[int, verifier.ApiResponse]:
 
 
 def _paged_fetch(
-    responses: dict[int, verifier.ApiResponse],
-) -> tuple[verifier.Fetch, list[int]]:
+    responses: dict[int, adapter.ApiResponse],
+) -> tuple[adapter.Fetch, list[int]]:
     queued = {page: [response] for page, response in responses.items()}
     queued[1].append(responses[1])
     calls: list[int] = []
 
-    def fetch(endpoint: str) -> verifier.ApiResponse:
+    def fetch(endpoint: str) -> adapter.ApiResponse:
         parsed = urlsplit(endpoint)
         assert parsed.path == POLICIES, f"unexpected policy endpoint: {endpoint}"
         query = parse_qs(parsed.query, strict_parsing=True)
@@ -237,9 +243,9 @@ def _apply_sentinel_fault(
         _wrong_link(state, case)
 
 
-def _malformed_history(case: MalformedHistory) -> dict[int, verifier.ApiResponse]:
+def _malformed_history(case: MalformedHistory) -> dict[int, adapter.ApiResponse]:
     pages = _page_count(case.total)
-    responses: dict[int, verifier.ApiResponse] = {}
+    responses: dict[int, adapter.ApiResponse] = {}
     for page in range(1, pages + 1):
         state = PageState(
             case.total,
@@ -274,19 +280,19 @@ def _malformed_history(case: MalformedHistory) -> dict[int, verifier.ApiResponse
 def test_generated_complete_pagination_histories_are_read_in_order(
     total: int,
 ) -> None:
-    """Complete API pages reach the sentinel before policy cardinality is judged."""
+    """The adapter returns every typed entry after the sentinel and stable readback."""
     responses = _complete_history(total)
     fetch, calls = _paged_fetch(responses)
     pages = _page_count(total)
 
-    if total == 1:
-        assert verifier._policies(POLICIES, fetch) == (1, "main", "branch")
-        assert calls == [1, 2, 1]
-    else:
-        with pytest.raises(verifier.VerificationError) as caught:
-            verifier._policies(POLICIES, fetch)
-        assert caught.value.code == "policy-count"
-        assert calls == list(range(1, pages + 2))
+    result = adapter.deployment_policies(POLICIES, fetch)
+    assert result == tuple(
+        BranchPolicy(
+            identifier, "main" if identifier == 1 else f"release-{identifier}", "branch"
+        )
+        for identifier in range(1, total + 1)
+    )
+    assert calls == [*range(1, pages + 2), 1]
 
 
 @example(case=MalformedHistory(101, "short-page", 1, None, 0))
@@ -301,8 +307,32 @@ def test_generated_malformed_pagination_histories_fail_closed(
     responses = _malformed_history(case)
     fetch, calls = _paged_fetch(responses)
 
-    with pytest.raises(verifier.VerificationError) as caught:
-        verifier._policies(POLICIES, fetch)
+    with pytest.raises(VerificationError) as caught:
+        adapter.deployment_policies(POLICIES, fetch)
 
     assert caught.value.code == FAULT_CODES[case.fault]
     assert calls == list(range(1, case.fault_page + 1))
+
+
+def test_page_reader_must_return_the_requested_page() -> None:
+    """The pagination adapter rejects an inconsistent injected page reader."""
+    with pytest.raises(VerificationError) as caught:
+        collect_policies(lambda _: DeploymentPolicyPage(2, 0, (), {}))
+    assert caught.value.code == "policy-page"
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        None,
+        {"id": True, "name": "main", "type": "branch"},
+        {"id": 1, "name": "main"},
+        {"id": 1, "name": "main", "type": 7},
+    ],
+    ids=["not-an-object", "boolean-identifier", "missing-kind", "non-string-kind"],
+)
+def test_adapter_rejects_malformed_policy_mapping(item: object) -> None:
+    """Raw JSON identity fields must map to well-formed typed policy values."""
+    with pytest.raises(VerificationError) as caught:
+        adapter.deployment_policy_page(_response([item], 1), POLICIES, 1)
+    assert caught.value.code == "policy-shape"

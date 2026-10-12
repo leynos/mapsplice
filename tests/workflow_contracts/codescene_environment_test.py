@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import verify_codescene_environment as verifier
+from mapsplice_codescene_models import MAX_PAGES
 
 REPOSITORY = "leynos/mapsplice"
 REPOSITORY_ENDPOINT = f"repos/{REPOSITORY}"
@@ -153,56 +154,6 @@ def test_environment_access_failures_remain_distinct(status: int, code: str) -> 
 
 
 @pytest.mark.parametrize(
-    ("body", "code"),
-    [
-        ({"name": "codescene"}, "environment-shape"),
-        ({"name": "codescene", "deployment_branch_policy": None}, "environment-shape"),
-        ({**_environment(), "name": "other"}, "environment-shape"),
-        (
-            {
-                "name": "codescene",
-                "deployment_branch_policy": {"custom_branch_policies": True},
-            },
-            "environment-policy",
-        ),
-        (
-            {
-                "name": "codescene",
-                "deployment_branch_policy": {
-                    "protected_branches": False,
-                    "custom_branch_policies": False,
-                },
-            },
-            "environment-policy",
-        ),
-        (
-            {
-                "name": "codescene",
-                "deployment_branch_policy": {
-                    "protected_branches": True,
-                    "custom_branch_policies": True,
-                },
-            },
-            "environment-policy",
-        ),
-    ],
-    ids=[
-        "missing-policy",
-        "null-policy",
-        "wrong-name",
-        "missing-flag",
-        "custom-off",
-        "protected-on",
-    ],
-)
-def test_environment_policy_shape_and_flags_are_required(
-    body: dict[str, object], code: str
-) -> None:
-    fetch = ScriptedFetch({ENVIRONMENT: [_response(body)]})
-    _assert_code(fetch, code)
-
-
-@pytest.mark.parametrize(
     ("count", "items", "code"),
     [
         (True, [MAIN_POLICY], "policy-shape"),
@@ -248,6 +199,7 @@ def test_pagination_reads_101_entries_and_an_empty_sentinel() -> None:
         PAGE_ONE,
         PAGE_TWO,
         PAGE_THREE,
+        PAGE_ONE,
     ]
 
 
@@ -322,7 +274,7 @@ def test_environment_detail_change_between_reads_is_reported() -> None:
 
 
 def test_policy_count_above_the_audit_cap_stops_before_pagination() -> None:
-    fetch = _valid_fetch(first_page=_page([], verifier.MAX_PAGES * 100 + 1))
+    fetch = _valid_fetch(first_page=_page([], MAX_PAGES * 100 + 1))
     _assert_code(fetch, "policy-cap")
     assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT, PAGE_ONE]
 

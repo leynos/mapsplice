@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from urllib.parse import SplitResult, parse_qs, urlsplit
 
 from mapsplice_codescene_models import (
-    MAX_PAGES,
     PAGE_SIZE,
     BranchPolicy,
     DeploymentPolicyPage,
     EnvironmentProtection,
     VerificationError,
 )
+from mapsplice_codescene_pagination import collect_policies
 
 STATUS_LINE = re.compile(r"HTTP/\S+ (?P<status>[1-5][0-9]{2})(?: [^\r\n]*)?\Z")
 LINK_PART = re.compile(r'<(?P<url>[^>]+)>;\s*rel="(?P<rel>[a-z]+)"\Z')
@@ -324,3 +324,18 @@ def links(response: ApiResponse, endpoint: str) -> dict[str, int]:
             )
         parsed[relation] = _link_target_page(target, endpoint)
     return parsed
+
+
+def deployment_policies(endpoint: str, fetch: Fetch) -> tuple[BranchPolicy, ...]:
+    """Read complete stable policies from one repository's GitHub API route.
+
+    For example, ``deployment_policies(endpoint, gh_fetch)`` returns typed
+    policies only after pagination completeness and readback are proved.
+    """
+    return collect_policies(
+        lambda number: deployment_policy_page(
+            fetch(f"{endpoint}?per_page={PAGE_SIZE}&page={number}"),
+            endpoint,
+            number,
+        )
+    )

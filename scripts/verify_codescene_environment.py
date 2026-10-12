@@ -13,11 +13,9 @@ import re
 import subprocess
 import sys
 from mapsplice_codescene_api import (
-    MAX_PAGES,
-    PAGE_SIZE,
     ApiResponse,
     Fetch,
-    deployment_policy_page,
+    deployment_policies,
     environment,
     parse_http_response,
     response_object,
@@ -108,26 +106,9 @@ def verify_environment(repo: str, fetch: Fetch) -> tuple[int, str, str]:
     branch_endpoint = (
         f"repositories/{identifier}/environments/codescene/deployment-branch-policies"
     )
-    policy = policies(
-        lambda number: deployment_policy_page(
-            fetch(f"{branch_endpoint}?per_page={PAGE_SIZE}&page={number}"),
-            branch_endpoint,
-            number,
-        )
-    )
+    policy = policies(deployment_policies(branch_endpoint, fetch))
     _verify_environment_unchanged(environment_endpoint, original, fetch)
     return policy
-
-
-def _policies(endpoint: str, fetch: Fetch) -> tuple[int, str, str]:
-    """Adapt existing fixtures to the verifier's typed policy-page interface."""
-    return policies(
-        lambda number: deployment_policy_page(
-            fetch(f"{endpoint}?per_page={PAGE_SIZE}&page={number}"),
-            endpoint,
-            number,
-        )
-    )
 
 
 def main(argv: list[str] | None = None, fetch: Fetch = gh_fetch) -> int:
