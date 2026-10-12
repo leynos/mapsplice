@@ -1178,3 +1178,23 @@ two ignored), `make markdownlint`, `make spelling`, `make nixie`,
 ShellCheck. The sccache fallback was informational. The component correction
 remains an unpublished working-tree change; the hosted run above does not
 validate that diff, and its fresh review is pending.
+
+### 2026-10-12: PR #116 local repair validation
+
+The local source/test candidate was committed as
+`7d20d65dc88941ad925a6a988c13fa68d5caf70f`, tree
+`7caacd8d9484174985c4ca5832bb0deb8cce97e7`. Its sequential local gates passed:
+focused CodeScene checks reported 10.00, `make check-build-tools`,
+`make check-fmt`, `make lint`, `make typecheck`, `make test` (444 tests and 12
+doctests passed; two ignored), `make markdownlint`, `make spelling`,
+`make nixie`, `make test-workflow-contracts` (210 passed),
+`mbake validate Makefile`, ShellCheck, and `cs delta` (no issues found). Logs
+are under `/tmp/*-3c141d42-0280-4dd8-bff6-2e48ae26ac13-pr116-refactor.out`.
+
+No hosted CI run or review has observed this candidate. At the time of this
+validation, the published PR head remained
+`361eaa127f9afeab7f84f10606f887507e2dceaf`.
+
+Owner-controlled prerequisites remain separate from these local results: the
+canonical Rust `disallowed_methods` policy and the protected CodeScene token
+and project configuration are still outstanding.
