@@ -27,6 +27,14 @@ class ConfigState(NamedTuple):
     target: str | None
 
 
+class ConfigurationFailure(NamedTuple):
+    """One injected filesystem failure and its expected resolver diagnosis."""
+
+    method: str
+    error: OSError
+    message: str
+
+
 TARGET = st.text(
     alphabet="abcdefghijklmnopqrstuvwxyz0123456789-_", min_size=1, max_size=32
 )
@@ -222,46 +230,33 @@ def test_legacy_config_and_missing_target_preserve_home_selection(
     assert actual == "nested-target"
 
 
-def test_unreadable_configuration_fails_closed_with_fault_injection(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A read error is covered deterministically without permission-bit tests."""
-    cargo_home = tmp_path / "cargo-home"
-    root = tmp_path / "workspace"
-    start = root / "nested"
-    selected = cargo_home / "config.toml"
-    selected.parent.mkdir(parents=True)
-    selected.write_text('[build]\ntarget = "home-target"\n', encoding="utf-8")
-    start.mkdir(parents=True)
-    original_read_text = Path.read_text
-
-    def reject_selected_file(
-        path: Path,
-        *args: object,
-        **kwargs: object,
-    ) -> str:
-        if path == selected:
-            raise PermissionError("injected unreadable Cargo config")
-        return original_read_text(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", reject_selected_file)
-
-    with pytest.raises(
-        RESOLVER.ConfigurationError, match="cannot read Cargo configuration"
-    ):
-        RESOLVER.resolve_target(
-            start,
-            cargo_home_directory=cargo_home,
-            root_directory=root,
-        )
-
-
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param(
+            ConfigurationFailure(
+                "read_text",
+                PermissionError("injected unreadable Cargo config"),
+                "cannot read Cargo configuration",
+            ),
+            id="unreadable-config",
+        ),
+        pytest.param(
+            ConfigurationFailure(
+                "stat",
+                OSError(errno.ELOOP, "injected symlink loop"),
+                "cannot inspect Cargo configuration",
+            ),
+            id="config-stat-error",
+        ),
+    ],
+)
 def test_configuration_discovery_errors_fail_closed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    failure: ConfigurationFailure,
 ) -> None:
-    """A config stat error cannot be mistaken for a missing file."""
+    """Filesystem read and inspection failures cannot look like missing files."""
     cargo_home = tmp_path / "cargo-home"
     root = tmp_path / "workspace"
     start = root / "nested"
@@ -269,7 +264,7 @@ def test_configuration_discovery_errors_fail_closed(
     selected.parent.mkdir(parents=True)
     selected.write_text('[build]\ntarget = "home-target"\n', encoding="utf-8")
     start.mkdir(parents=True)
-    original_stat = Path.stat
+    original = {"read_text": Path.read_text, "stat": Path.stat}[failure.method]
 
     def reject_selected_config(
         path: Path,
@@ -277,13 +272,13 @@ def test_configuration_discovery_errors_fail_closed(
         **kwargs: object,
     ) -> object:
         if path == selected:
-            raise OSError(errno.ELOOP, "injected symlink loop", str(path))
-        return original_stat(path, *args, **kwargs)
+            raise failure.error
+        return original(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "stat", reject_selected_config)
+    monkeypatch.setattr(Path, failure.method, reject_selected_config)
 
     with pytest.raises(
-        RESOLVER.ConfigurationError, match="cannot inspect Cargo configuration"
+        RESOLVER.ConfigurationError, match=failure.message
     ):
         RESOLVER.resolve_target(
             start,

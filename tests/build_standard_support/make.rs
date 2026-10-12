@@ -51,6 +51,27 @@ pub struct Command {
     pub assignment: Assignment,
 }
 
+#[derive(Clone, Copy)]
+enum ShellAssignment {
+    EncodedRustFlags,
+    RustFlags,
+}
+
+impl ShellAssignment {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::EncodedRustFlags => "CARGO_ENCODED_RUSTFLAGS",
+            Self::RustFlags => "RUSTFLAGS",
+        }
+    }
+}
+
+struct EncodedFlagsRoute<'a> {
+    source: &'a str,
+    raw_flags: &'a str,
+    command: &'a str,
+}
+
 /// Reads the raw and encoded flag sources a `make -n` output line assigns.
 /// Encoded routes must filter development-owned flags and append the exact raw
 /// route flags, preserving other caller policy.
@@ -69,8 +90,8 @@ pub struct Command {
 /// Returns the reason when an assignment is unquoted, unterminated, glues the
 /// caller's flags to the next one, or misroutes encoded caller flags.
 pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
-    let encoded_assignment_start = assignment_start(line, "CARGO_ENCODED_RUSTFLAGS");
-    let Some(flags_start) = assignment_start(line, "RUSTFLAGS") else {
+    let encoded_assignment_start = assignment_start(line, ShellAssignment::EncodedRustFlags);
+    let Some(flags_start) = assignment_start(line, ShellAssignment::RustFlags) else {
         if encoded_assignment_start.is_some() {
             return Err(format!(
                 "CARGO_ENCODED_RUSTFLAGS has no matching RUSTFLAGS route in `{line}`"
@@ -78,15 +99,7 @@ pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
         }
         return Ok(Assignment::Unassigned);
     };
-    let Some(flags_value) = line.get(flags_start + "RUSTFLAGS=".len()..) else {
-        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
-    };
-    let Some(quoted_flags_value) = flags_value.strip_prefix('"') else {
-        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
-    };
-    let (assigned, _) = quoted_flags_value
-        .split_once('"')
-        .ok_or_else(|| format!("unterminated RUSTFLAGS in `{line}`"))?;
+    let assigned = quoted_rustflags(line, flags_start)?;
     // The recipes prepend the caller's own flags with these expansions; they are
     // not standard flags. `${RUSTFLAGS-}` adds no separator, so glued to the next
     // word it makes one token with it (`-Dwarnings-Zthreads=8`) and hides the flag.
@@ -106,7 +119,11 @@ pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
                     "CARGO_ENCODED_RUSTFLAGS has no matching RUSTFLAGS route in `{line}`"
                 ));
             };
-            validate_encoded_source(encoded_source, assigned, line)?;
+            validate_encoded_source(&EncodedFlagsRoute {
+                source: encoded_source,
+                raw_flags: assigned,
+                command: line,
+            })?;
             true
         }
         Some(_) => {
@@ -128,23 +145,37 @@ pub fn assigned_rustflags(line: &str) -> Result<Assignment, String> {
     ))
 }
 
+fn quoted_rustflags(line: &str, flags_start: usize) -> Result<&str, String> {
+    let Some(flags_value) = line.get(flags_start + "RUSTFLAGS=".len()..) else {
+        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
+    };
+    let Some(quoted_flags_value) = flags_value.strip_prefix('"') else {
+        return Err(format!("unreadable RUSTFLAGS assignment in `{line}`"));
+    };
+    quoted_flags_value
+        .split_once('"')
+        .map(|(assigned, _)| assigned)
+        .ok_or_else(|| format!("unterminated RUSTFLAGS in `{line}`"))
+}
+
 /// Finds an exact leading shell assignment, not a suffix such as the
 /// `RUSTFLAGS` portion of `CARGO_ENCODED_RUSTFLAGS`.
-fn assignment_start(line: &str, name: &str) -> Option<usize> {
-    let assignment = format!("{name}=");
-    line.match_indices(&assignment).find_map(|(start, _)| {
-        let is_boundary = start == 0
-            || line
-                .get(..start)
-                .and_then(|prefix| prefix.chars().next_back())
-                .is_some_and(char::is_whitespace);
-        is_boundary.then_some(start)
-    })
+fn assignment_start(line: &str, assignment: ShellAssignment) -> Option<usize> {
+    let assignment_prefix = format!("{}=", assignment.name());
+    line.match_indices(&assignment_prefix)
+        .find_map(|(start, _)| {
+            let is_boundary = start == 0
+                || line
+                    .get(..start)
+                    .and_then(|prefix| prefix.chars().next_back())
+                    .is_some_and(char::is_whitespace);
+            is_boundary.then_some(start)
+        })
 }
 
 /// Checks that an encoded route preserves caller policy while filtering only
 /// development-owned flags, then appends the exact route flags.
-fn validate_encoded_source(source: &str, raw_flags: &str, line: &str) -> Result<(), String> {
+fn validate_encoded_source(route: &EncodedFlagsRoute<'_>) -> Result<(), String> {
     const FILTERED_FORMS: &[&str] = &[
         "-Z:threads=8",
         "-Z:codegen-backend=cranelift",
@@ -167,21 +198,29 @@ fn validate_encoded_source(source: &str, raw_flags: &str, line: &str) -> Result<
         "if [[ -n $pending ]]; then kept+=(\"$pending\"); fi;",
         "printf \"%s\" \"${kept[*]}\"",
     ];
-    let preserves_caller = source.contains("encoded=${CARGO_ENCODED_RUSTFLAGS-}")
-        && FILTERED_FORMS.iter().all(|flag| source.contains(flag))
-        && FILTER_STEPS.iter().all(|step| source.contains(step))
-        && source.contains("if [ -n \"$filtered\" ]; then");
-    let encoded_route = raw_flags
+    let preserves_caller = route.source.contains("encoded=${CARGO_ENCODED_RUSTFLAGS-}")
+        && FILTERED_FORMS
+            .iter()
+            .all(|flag| route.source.contains(flag))
+        && FILTER_STEPS.iter().all(|step| route.source.contains(step))
+        && route.source.contains("if [ -n \"$filtered\" ]; then");
+    let encoded_route = route
+        .raw_flags
         .split_whitespace()
         .collect::<Vec<_>>()
         .join("\u{1f}");
-    let appends_route = source.contains(&format!("'%s\u{1f}%s' \"$filtered\" \"{encoded_route}\""))
-        && source.contains(&format!("printf '%s' \"{encoded_route}\""));
+    let appends_route = route
+        .source
+        .contains(&format!("'%s\u{1f}%s' \"$filtered\" \"{encoded_route}\""))
+        && route
+            .source
+            .contains(&format!("printf '%s' \"{encoded_route}\""));
     if preserves_caller && appends_route {
         Ok(())
     } else {
         Err(format!(
-            "CARGO_ENCODED_RUSTFLAGS does not preserve and route caller flags in `{line}`"
+            "CARGO_ENCODED_RUSTFLAGS does not preserve and route caller flags in `{}`",
+            route.command
         ))
     }
 }

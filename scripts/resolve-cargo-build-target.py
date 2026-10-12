@@ -141,6 +141,21 @@ def current_working_directory() -> Path:
     return resolve_path(working_directory, "current working directory")
 
 
+def _search_directories(start: Path, root_directory: Path | None) -> list[Path]:
+    start = resolve_path(start, "configuration search start")
+    if root_directory is None:
+        return [start, *start.parents]
+    root = resolve_path(root_directory, "workspace root")
+    if not start.is_relative_to(root):
+        raise ConfigurationError(
+            f"Cargo configuration search start {start} is outside root {root}"
+        )
+    directories = [start]
+    while directories[-1] != root:
+        directories.append(directories[-1].parent)
+    return directories
+
+
 def configuration_paths(
     start: Path,
     *,
@@ -148,18 +163,7 @@ def configuration_paths(
     root_directory: Path | None = None,
 ) -> list[Path]:
     """List Cargo configuration files from lowest to highest precedence."""
-    start = resolve_path(start, "configuration search start")
-    if root_directory is None:
-        directories = [start, *start.parents]
-    else:
-        root = resolve_path(root_directory, "workspace root")
-        if not start.is_relative_to(root):
-            raise ConfigurationError(
-                f"Cargo configuration search start {start} is outside root {root}"
-            )
-        directories = [start]
-        while directories[-1] != root:
-            directories.append(directories[-1].parent)
+    directories = _search_directories(start, root_directory)
 
     cargo_directory = cargo_home_directory or cargo_home()
     cargo_directory = resolve_path(cargo_directory, "Cargo home")
@@ -172,19 +176,27 @@ def configuration_paths(
     return unique_paths
 
 
-def configured_target(path: Path) -> str | None:
-    """Read one config's scalar build target or reject an unsafe form."""
+def _read_configuration(path: Path) -> dict[str, object]:
     try:
-        document = tomllib.loads(path.read_text(encoding="utf-8"))
+        return tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise ConfigurationError(
             f"cannot read Cargo configuration {path}: {error}"
         ) from error
+
+
+def _build_table(document: dict[str, object], path: Path) -> dict[str, object] | None:
     build = document.get("build")
     if build is None:
         return None
     if not isinstance(build, dict):
         raise ConfigurationError(f"invalid [build] table in Cargo configuration {path}")
+    return build
+
+
+def _target_value(build: dict[str, object] | None, path: Path) -> str | None:
+    if build is None:
+        return None
     target = build.get("target")
     if target is None:
         return None
@@ -193,6 +205,12 @@ def configured_target(path: Path) -> str | None:
             f"unsupported build.target in {path}; set one non-empty target triple"
         )
     return target
+
+
+def configured_target(path: Path) -> str | None:
+    """Read one config's scalar build target or reject an unsafe form."""
+    document = _read_configuration(path)
+    return _target_value(_build_table(document, path), path)
 
 
 def resolve_target(

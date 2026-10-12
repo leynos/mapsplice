@@ -31,6 +31,19 @@ struct IsolatedWorkspace {
     _temporary_directory: TempDir,
 }
 
+#[derive(Clone, Copy)]
+enum OutputStream {
+    Stdout,
+    Stderr,
+}
+
+struct FullDeviceCase {
+    label: &'static str,
+    arguments: &'static [&'static str],
+    needs_inputs: bool,
+    stream: OutputStream,
+}
+
 /// Valid fixture roadmap used to exercise successful command output.
 const TARGET_ROADMAP: &str = concat!(
     "# Example\n\n",
@@ -138,6 +151,19 @@ fn full_device() -> io::Result<Stdio> {
         .map(|file| Stdio::from(file.into_std()))
 }
 
+fn run_with_full_device(
+    workspace: &IsolatedWorkspace,
+    arguments: &[&str],
+    stream: OutputStream,
+) -> io::Result<Output> {
+    let mut command = cli_command(workspace, arguments);
+    match stream {
+        OutputStream::Stdout => command.stdout(full_device()?),
+        OutputStream::Stderr => command.stderr(full_device()?),
+    };
+    collect_child_output(command.spawn()?)
+}
+
 /// Return a test error when an observed CLI contract is not satisfied.
 fn verify(condition: bool, message: impl Display) -> TestResult {
     if condition {
@@ -145,6 +171,17 @@ fn verify(condition: bool, message: impl Display) -> TestResult {
     } else {
         Err(message.to_string().into())
     }
+}
+
+/// Require one process exit code while keeping each output contract distinct.
+fn verify_exit_code(output: &Output, expected: i32, operation: &str) -> TestResult {
+    verify(
+        output.status.code() == Some(expected),
+        format!(
+            "{operation} exit was {:?}, expected {expected}",
+            output.status.code()
+        ),
+    )
 }
 
 #[test]
@@ -155,10 +192,7 @@ fn top_level_and_command_help_use_stdout_without_diagnostics() -> TestResult {
         let output = run_cli(&workspace, arguments)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        verify(
-            output.status.code() == Some(0),
-            format!("help should exit 0, got {:?}", output.status.code()),
-        )?;
+        verify_exit_code(&output, 0, "help")?;
         verify(
             stdout.starts_with("Usage:"),
             format!("help stdout was {stdout:?}"),
@@ -177,13 +211,7 @@ fn invalid_input_has_only_a_stderr_diagnostic_and_fails() -> TestResult {
     let output = run_cli(&workspace, &["--invalid-option"])?;
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    verify(
-        output.status.code() == Some(1),
-        format!(
-            "invalid input exit was {:?}, expected 1",
-            output.status.code()
-        ),
-    )?;
+    verify_exit_code(&output, 1, "invalid input")?;
     verify(output.stdout.is_empty(), "invalid input wrote stdout")?;
     verify(
         stderr.starts_with("error:"),
@@ -199,13 +227,7 @@ fn ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails() -> TestResu
     let output = run_cli(&workspace, &["delete", "target.md", "99"])?;
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    verify(
-        output.status.code() == Some(1),
-        format!(
-            "missing-anchor exit was {:?}, expected 1",
-            output.status.code()
-        ),
-    )?;
+    verify_exit_code(&output, 1, "missing-anchor command")?;
     verify(output.stdout.is_empty(), "failed command wrote stdout")?;
     verify(
         stderr.contains("anchor"),
@@ -215,81 +237,51 @@ fn ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails() -> TestResu
 }
 
 #[test]
-fn roadmap_stdout_write_failure_reports_stderr_and_fails() -> TestResult {
-    let workspace = isolated_workspace()?;
-    write_valid_inputs(&workspace)?;
-    let mut command = cli_command(&workspace, &["append", "target.md", "fragment.md"]);
-    command.stdout(full_device()?);
-    let child = command.spawn()?;
-    let output = collect_child_output(child)?;
+fn non_broken_pipe_write_failures_are_reported_and_fail() -> TestResult {
+    let cases = [
+        FullDeviceCase {
+            label: "roadmap output",
+            arguments: &["append", "target.md", "fragment.md"],
+            needs_inputs: true,
+            stream: OutputStream::Stdout,
+        },
+        FullDeviceCase {
+            label: "help output",
+            arguments: &["--help"],
+            needs_inputs: false,
+            stream: OutputStream::Stdout,
+        },
+        FullDeviceCase {
+            label: "argument diagnostic",
+            arguments: &["--invalid-option"],
+            needs_inputs: false,
+            stream: OutputStream::Stderr,
+        },
+        FullDeviceCase {
+            label: "command diagnostic",
+            arguments: &["delete", "target.md", "99"],
+            needs_inputs: true,
+            stream: OutputStream::Stderr,
+        },
+    ];
 
-    verify(
-        output.status.code() == Some(1),
-        format!(
-            "roadmap write exit was {:?}, expected 1",
-            output.status.code()
-        ),
-    )?;
-    verify(
-        !output.stderr.is_empty(),
-        "roadmap write failure should report a stderr diagnostic",
-    )?;
-    Ok(())
-}
-
-#[test]
-fn help_stdout_write_failure_reports_stderr_and_fails() -> TestResult {
-    let workspace = isolated_workspace()?;
-    let mut command = cli_command(&workspace, &["--help"]);
-    command.stdout(full_device()?);
-    let child = command.spawn()?;
-    let output = collect_child_output(child)?;
-
-    verify(
-        output.status.code() == Some(1),
-        format!("help write exit was {:?}, expected 1", output.status.code()),
-    )?;
-    verify(
-        !output.stderr.is_empty(),
-        "help write failure should report a stderr diagnostic",
-    )?;
-    Ok(())
-}
-
-#[test]
-fn clap_diagnostic_stderr_write_failure_fails_without_panicking() -> TestResult {
-    let workspace = isolated_workspace()?;
-    let mut command = cli_command(&workspace, &["--invalid-option"]);
-    command.stderr(full_device()?);
-    let child = command.spawn()?;
-    let output = collect_child_output(child)?;
-
-    verify(
-        output.status.code() == Some(1),
-        format!(
-            "Clap diagnostic sink failure had status {:?}, expected 1",
-            output.status.code()
-        ),
-    )?;
-    Ok(())
-}
-
-#[test]
-fn command_diagnostic_stderr_write_failure_fails_without_panicking() -> TestResult {
-    let workspace = isolated_workspace()?;
-    write_valid_inputs(&workspace)?;
-    let mut command = cli_command(&workspace, &["delete", "target.md", "99"]);
-    command.stderr(full_device()?);
-    let child = command.spawn()?;
-    let output = collect_child_output(child)?;
-
-    verify(
-        output.status.code() == Some(1),
-        format!(
-            "command diagnostic sink failure had status {:?}, expected 1",
-            output.status.code()
-        ),
-    )?;
+    for case in cases {
+        let workspace = isolated_workspace()?;
+        if case.needs_inputs {
+            write_valid_inputs(&workspace)?;
+        }
+        let output = run_with_full_device(&workspace, case.arguments, case.stream)?;
+        verify_exit_code(&output, 1, case.label)?;
+        if matches!(case.stream, OutputStream::Stdout) {
+            verify(
+                !output.stderr.is_empty(),
+                format!(
+                    "{} write failure should report a stderr diagnostic",
+                    case.label
+                ),
+            )?;
+        }
+    }
     Ok(())
 }
 
@@ -337,13 +329,7 @@ fn broken_stdout_pipes_succeed_for_roadmap_output_and_help() -> TestResult {
         }
         let output = run_with_closed_stdout(&workspace, arguments)?;
 
-        verify(
-            output.status.code() == Some(0),
-            format!(
-                "closed-pipe command {arguments:?} had status {:?}, expected 0",
-                output.status.code()
-            ),
-        )?;
+        verify_exit_code(&output, 0, &format!("closed-pipe command {arguments:?}"))?;
     }
     Ok(())
 }

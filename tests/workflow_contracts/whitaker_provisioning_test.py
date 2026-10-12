@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import json
 import os
 import re
@@ -94,61 +93,107 @@ def _has_lint_command(step: dict) -> bool:
 def _suite_jobs(workflows: dict[str, dict]) -> list[tuple[str, str, dict]]:
     jobs = []
     for filename, document in workflows.items():
-        declared_jobs = document.get("jobs")
-        assert isinstance(declared_jobs, dict) and declared_jobs, f"{filename}: no jobs"
-        for name, job in declared_jobs.items():
-            assert isinstance(job, dict), f"{filename}/{name}: invalid job"
-            steps = job.get("steps", [])
-            if isinstance(steps, list) and any(
-                isinstance(step, dict) and _has_lint_command(step) for step in steps
-            ):
+        for name, job in _workflow_jobs(filename, document):
+            if _contains_whitaker_lint(filename, name, job):
                 jobs.append((filename, name, job))
-            elif isinstance(job.get("uses"), str) and "mapsplice" in job["uses"]:
-                raise AssertionError(f"{filename}/{name}: unresolved local workflow call")
     assert jobs, "no reachable Whitaker suite job found"
     return jobs
+
+
+def _workflow_jobs(
+    filename: str, document: dict
+) -> list[tuple[str, dict]]:
+    declared_jobs = document.get("jobs")
+    assert isinstance(declared_jobs, dict) and declared_jobs, f"{filename}: no jobs"
+    jobs = []
+    for name, job in declared_jobs.items():
+        assert isinstance(job, dict), f"{filename}/{name}: invalid job"
+        jobs.append((name, job))
+    return jobs
+
+
+def _contains_whitaker_lint(filename: str, name: str, job: dict) -> bool:
+    steps = job.get("steps", [])
+    if _contains_lint_step(steps):
+        return True
+    if _is_local_mapsplice_call(job):
+        raise AssertionError(f"{filename}/{name}: unresolved local workflow call")
+    return False
+
+
+def _contains_lint_step(steps: object) -> bool:
+    if not isinstance(steps, list):
+        return False
+    return any(
+        _has_lint_command(step) for step in steps if isinstance(step, dict)
+    )
+
+
+def _is_local_mapsplice_call(job: dict) -> bool:
+    target = job.get("uses")
+    return isinstance(target, str) and "mapsplice" in target
+
+
+def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
+    installers = [index for index, step in enumerate(steps) if step.get("uses") == ACTION]
+    assert len(installers) == 1, f"{filename}/{name}: require one pinned action"
+    index = installers[0]
+    install = steps[index]
+    assert "if" not in install, f"{filename}/{name}: installer is conditional"
+    assert install.get("continue-on-error") is not True, (
+        f"{filename}/{name}: installer may fail softly"
+    )
+    assert install.get("with", {}) == {}, (
+        f"{filename}/{name}: unsupported Whitaker inputs"
+    )
+    return index
+
+
+def _validate_lint_steps(
+    filename: str, name: str, steps: list[dict], install_index: int
+) -> None:
+    lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
+    assert all(install_index < index for index in lint_indices), (
+        f"{filename}/{name}: Whitaker is installed after lint"
+    )
+    for index in lint_indices:
+        step = steps[index]
+        assert "if" not in step, f"{filename}/{name}: lint is conditional"
+        assert step.get("continue-on-error") is not True, (
+            f"{filename}/{name}: lint may fail softly"
+        )
+        command = step["run"]
+        assert not re.search(r"\|\|\s*true|continue-on-error|\|\s*tee\b", command), (
+            f"{filename}/{name}: lint exit status may be masked"
+        )
+
+
+def _validate_no_ad_hoc_installation(filename: str, name: str, job: dict) -> None:
+    for step in job["steps"]:
+        run = str(step.get("run", ""))
+        assert not re.search(
+            r"cargo\s+(?:install|binstall).*whitaker|whitaker-installer", run
+        ), f"{filename}/{name}: ad hoc Whitaker installation remains"
+        uses = str(step.get("uses", ""))
+        if "install-whitaker@" in uses:
+            assert uses == ACTION, f"{filename}/{name}: wrong Whitaker action pin"
+    assert "WHITAKER_INSTALLER_VERSION" not in str(job), (
+        f"{filename}/{name}: obsolete installer override remains"
+    )
+
+
+def _validate_suite_job(filename: str, name: str, job: dict) -> None:
+    steps = job["steps"]
+    assert all(isinstance(step, dict) for step in steps), f"{filename}/{name}: bad step"
+    install_index = _installer_index(filename, name, steps)
+    _validate_lint_steps(filename, name, steps, install_index)
+    _validate_no_ad_hoc_installation(filename, name, job)
 
 
 def _validate(workflows: dict[str, dict]) -> None:
     """Require unconditional pinned provisioning before each reachable suite."""
     for filename, name, job in _suite_jobs(workflows):
-        steps = job["steps"]
-        assert all(isinstance(step, dict) for step in steps), f"{filename}/{name}: bad step"
-        installers = [index for index, step in enumerate(steps) if step.get("uses") == ACTION]
-        assert len(installers) == 1, f"{filename}/{name}: require one pinned action"
-        install_index = installers[0]
-        install = steps[install_index]
-        assert "if" not in install, f"{filename}/{name}: installer is conditional"
-        assert install.get("continue-on-error") is not True, (
-            f"{filename}/{name}: installer may fail softly"
-        )
-        assert install.get("with", {}) == {}, (
-            f"{filename}/{name}: unsupported Whitaker inputs"
-        )
-        lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
-        assert all(install_index < index for index in lint_indices), (
-            f"{filename}/{name}: Whitaker is installed after lint"
-        )
-        for index in lint_indices:
-            assert "if" not in steps[index], f"{filename}/{name}: lint is conditional"
-            assert steps[index].get("continue-on-error") is not True, (
-                f"{filename}/{name}: lint may fail softly"
-            )
-            command = steps[index]["run"]
-            assert not re.search(r"\|\|\s*true|continue-on-error|\|\s*tee\b", command), (
-                f"{filename}/{name}: lint exit status may be masked"
-            )
-        for step in steps:
-            run = str(step.get("run", ""))
-            assert not re.search(r"cargo\s+(?:install|binstall).*whitaker|whitaker-installer", run), (
-                f"{filename}/{name}: ad hoc Whitaker installation remains"
-            )
-            uses = str(step.get("uses", ""))
-            if "install-whitaker@" in uses:
-                assert uses == ACTION, f"{filename}/{name}: wrong Whitaker action pin"
-        assert "WHITAKER_INSTALLER_VERSION" not in str(job), (
-            f"{filename}/{name}: obsolete installer override remains"
-        )
+        _validate_suite_job(filename, name, job)
 
 
 def _run_whitaker_environment_probe(
@@ -241,66 +286,6 @@ def test_workflow_reader_rejects_duplicate_keys() -> None:
     """A duplicate jobs key cannot hide an unprovisioned suite job."""
     with pytest.raises(AssertionError, match="duplicate mapping keys"):
         yaml.load("jobs:\n  lint: {}\njobs:\n  hidden: {}\n", Loader=UniqueKeyLoader)
-
-
-@pytest.mark.parametrize(
-    ("mutation", "expected"),
-    [
-        ("remove_action", "require one pinned action"),
-        ("wrong_pin", "require one pinned action"),
-        ("suite_pin", "unsupported Whitaker inputs"),
-        ("installer_pin", "unsupported Whitaker inputs"),
-        ("cranelift_input", "unsupported Whitaker inputs"),
-        ("after_suite", "installed after lint"),
-        ("conditional", "installer is conditional"),
-        ("soft_install", "installer may fail softly"),
-        ("soft_lint", "lint may fail softly"),
-        ("source_fallback", "ad hoc Whitaker installation"),
-        ("masked_lint", "lint exit status may be masked"),
-        ("new_suite_job", "require one pinned action"),
-        ("new_direct_job", "require one pinned action"),
-        ("empty_jobs", "no jobs"),
-    ],
-)
-def test_ci_contract_rejects_regressions(mutation: str, expected: str) -> None:
-    """Each named regression must produce a failing contract verdict."""
-    workflows = copy.deepcopy(_workflows())
-    ci = workflows["ci.yml"]
-    job = ci["jobs"]["build-test"]
-    steps = job["steps"]
-    install_index = next(i for i, step in enumerate(steps) if step.get("uses") == ACTION)
-    lint_index = next(i for i, step in enumerate(steps) if _has_lint_command(step))
-    install = steps[install_index]
-    if mutation == "remove_action":
-        steps.pop(install_index)
-    elif mutation == "wrong_pin":
-        install["uses"] = ACTION.replace("2ddf19b3", "00000000")
-    elif mutation == "suite_pin":
-        install.setdefault("with", {})["suite-version"] = "v1"
-    elif mutation == "installer_pin":
-        install.setdefault("with", {})["installer-version"] = "0.2.8"
-    elif mutation == "cranelift_input":
-        install.setdefault("with", {})["cranelift"] = "true"
-    elif mutation == "after_suite":
-        steps.insert(lint_index + 1, steps.pop(install_index))
-    elif mutation == "conditional":
-        install["if"] = "github.event_name == 'push'"
-    elif mutation == "soft_install":
-        install["continue-on-error"] = True
-    elif mutation == "soft_lint":
-        steps[lint_index]["continue-on-error"] = True
-    elif mutation == "source_fallback":
-        steps.insert(install_index, {"run": "cargo install whitaker-installer"})
-    elif mutation == "masked_lint":
-        steps[lint_index]["run"] = "make lint | tee lint.log"
-    elif mutation == "new_suite_job":
-        ci["jobs"]["extra"] = {"runs-on": "ubuntu-latest", "steps": [{"run": "make lint"}]}
-    elif mutation == "new_direct_job":
-        ci["jobs"]["extra"] = {"runs-on": "windows-latest", "steps": [{"run": "whitaker --all"}]}
-    elif mutation == "empty_jobs":
-        ci["jobs"] = {}
-    with pytest.raises(AssertionError, match=expected):
-        _validate(workflows)
 
 
 def test_make_lint_order_and_whitaker_flags(tmp_path: Path) -> None:

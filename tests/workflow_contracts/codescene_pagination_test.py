@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -120,13 +121,29 @@ def _paged_fetch(
     return fetch, calls
 
 
-def _malformed_history_strategy() -> SearchStrategy[
-    tuple[int, str, int, str | None, int]
-]:
+@dataclass(frozen=True)
+class MalformedHistory:
+    total: int
+    fault: str
+    fault_page: int
+    fault_relation: str | None
+    count_delta: int
+
+
+@dataclass
+class PageState:
+    count: int
+    items: list[object]
+    relations: list[tuple[int, str]]
+    links: str
+    page_number: int
+
+
+def _malformed_history_strategy() -> SearchStrategy[MalformedHistory]:
     @st.composite
     def histories(
         draw: st.DrawFn,
-    ) -> tuple[int, str, int, str | None, int]:
+    ) -> MalformedHistory:
         total = draw(
             st.integers(min_value=PAGE_SIZE + 1, max_value=MAX_GENERATED_POLICIES)
         )
@@ -148,66 +165,102 @@ def _malformed_history_strategy() -> SearchStrategy[
             relation = draw(st.sampled_from([name for _, name in valid_relations]))
         else:
             page = draw(st.integers(min_value=1, max_value=pages))
-        return total, fault, page, relation, delta
+        return MalformedHistory(total, fault, page, relation, delta)
 
     return histories()
 
 
-def _malformed_history(
-    total: int,
-    fault: str,
-    fault_page: int,
-    fault_relation: str | None,
-    count_delta: int,
-) -> dict[int, verifier.ApiResponse]:
-    pages = _page_count(total)
+def _short_page(state: PageState, _: MalformedHistory) -> None:
+    state.items.pop()
+
+
+def _missing_next(state: PageState, _: MalformedHistory) -> None:
+    state.links = _link(*(pair for pair in state.relations if pair[1] != "next"))
+
+
+def _malformed_link(state: PageState, _: MalformedHistory) -> None:
+    state.links = "not a GitHub Link header"
+
+
+def _wrong_link(state: PageState, case: MalformedHistory) -> None:
+    state.links = _link(
+        *(
+            (target + 1, name) if name == case.fault_relation else (target, name)
+            for target, name in state.relations
+        )
+    )
+
+
+def _count_drift(state: PageState, case: MalformedHistory) -> None:
+    state.count += case.count_delta
+
+
+def _cross_page_duplicate(state: PageState, _: MalformedHistory) -> None:
+    state.items[0] = _policy((state.page_number - 1) * PAGE_SIZE)
+
+
+def _malformed_entry(state: PageState, _: MalformedHistory) -> None:
+    state.items[0] = {"id": "not-an-integer", "name": "branch"}
+
+
+PAGE_FAULTS: dict[str, Callable[[PageState, MalformedHistory], None]] = {
+    "short-page": _short_page,
+    "missing-next": _missing_next,
+    "malformed-link": _malformed_link,
+    "wrong-link": _wrong_link,
+    "count-drift": _count_drift,
+    "cross-page-duplicate": _cross_page_duplicate,
+    "malformed-entry": _malformed_entry,
+}
+
+
+def _apply_page_fault(state: PageState, case: MalformedHistory, page: int) -> None:
+    if page != case.fault_page:
+        return
+    mutation = PAGE_FAULTS.get(case.fault)
+    if mutation is not None:
+        mutation(state, case)
+
+
+def _apply_sentinel_fault(
+    state: PageState, case: MalformedHistory, sentinel: int
+) -> None:
+    if case.fault_page != sentinel:
+        return
+    if case.fault == "sentinel-next":
+        state.links = _link(*state.relations, (sentinel + 1, "next"))
+    elif case.fault == "nonempty-sentinel":
+        state.items.append(_policy(case.total + 1))
+    elif case.fault == "malformed-link":
+        _malformed_link(state, case)
+    elif case.fault == "wrong-link":
+        _wrong_link(state, case)
+
+
+def _malformed_history(case: MalformedHistory) -> dict[int, verifier.ApiResponse]:
+    pages = _page_count(case.total)
     responses: dict[int, verifier.ApiResponse] = {}
     for page in range(1, pages + 1):
-        items = _page_items(total, page)
-        count = total
-        relations = _page_relations(page, pages)
-        links = _link(*relations)
-        if page == fault_page:
-            if fault == "short-page":
-                items.pop()
-            elif fault == "missing-next":
-                links = _link(*(pair for pair in relations if pair[1] != "next"))
-            elif fault == "malformed-link":
-                links = "not a GitHub Link header"
-            elif fault == "wrong-link":
-                links = _link(
-                    *(
-                        (target + 1, name) if name == fault_relation else (target, name)
-                        for target, name in relations
-                    )
-                )
-            elif fault == "count-drift":
-                count += count_delta
-            elif fault == "cross-page-duplicate":
-                items[0] = _policy((page - 1) * PAGE_SIZE)
-            elif fault == "malformed-entry":
-                items[0] = {"id": "not-an-integer", "name": "branch"}
-        responses[page] = _response(items, count, links)
+        state = PageState(
+            case.total,
+            _page_items(case.total, page),
+            _page_relations(page, pages),
+            "",
+            page,
+        )
+        state.links = _link(*state.relations)
+        _apply_page_fault(state, case, page)
+        responses[page] = _response(state.items, state.count, state.links)
 
     sentinel = pages + 1
-    sentinel_items: list[object] = []
-    sentinel_relations = _page_relations(sentinel, pages)
-    sentinel_links = _link(*sentinel_relations)
-    if fault_page == sentinel:
-        if fault == "malformed-link":
-            sentinel_links = "not a GitHub Link header"
-        elif fault == "wrong-link":
-            sentinel_links = _link(
-                *(
-                    (target + 1, name) if name == fault_relation else (target, name)
-                    for target, name in sentinel_relations
-                )
-            )
-        elif fault == "sentinel-next":
-            sentinel_links = _link(*sentinel_relations, (sentinel + 1, "next"))
-        elif fault == "nonempty-sentinel":
-            sentinel_items = [_policy(total + 1)]
-    responses[sentinel] = _response(sentinel_items, total, sentinel_links)
+    sentinel_state = PageState(
+        case.total, [], _page_relations(sentinel, pages), "", sentinel
+    )
+    sentinel_state.links = _link(*sentinel_state.relations)
+    _apply_sentinel_fault(sentinel_state, case, sentinel)
+    responses[sentinel] = _response(
+        sentinel_state.items, sentinel_state.count, sentinel_state.links
+    )
     return responses
 
 
@@ -236,21 +289,20 @@ def test_generated_complete_pagination_histories_are_read_in_order(
         assert calls == list(range(1, pages + 2))
 
 
-@example(case=(101, "short-page", 1, None, 0))
-@example(case=(200, "cross-page-duplicate", 2, None, 0))
-@example(case=(201, "count-drift", 3, None, -1))
-@example(case=(101, "sentinel-next", 3, None, 0))
+@example(case=MalformedHistory(101, "short-page", 1, None, 0))
+@example(case=MalformedHistory(200, "cross-page-duplicate", 2, None, 0))
+@example(case=MalformedHistory(201, "count-drift", 3, None, -1))
+@example(case=MalformedHistory(101, "sentinel-next", 3, None, 0))
 @given(case=_malformed_history_strategy())
 def test_generated_malformed_pagination_histories_fail_closed(
-    case: tuple[int, str, int, str | None, int],
+    case: MalformedHistory,
 ) -> None:
     """Generated page faults fail closed at the page where they appear."""
-    total, fault, fault_page, relation, delta = case
-    responses = _malformed_history(total, fault, fault_page, relation, delta)
+    responses = _malformed_history(case)
     fetch, calls = _paged_fetch(responses)
 
     with pytest.raises(verifier.VerificationError) as caught:
         verifier._policies(POLICIES, fetch)
 
-    assert caught.value.code == FAULT_CODES[fault]
-    assert calls == list(range(1, fault_page + 1))
+    assert caught.value.code == FAULT_CODES[case.fault]
+    assert calls == list(range(1, case.fault_page + 1))

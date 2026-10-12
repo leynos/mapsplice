@@ -158,7 +158,9 @@ impl PhaseNumber {
     /// # Errors
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `phase` is zero.
-    pub fn new(phase: u32) -> Result<Self> { validate_positive("phase", phase).map(Self) }
+    pub fn new(phase: u32) -> Result<Self> {
+        validate_positive(RoadmapItemLevel::Phase, phase).map(Self)
+    }
 
     /// Return the numeric phase value.
     ///
@@ -183,7 +185,7 @@ impl StepNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `step` is zero.
     pub fn new(phase: PhaseNumber, step: u32) -> Result<Self> {
-        let step_number = validate_positive("step", step)?;
+        let step_number = validate_positive(RoadmapItemLevel::Step, step)?;
         Ok(Self {
             phase,
             step: step_number,
@@ -206,7 +208,7 @@ impl TaskNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `task` is zero.
     pub fn new(step: StepNumber, task: u32) -> Result<Self> {
-        let task_number = validate_positive("task", task)?;
+        let task_number = validate_positive(RoadmapItemLevel::Task, task)?;
         Ok(Self {
             step,
             task: task_number,
@@ -229,7 +231,7 @@ impl SubTaskNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `sub_task` is zero.
     pub fn new(task: TaskNumber, sub_task: u32) -> Result<Self> {
-        let sub_task_number = validate_positive("sub-task", sub_task)?;
+        let sub_task_number = validate_positive(RoadmapItemLevel::SubTask, sub_task)?;
         Ok(Self {
             task,
             sub_task: sub_task_number,
@@ -271,29 +273,49 @@ impl FromStr for RoadmapAnchor {
 /// Returns [`MapspliceError::InvalidAnchor`] when the value is empty, contains
 /// empty path segments, includes non-numeric components, or has more than
 /// four numeric parts.
-pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
-    let parts = value.split('.').collect::<Vec<_>>();
-    if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
-        return Err(MapspliceError::InvalidAnchor {
-            anchor: value.to_owned(),
-        });
+pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> { AnchorInput(value).parse() }
+
+/// Preserve the original text while validating each numeric path component.
+struct AnchorInput<'a>(&'a str);
+
+impl AnchorInput<'_> {
+    /// Validate the full anchor and assemble its matching roadmap level.
+    fn parse(self) -> Result<RoadmapAnchor> {
+        let parts = self.0.split('.').collect::<Vec<_>>();
+        if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
+            return Err(self.invalid());
+        }
+
+        let numbers = parts
+            .iter()
+            .map(|part| self.parse_component(part))
+            .collect::<Result<Vec<_>>>()?;
+
+        match numbers.as_slice() {
+            [phase] => Ok(PhaseNumber::new(*phase)?.into()),
+            [phase, step] => Ok(build_step_number(*phase, *step)?.into()),
+            [phase, step, task] => Ok(build_task_number(*phase, *step, *task)?.into()),
+            [phase, step, task, sub_task] => {
+                Ok(build_sub_task_number(*phase, *step, *task, *sub_task)?.into())
+            }
+            _ => Err(self.invalid()),
+        }
     }
 
-    let numbers = parts
-        .iter()
-        .map(|part| parse_canonical_positive_integer(part, value))
-        .collect::<Result<Vec<_>>>()?;
-
-    match numbers.as_slice() {
-        [phase] => Ok(PhaseNumber::new(*phase)?.into()),
-        [phase, step] => Ok(build_step_number(*phase, *step)?.into()),
-        [phase, step, task] => Ok(build_task_number(*phase, *step, *task)?.into()),
-        [phase, step, task, sub_task] => {
-            Ok(build_sub_task_number(*phase, *step, *task, *sub_task)?.into())
+    /// Parse one component and reject zero or non-canonical numeric spelling.
+    fn parse_component(&self, part: &str) -> Result<u32> {
+        let number = part.parse::<u32>().map_err(|_| self.invalid())?;
+        if number == 0 || part != number.to_string() {
+            return Err(self.invalid());
         }
-        _ => Err(MapspliceError::InvalidAnchor {
-            anchor: value.to_owned(),
-        }),
+        Ok(number)
+    }
+
+    /// Preserve the original anchor in the user-facing validation error.
+    fn invalid(&self) -> MapspliceError {
+        MapspliceError::InvalidAnchor {
+            anchor: self.0.to_owned(),
+        }
     }
 }
 
@@ -312,26 +334,11 @@ fn build_sub_task_number(phase: u32, step: u32, task: u32, sub_task: u32) -> Res
     SubTaskNumber::new(build_task_number(phase, step, task)?, sub_task)
 }
 
-/// Reject zero, leading zeroes, and non-canonical numeric anchor parts.
-fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
-    let number = part
-        .parse::<u32>()
-        .map_err(|_| MapspliceError::InvalidAnchor {
-            anchor: anchor.to_owned(),
-        })?;
-    if number == 0 || part != number.to_string() {
-        return Err(MapspliceError::InvalidAnchor {
-            anchor: anchor.to_owned(),
-        });
-    }
-    Ok(number)
-}
-
 /// Reject a zero-valued component of a roadmap number.
-fn validate_positive(label: &str, number: u32) -> Result<u32> {
+fn validate_positive(level: RoadmapItemLevel, number: u32) -> Result<u32> {
     if number == 0 {
         return Err(MapspliceError::InvalidAnchor {
-            anchor: format!("{label} number 0"),
+            anchor: format!("{level} number 0"),
         });
     }
     Ok(number)

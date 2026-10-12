@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,13 @@ from build_standard_routing_test import (
 REQUIRED_RUSTDOC_FLAGS = ("--cfg", "docsrs", "-D", "warnings")
 
 
+@dataclass(frozen=True)
+class RustdocRouteCase:
+    goal: str
+    expected_command: tuple[str, ...]
+    expected_arguments: tuple[str, ...]
+
+
 def assert_rustdoc_route(
     route: RouteInvocation,
     expected_arguments: tuple[str, ...],
@@ -31,13 +39,19 @@ def assert_rustdoc_route(
 
 
 @pytest.mark.parametrize(
-    ("goal", "expected_command", "expected_arguments"),
+    "route_case",
     [
-        ("lint-clippy", ("doc",), ("doc", "--workspace", "--no-deps")),
-        (
-            "test",
-            ("test", "--doc"),
-            ("test", "--doc", "--workspace", "--all-features"),
+        pytest.param(
+            RustdocRouteCase(
+                "lint-clippy", ("doc",), ("doc", "--workspace", "--no-deps")
+            ),
+            id="clippy-docs",
+        ),
+        pytest.param(
+            RustdocRouteCase(
+                "test", ("test", "--doc"), ("test", "--doc", "--workspace", "--all-features")
+            ),
+            id="workspace-doctests",
         ),
     ],
 )
@@ -52,19 +66,19 @@ def assert_rustdoc_route(
 )
 def test_rustdoc_routes_apply_required_flags_before_caller_flags(
     tmp_path: Path,
-    goal: str,
-    expected_command: tuple[str, ...],
-    expected_arguments: tuple[str, ...],
+    route_case: RustdocRouteCase,
     caller_flags: str | None,
     extra_flags: tuple[str, ...],
 ) -> None:
     """Docs and doctests keep required rustdoc policy and caller additions."""
     variables = {"RUSTDOC_FLAGS": caller_flags} if caller_flags else {}
-    if goal == "test":
+    if route_case.goal == "test":
         variables.update({"DOC_TEST_TARGETS": "true", "TEST_CMD": "test"})
-    invocations = execute_make_route(tmp_path, goal, variables=variables)
+    invocations = execute_make_route(tmp_path, route_case.goal, variables=variables)
     assert_rustdoc_route(
-        route_for(invocations, expected_command), expected_arguments, extra_flags,
+        route_for(invocations, route_case.expected_command),
+        route_case.expected_arguments,
+        extra_flags,
     )
 
 

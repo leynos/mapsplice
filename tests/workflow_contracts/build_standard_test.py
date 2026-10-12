@@ -89,43 +89,64 @@ def validate_suite_provisioning(document: dict[str, object]) -> None:
     suites = 0
     for name, job in jobs.items():
         assert isinstance(job, dict), f"{name} is not a job mapping"
-        if "uses" in job:
-            continue  # Reusable callers have a separate setup-commands contract.
-        steps = job.get("steps")
-        if not isinstance(steps, list):
+        suite = _linux_suite(job)
+        if suite is None:
             continue
-        suite_indices = [i for i, step in enumerate(steps) if is_suite_step(step)]
-        if not suite_indices:
-            continue
-        if not job_runs_on_linux(job):
-            continue
+        steps, suite_indices = suite
         suites += 1
-        installs = [
-            i
-            for i, step in enumerate(steps)
-            if step.get("uses") == SETUP_RUST
-            and step.get("with", {}).get("install-mold") == "true"
-        ]
-        assert len(installs) == 1, f"{name} needs one pinned linker install"
-        install = steps[installs[0]]
-        assert "if" not in install and install.get("continue-on-error") is not True, (
-            f"{name} installer must be unconditional and binding"
-        )
-        assert installs[0] < min(suite_indices), f"{name} installs after its suite"
-        assert install.get("with", {}).get("rustflags") == "", (
-            f"{name} setup-rust must leave Cargo config discoverable"
-        )
-        clang = [
-            i for i, step in enumerate(steps)
-            if "apt-get install" in str(step.get("run", ""))
-            and "clang" in str(step.get("run", ""))
-            and step.get("if", "runner.os == 'Linux'") == "runner.os == 'Linux'"
-            and step.get("continue-on-error") is not True
-        ]
-        assert clang and min(clang) < min(suite_indices), (
-            f"{name} needs clang before its suite"
-        )
+        _validate_linux_suite(name, steps, suite_indices)
     assert suites, "no reachable Linux suite jobs were measured"
+
+
+def _linux_suite(
+    job: dict[str, object],
+) -> tuple[list[dict[str, object]], list[int]] | None:
+    if "uses" in job:
+        return None  # Reusable callers have a separate setup-commands contract.
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return None
+    suite_indices = [index for index, step in enumerate(steps) if is_suite_step(step)]
+    if not suite_indices or not job_runs_on_linux(job):
+        return None
+    return steps, suite_indices
+
+
+def _is_linker_install(step: dict[str, object]) -> bool:
+    if step.get("uses") != SETUP_RUST:
+        return False
+    return step.get("with", {}).get("install-mold") == "true"
+
+
+def _is_binding_clang_install(step: dict[str, object]) -> bool:
+    run = str(step.get("run", ""))
+    if "apt-get install" not in run or "clang" not in run:
+        return False
+    if step.get("if", "runner.os == 'Linux'") != "runner.os == 'Linux'":
+        return False
+    return step.get("continue-on-error") is not True
+
+
+def _validate_linux_suite(
+    name: str, steps: list[dict[str, object]], suite_indices: list[int]
+) -> None:
+    installs = [index for index, step in enumerate(steps) if _is_linker_install(step)]
+    assert len(installs) == 1, f"{name} needs one pinned linker install"
+    install_index = installs[0]
+    install = steps[install_index]
+    assert "if" not in install and install.get("continue-on-error") is not True, (
+        f"{name} installer must be unconditional and binding"
+    )
+    assert install_index < min(suite_indices), f"{name} installs after its suite"
+    assert install.get("with", {}).get("rustflags") == "", (
+        f"{name} setup-rust must leave Cargo config discoverable"
+    )
+    clang = [
+        index for index, step in enumerate(steps) if _is_binding_clang_install(step)
+    ]
+    assert clang and min(clang) < min(suite_indices), (
+        f"{name} needs clang before its suite"
+    )
 
 
 def validate_coverage_exclusion(ci: dict[str, object]) -> None:
