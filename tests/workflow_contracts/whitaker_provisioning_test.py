@@ -14,13 +14,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from build_standard_routing_test import (
+from build_route_probe import (
     assert_whitaker_route,
     execute_make_route,
     route_for,
 )
+from build_standard_test import ROOT
 
-ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 ACTION = (
     "leynos/shared-actions/.github/actions/install-whitaker"

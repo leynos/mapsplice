@@ -15,6 +15,7 @@ from mapsplice_codescene_models import (
     BranchPolicy,
     DeploymentPolicyPage,
     VerificationError,
+    failure_context,
 )
 
 PolicyPageReader = Callable[[int], DeploymentPolicyPage]
@@ -27,6 +28,7 @@ class _PolicyPages:
     total: int | None = None
     expected_pages: int | None = None
     first_page: DeploymentPolicyPage | None = None
+    last_requested_page: int = 0
     identities: list[BranchPolicy] = field(default_factory=list)
     identifiers: set[int] = field(default_factory=set)
 
@@ -152,21 +154,24 @@ def _collect_policy_pages(read_page: PolicyPageReader) -> _PolicyPages:
     """Read bounded sequential pages and stop only at a valid sentinel."""
     state = _PolicyPages()
     for number in range(1, MAX_PAGES + 2):
-        current = read_page(number)
-        _require_requested_page(current, number)
-        _remember_total(state, current)
-        page_count = state.expected_pages
-        assert page_count is not None
-        _validate_link_order(current.links, number, page_count)
-        if _is_sentinel(current, page_count):
-            _validate_sentinel(current)
-            break
-        _validate_page_item_count(current, page_count, len(state.identities))
-        _append_policies(state, current.policies)
+        state.last_requested_page = number
+        with failure_context("policy_page", page=number):
+            current = read_page(number)
+            _require_requested_page(current, number)
+            _remember_total(state, current)
+            page_count = state.expected_pages
+            assert page_count is not None
+            _validate_link_order(current.links, number, page_count)
+            if _is_sentinel(current, page_count):
+                _validate_sentinel(current)
+                break
+            _validate_page_item_count(current, page_count, len(state.identities))
+            _append_policies(state, current.policies)
     else:
-        raise VerificationError(
-            "policy-cap", "deployment branch policy pagination exceeded audit cap"
-        )
+        with failure_context("policy_page", page=MAX_PAGES + 1):
+            raise VerificationError(
+                "policy-cap", "deployment branch policy pagination exceeded audit cap"
+            )
     return state
 
 
@@ -192,13 +197,15 @@ def _verify_first_page_stable(
 def collect_policies(read_page: PolicyPageReader) -> tuple[BranchPolicy, ...]:
     """Require complete bounded pages, an empty sentinel, and stable readback."""
     state = _collect_policy_pages(read_page)
-    if state.total != len(state.identities):
-        raise VerificationError(
-            "policy-count", "deployment branch policy collection is incomplete"
-        )
-    if state.first_page is None:
-        raise VerificationError(
-            "policy-count", "deployment branch policy page is missing"
-        )
-    _verify_first_page_stable(read_page, state.first_page)
-    return tuple(state.identities)
+    with failure_context("policy_page", page=state.last_requested_page):
+        if state.total != len(state.identities):
+            raise VerificationError(
+                "policy-count", "deployment branch policy collection is incomplete"
+            )
+        if state.first_page is None:
+            raise VerificationError(
+                "policy-count", "deployment branch policy page is missing"
+            )
+        with failure_context("policy_readback", page=1):
+            _verify_first_page_stable(read_page, state.first_page)
+        return tuple(state.identities)

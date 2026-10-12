@@ -275,17 +275,18 @@ def test_mutation_setup_regressions_are_detected(mutation: str) -> None:
         validate_mutation_setup(job)
 
 
-def test_missing_tool_reports_an_installation_route() -> None:
+def test_missing_tool_reports_an_installation_route(tmp_path: Path) -> None:
     """The local preflight must fail before compilation if Rust is absent."""
     result = subprocess.run(
         ["/bin/bash", "scripts/check-build-tools.sh"],
         cwd=ROOT,
-        env={"PATH": "/usr/bin:/bin"},
+        env={"PATH": str(tmp_path)},
         capture_output=True,
         text=True,
         check=False,
     )
     assert result.returncode != 0
+    assert "rustc" in result.stderr
     assert "make install-build-tools" in result.stderr
 
 

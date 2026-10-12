@@ -17,10 +17,12 @@ def _executable(path: Path, body: str) -> None:
 
 @pytest.mark.parametrize("target", ["native", "aarch64"])
 @pytest.mark.parametrize("uses_pinned_linker", [False, True])
+@pytest.mark.parametrize("response_file", [False, True])
 def test_clang_route_forwards_target_and_linker(
     tmp_path: Path,
     target: str,
     uses_pinned_linker: bool,
+    response_file: bool,
 ) -> None:
     """The AArch64 route always passes its triple through the shared wrapper."""
     commands = tmp_path / "commands"
@@ -34,6 +36,10 @@ def test_clang_route_forwards_target_and_linker(
     arguments = ["-o", "out"]
     if uses_pinned_linker:
         arguments.append("-fuse-ld=mold")
+    if response_file:
+        response = tmp_path / "linker arguments"
+        response.write_text("\n".join(arguments) + "\n", encoding="utf-8")
+        arguments = [f"@{response}"]
     recording = tmp_path / "clang-arguments"
     result = subprocess.run(
         [str(ROOT / "scripts" / wrapper), *arguments],
@@ -121,3 +127,49 @@ exit 1
     assert "make install-build-tools" in result.stderr
     if missing_tool == "clang":
         assert "system package manager" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "response_contents",
+    [
+        None,
+        "",
+        "-fuse-ld=mold-other\n",
+        " -fuse-ld=mold\n",
+        '"-fuse-ld=mold"\n',
+        "$(touch SHOULD_NOT_EXIST)\n",
+        "@nested-response\n",
+    ],
+)
+def test_unrelated_response_arguments_do_not_select_pinned_linker(
+    tmp_path: Path, response_contents: str | None
+) -> None:
+    """Only a literal complete response-file token selects the pinned linker."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    _executable(
+        commands / "clang",
+        'printf \'%s\\n\' "$@" > "$CLANG_ARGUMENTS"\n',
+    )
+    response = tmp_path / "response"
+    if response_contents is not None:
+        response.write_text(response_contents, encoding="utf-8")
+    nested = tmp_path / "nested-response"
+    nested.write_text("-fuse-ld=mold\n", encoding="utf-8")
+    recording = tmp_path / "arguments"
+    argument = f"@{response}"
+    result = subprocess.run(
+        [str(ROOT / "scripts/clang-linker.sh"), argument],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{commands}:{os.environ['PATH']}",
+            "CLANG_ARGUMENTS": str(recording),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert recording.read_text(encoding="utf-8").splitlines() == [argument]
+    assert not (tmp_path / "SHOULD_NOT_EXIST").exists()

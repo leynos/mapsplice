@@ -20,7 +20,11 @@ from mapsplice_codescene_api import (
     parse_http_response,
     response_object,
 )
-from mapsplice_codescene_models import EnvironmentProtection, VerificationError
+from mapsplice_codescene_models import (
+    EnvironmentProtection,
+    VerificationError,
+    failure_context,
+)
 from mapsplice_codescene_policies import policies, verify_environment_policy
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
@@ -45,9 +49,19 @@ def gh_fetch(endpoint: str) -> ApiResponse:
             timeout=30,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired) as error:
+    except subprocess.TimeoutExpired as error:
         raise VerificationError(
-            "api-unavailable", "GitHub API request did not complete"
+            "api-unavailable", "GitHub API request did not complete", failure_kind="timeout"
+        ) from error
+    except OSError as error:
+        raise VerificationError(
+            "api-unavailable",
+            "GitHub API request did not complete",
+            failure_kind="process_launch",
+        ) from error
+    except UnicodeDecodeError as error:
+        raise VerificationError(
+            "api-unavailable", "GitHub API request did not complete", failure_kind="decode"
         ) from error
     # In particular, never include stderr: gh can print account details or a
     # server-supplied message that is not suitable for an audit log.
@@ -97,17 +111,23 @@ def _verify_environment_unchanged(
 
 def verify_environment(repo: str, fetch: Fetch) -> tuple[int, str, str]:
     """Prove one protected environment and exactly one main branch policy."""
-    _validate_repository_name(repo)
+    with failure_context("repository"):
+        _validate_repository_name(repo)
     environment_endpoint = f"repos/{repo}/environments/codescene"
-    original = environment(fetch(environment_endpoint))
-    verify_environment_policy(original)
-    identifier = _repository_identifier(repo, fetch)
+    with failure_context("environment"):
+        original = environment(fetch(environment_endpoint))
+        verify_environment_policy(original)
+    with failure_context("repository"):
+        identifier = _repository_identifier(repo, fetch)
     # GitHub canonicalizes pagination links to its immutable repository ID route.
     branch_endpoint = (
         f"repositories/{identifier}/environments/codescene/deployment-branch-policies"
     )
-    policy = policies(deployment_policies(branch_endpoint, fetch))
-    _verify_environment_unchanged(environment_endpoint, original, fetch)
+    collection = deployment_policies(branch_endpoint, fetch)
+    with failure_context("policy_page", page=1):
+        policy = policies(collection)
+    with failure_context("environment_readback"):
+        _verify_environment_unchanged(environment_endpoint, original, fetch)
     return policy
 
 
@@ -119,7 +139,13 @@ def main(argv: list[str] | None = None, fetch: Fetch = gh_fetch) -> int:
     try:
         verify_environment(args.repo, fetch)
     except VerificationError as error:
-        print(f"codescene environment: {error.code}: {error}", file=sys.stderr)
+        context = [f"operation={error.operation}"] if error.operation else []
+        if error.page is not None:
+            context.append(f"page={error.page}")
+        if error.failure_kind is not None:
+            context.append(f"failure_kind={error.failure_kind}")
+        suffix = f" ({' '.join(context)})" if context else ""
+        print(f"codescene environment: {error.code}: {error}{suffix}", file=sys.stderr)
         return 1
     print("codescene environment: verified main-only deployment branch policy")
     return 0

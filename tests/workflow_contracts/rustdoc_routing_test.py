@@ -9,13 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from build_standard_routing_test import (
-    ROOT,
+from build_route_probe import (
     RouteInvocation,
     execute_make_route,
     parse_invocations,
     route_for,
 )
+
+from build_standard_test import ROOT
 
 
 REQUIRED_RUSTDOC_FLAGS = ("--cfg", "docsrs", "-D", "warnings")

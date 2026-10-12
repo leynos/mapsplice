@@ -2,19 +2,44 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Literal
 
 PAGE_SIZE = 100
 MAX_PAGES = 100
 
 
+AuditOperation = Literal[
+    "environment", "repository", "policy_page", "policy_readback", "environment_readback"
+]
+FailureKind = Literal["timeout", "process_launch", "decode"]
+
+
 class VerificationError(Exception):
     """Report one bounded reason why CodeScene protection cannot be proved."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(
+        self, code: str, message: str, *, failure_kind: FailureKind | None = None
+    ) -> None:
         super().__init__(message)
         self.code = code
+        self.failure_kind = failure_kind
+        self.operation: AuditOperation | None = None
+        self.page: int | None = None
+
+
+@contextmanager
+def failure_context(operation: AuditOperation, page: int | None = None) -> Iterator[None]:
+    """Attach trusted stage metadata to an audit failure without copying API values."""
+    try:
+        yield
+    except VerificationError as error:
+        if error.operation is None:
+            error.operation = operation
+            error.page = page
+        raise
 
 
 @dataclass(frozen=True)

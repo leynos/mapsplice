@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
 from copy import deepcopy
 
 import pytest
+from hypothesis import example, given, strategies as st
 from coverage_contract import parse_workflow, pr_reachable, read_workflows, validate
 
 
@@ -246,3 +248,80 @@ def test_pr_closure_follows_workflow_run_chain() -> None:
     )
     with pytest.raises(AssertionError, match="PR-reachable CodeScene"):
         validate(workflows)
+
+
+WorkflowGraph = tuple[int, set[int], set[tuple[int, int, bool]]]
+
+
+@st.composite
+def workflow_graphs(draw: st.DrawFn) -> WorkflowGraph:
+    """Generate arbitrary bounded mixed-edge graphs with at least one PR root."""
+    count = draw(st.integers(min_value=1, max_value=8))
+    node = st.integers(min_value=0, max_value=count - 1)
+    roots = draw(st.sets(node, min_size=1))
+    edges = draw(st.sets(st.tuples(node, node, st.booleans()), max_size=32))
+    return count, roots, edges
+
+
+def _graph_triggers(
+    node: int, roots: set[int], edges: set[tuple[int, int, bool]]
+) -> dict[str, object]:
+    """Encode PR roots and completion-edge sources in one workflow's triggers."""
+    triggers: dict[str, object] = {"workflow_call": None}
+    if node in roots:
+        triggers["pull_request" if node % 2 else "pull_request_target"] = None
+    sources = sorted(
+        source for source, target, local in edges if target == node and not local
+    )
+    if sources:
+        triggers["workflow_run"] = {"workflows": [f"Workflow {i}" for i in sources]}
+    return triggers
+
+
+def _graph_jobs(node: int, edges: set[tuple[int, int, bool]]) -> dict[str, object]:
+    """Encode outgoing local-call edges as jobs beside the placeholder job."""
+    jobs: dict[str, object] = {"placeholder": {"steps": []}}
+    for source, target, local in sorted(edges):
+        if source == node and local:
+            jobs[f"call-{target}"] = {"uses": f"./.github/workflows/{target}.yml"}
+    return jobs
+
+
+def _graph_workflows(graph: WorkflowGraph) -> WorkflowSet:
+    """Assemble workflows from independently encoded triggers and call jobs."""
+    count, roots, edges = graph
+    return {
+        f"{node}.yml": {
+            "name": f"Workflow {node}",
+            "on": _graph_triggers(node, roots, edges),
+            "jobs": _graph_jobs(node, edges),
+        }
+        for node in range(count)
+    }
+
+
+def _reference_reachable(graph: WorkflowGraph) -> set[str]:
+    """Traverse the original edge list with a queue, independently of YAML parsing."""
+    _, roots, edges = graph
+    queue = deque(roots)
+    visited: set[int] = set()
+    while queue:
+        node = queue.popleft()
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(target for source, target, _ in edges if source == node)
+    return {f"{node}.yml" for node in visited}
+
+
+@given(graph=workflow_graphs())
+@example(
+    graph=(
+        6,
+        {0, 4},
+        {(0, 1, True), (0, 2, False), (1, 3, False), (3, 0, True), (4, 5, False)},
+    )
+)
+def test_pr_reachability_matches_independent_graph_traversal(graph: WorkflowGraph) -> None:
+    """Branches, cycles, mixed edge kinds and multiple roots obey graph reachability."""
+    assert pr_reachable(_graph_workflows(graph)) == _reference_reachable(graph)

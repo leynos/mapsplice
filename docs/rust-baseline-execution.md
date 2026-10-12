@@ -171,10 +171,12 @@ made. Upgrading `mdtablefix` to 0.6.1 exposed four added and five removed lines
 in this ledger under `check-fmt`; `make fmt` corrected the ledger formatting.
 The implementation gates above remain valid for `ec4a0d8`; final gates are
 rerunning and precede publication. This checkpoint makes no claim of PR
-readiness or merge readiness. The dated checkpoints below are historical
-snapshots; their earlier statements about the environment being absent, the
-identity check being blocked, and spelling dependency resolution failing are
-superseded by this checkpoint where noted.
+readiness or merge readiness. It records the state observed on 2026-10-03. The
+ledger also includes later dated checkpoints; compare each checkpoint's date
+and named head, and use the latest exact-head evidence for subsequent state.
+Earlier snapshots remain historical, including statements about the environment
+being absent, the identity check being blocked, and spelling dependency
+resolution failing; later observations supersede them where noted.
 
 ## PR #116 review repair checkpoint: 2026-10-02
 
@@ -1225,3 +1227,31 @@ Owner prerequisites remain the approved canonical Rust `disallowed_methods`
 policy and metadata for the environment-only `CS_ACCESS_TOKEN` and intended
 CodeScene project mapping. The first protected-main coverage upload is a
 separate post-merge verification.
+
+### 2026-10-12: Candidate validation and blocker readback
+
+The local candidate is based on `5116ce1cd1043e1f482673016932f9aea94df4c3` and
+published parent head `783d238e75a735304400ccd77b779323f3080266`. Its worktree
+diff SHA-256 is
+`1b8bb27ff73211a08417229c15f1471ac4b939ed27a2d415c404860461b22d7b`. All
+sequential local gates passed on this exact diff: `make install-build-tools`,
+`make check-build-tools`, `make check-fmt`, `make lint`, `make typecheck`,
+`make test` (445 tests and 12 doctests passed; two ignored),
+`make markdownlint`, `make spelling`, `make nixie`,
+`make test-workflow-contracts` (250 passed), `mbake validate Makefile`,
+ShellCheck, CodeScene delta (improvements and no new issues), and diff check.
+The managed sccache-unreachable fallback and terminal-colour environment notice
+were informational; no tests failed.
+
+This candidate is unpushed. Hosted CI is green only for the older published head
+`783d238e75a735304400ccd77b779323f3080266`. The formal review decision
+`CHANGES_REQUESTED` and six unresolved threads also apply to that older head;
+no current-head review exists for this local diff.
+
+Current owner-admin readback: the `codescene` environment is ID `23322168720`,
+with exactly one `main` branch policy. Its environment secret inventory and the
+repository Actions secret inventory are empty. The organization secret
+inventory endpoint returned 404, which is inconclusive. CodeScene project
+mapping is unavailable, and no approved Concordat Rust `disallowed_methods`
+policy was found. These documented owner prerequisites still block merge. The
+first main coverage publication remains post-merge verification.

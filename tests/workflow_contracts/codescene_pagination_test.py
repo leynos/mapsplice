@@ -311,6 +311,8 @@ def test_generated_malformed_pagination_histories_fail_closed(
         adapter.deployment_policies(POLICIES, fetch)
 
     assert caught.value.code == FAULT_CODES[case.fault]
+    assert caught.value.operation == "policy_page"
+    assert caught.value.page == case.fault_page
     assert calls == list(range(1, case.fault_page + 1))
 
 
@@ -336,3 +338,18 @@ def test_adapter_rejects_malformed_policy_mapping(item: object) -> None:
     with pytest.raises(VerificationError) as caught:
         adapter.deployment_policy_page(_response([item], 1), POLICIES, 1)
     assert caught.value.code == "policy-shape"
+
+
+def test_page_two_failure_retains_the_requested_page_context() -> None:
+    """Collector context must retain page two rather than replacing it with readback."""
+    responses = _complete_history(101)
+    responses[2] = _response([], 101)
+    fetch, calls = _paged_fetch(responses)
+
+    with pytest.raises(VerificationError) as caught:
+        adapter.deployment_policies(POLICIES, fetch)
+
+    assert caught.value.code == "policy-count"
+    assert caught.value.operation == "policy_page"
+    assert caught.value.page == 2
+    assert calls == [1, 2]

@@ -237,34 +237,42 @@ silently choose the wrong linker route.
 flowchart TD
     accTitle: Mapsplice compiler flag and linker routes
     accDescr {
-        Development uses Cargo defaults or Make's composed flags with the parallel frontend.
-        Supported Linux targets use mold. Coverage, release, and Whitaker use separate LLVM routes
-        without development frontend or mold flags.
+        Bare Cargo and Make development gates follow separate flag routes.
+        Supported Linux triples use target-aware Clang wrappers and pinned mold.
+        Bare Cargo on other Linux triples keeps the Cargo mold flag without a pinned wrapper.
+        Make routes use the platform linker for unsupported triples; coverage, release,
+        and Whitaker use separate LLVM routes without development frontend or mold flags.
     }
-    Start[Build or test command] --> Assigned{Explicit flags assigned?}
-    Assigned -->|No| Config[Cargo config defaults]
-    Assigned -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
-    Assigned -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
-    Assigned -->|Release| Release[LLVM release profile and warning flags]
-    Assigned -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
-    Config --> Fast[Parallel rustc frontend]
-    Compose --> Fast
-    Fast --> Linux{Supported Linux target?}
-    Linux -->|Yes| Mold[Use clang and pinned mold]
-    Linux -->|No| Platform[Use platform linker]
+    Start[Build or test command] --> Route{Selected route?}
+    Route -->|Bare Cargo| Config[Cargo config defaults]
+    Route -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
+    Route -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
+    Route -->|Release| Release[LLVM release profile and warning flags]
+    Route -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
+    Config --> CargoLinux{Linux target?}
+    CargoLinux -->|No| Platform[Use platform linker]
+    CargoLinux -->|Yes| CargoTriple{Supported Linux triple?}
+    CargoTriple -->|Yes| Mold[Use target-aware clang wrapper and pinned mold]
+    CargoTriple -->|No| Unsupported["Cargo mold flag; no pinned clang wrapper"]
+    Compose --> MakeTriple{Supported Linux triple?}
+    MakeTriple -->|Yes| Mold
+    MakeTriple -->|No| Platform
     Coverage --> Platform
     Release --> Platform
     Whitaker --> Platform
 ```
 
-*Figure 1. Compiler flag routing for Mapsplice. Bare development commands use
-Cargo defaults; Make development gates compose warning and policy flags with
-the parallel frontend flags. The supported Linux targets are
-`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, which use `clang`
-and pinned `mold`; other targets use their platform linker. Coverage, release,
-and Whitaker use LLVM without the development frontend or `mold` flags. Release
-uses the pinned nightly Cargo, while Whitaker uses its installer-managed
-toolchain.*
+*Figure 1. Compiler flag routing for Mapsplice. Bare Cargo commands use the
+repository's Cargo defaults; Make development gates compose warning and policy
+flags with the parallel frontend. The supported Linux targets are
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, which use
+target-aware `clang` wrappers and pinned `mold`. Cargo's Linux configuration
+also adds the `-fuse-ld=mold` argument for other Linux targets, but those
+targets do not have the pinned Clang wrapper and are not a supported bare-Cargo
+route. Make selects the `mold` route only for supported Linux targets; its
+other targets use the platform linker. Coverage, release, and Whitaker use LLVM
+without the development frontend or `mold` flags. Release uses the pinned
+nightly Cargo, while Whitaker uses its installer-managed toolchain.*
 
 Make also filters development-owned arguments from inherited
 `CARGO_ENCODED_RUSTFLAGS` before composing each route, preserving other caller
