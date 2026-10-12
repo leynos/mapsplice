@@ -153,6 +153,72 @@ fn a_grouped_or_aliased_infrastructure_import_is_rejected() -> TestResult {
 }
 
 #[test]
+fn a_nested_brace_group_does_not_hide_an_infrastructure_import() -> TestResult {
+    // The third defeat of the same approach, and the one that shows why it was
+    // abandoned rather than patched again. A group matcher that reads to the
+    // *first* closing brace stops inside `fmt::{self, Display}` and never sees
+    // the `fs` after it, while the declaration shape needs the name adjacent to
+    // the root and the qualified shape needs the alias `files::read` to spell a
+    // known module. All three miss, and this file is written to the domain with
+    // the gate reporting success.
+    //
+    // The remedy is a production file, not a fragment, because that is what the
+    // scan actually reads: a fragment would prove the pattern matches a string
+    // rather than that the gate rejects a file.
+    assert_rejected(
+        "render.rs",
+        concat!(
+            "use std::{fmt::{self, Display}, fs as files};\n",
+            "\n",
+            "pub fn render(text: &str) -> Result<String, fmt::Error> {\n",
+            "    let _ = files::read(\"AGENTS.md\");\n",
+            "    Ok(text.into())\n",
+            "}\n",
+        ),
+    )?;
+    // Deeper nesting is the same defect one level down, so it is asserted
+    // rather than assumed: a fix that only counted one brace would pass the
+    // case above and fail this one.
+    assert_rejected("render.rs", "use std::{fmt::{self::{a, b}, D}, net};\n")?;
+    // An inner brace whose *root* is the infrastructure, so the name is
+    // followed by `::` rather than by its own terminator.
+    assert_rejected("render.rs", "use std::{fmt::Debug, fs::{self, File}};\n")
+}
+
+#[test]
+fn an_infrastructure_import_that_spans_lines_is_rejected() -> TestResult {
+    // `src/roadmap/render.rs` really does hold a `use` that spans lines, so a
+    // line-at-a-time scan cannot see where the statement ends and misses the
+    // multi-line spelling of every shape above. This case is what makes the
+    // scan's `--multiline` flag load-bearing rather than incidental: with the
+    // flag removed, this test fails and the others still pass.
+    assert_rejected(
+        "render.rs",
+        concat!(
+            "use std::{\n",
+            "    fmt::{self, Display},\n",
+            "    fs as files,\n",
+            "};\n",
+            "\n",
+            "pub fn render(text: &str) -> Result<String, fmt::Error> {\n",
+            "    Ok(text.into())\n",
+            "}\n",
+        ),
+    )?;
+    // A nested pair that is *not* infrastructure must still be accepted across
+    // lines, so the flag widens the pattern's reach without widening its rule.
+    assert_accepted(
+        "render.rs",
+        concat!(
+            "use std::{\n",
+            "    fmt::{self, Display},\n",
+            "    collections::HashMap,\n",
+            "};\n",
+        ),
+    )
+}
+
+#[test]
 fn the_root_of_an_infrastructure_import_is_not_what_matters() -> TestResult {
     // The offence is reaching the filesystem, not spelling the crate root one
     // way. A rule that only knew `std::` would let the crate-rooted form land.

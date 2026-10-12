@@ -629,6 +629,65 @@ Constraints confirmed by experiment:
     The reply is queued as `4877ca11` and a fresh review follows as `ec0d21cf`,
     so the reply posts first, as in round 8.
 
+11. Round 10: one finding, live, and it is the same gate a third time.
+    **Fixed; gates and reply pending.**
+
+    Submission `5329826766` (`CHANGES_REQUESTED` on `d41c3d04`) carries one
+    inline comment, `4114898863` at `scripts/check-domain-purity.sh:71`, and it
+    is correct:
+
+    - The `grouped` alternative reads to the *first* closing brace, so
+      `use std::{fmt::{self, Display}, fs as files};` stops it inside
+      `fmt::{self, Display}` and the `fs` after that inner brace is never
+      examined. The `declaration` alternative needs the name adjacent to the
+      root, and the later `files::read(..)` call is an alias, so `qualified`
+      cannot see it either. Three alternatives, three misses, exit 0 on a probe
+      that reads the filesystem from the domain. **Confirmed by experiment**:
+      the probe tree exits 0 while both controls exit 1.
+
+    The finding is the third defeat of the same design, and that is the part
+    worth recording. Round 9 found the brace group at all and the fix was a
+    third *alternative*; round 10 found nesting inside it. Each patch added a
+    shape, and each was defeated by a shape it had not enumerated — because a
+    `use` tree's braces nest arbitrarily, so no finite list of alternations can
+    cover them. Measured rather than argued: a "one brace deeper" matcher was
+    written and misses *both* the round-10 case and the
+    `use std::{fmt::{self::{a, b}, D}, net};` case, so the obvious next patch
+    would have bought one round and not the property.
+
+    The remedy is therefore structural rather than incremental. `declaration`
+    and `grouped` are replaced by a single `import` alternative that does not
+    model braces at all: it asks whether the infrastructure name appears in a
+    `use` statement as a whole path segment, guarded on both sides so that
+    `fs_helpers`, `paths`, `processes`, `ion`, `netsplit`, `env_vars` and
+    `threads` are not segments. Nesting depth, aliasing, member order, and root
+    spelling stop being inputs, because none of them is represented. The
+    pattern is root-agnostic, so `use foo::fs;` now matches — the same breadth
+    `qualified` has had all along, where `crate::roadmap::path::Route` matches
+    on the `path` segment; the gate is name-based rather than resolution-based,
+    which is the conservative direction and is now recorded as a known limit.
+
+    A second hole, found while fixing the first and not named by the review:
+    the scan ran line-at-a-time, so it could not see a `use` that spans lines,
+    and `src/roadmap/render.rs` has one. A multiline probe is caught under
+    `rg -U --multiline` and missed in line mode, so the flag is load-bearing
+    and is now asserted by a test that fails without it.
+
+    Evidence, all measured rather than reasoned: the rewritten alternative
+    passes 21/21 positives (including the round-10 nested form, double nesting,
+    infrastructure as an inner brace root, and four multi-line spellings) and
+    15/15 negatives, run under ripgrep's own engine rather than `grep`. A
+    differential against the superseded pattern found one case the old
+    alternative covered that the new one did not — a `use` whose terminator is
+    on a later line, which the old trailing `|$` admitted — and the terminator
+    group was widened to cover it: on 1,287 real files, the corpus-wide match
+    sets are identical, so the widening costs nothing measurable. The real
+    production tree is clean in both modes. `shellcheck` passes.
+
+    A third question was settled by experiment rather than assumption: `$` in
+    ripgrep's multiline mode anchors to the end of a *line*, not the end of the
+    haystack, which is what the terminator group needs.
+
 ## Lessons
 
 - **A local gate run can be vacuous about a later step in the same target.** An
@@ -1016,6 +1075,35 @@ Constraints confirmed by experiment:
   findings — a real review, on a superseded commit, with nothing to reconcile.
   Enumerate surfaces, then classify each one; a surface's existence is not
   evidence of coverage, and its absence is not evidence of a gap.
+- **When the same shape is defeated repeatedly, the shape is the defect.** The
+  domain-purity gate's grouped-import hole was found in round 9, patched with a
+  third alternative, and found again in round 10 — one level deeper, where an
+  inner brace stopped the matcher short. Had it been patched a third time the
+  same way, the next nesting would have defeated it again, because a `use`
+  tree's braces nest arbitrarily and a list of alternations is finite. The
+  signal was not the second instance; it was that the second instance was the
+  *same* instance, at a different depth. The fix that holds asks the question
+  the enumeration was standing in for — is the infrastructure name a path
+  segment inside this statement — and represents none of the structure that
+  kept being miscounted. Reaching for it was cheaper than the third patch, and
+  the measurement that settled it was two lines long: a one-brace-deeper
+  matcher misses both the known case and the next one, so the property was
+  never going to come from widening the pattern.
+- **An anchor can mean end-of-line or end-of-input, and the difference is a
+  silent one.** The terminator in the rewritten import shape needs `$` to
+  accept a `use` whose end is not on the same line as the name it matches.
+  Measured rather than assumed: under `rg -U --multiline`, `$` anchors to the
+  end of a line, not the end of the haystack. The two readings differ only for
+  the inputs this branch added — which is exactly the case where a wrong
+  assumption would have produced a passing test suite and a gate that misses
+  half its shapes.
+- **A multiline-capable matcher must be run by a multiline-capable scan.** The
+  rewritten import pattern is correct in either mode; the *scan* was not. It
+  read one line at a time, so a `use` spanning lines could never be seen whole
+  and the multi-line spelling of every shape the pattern knows was invisible.
+  The repository already contains such a `use` in `src/roadmap/render.rs`. A
+  pattern's correctness and the scan's reach are separate claims, and only the
+  first had been checked.
 
 ## Constraints that must hold
 

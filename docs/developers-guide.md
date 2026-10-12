@@ -245,10 +245,19 @@ variable, or walks the filesystem belongs to an adapter that calls the domain,
 never to the domain itself. Filesystem access lives in `src/fs.rs`. The gate
 scans the production sources under `src/roadmap` and fails if any of them names
 infrastructure — `fs`, `path`, `io`, `process`, `env`, `net`, or `thread` —
-through a `use` declaration, a grouped import, a qualified module path, a
-process call, or a build-time macro such as `env!` or `include_str!`. The rule
-matters because nothing in the compiler enforces it: the resolved kernel is
-spliced with a macro, and the obvious way to locate a file for `include!` is
+through an import, a qualified module path, a process call, or a build-time
+macro such as `env!` or `include_str!`. The import shape does not model brace
+groups: it asks whether the infrastructure name appears in a `use` statement as
+a whole path segment, so no amount of nesting, aliasing, or member reordering
+hides it. An earlier revision modelled the grammar with one alternative per
+shape and was defeated three times — by `use std::{fs}`, then by
+`use std::{fs as files}` (whose alias also hid the call site), and then by
+`use std::{fmt::{self, Display}, fs as files}`, where an inner brace stopped
+the group alternative short of the `fs`. The scan runs under ripgrep's
+`--multiline` because a real `use` in `src/roadmap` spans lines, and a
+line-at-a-time scan cannot see where such a statement ends. The rule matters
+because nothing in the compiler enforces it: the resolved kernel is spliced
+with a macro, and the obvious way to locate a file for `include!` is
 `env!("CARGO_MANIFEST_DIR")`, which an earlier revision of this repository did.
 
 Test files are exempt by name, since `src/roadmap/render_tests.rs` drives the

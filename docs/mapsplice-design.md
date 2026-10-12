@@ -88,16 +88,20 @@ roadmap domain owns the Markdown model, the splice, and the rendering; whatever
 reads a file, reads an environment variable, or walks the filesystem belongs to
 an adapter that calls the domain. Filesystem access lives in `src/fs.rs`, and
 `make check-domain-purity` fails `make lint` if a production source under
-`src/roadmap` names infrastructure — through a `use` declaration, a grouped
-import, a qualified path, a process call, or a build-time macro. The rule needs
-a gate because nothing in the compiler enforces it, and the temptation is
-concrete: the resolved kernel is spliced with a macro, and the obvious way to
-locate a file for `include!` is `env!("CARGO_MANIFEST_DIR")`. That construction
-also runs the dependency the other way — from the domain to verification
-infrastructure — which is why the shared kernel body is included *from* the
-domain-owned source by both the production `const fn` and the proof in
-`verus/lib.rs`, rather than the reverse. The gate and the roadmap proof
-boundary are described in [developers-guide.md](developers-guide.md) and
+`src/roadmap` names infrastructure — through an import, a qualified path, a
+process call, or a build-time macro. The import shape matches the
+infrastructure name as a whole path segment rather than modelling the brace
+grammar of a `use` tree, so nested groups such as
+`use std::{fmt::{self, Display}, fs as files};` are caught where a
+shape-per-form matcher was defeated three times. The rule needs a gate because
+nothing in the compiler enforces it, and the temptation is concrete: the
+resolved kernel is spliced with a macro, and the obvious way to locate a file
+for `include!` is `env!("CARGO_MANIFEST_DIR")`. That construction also runs the
+dependency the other way — from the domain to verification infrastructure —
+which is why the shared kernel body is included *from* the domain-owned source
+by both the production `const fn` and the proof in `verus/lib.rs`, rather than
+the reverse. The gate and the roadmap proof boundary are described in
+[developers-guide.md](developers-guide.md) and
 [verification.md](verification.md).
 
 ## 4. The roadmap grammar (normative reference)

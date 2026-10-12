@@ -15,14 +15,45 @@
 # An earlier revision of this repository did exactly that, which is why the
 # check is a gate rather than a note in a style guide.
 #
-# Three shapes are matched. A `use` declaration is line-anchored and its root is
-# spelled out, so `use crate::fs;` is caught alongside `use std::fs;` — the
-# point is the dependency on infrastructure, not on which root names it. A
-# grouped import is matched by the same principle across the brace, so
-# `use std::{fs as files};` is caught even though neither the bare name nor the
-# alias used at the call site appears in the shape a plain `use` has. A module
-# path or call is matched wherever it appears, so a path qualified in place
-# rather than imported is caught too.
+# Four shapes are matched, and the import shape is deliberately structural
+# rather than a model of Rust's use-tree grammar. An earlier revision modelled
+# that grammar — one alternative for a plain declaration, another for a brace
+# group — and the model was defeated three times by forms it did not enumerate:
+# first `use std::{fs};`, then `use std::{fs as files};` (the alias hid the call
+# site from the module-path alternative too), and then
+# `use std::{fmt::{self, Display}, fs as files};`, where an *inner* brace made
+# the group alternative's single `\{[^}]*` run stop before `fs`. Each fix added
+# an alternative and each was defeated again, because every brace group is a
+# fresh opportunity to nest.
+#
+# So the import shape no longer models braces at all. It asks only whether the
+# infrastructure name appears in a `use` statement as a whole path segment, and
+# whether that statement is still open — the name is guarded on both sides
+# (`(^|[^alnum_])` before, `(::|[,;}]|$)` after) so a longer identifier such as
+# `fs_helpers`, `paths`, `processes`, or `env_vars` is not a segment and does
+# not match. Nesting depth, aliasing, member order, and the root spelling all
+# stop mattering, because none of them is represented. The shape is also
+# root-agnostic, so `use crate::fs;` is caught alongside `use std::fs;`: the
+# dependency is on infrastructure, not on which root names it.
+#
+# Matching is not anchored to the crate root, so `use foo::fs;` also matches. That
+# is the same breadth the `qualified` alternative already has, where
+# `crate::roadmap::path::Route` matches on the `path` segment without knowing
+# where the road map keeps its own modules. The gate is therefore name-based
+# rather than resolution-based, which is the conservative direction and the
+# price of not modelling: `src/roadmap` defines no module named after an
+# infrastructure crate today, so nothing legitimate is caught today, but a
+# future roadmap module that shadowed one of those names would be. That is
+# recorded as a known limit rather than left implicit.
+#
+# A module path or call is matched wherever it appears, so a path qualified in
+# place rather than imported is caught too.
+#
+# The scan runs under `--multiline`. A real `use` may span lines —
+# `src/roadmap/render.rs` has one — so a line-at-a-time scan cannot see the
+# terminator that separates a member list from the next statement, and would
+# miss the multi-line spelling of every shape above. `^` then anchors to the
+# start of a line rather than of the file, which is the intent.
 #
 # Like the verification-ledger check, this is necessary rather than sufficient.
 # Matching is textual, so a name surviving only in a doc comment triggers it: a
@@ -60,20 +91,18 @@ fi
 infrastructure='fs|path|io|process|env|net|thread'
 
 visibility='(pub(\([^)]*\))?[[:space:]]+)?'
-declaration="^[[:space:]]*${visibility}use[[:space:]]+(::)?((crate|std|alloc|core|self|super)::)*(${infrastructure})(::|[[:space:];]|$)"
-# A grouped import names its paths inside braces, so the root is not adjacent to
-# the `use`: `use std::{fs as files};` hides `fs` behind a brace and an alias,
-# and the call site then reads `files::read(..)`, which `qualified` cannot see
-# either. The leading group is optional so that the first brace member matches
-# as `use std::{fs}`, and the trailing delimiter admits `,` for a member that is
-# followed by others. Neither needs the alias to be recognised: importing the
-# infrastructure at all is the violation, whatever the local name becomes.
-grouped="^[[:space:]]*${visibility}use[[:space:]]+(::)?((crate|std|alloc|core|self|super)::)*[^;]*\{([^}]*[^[:alnum:]_])?(${infrastructure})([[:space:]]+as[[:space:]]+[[:alnum:]_]+)?[[:space:]]*[,}]"
+# The infrastructure name as a whole path segment anywhere inside an open `use`
+# statement. The leading optional group consumes any prefix without reaching the
+# name's own leading character, so the preceding guard sees a real boundary; the
+# optional alias absorbs `fs as files`; the trailing group is the terminator,
+# either a further segment (`fs::read`) or the end of the statement, where `$`
+# covers a `use` whose terminator is not on the same line as the name.
+import="^[[:space:]]*${visibility}use([^;]*[^[:alnum:]_])?(${infrastructure})([[:space:]]+as[[:space:]]+[[:alnum:]_]+)?[[:space:]]*(::([[:space:]]*[,;}])?|[,;}]|\$)"
 qualified="(^|[^[:alnum:]_])(std::|crate::|self::|super::)?(${infrastructure})::"
 build_time='include_str!|include_bytes!|option_env!|(^|[^[:alnum:]_])env!'
 process_calls='(^|[^[:alnum:]_])(current_dir|current_exe|std::env::args)[[:space:]]*\('
 
-pattern="${declaration}|${grouped}|${qualified}|${build_time}|${process_calls}"
+pattern="${import}|${qualified}|${build_time}|${process_calls}"
 
 production_scanned="$("${rg_cmd[@]}" --files \
     --glob '*.rs' --glob '!*_tests.rs' "${domain_dir}" | wc -l | tr -d '[:space:]')"
@@ -83,9 +112,18 @@ if [[ "${production_scanned}" -eq 0 ]]; then
 fi
 
 status=0
-findings="$("${rg_cmd[@]}" --line-number --no-heading --color never \
+# `-U --multiline` lets the import shape see a `use` statement that spans lines.
+# The scan is captured before any formatting so that the exit status read below
+# is ripgrep's own, rather than whichever command a pipeline happened to end
+# with.
+matched="$("${rg_cmd[@]}" -U --multiline --line-number --no-heading --color never \
     --glob '*.rs' --glob '!*_tests.rs' \
     -e "${pattern}" "${domain_dir}")" || status=$?
+
+# A multiline match may itself span lines, and ripgrep then prints only the
+# first, so the remainder is trimmed rather than left as a half-printed
+# fragment. A file and a line number are all a reader needs to open the finding.
+findings="$(printf '%s' "${matched}" | sed -E 's/^([^:]+:[0-9]+):.*/\1/')"
 case "${status}" in
     0)
         printf '%s\n' "${findings}" >&2
