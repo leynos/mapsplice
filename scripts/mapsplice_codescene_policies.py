@@ -25,21 +25,49 @@ class _PolicyPages:
     identifiers: set[int] = field(default_factory=set)
 
 
-def _policy_identity(item: object) -> tuple[int, str, str]:
+@dataclass(frozen=True)
+class _PolicyPage:
+    number: int
+    page_count: int
+    total: int
+    seen_count: int
+    items: list[object]
+    links: dict[str, int]
+
+
+def _policy_mapping(item: object) -> dict[object, object]:
     if not isinstance(item, dict):
         raise VerificationError(
             "policy-shape", "deployment branch policy entry is malformed"
         )
-    identifier, name, kind = item.get("id"), item.get("name"), item.get("type")
-    if (
-        type(identifier) is not int
-        or identifier < 1
-        or not isinstance(name, str)
-        or not isinstance(kind, str)
-    ):
+    return item
+
+
+def _policy_identifier(value: object) -> int:
+    if type(value) is not int:
         raise VerificationError(
             "policy-shape", "deployment branch policy identity is incomplete"
         )
+    if value < 1:
+        raise VerificationError(
+            "policy-shape", "deployment branch policy identity is incomplete"
+        )
+    return value
+
+
+def _policy_text(value: object) -> str:
+    if not isinstance(value, str):
+        raise VerificationError(
+            "policy-shape", "deployment branch policy identity is incomplete"
+        )
+    return value
+
+
+def _policy_identity(item: object) -> tuple[int, str, str]:
+    policy = _policy_mapping(item)
+    identifier = _policy_identifier(policy.get("id"))
+    name = _policy_text(policy.get("name"))
+    kind = _policy_text(policy.get("type"))
     return identifier, name, kind
 
 
@@ -83,38 +111,56 @@ def _validate_link_order(
             )
 
 
-def _validate_policy_page(
-    current_page: int,
-    page_count: int,
-    total: int,
-    seen_count: int,
-    items: list[object],
-    page_links: dict[str, int],
-) -> bool:
-    if current_page > page_count:
-        if items or page_links.get("next") is not None:
-            raise VerificationError(
-                "policy-count", "deployment branch policy sentinel is not empty"
-            )
-        return True
-    expected_items = min(PAGE_SIZE, total - seen_count)
-    if len(items) != expected_items:
+def _is_sentinel(page_state: _PolicyPage) -> bool:
+    return page_state.number > page_state.page_count
+
+
+def _validate_sentinel(page_state: _PolicyPage) -> None:
+    if page_state.items:
+        raise VerificationError(
+            "policy-count", "deployment branch policy sentinel is not empty"
+        )
+    if page_state.links.get("next") is not None:
+        raise VerificationError(
+            "policy-count", "deployment branch policy sentinel is not empty"
+        )
+
+
+def _validate_page_item_count(page_state: _PolicyPage) -> None:
+    expected_items = min(PAGE_SIZE, page_state.total - page_state.seen_count)
+    if len(page_state.items) != expected_items:
         raise VerificationError(
             "policy-count", "deployment branch policy page is incomplete"
         )
-    if current_page < page_count:
-        if (
-            page_links.get("next") != current_page + 1
-            or page_links.get("last") != page_count
-        ):
-            raise VerificationError(
-                "pagination-link",
-                "deployment branch policy next/last page is unproved",
-            )
-    elif page_links.get("next") is not None:
+
+
+def _validate_intermediate_page_links(page_state: _PolicyPage) -> None:
+    if page_state.links.get("next") != page_state.number + 1:
+        raise VerificationError(
+            "pagination-link", "deployment branch policy next/last page is unproved"
+        )
+    if page_state.links.get("last") != page_state.page_count:
+        raise VerificationError(
+            "pagination-link", "deployment branch policy next/last page is unproved"
+        )
+
+
+def _validate_final_page_links(page_state: _PolicyPage) -> None:
+    if page_state.links.get("next") is not None:
         raise VerificationError(
             "pagination-cycle", "deployment branch policy Link continues past total"
         )
+
+
+def _validate_policy_page(page_state: _PolicyPage) -> bool:
+    if _is_sentinel(page_state):
+        _validate_sentinel(page_state)
+        return True
+    _validate_page_item_count(page_state)
+    if page_state.number < page_state.page_count:
+        _validate_intermediate_page_links(page_state)
+    else:
+        _validate_final_page_links(page_state)
     return False
 
 
@@ -143,14 +189,10 @@ def _collect_policy_pages(endpoint: str, fetch: Fetch) -> _PolicyPages:
         page_count = state.expected_pages
         assert page_count is not None
         _validate_link_order(page_links, number, page_count)
-        if _validate_policy_page(
-            number,
-            page_count,
-            count,
-            len(state.identities),
-            items,
-            page_links,
-        ):
+        policy_page = _PolicyPage(
+            number, page_count, count, len(state.identities), items, page_links
+        )
+        if _validate_policy_page(policy_page):
             break
         _append_identities(state, items)
     else:

@@ -100,12 +100,31 @@ def parse_http_response(raw: str, returncode: int) -> ApiResponse:
 
 
 def _validate_response_headers(response: ApiResponse) -> None:
-    if not isinstance(response.headers, Mapping) or any(
-        not isinstance(key, str) or not isinstance(value, str)
-        for key, value in response.headers.items()
-    ):
+    headers = response.headers
+    if not isinstance(headers, Mapping):
         raise VerificationError("api-response", "GitHub API headers are malformed")
-    if len({key.lower() for key in response.headers}) != len(response.headers):
+    names = _validated_header_names(headers)
+    _validate_header_values(headers)
+    _validate_unique_header_names(names)
+
+
+def _validated_header_names(headers: Mapping[object, object]) -> list[str]:
+    names = []
+    for key in headers:
+        if not isinstance(key, str):
+            raise VerificationError("api-response", "GitHub API headers are malformed")
+        names.append(key.lower())
+    return names
+
+
+def _validate_header_values(headers: Mapping[object, object]) -> None:
+    for value in headers.values():
+        if not isinstance(value, str):
+            raise VerificationError("api-response", "GitHub API headers are malformed")
+
+
+def _validate_unique_header_names(names: list[str]) -> None:
+    if len(set(names)) != len(names):
         raise VerificationError("api-response", "GitHub API repeats a header")
 
 
@@ -158,7 +177,11 @@ def page(response: ApiResponse) -> tuple[int, list[object]]:
     body = response_object(response, "deployment branch policies")
     count = body.get("total_count")
     items = body.get("branch_policies")
-    if type(count) is not int or count < 0 or not isinstance(items, list):
+    if not _is_non_negative_integer(count):
+        raise VerificationError(
+            "policy-shape", "deployment branch policy count or list is malformed"
+        )
+    if not isinstance(items, list):
         raise VerificationError(
             "policy-shape", "deployment branch policy count or list is malformed"
         )
@@ -167,6 +190,12 @@ def page(response: ApiResponse) -> tuple[int, list[object]]:
             "policy-cap", "deployment branch policy page exceeds 100 entries"
         )
     return count, items
+
+
+def _is_non_negative_integer(value: object) -> bool:
+    if type(value) is not int:
+        return False
+    return value >= 0
 
 
 def _link_relation(part: str) -> tuple[str, str]:
@@ -183,34 +212,67 @@ def _link_relation(part: str) -> tuple[str, str]:
     return relation, match.group("url")
 
 
-def _link_target_page(url_text: str, endpoint: str) -> int:
+def _validated_link_query(url_text: str, endpoint: str) -> str:
     try:
         url = urlsplit(url_text)
     except ValueError:
         raise VerificationError(
             "pagination-link", "deployment branch policy Link URL is malformed"
         ) from None
-    if (
-        url.scheme != "https"
-        or url.netloc != "api.github.com"
-        or url.path != f"/{endpoint}"
-        or url.fragment
-    ):
-        raise VerificationError(
-            "pagination-link", "deployment branch policy Link leaves the API route"
-        )
+    if url.scheme != "https":
+        _raise_link_outside_api_route()
+    if url.netloc != "api.github.com":
+        _raise_link_outside_api_route()
+    if url.path != f"/{endpoint}":
+        _raise_link_outside_api_route()
+    if url.fragment:
+        _raise_link_outside_api_route()
+    return url.query
+
+
+def _raise_link_outside_api_route() -> None:
+    raise VerificationError(
+        "pagination-link", "deployment branch policy Link leaves the API route"
+    )
+
+
+def _link_target_page(url_text: str, endpoint: str) -> int:
+    return _page_number(_validated_link_query(url_text, endpoint))
+
+
+def _invalid_page_query() -> VerificationError:
+    return VerificationError(
+        "pagination-link", "deployment branch policy Link has invalid paging"
+    )
+
+
+def _page_number(query_text: str) -> int:
     try:
-        query = parse_qs(url.query, strict_parsing=True)
-        if set(query) != {"per_page", "page"} or query["per_page"] != [str(PAGE_SIZE)]:
-            raise ValueError
-        pages = query["page"]
-        page_number = int(pages[0])
-        if len(pages) != 1 or page_number < 1:
-            raise ValueError
-    except (ValueError, KeyError) as error:
-        raise VerificationError(
-            "pagination-link", "deployment branch policy Link has invalid paging"
-        ) from error
+        query = parse_qs(query_text, strict_parsing=True)
+    except ValueError as error:
+        raise _invalid_page_query() from error
+    pages = _validated_page_values(query)
+    return _positive_page_number(pages[0])
+
+
+def _validated_page_values(query: dict[str, list[str]]) -> list[str]:
+    if set(query) != {"per_page", "page"}:
+        raise _invalid_page_query()
+    if query["per_page"] != [str(PAGE_SIZE)]:
+        raise _invalid_page_query()
+    pages = query["page"]
+    if len(pages) != 1:
+        raise _invalid_page_query()
+    return pages
+
+
+def _positive_page_number(value: str) -> int:
+    try:
+        page_number = int(value)
+    except ValueError as error:
+        raise _invalid_page_query() from error
+    if page_number < 1:
+        raise _invalid_page_query()
     return page_number
 
 
