@@ -83,17 +83,17 @@ rustup toolchain install nightly-2026-03-26 \
 The checked-in `rust-toolchain.toml` selects this toolchain for commands run in
 the repository.
 
-Install `clang` and `mold` through a system package manager when they are not
-already present:
+On Linux, install `clang` through your system package manager if it is not
+already present. Then run the repository installer:
 
 ```bash
-sudo apt install clang mold
-brew install llvm mold
+make install-build-tools
 ```
 
-For platforms without a packaged `mold`, use the published binaries at
-<https://github.com/rui314/mold/releases>. The full maintainer workflow lives in
-[docs/contributing.md](docs/contributing.md).
+The installer provisions the pinned Rust toolchain components on all platforms
+and provisions `mold` with its matching `ld.mold` 2.41.0 only on supported
+Linux hosts. macOS keeps its platform linker. The full maintainer workflow
+lives in [docs/contributing.md](docs/contributing.md).
 
 ______________________________________________________________________
 

@@ -143,19 +143,26 @@ def assert_development_route(
     if uses_pinned_linker:
         expected.extend(["-C", "link-arg=-fuse-ld=mold"])
         rust_flags.extend(["-C", "link-arg=-fuse-ld=mold"])
-    assert list(invocation.encoded_flags) == expected
-    assert list(invocation.rust_flags) == rust_flags
-    assert (
-        invocation.release_backend
-        == invocation.dev_backend
-        == invocation.test_backend
-        == ""
+    assert list(invocation.encoded_flags) == expected, (
+        "encoded development route flags were "
+        f"{invocation.encoded_flags!r}, expected {expected!r}"
+    )
+    assert list(invocation.rust_flags) == rust_flags, (
+        f"RUSTFLAGS were {invocation.rust_flags!r}, expected {rust_flags!r}"
+    )
+    backends = (
+        invocation.release_backend,
+        invocation.dev_backend,
+        invocation.test_backend,
+    )
+    assert backends == ("", "", ""), (
+        f"development route selected backend overrides: {backends!r}"
     )
 
 
 def assert_whitaker_route(invocation: RouteInvocation) -> None:
     """Require the installer-managed verification route to remain LLVM-only."""
-    assert invocation.arguments == (
+    expected_arguments = (
         "--all",
         "--package",
         "mapsplice",
@@ -164,11 +171,31 @@ def assert_whitaker_route(invocation: RouteInvocation) -> None:
         "--all-targets",
         "--all-features",
     )
-    assert invocation.encoded_flags == (*COMPATIBLE_FLAGS, "-D", "warnings")
-    assert invocation.rust_flags == ("-D", "warnings")
-    assert invocation.rustdoc_flags == ()
-    assert invocation.release_backend == ""
-    assert invocation.dev_backend == invocation.test_backend == "llvm"
+    assert invocation.arguments == expected_arguments, (
+        f"Whitaker arguments were {invocation.arguments!r}, "
+        f"expected {expected_arguments!r}"
+    )
+    expected_encoded_flags = (*COMPATIBLE_FLAGS, "-D", "warnings")
+    assert invocation.encoded_flags == expected_encoded_flags, (
+        f"Whitaker encoded flags were {invocation.encoded_flags!r}, "
+        f"expected {expected_encoded_flags!r}"
+    )
+    expected_rust_flags = ("-D", "warnings")
+    assert invocation.rust_flags == expected_rust_flags, (
+        f"Whitaker RUSTFLAGS were {invocation.rust_flags!r}, "
+        f"expected {expected_rust_flags!r}"
+    )
+    assert invocation.rustdoc_flags == (), (
+        f"Whitaker RUSTDOCFLAGS were {invocation.rustdoc_flags!r}, expected none"
+    )
+    assert invocation.release_backend == "", (
+        "Whitaker release backend override was "
+        f"{invocation.release_backend!r}, expected none"
+    )
+    assert invocation.dev_backend == invocation.test_backend == "llvm", (
+        "Whitaker development/test backends were "
+        f"{invocation.dev_backend!r}/{invocation.test_backend!r}, expected LLVM"
+    )
 
 
 def cargo_home_with_target(tmp_path: Path, target: str) -> dict[str, str]:

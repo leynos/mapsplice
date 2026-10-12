@@ -238,5 +238,4 @@ def policies(endpoint: str, fetch: Fetch) -> tuple[int, str, str]:
     return identity
 
 
-_policy_identity = _policy_identity
 _policies = policies

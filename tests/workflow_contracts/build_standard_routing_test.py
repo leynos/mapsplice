@@ -93,6 +93,27 @@ def test_development_make_plans_preflight_before_cargo(goal: str) -> None:
     assert lines.index("bash scripts/check-build-tools.sh") < min(cargo_indices)
 
 
+def test_make_checks_shellstatus_support_before_reading_it() -> None:
+    """The resolver guard must explain GNU Make versions without .SHELLSTATUS."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    resolver_call = makefile.index(
+        "CARGO_CONFIG_BUILD_TARGET := $(shell python3 scripts/resolve-cargo-build-target.py"
+    )
+    version_guard = makefile.index(
+        "ifeq ($(origin .SHELLSTATUS),undefined)", resolver_call
+    )
+    status_check = makefile.index("ifneq ($(.SHELLSTATUS),0)", resolver_call)
+
+    assert resolver_call < version_guard < status_check, (
+        "the GNU Make 4.2 feature guard must follow resolver execution and "
+        "precede .SHELLSTATUS use"
+    )
+    guard = makefile[version_guard:status_check]
+    assert "GNU Make 4.2 or later is required" in guard, (
+        "the old-Make error must state the required version"
+    )
+
+
 def test_nextest_and_doctest_record_distinct_development_routes(tmp_path: Path) -> None:
     """Nextest and doctests must each receive evaluated development flags."""
     lines = make_plan(

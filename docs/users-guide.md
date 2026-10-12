@@ -385,11 +385,13 @@ Maintainer workflows and repository gates are documented in the
 Development Make targets (`make test`, `make lint`, `make typecheck` and the
 debug build) use the parallel `rustc` frontend (`-Zthreads=8`). On supported
 Linux targets they use the repository's target-aware Clang wrappers with
-`mold`; install `clang`, `mold`, and the pinned `ld.mold` before building. On
-Debian or Ubuntu, install the `mold` package with `apt-get`. macOS keeps its
-platform linker because `mold` ships for Linux only. LLVM is the development
-codegen default; Cranelift is currently excluded after an unwind-test failure
-on the pinned toolchain. See [ADR 001](adr-001-rust-build-standard.md).
+`mold`. Install `clang` with your system package manager if needed, then run
+`make install-build-tools` to install the pinned Rust components and, on
+supported Linux hosts, `mold` and `ld.mold` 2.41.0. macOS keeps its platform
+linker because the pinned linker is installed only on Linux. LLVM is the
+development codegen default; Cranelift is currently excluded after an
+unwind-test failure on the pinned toolchain. See
+[ADR 001](adr-001-rust-build-standard.md).
 
 Pass additional Rust policy flags to Make through `RUST_FLAGS`. Make assigns
 each recipe's `RUSTFLAGS` from that variable and the selected route flags; it

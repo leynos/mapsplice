@@ -208,8 +208,10 @@ rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
 non-development routes; see [the contributing guide](contributing.md) for local
 setup.
 
-Make requires `python3` on `PATH`: it runs
-`scripts/resolve-cargo-build-target.py` while parsing the Makefile. The
+Make requires GNU Make 4.2 or later and Python 3.11 or later as `python3` on
+`PATH`. The resolver runs while Make parses the Makefile and uses Python's
+`tomllib` module to read Cargo configuration. On macOS, the system `make` may
+be too old, so install a recent GNU Make and invoke it as `gmake` if needed. The
 `make test-workflow-contracts` target requires `uv`; it supplies `pytest>=8`,
 `PyYAML>=6`, and `Hypothesis>=6` through `uv run`. Markdown formatting requires
 mdtablefix 0.6.0 or later; CI pins version 0.6.1.

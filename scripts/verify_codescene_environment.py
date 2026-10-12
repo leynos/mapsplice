@@ -24,7 +24,7 @@ from mapsplice_codescene_api import (
     _page,
     _parse_http_response,
 )
-from mapsplice_codescene_policies import _policies, _policy_identity
+from mapsplice_codescene_policies import _policies
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
 

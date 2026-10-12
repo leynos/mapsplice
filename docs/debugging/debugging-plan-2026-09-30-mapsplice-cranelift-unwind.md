@@ -108,30 +108,6 @@ experiment.
 still failed and the spawned-thread panic still aborted. A separate sequential
 comparison also reproduced the two failures on both tested nightly toolchains.
 
-______________________________________________________________________
-
-## Recommended Execution Order
-
-1. **H1** — Complete. Explicit rustc unwind did not resolve the Cranelift
-   failures. The approved development route uses LLVM pending the review in
-   issue #115.
-
-## Termination Criteria
-
-- **Probe question resolved**: H1 is falsified by a confirmed Cranelift and
-  `panic=unwind` invocation with the same failures. This does not identify the
-  underlying compiler/runtime cause or approve an exception.
-- **Routing decision**: Resolved. LLVM is the development default for build,
-  check, lint, documentation, and test commands. Reconsider Cranelift at the
-  issue review date, or earlier if a new backend fix is demonstrated.
-
-## Notes for Executing Agent
-
-The focused tests described here have been run. Their evidence is recorded
-below. Preserve the approved LLVM default until the issue review; do not infer
-that Cranelift can be re-enabled from a passing test on another target or
-toolchain.
-
 ### H2: The panic failures come from Cargo or the development wrappers
 
 **Claim**: Removing Cargo, dependencies, the parallel frontend, and the
@@ -148,6 +124,33 @@ The experiment used bare `rustc` with the original
 `tests/build_standard_panic.rs` source. Logs are
 `/tmp/mapsplice-cranelift-plan-20261001/h2-llvm-run.out` and
 `/tmp/mapsplice-cranelift-plan-20261001/h2-cranelift-run.out`.
+
+______________________________________________________________________
+
+## Recommended Execution Order
+
+1. **H1** — Complete. Explicit rustc unwind did not resolve the Cranelift
+   failures. The approved development route uses LLVM pending the review in
+   issue #115.
+2. **H2** — Complete. The bare `rustc` comparison reproduced the panic-probe
+   failures under Cranelift, isolating them from Cargo routing and development
+   wrappers without identifying the underlying cause.
+
+## Termination Criteria
+
+- **Probe question resolved**: H1 is falsified by a confirmed Cranelift and
+  `panic=unwind` invocation with the same failures. This does not identify the
+  underlying compiler/runtime cause or approve an exception.
+- **Routing decision**: Resolved. LLVM is the development default for build,
+  check, lint, documentation, and test commands. Reconsider Cranelift at the
+  issue review date, or earlier if a new backend fix is demonstrated.
+
+## Notes for Executing Agent
+
+The focused tests described here have been run. Their evidence is recorded
+below. Preserve the approved LLVM default until the issue review; do not infer
+that Cranelift can be re-enabled from a passing test on another target or
+toolchain.
 
 ## Latest experiment disposition
 

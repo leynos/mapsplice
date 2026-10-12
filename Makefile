@@ -29,6 +29,9 @@ HOST_ARCH := $(shell uname -m)
 # fails closed so an uncertain effective target never receives the ELF linker.
 SUPPORTED_LINKER_TARGETS = x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
 CARGO_CONFIG_BUILD_TARGET := $(shell python3 scripts/resolve-cargo-build-target.py 2>&1)
+ifeq ($(origin .SHELLSTATUS),undefined)
+$(error GNU Make 4.2 or later is required (found $(MAKE_VERSION)); use gmake on macOS)
+endif
 ifneq ($(.SHELLSTATUS),0)
 CARGO_CONFIG_BUILD_TARGET := $(error $(CARGO_CONFIG_BUILD_TARGET))
 endif
