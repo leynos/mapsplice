@@ -287,6 +287,18 @@ def test_configuration_discovery_errors_fail_closed(
         )
 
 
+def test_invalid_utf8_configuration_fails_with_path_context(tmp_path: Path) -> None:
+    """Decode failures become bounded configuration errors with the source path."""
+    selected = tmp_path / "config.toml"
+    selected.write_bytes(b"\xff")
+
+    with pytest.raises(
+        RESOLVER.ConfigurationError,
+        match=f"cannot read Cargo configuration {selected}",
+    ):
+        RESOLVER.configured_target(selected)
+
+
 @pytest.mark.parametrize(
     ("failed_location", "failure_type"),
     (

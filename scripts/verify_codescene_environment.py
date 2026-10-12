@@ -17,14 +17,13 @@ from mapsplice_codescene_api import (
     PAGE_SIZE,
     ApiResponse,
     Fetch,
-    VerificationError,
-    _environment,
-    _links,
-    _object,
-    _page,
-    _parse_http_response,
+    deployment_policy_page,
+    environment,
+    parse_http_response,
+    response_object,
 )
-from mapsplice_codescene_policies import _policies
+from mapsplice_codescene_models import EnvironmentProtection, VerificationError
+from mapsplice_codescene_policies import policies, verify_environment_policy
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
 
@@ -54,7 +53,7 @@ def gh_fetch(endpoint: str) -> ApiResponse:
         ) from error
     # In particular, never include stderr: gh can print account details or a
     # server-supplied message that is not suitable for an audit log.
-    return _parse_http_response(result.stdout, result.returncode)
+    return parse_http_response(result.stdout, result.returncode)
 
 
 def _validate_repository_name(repo: str) -> None:
@@ -65,7 +64,7 @@ def _validate_repository_name(repo: str) -> None:
 
 
 def _repository_identifier(repo: str, fetch: Fetch) -> int:
-    metadata = _object(fetch(f"repos/{repo}"), "repository")
+    metadata = response_object(fetch(f"repos/{repo}"), "repository")
     identifier = metadata.get("id")
     if not _repository_metadata_matches(metadata, identifier, repo):
         raise VerificationError(
@@ -87,10 +86,12 @@ def _repository_metadata_matches(
 
 def _verify_environment_unchanged(
     endpoint: str,
-    expected: tuple[str, bool, bool],
+    expected: EnvironmentProtection,
     fetch: Fetch,
 ) -> None:
-    if _environment(fetch(endpoint)) != expected:
+    current = environment(fetch(endpoint))
+    verify_environment_policy(current)
+    if current != expected:
         raise VerificationError(
             "environment-drift", "codescene protection changed during read"
         )
@@ -100,15 +101,33 @@ def verify_environment(repo: str, fetch: Fetch) -> tuple[int, str, str]:
     """Prove one protected environment and exactly one main branch policy."""
     _validate_repository_name(repo)
     environment_endpoint = f"repos/{repo}/environments/codescene"
-    original = _environment(fetch(environment_endpoint))
+    original = environment(fetch(environment_endpoint))
+    verify_environment_policy(original)
     identifier = _repository_identifier(repo, fetch)
     # GitHub canonicalizes pagination links to its immutable repository ID route.
     branch_endpoint = (
         f"repositories/{identifier}/environments/codescene/deployment-branch-policies"
     )
-    policy = _policies(branch_endpoint, fetch)
+    policy = policies(
+        lambda number: deployment_policy_page(
+            fetch(f"{branch_endpoint}?per_page={PAGE_SIZE}&page={number}"),
+            branch_endpoint,
+            number,
+        )
+    )
     _verify_environment_unchanged(environment_endpoint, original, fetch)
     return policy
+
+
+def _policies(endpoint: str, fetch: Fetch) -> tuple[int, str, str]:
+    """Adapt existing fixtures to the verifier's typed policy-page interface."""
+    return policies(
+        lambda number: deployment_policy_page(
+            fetch(f"{endpoint}?per_page={PAGE_SIZE}&page={number}"),
+            endpoint,
+            number,
+        )
+    )
 
 
 def main(argv: list[str] | None = None, fetch: Fetch = gh_fetch) -> int:

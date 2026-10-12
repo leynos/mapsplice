@@ -6,20 +6,19 @@ import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import SplitResult, parse_qs, urlsplit
 
-PAGE_SIZE = 100
-MAX_PAGES = 100
+from mapsplice_codescene_models import (
+    MAX_PAGES,
+    PAGE_SIZE,
+    BranchPolicy,
+    DeploymentPolicyPage,
+    EnvironmentProtection,
+    VerificationError,
+)
+
 STATUS_LINE = re.compile(r"HTTP/\S+ (?P<status>[1-5][0-9]{2})(?: [^\r\n]*)?\Z")
 LINK_PART = re.compile(r'<(?P<url>[^>]+)>;\s*rel="(?P<rel>[a-z]+)"\Z')
-
-
-class VerificationError(Exception):
-    """Report one bounded reason why protection cannot be proved."""
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
 
 
 @dataclass(frozen=True)
@@ -154,26 +153,49 @@ def response_object(response: ApiResponse, resource: str) -> Mapping[str, object
     return response.body
 
 
-def environment(response: ApiResponse) -> tuple[str, bool, bool]:
-    """Validate the CodeScene environment's protected-branch policy."""
+def environment(response: ApiResponse) -> EnvironmentProtection:
+    """Decode the environment protection fields from a successful response."""
     body = response_object(response, "codescene environment")
     policy = body.get("deployment_branch_policy")
-    if body.get("name") != "codescene" or not isinstance(policy, dict):
+    name = body.get("name")
+    if not isinstance(name, str) or not isinstance(policy, dict):
         raise VerificationError(
             "environment-shape", "codescene environment policy is missing"
         )
     protected = policy.get("protected_branches")
     custom = policy.get("custom_branch_policies")
-    if protected is not False or custom is not True:
+    return EnvironmentProtection(
+        name,
+        protected if type(protected) is bool else None,
+        custom if type(custom) is bool else None,
+    )
+
+
+def _branch_policy(item: object) -> BranchPolicy:
+    if not isinstance(item, dict):
         raise VerificationError(
-            "environment-policy",
-            "codescene requires protected_branches=false and custom_branch_policies=true",
+            "policy-shape", "deployment branch policy entry is malformed"
         )
-    return ("codescene", protected, custom)
+    identifier = item.get("id")
+    name = item.get("name")
+    kind = item.get("type")
+    if type(identifier) is not int:
+        raise VerificationError(
+            "policy-shape", "deployment branch policy identity is incomplete"
+        )
+    if not isinstance(name, str) or not isinstance(kind, str):
+        raise VerificationError(
+            "policy-shape", "deployment branch policy identity is incomplete"
+        )
+    return BranchPolicy(identifier, name, kind)
 
 
-def page(response: ApiResponse) -> tuple[int, list[object]]:
-    """Validate one bounded deployment-policy API page."""
+def deployment_policy_page(
+    response: ApiResponse,
+    endpoint: str,
+    number: int,
+) -> DeploymentPolicyPage:
+    """Decode one bounded API page into typed policy values."""
     body = response_object(response, "deployment branch policies")
     count = body.get("total_count")
     items = body.get("branch_policies")
@@ -189,7 +211,14 @@ def page(response: ApiResponse) -> tuple[int, list[object]]:
         raise VerificationError(
             "policy-cap", "deployment branch policy page exceeds 100 entries"
         )
-    return count, items
+    page_links = links(response, endpoint)
+    policies = tuple(_branch_policy(item) for item in items)
+    return DeploymentPolicyPage(
+        number,
+        count,
+        policies,
+        page_links,
+    )
 
 
 def _is_non_negative_integer(value: object) -> bool:
@@ -219,15 +248,19 @@ def _validated_link_query(url_text: str, endpoint: str) -> str:
         raise VerificationError(
             "pagination-link", "deployment branch policy Link URL is malformed"
         ) from None
-    if url.scheme != "https":
+    if not _is_github_api_url(url):
         _raise_link_outside_api_route()
-    if url.netloc != "api.github.com":
-        _raise_link_outside_api_route()
-    if url.path != f"/{endpoint}":
-        _raise_link_outside_api_route()
-    if url.fragment:
+    if not _is_expected_api_endpoint(url, endpoint):
         _raise_link_outside_api_route()
     return url.query
+
+
+def _is_github_api_url(url: SplitResult) -> bool:
+    return url.scheme == "https" and url.netloc == "api.github.com"
+
+
+def _is_expected_api_endpoint(url: SplitResult, endpoint: str) -> bool:
+    return url.path == f"/{endpoint}" and not url.fragment
 
 
 def _raise_link_outside_api_route() -> None:
@@ -291,11 +324,3 @@ def links(response: ApiResponse, endpoint: str) -> dict[str, int]:
             )
         parsed[relation] = _link_target_page(target, endpoint)
     return parsed
-
-
-# Keep the verifier's existing private import names available to its tests and callers.
-_parse_http_response = parse_http_response
-_object = response_object
-_environment = environment
-_page = page
-_links = links

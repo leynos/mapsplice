@@ -179,7 +179,7 @@ def configuration_paths(
 def _read_configuration(path: Path) -> dict[str, object]:
     try:
         return tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as error:
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
         raise ConfigurationError(
             f"cannot read Cargo configuration {path}: {error}"
         ) from error

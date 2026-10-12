@@ -375,7 +375,7 @@ def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
     )
 
     with pytest.raises(verifier.VerificationError) as caught:
-        verifier._parse_http_response(raw, 0)
+        verifier.parse_http_response(raw, 0)
 
     assert caught.value.code == "api-response"
     assert secret not in str(caught.value)
