@@ -167,13 +167,16 @@ def test_cli_process_parses_responses_and_uses_only_api_gets(
         ENVIRONMENT,
     ]
 
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 0, (
+        f"verified audit returned exit status {result.returncode}: {result.stderr!r}"
+    )
     assert (
         result.stdout
         == "codescene environment: verified main-only deployment branch policy\n"
-    )
-    assert result.stderr == ""
-    assert calls == [COMMON_ARGS + [endpoint] for endpoint in expected_endpoints]
+    ), f"verified audit stdout was {result.stdout!r}"
+    assert result.stderr == "", f"verified audit wrote stderr: {result.stderr!r}"
+    expected_calls = [COMMON_ARGS + [endpoint] for endpoint in expected_endpoints]
+    assert calls == expected_calls, f"verified audit API calls were {calls!r}"
 
 
 def test_cli_process_redacts_api_body_and_gh_stderr(
@@ -181,13 +184,23 @@ def test_cli_process_redacts_api_body_and_gh_stderr(
 ) -> None:
     result, calls = _run_verifier(tmp_path, "forbidden")
 
-    assert result.returncode == 1
-    assert result.stdout == ""
-    assert "codescene environment: access-denied" in result.stderr
-    assert "HTTP 403" in result.stderr
-    assert PRIVATE_MARKER not in result.stderr
+    assert result.returncode == 1, (
+        f"403 response returned exit status {result.returncode}: {result.stderr!r}"
+    )
+    assert result.stdout == "", f"403 response wrote stdout: {result.stdout!r}"
+    assert "codescene environment: access-denied" in result.stderr, (
+        f"403 diagnostic omitted access-denied classification: {result.stderr!r}"
+    )
+    assert "HTTP 403" in result.stderr, (
+        f"403 diagnostic omitted HTTP status: {result.stderr!r}"
+    )
+    assert PRIVATE_MARKER not in result.stderr, (
+        f"403 response leaked its private marker in stderr: {result.stderr!r}"
+    )
     assert len(result.stderr) < 200, f"diagnostic was not bounded: {result.stderr!r}"
-    assert calls == [COMMON_ARGS + [ENVIRONMENT]]
+    assert calls == [COMMON_ARGS + [ENVIRONMENT]], (
+        f"403 response made unexpected API calls: {calls!r}"
+    )
 
 
 @pytest.mark.parametrize("mode", ["invalid-stdout", "invalid-stderr"])
@@ -195,15 +208,23 @@ def test_cli_process_bounds_invalid_utf8_output(tmp_path: Path, mode: str) -> No
     """Undecodable output from either pipe must fail without exposing its bytes."""
     result, calls = _run_verifier(tmp_path, mode)
 
-    assert result.returncode == 1
-    assert result.stdout == ""
+    assert result.returncode == 1, (
+        f"{mode} returned exit status {result.returncode}: {result.stderr!r}"
+    )
+    assert result.stdout == "", f"{mode} wrote stdout: {result.stdout!r}"
     assert result.stderr == (
         "codescene environment: api-unavailable: GitHub API request did not complete"
         " (operation=environment failure_kind=decode)\n"
+    ), f"{mode} produced an unexpected diagnostic: {result.stderr!r}"
+    assert "Traceback" not in result.stderr, (
+        f"{mode} exposed a traceback: {result.stderr!r}"
     )
-    assert "Traceback" not in result.stderr
-    assert PRIVATE_MARKER not in result.stderr
-    assert calls == [COMMON_ARGS + [ENVIRONMENT]]
+    assert PRIVATE_MARKER not in result.stderr, (
+        f"{mode} leaked the invalid bytes' marker: {result.stderr!r}"
+    )
+    assert calls == [COMMON_ARGS + [ENVIRONMENT]], (
+        f"{mode} made unexpected API calls: {calls!r}"
+    )
 
 
 @dataclass(frozen=True)
@@ -236,17 +257,37 @@ def test_cli_process_identifies_bounded_failure_stage(
     """Failed requests expose only a trusted stage and requested policy-page number."""
     result, calls = _run_verifier(tmp_path, case.mode)
 
-    assert result.returncode == 1
-    assert result.stdout == ""
-    assert f"codescene environment: {case.error_code}:" in result.stderr
+    assert result.returncode == 1, (
+        f"{case.mode} returned exit status {result.returncode}: {result.stderr!r}"
+    )
+    assert result.stdout == "", f"{case.mode} wrote stdout: {result.stdout!r}"
+    expected_prefix = f"codescene environment: {case.error_code}:"
+    assert expected_prefix in result.stderr, (
+        f"{case.mode} stderr omitted {expected_prefix!r}: {result.stderr!r}"
+    )
     expected_context = f"operation={case.operation}"
     if case.page is not None:
         expected_context += f" page={case.page}"
     else:
-        assert "page=" not in result.stderr
-    assert f"({expected_context})" in result.stderr
-    assert PRIVATE_MARKER not in result.stderr
-    assert REPOSITORY not in result.stderr
-    assert "Traceback" not in result.stderr
-    assert len(result.stderr) < 200
-    assert len(calls) == case.request_count
+        assert "page=" not in result.stderr, (
+            f"{case.mode} added an unrequested page number: {result.stderr!r}"
+        )
+    assert f"({expected_context})" in result.stderr, (
+        f"{case.mode} stderr omitted bounded context {expected_context!r}: "
+        f"{result.stderr!r}"
+    )
+    assert PRIVATE_MARKER not in result.stderr, (
+        f"{case.mode} leaked its private marker: {result.stderr!r}"
+    )
+    assert REPOSITORY not in result.stderr, (
+        f"{case.mode} leaked the repository name: {result.stderr!r}"
+    )
+    assert "Traceback" not in result.stderr, (
+        f"{case.mode} exposed a traceback: {result.stderr!r}"
+    )
+    assert len(result.stderr) < 200, (
+        f"{case.mode} diagnostic was not bounded: {result.stderr!r}"
+    )
+    assert len(calls) == case.request_count, (
+        f"{case.mode} made {len(calls)} API calls: {calls!r}"
+    )

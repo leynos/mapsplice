@@ -286,13 +286,20 @@ def test_generated_complete_pagination_histories_are_read_in_order(
     pages = _page_count(total)
 
     result = adapter.deployment_policies(POLICIES, fetch)
-    assert result == tuple(
+    expected_policies = tuple(
         BranchPolicy(
             identifier, "main" if identifier == 1 else f"release-{identifier}", "branch"
         )
         for identifier in range(1, total + 1)
     )
-    assert calls == [*range(1, pages + 2), 1]
+    assert result == expected_policies, (
+        f"pagination returned {len(result)} policies for total={total}; "
+        f"observed result was {result!r}"
+    )
+    expected_calls = [*range(1, pages + 2), 1]
+    assert calls == expected_calls, (
+        f"pagination request order was {calls!r}; expected {expected_calls!r}"
+    )
 
 
 @example(case=MalformedHistory(101, "short-page", 1, None, 0))
@@ -310,17 +317,32 @@ def test_generated_malformed_pagination_histories_fail_closed(
     with pytest.raises(VerificationError) as caught:
         adapter.deployment_policies(POLICIES, fetch)
 
-    assert caught.value.code == FAULT_CODES[case.fault]
-    assert caught.value.operation == "policy_page"
-    assert caught.value.page == case.fault_page
-    assert calls == list(range(1, case.fault_page + 1))
+    expected_code = FAULT_CODES[case.fault]
+    assert caught.value.code == expected_code, (
+        f"fault {case.fault!r} produced code {caught.value.code!r}, "
+        f"expected {expected_code!r}"
+    )
+    assert caught.value.operation == "policy_page", (
+        f"fault {case.fault!r} reported operation {caught.value.operation!r}"
+    )
+    assert caught.value.page == case.fault_page, (
+        f"fault {case.fault!r} reported page {caught.value.page!r}, "
+        f"expected {case.fault_page!r}"
+    )
+    expected_calls = list(range(1, case.fault_page + 1))
+    assert calls == expected_calls, (
+        f"fault {case.fault!r} made page reads {calls!r}; "
+        f"expected {expected_calls!r}"
+    )
 
 
 def test_page_reader_must_return_the_requested_page() -> None:
     """The pagination adapter rejects an inconsistent injected page reader."""
     with pytest.raises(VerificationError) as caught:
         collect_policies(lambda _: DeploymentPolicyPage(2, 0, (), {}))
-    assert caught.value.code == "policy-page"
+    assert caught.value.code == "policy-page", (
+        f"inconsistent page reader produced code {caught.value.code!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -337,7 +359,9 @@ def test_adapter_rejects_malformed_policy_mapping(item: object) -> None:
     """Raw JSON identity fields must map to well-formed typed policy values."""
     with pytest.raises(VerificationError) as caught:
         adapter.deployment_policy_page(_response([item], 1), POLICIES, 1)
-    assert caught.value.code == "policy-shape"
+    assert caught.value.code == "policy-shape", (
+        f"malformed policy {item!r} produced code {caught.value.code!r}"
+    )
 
 
 def test_page_two_failure_retains_the_requested_page_context() -> None:
@@ -349,7 +373,13 @@ def test_page_two_failure_retains_the_requested_page_context() -> None:
     with pytest.raises(VerificationError) as caught:
         adapter.deployment_policies(POLICIES, fetch)
 
-    assert caught.value.code == "policy-count"
-    assert caught.value.operation == "policy_page"
-    assert caught.value.page == 2
-    assert calls == [1, 2]
+    assert caught.value.code == "policy-count", (
+        f"short page two produced code {caught.value.code!r}"
+    )
+    assert caught.value.operation == "policy_page", (
+        f"short page two reported operation {caught.value.operation!r}"
+    )
+    assert caught.value.page == 2, (
+        f"short page two reported page {caught.value.page!r}"
+    )
+    assert calls == [1, 2], f"short page two request sequence was {calls!r}"

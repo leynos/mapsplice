@@ -224,9 +224,17 @@ def _pr_coverage_step(
     coverage = coverage_steps[0]
     assert coverage.get("uses") == GENERATE, "PR coverage pin is wrong"
     inputs = coverage.get("with")
-    assert isinstance(inputs, dict)
-    assert inputs.get("with-ratchet") == "true"
-    assert inputs.get("publish-artefact") == "false"
+    assert isinstance(inputs, dict), (
+        f"PR coverage inputs must be a mapping; observed {inputs!r}"
+    )
+    assert inputs.get("with-ratchet") == "true", (
+        "PR coverage must enable ratcheting; "
+        f"observed with-ratchet={inputs.get('with-ratchet')!r}"
+    )
+    assert inputs.get("publish-artefact") == "false", (
+        "PR coverage must not publish an artefact; "
+        f"observed publish-artefact={inputs.get('publish-artefact')!r}"
+    )
     assert "publish-baseline" not in inputs, "PR could override baseline publication"
     return coverage, inputs
 
@@ -251,8 +259,14 @@ def _publisher_job(
         "and freshly verify main-only protection before readiness or merge "
         "(scripts/verify_codescene_environment.py)"
     )
-    assert job.get("permissions") == {"contents": "read"}
-    assert "CS_ACCESS_TOKEN" not in _serialized(job.get("env", {}))
+    assert job.get("permissions") == {"contents": "read"}, (
+        "publisher job permissions must be contents: read; "
+        f"observed {job.get('permissions')!r}"
+    )
+    assert "CS_ACCESS_TOKEN" not in _serialized(job.get("env", {})), (
+        "publisher job must not expose CS_ACCESS_TOKEN through job env; "
+        f"observed env {job.get('env')!r}"
+    )
     return job, _steps(job)
 
 
@@ -274,10 +288,15 @@ def _publisher_coverage_step(
     pr_inputs: Mapping[str, object],
 ) -> dict[str, object]:
     coverage_steps = _coverage_steps(main)
-    assert len(coverage_steps) == 1 and coverage_steps[0].get("uses") == GENERATE
+    assert len(coverage_steps) == 1 and coverage_steps[0].get("uses") == GENERATE, (
+        "main publisher must have exactly one pinned coverage-generation action; "
+        f"observed uses {[step.get('uses') for step in coverage_steps]!r}"
+    )
     coverage = coverage_steps[0]
     inputs = coverage.get("with")
-    assert isinstance(inputs, dict)
+    assert isinstance(inputs, dict), (
+        f"main coverage inputs must be a mapping; observed {inputs!r}"
+    )
     assert inputs == pr_inputs, "PR and main coverage inputs differ"
     assert (
         coverage.get("env") == pr_coverage.get("env") == {"RUSTFLAGS": "-D warnings"}
@@ -291,15 +310,26 @@ def _validate_build_tool_order(
     setup = [step for step in main_steps if "setup-rust@" in str(step.get("uses", ""))]
     assert len(setup) == 1 and setup[0].get("uses") == (
         f"leynos/shared-actions/.github/actions/setup-rust@{SETUP_RUST_PIN}"
+    ), f"publisher needs one pinned setup-rust action; observed {setup!r}"
+    assert setup[0].get("with") == {"install-mold": "true", "rustflags": ""}, (
+        "publisher setup-rust must install the pinned linker and leave rustflags empty; "
+        f"observed inputs {setup[0].get('with')!r}"
     )
-    assert setup[0].get("with") == {"install-mold": "true", "rustflags": ""}
     preflight = [
         step for step in main_steps if step.get("run") == "make check-build-tools"
     ]
     assert len(preflight) == 1, "publisher suite needs build-tool preflight"
-    assert not any(key in preflight[0] for key in ("if", "continue-on-error"))
+    assert not any(key in preflight[0] for key in ("if", "continue-on-error")), (
+        "publisher build-tool preflight must be unconditional and binding; "
+        f"observed step {preflight[0]!r}"
+    )
     assert main_steps.index(setup[0]) < main_steps.index(preflight[0]) < main_steps.index(
         coverage
+    ), (
+        "publisher setup and preflight must precede coverage generation; "
+        f"observed indexes setup={main_steps.index(setup[0])}, "
+        f"preflight={main_steps.index(preflight[0])}, "
+        f"coverage={main_steps.index(coverage)}"
     )
 
 
@@ -315,8 +345,14 @@ def _publisher_token_steps(
     steps: list[dict[str, object]],
 ) -> tuple[dict[str, object], dict[str, object]]:
     token = _named_step(steps, "Check CodeScene token", "Check CodeScene token step must be unique")
-    assert token.get("id") == "codescene-token" and token.get("run") == TOKEN_CHECK
-    assert not any(key in token for key in ("env", "uses", "continue-on-error", "if"))
+    assert token.get("id") == "codescene-token" and token.get("run") == TOKEN_CHECK, (
+        "token check must use the fixed id and availability probe; "
+        f"observed id={token.get('id')!r}, run={token.get('run')!r}"
+    )
+    assert not any(key in token for key in ("env", "uses", "continue-on-error", "if")), (
+        "token check must remain a direct, unconditional step; "
+        f"observed step {token!r}"
+    )
     warning = _named_step(
         steps, "Report skipped CodeScene upload", "missing-token warning must be unique"
     )
@@ -339,7 +375,10 @@ def _publisher_upload_step(
         for step in steps
         if "upload-codescene-coverage@" in str(step.get("uses", ""))
     ]
-    assert len(uploads) == 1 and uploads[0].get("uses") == UPLOAD
+    assert len(uploads) == 1 and uploads[0].get("uses") == UPLOAD, (
+        "publisher must have exactly one pinned CodeScene upload action; "
+        f"observed uses {[step.get('uses') for step in uploads]!r}"
+    )
     upload = uploads[0]
     assert (
         steps.index(coverage)
@@ -347,7 +386,10 @@ def _publisher_upload_step(
         < steps.index(warning)
         < steps.index(upload)
     ), "publisher steps are out of order"
-    assert upload.get("if") == UPLOAD_GUARD
+    assert upload.get("if") == UPLOAD_GUARD, (
+        "publisher upload must use the exact token-available main-branch guard; "
+        f"expected {UPLOAD_GUARD!r}, observed {upload.get('if')!r}"
+    )
     assert not any(key in upload for key in ("env", "run", "continue-on-error")), (
         "upload may receive CS_ACCESS_TOKEN only through its action input"
     )
@@ -356,7 +398,11 @@ def _publisher_upload_step(
         "format": "lcov",
         "mode": "upload",
         "access-token": TOKEN_INPUT,
-    }
+    }, (
+        "publisher upload inputs must include the fixed lcov path, format, mode, "
+        f"and token input {TOKEN_INPUT!r}; "
+        f"observed {upload.get('with')!r}"
+    )
     return upload
 
 
@@ -372,7 +418,9 @@ def _validate_publisher_secret_routes(
                 "only the token check and uploader may refer to the secret"
             )
     metadata = {key: value for key, value in main.items() if key != "jobs"}
-    assert "CS_ACCESS_TOKEN" not in _serialized(metadata)
+    assert "CS_ACCESS_TOKEN" not in _serialized(metadata), (
+        "workflow metadata must not reference CS_ACCESS_TOKEN"
+    )
 
 
 def _validate_only_main_writer(
@@ -401,9 +449,14 @@ def _validate_only_main_writer(
 
 def validate(workflows: Mapping[str, dict[object, object]]) -> None:
     """Enforce the PR reader, sole main writer and protected upload shape."""
-    assert "ci.yml" in workflows and "coverage-main.yml" in workflows
+    assert "ci.yml" in workflows and "coverage-main.yml" in workflows, (
+        f"both ci.yml and coverage-main.yml are required; found {sorted(workflows)!r}"
+    )
     reachable = pr_reachable(workflows)
-    assert "ci.yml" in reachable and "coverage-main.yml" not in reachable
+    assert "ci.yml" in reachable and "coverage-main.yml" not in reachable, (
+        "PR reachability must include ci.yml and exclude coverage-main.yml; "
+        f"observed reachable workflows {sorted(reachable)!r}"
+    )
     _validate_pr_reachable_workflows(workflows, reachable)
     pr_coverage, pr_inputs = _pr_coverage_step(workflows)
     main = workflows["coverage-main.yml"]

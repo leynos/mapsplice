@@ -347,13 +347,25 @@ def test_make_whitaker_command_mutations_are_detected(
         assert_whitaker_route(mutated)
 
 
-def test_make_whitaker_failure_reaches_make_exit_status() -> None:
+def test_make_whitaker_failure_reaches_make_exit_status(tmp_path: Path) -> None:
     """A failing executable must make the composite lint target fail."""
+    shell_shim = tmp_path / "bash"
+    shell_shim.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = 'scripts/check-build-tools.sh' ]; then exit 0; fi\n"
+        'exec /bin/bash "$@"\n',
+        encoding="utf-8",
+    )
+    shell_shim.chmod(0o755)
     result = subprocess.run(
         ["make", "--silent", "lint", "WHITAKER=false", "CARGO=true"],
         cwd=ROOT,
+        env={**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"},
         text=True,
         capture_output=True,
         check=False,
     )
-    assert result.returncode != 0
+    assert result.returncode != 0, "a failing Whitaker run must fail make lint"
+    assert re.search(r"\[Makefile:\d+: lint-whitaker\] Error \d+", result.stderr), (
+        f"make lint failed before or outside the Whitaker recipe: {result.stderr!r}"
+    )

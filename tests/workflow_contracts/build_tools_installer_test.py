@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import tarfile
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,6 +28,15 @@ class InstallerCase:
     companion_version: str
     checksum_matches: bool
     expected_status: int
+    mold_version: str = "mold 2.41.0 (test)"
+
+
+@dataclass(frozen=True)
+class InstallerVersionCase:
+    binary_name: str
+    reported_version: str
+    expected_status: int
+    expected_diagnostic: str | None
 
 
 @dataclass(frozen=True)
@@ -38,6 +48,7 @@ class InstallerRun:
     checksum_log: Path
     tar_marker: Path
     prefix: Path
+    rustup_args_log: Path
 
 
 def _write_command(directory: Path, name: str, contents: str) -> None:
@@ -47,7 +58,11 @@ def _write_command(directory: Path, name: str, contents: str) -> None:
 
 
 def _write_platform_tools(commands: Path, case: InstallerCase) -> None:
-    _write_command(commands, "rustup", "#!/bin/sh\nexit 0\n")
+    _write_command(
+        commands,
+        "rustup",
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$RUSTUP_ARGS_LOG\"\nexit 0\n",
+    )
     _write_command(
         commands,
         "uname",
@@ -113,7 +128,10 @@ def _write_archive_tool(commands: Path) -> None:
 def _write_archive_fixture(path: Path, case: InstallerCase) -> None:
     directory = f"mold-{VERSION}-{case.architecture}-linux/bin"
     binaries = {
-        f"{directory}/mold": f"#!/bin/sh\nprintf '%s\\n' 'mold {VERSION} (test)'\n",
+        f"{directory}/mold": (
+            "#!/bin/sh\nprintf '%s\\n' "
+            f"{shlex.quote(case.mold_version)}\n"
+        ),
         f"{directory}/ld.mold": (
             "#!/bin/sh\nprintf '%s\\n' "
             f"{shlex.quote(case.companion_version)}\n"
@@ -155,6 +173,7 @@ def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
     curl_url_log = tmp_path / "curl-url.log"
     checksum_log = tmp_path / "checksum.log"
     tar_marker = tmp_path / "tar-called"
+    rustup_args_log = tmp_path / "rustup-args.log"
     environment = {
         "PATH": str(commands),
         "HOME": str(tmp_path / "home"),
@@ -162,6 +181,7 @@ def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
         "TMPDIR": str(scratch),
         "CURL_URL_LOG": str(curl_url_log),
         "CHECKSUM_LOG": str(checksum_log),
+        "RUSTUP_ARGS_LOG": str(rustup_args_log),
         "TAR_MARKER": str(tar_marker),
         "ARCHIVE_FIXTURE": str(archive_fixture),
         "EXPECTED_DIGEST": DIGESTS[case.architecture],
@@ -178,7 +198,107 @@ def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
     )
     marker = prefix / "bin" / f".mold-{VERSION}-{DIGESTS[case.architecture]}"
     return InstallerRun(
-        result, archive, marker, curl_url_log, checksum_log, tar_marker, prefix
+        result,
+        archive,
+        marker,
+        curl_url_log,
+        checksum_log,
+        tar_marker,
+        prefix,
+        rustup_args_log,
+    )
+
+
+def test_installer_uses_rust_toolchain_channel_and_components(tmp_path: Path) -> None:
+    """The rustup invocation follows the repository's pinned toolchain manifest."""
+    case = InstallerCase("x86_64", "mold 2.41.0 (test)", True, 0)
+    run = _run_installer(tmp_path, case)
+    assert run.result.returncode == 0, (
+        f"installer returned status {run.result.returncode}: {run.result.stderr!r}"
+    )
+    toolchain = tomllib.loads(
+        (ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+    )["toolchain"]
+    expected_arguments = ["toolchain", "install", toolchain["channel"]]
+    for component in toolchain["components"]:
+        expected_arguments.extend(["--component", component])
+    observed_arguments = run.rustup_args_log.read_text(encoding="utf-8").splitlines()
+
+    assert observed_arguments == expected_arguments, (
+        "installer rustup arguments must use the manifest channel and components; "
+        f"observed {observed_arguments!r}, expected {expected_arguments!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(
+            InstallerVersionCase("mold", "mold 2.41.0 (test)", 0, None),
+            id="mold-pinned",
+        ),
+        pytest.param(
+            InstallerVersionCase(
+                "mold",
+                "mold 2.40.4 (test)",
+                1,
+                "Installed mold does not report the pinned version",
+            ),
+            id="mold-wrong-version",
+        ),
+        pytest.param(
+            InstallerVersionCase("ld.mold", "mold 2.41.0 (test)", 0, None),
+            id="ld-linker-pinned",
+        ),
+        pytest.param(
+            InstallerVersionCase(
+                "ld.mold",
+                "mold 2.40.4 (test)",
+                1,
+                "Installed ld.mold does not report the pinned version",
+            ),
+            id="ld-linker-wrong-version",
+        ),
+    ],
+)
+def test_installer_requires_each_binary_to_report_the_pinned_version(
+    tmp_path: Path,
+    case: InstallerVersionCase,
+) -> None:
+    """Each installed linker is checked independently before success is marked."""
+    mold_version = (
+        case.reported_version
+        if case.binary_name == "mold"
+        else "mold 2.41.0 (test)"
+    )
+    companion_version = (
+        case.reported_version
+        if case.binary_name == "ld.mold"
+        else "mold 2.41.0 (test)"
+    )
+    installer_case = InstallerCase(
+        "x86_64",
+        companion_version,
+        True,
+        case.expected_status,
+        mold_version=mold_version,
+    )
+    run = _run_installer(tmp_path, installer_case)
+
+    assert run.result.returncode == case.expected_status, (
+        f"{case.binary_name} reporting {case.reported_version!r} returned "
+        f"{run.result.returncode}; stderr was {run.result.stderr!r}"
+    )
+    if case.expected_diagnostic is not None:
+        assert case.expected_diagnostic in run.result.stderr, (
+            f"{case.binary_name} version rejection omitted "
+            f"{case.expected_diagnostic!r}: "
+            f"{run.result.stderr!r}"
+        )
+    assert run.marker.exists() is (case.expected_status == 0), (
+        f"success marker state for {case.binary_name} reporting "
+        f"{case.reported_version!r} "
+        f"was {run.marker.exists()} with stderr {run.result.stderr!r}"
     )
 
 
@@ -199,21 +319,39 @@ def test_installer_checks_ld_mold_before_writing_success_marker(
 ) -> None:
     """Fresh installs validate the archive and linker pair for each Linux target."""
     run = _run_installer(tmp_path, case)
-    assert run.result.returncode == case.expected_status, run.result.stderr
-    assert run.curl_url_log.read_text(encoding="utf-8").strip().endswith(run.archive)
-    assert run.checksum_log.read_text(encoding="utf-8").splitlines() == [
+    assert run.result.returncode == case.expected_status, (
+        f"installer exit status was {run.result.returncode}; stderr was "
+        f"{run.result.stderr!r}"
+    )
+    download_url = run.curl_url_log.read_text(encoding="utf-8").strip()
+    assert download_url.endswith(run.archive), (
+        f"download URL {download_url!r} did not end with archive {run.archive!r}"
+    )
+    checksum_arguments = run.checksum_log.read_text(encoding="utf-8").splitlines()
+    assert checksum_arguments == [
         "--check",
         "--status",
         DIGESTS[case.architecture],
         run.archive,
-    ]
-    assert run.marker.exists() is (case.expected_status == 0)
+    ], f"checksum tool arguments were {checksum_arguments!r}"
+    assert run.marker.exists() is (case.expected_status == 0), (
+        f"success marker state was {run.marker.exists()} for exit status "
+        f"{case.expected_status}; stderr was {run.result.stderr!r}"
+    )
     if case.checksum_matches:
-        assert run.tar_marker.exists()
+        assert run.tar_marker.exists(), "valid checksum must reach archive extraction"
     else:
-        assert "Pinned mold archive checksum failed" in run.result.stderr
+        assert "Pinned mold archive checksum failed" in run.result.stderr, (
+            f"checksum failure diagnostic was {run.result.stderr!r}"
+        )
         assert not run.tar_marker.exists(), "checksum failure must precede extraction"
-        assert not (run.prefix / "bin" / "mold").exists()
-        assert not (run.prefix / "bin" / "ld.mold").exists()
+        assert not (run.prefix / "bin" / "mold").exists(), (
+            "checksum failure must stop before linker extraction"
+        )
+        assert not (run.prefix / "bin" / "ld.mold").exists(), (
+            "checksum failure must not install ld.mold"
+        )
     if case.checksum_matches and case.expected_status != 0:
-        assert "Installed ld.mold does not report the pinned version" in run.result.stderr
+        assert "Installed ld.mold does not report the pinned version" in run.result.stderr, (
+            f"wrong ld.mold version diagnostic was {run.result.stderr!r}"
+        )

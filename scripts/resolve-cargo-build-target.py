@@ -13,6 +13,18 @@ import tomllib
 class ConfigurationError(Exception):
     """Describe a Cargo configuration that cannot safely select a linker."""
 
+    @classmethod
+    def _ambiguous_directory(cls, cargo_directory: Path) -> ConfigurationError:
+        """Create the diagnostic for competing Cargo config filenames."""
+        return cls(
+            f"ambiguous Cargo configuration in {cargo_directory}: both config and config.toml exist"
+        )
+
+    @classmethod
+    def _cargo_home_unavailable(cls, detail: str) -> ConfigurationError:
+        """Create the diagnostic for a Cargo home lookup failure."""
+        return cls(f"cannot determine Cargo home: {detail}")
+
 
 def configuration_file_exists(path: Path) -> bool:
     """Check a candidate config without treating inspection errors as absence.
@@ -82,15 +94,30 @@ def resolve_path(path: Path, description: str) -> Path:
 
 
 def cargo_configuration_path(cargo_directory: Path) -> Path | None:
-    """Return one config from a Cargo directory, refusing ambiguous names."""
+    """Find a Cargo config file directly inside a Cargo directory.
+
+    Parameters
+    ----------
+    cargo_directory : Path
+        Directory in which to look for ``config`` or ``config.toml``.
+
+    Returns
+    -------
+    Path or None
+        The existing configuration file, or ``None`` if neither name exists.
+
+    Raises
+    ------
+    ConfigurationError
+        If inspecting either candidate fails, or both ``config`` and
+        ``config.toml`` exist and make the configuration ambiguous.
+    """
     legacy = cargo_directory / "config"
     modern = cargo_directory / "config.toml"
     legacy_exists = configuration_file_exists(legacy)
     modern_exists = configuration_file_exists(modern)
     if legacy_exists and modern_exists:
-        raise ConfigurationError(
-            f"ambiguous Cargo configuration in {cargo_directory}: both config and config.toml exist"
-        )
+        raise ConfigurationError._ambiguous_directory(cargo_directory)
     if modern_exists:
         return modern
     if legacy_exists:
@@ -99,12 +126,43 @@ def cargo_configuration_path(cargo_directory: Path) -> Path | None:
 
 
 def configuration_path(directory: Path) -> Path | None:
-    """Return one ancestor Cargo config file from its enclosing directory."""
+    """Find a Cargo config file in ``directory/.cargo``.
+
+    Parameters
+    ----------
+    directory : Path
+        Directory whose ``.cargo`` child is inspected.
+
+    Returns
+    -------
+    Path or None
+        The existing configuration file, or ``None`` if neither supported
+        configuration name exists.
+
+    Raises
+    ------
+    ConfigurationError
+        If inspecting a candidate configuration file fails or its names are
+        ambiguous.
+    """
     return cargo_configuration_path(directory / ".cargo")
 
 
 def cargo_home() -> Path:
-    """Resolve Cargo's home directory without changing its cache location."""
+    """Return Cargo's configured home directory without changing its location.
+
+    Returns
+    -------
+    Path
+        The expanded ``CARGO_HOME`` path, or ``~/.cargo`` when the variable is
+        unset or empty.
+
+    Raises
+    ------
+    ConfigurationError
+        If the home directory cannot be determined or ``CARGO_HOME`` cannot
+        be expanded.
+    """
     try:
         configured = os.environ.get("CARGO_HOME")
         if configured:
@@ -112,7 +170,7 @@ def cargo_home() -> Path:
         return Path.home() / ".cargo"
     except (OSError, RuntimeError) as error:
         detail = getattr(error, "strerror", None) or type(error).__name__
-        raise ConfigurationError(f"cannot determine Cargo home: {detail}") from error
+        raise ConfigurationError._cargo_home_unavailable(detail) from error
 
 
 def current_working_directory() -> Path:
@@ -142,6 +200,7 @@ def current_working_directory() -> Path:
 
 
 def _search_directories(start: Path, root_directory: Path | None) -> list[Path]:
+    """Return the bounded ancestor search directories from ``start`` upward."""
     start = resolve_path(start, "configuration search start")
     if root_directory is None:
         return [start, *start.parents]
@@ -162,7 +221,32 @@ def configuration_paths(
     cargo_home_directory: Path | None = None,
     root_directory: Path | None = None,
 ) -> list[Path]:
-    """List Cargo configuration files from lowest to highest precedence."""
+    """List applicable Cargo config files from lowest to highest precedence.
+
+    Cargo home is first, followed by workspace ancestors from the outermost
+    directory to ``start``. Duplicate file paths are included only once.
+
+    Parameters
+    ----------
+    start : Path
+        Directory from which ancestor configuration discovery begins.
+    cargo_home_directory : Path or None, optional
+        Cargo home directory to inspect instead of the detected Cargo home.
+    root_directory : Path or None, optional
+        Optional inclusive upper bound for the ancestor search.
+
+    Returns
+    -------
+    list of Path
+        Existing configuration files ordered from lowest to highest
+        precedence, so nearer directory settings appear later.
+
+    Raises
+    ------
+    ConfigurationError
+        If a search path cannot be resolved, ``start`` is outside
+        ``root_directory``, or a candidate configuration cannot be inspected.
+    """
     directories = _search_directories(start, root_directory)
 
     cargo_directory = cargo_home_directory or cargo_home()
@@ -177,6 +261,7 @@ def configuration_paths(
 
 
 def _read_configuration(path: Path) -> dict[str, object]:
+    """Read and parse a Cargo configuration file as TOML."""
     try:
         return tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
@@ -186,6 +271,7 @@ def _read_configuration(path: Path) -> dict[str, object]:
 
 
 def _build_table(document: dict[str, object], path: Path) -> dict[str, object] | None:
+    """Return the document's build table, rejecting non-table values."""
     build = document.get("build")
     if build is None:
         return None
@@ -195,6 +281,7 @@ def _build_table(document: dict[str, object], path: Path) -> dict[str, object] |
 
 
 def _target_value(build: dict[str, object] | None, path: Path) -> str | None:
+    """Return a valid scalar target from a build table, if present."""
     if build is None:
         return None
     target = build.get("target")
@@ -208,7 +295,24 @@ def _target_value(build: dict[str, object] | None, path: Path) -> str | None:
 
 
 def configured_target(path: Path) -> str | None:
-    """Read one config's scalar build target or reject an unsafe form."""
+    """Read one config file's scalar ``build.target`` setting.
+
+    Parameters
+    ----------
+    path : Path
+        Cargo configuration file to read and parse.
+
+    Returns
+    -------
+    str or None
+        The non-empty target triple, or ``None`` when no target is configured.
+
+    Raises
+    ------
+    ConfigurationError
+        If the file cannot be read or parsed, ``build`` is not a table, or
+        ``build.target`` is not a non-empty string.
+    """
     document = _read_configuration(path)
     return _target_value(_build_table(document, path), path)
 
@@ -219,7 +323,32 @@ def resolve_target(
     cargo_home_directory: Path | None = None,
     root_directory: Path | None = None,
 ) -> str | None:
-    """Apply Cargo's nearer-directory-over-home configuration precedence."""
+    """Resolve the effective target using Cargo configuration precedence.
+
+    Cargo home has the lowest precedence. Configuration in successively
+    nearer ancestor directories overrides it, with ``start`` taking highest
+    precedence.
+
+    Parameters
+    ----------
+    start : Path
+        Directory from which ancestor configuration discovery begins.
+    cargo_home_directory : Path or None, optional
+        Cargo home directory to inspect instead of the detected Cargo home.
+    root_directory : Path or None, optional
+        Optional inclusive upper bound for the ancestor search.
+
+    Returns
+    -------
+    str or None
+        The effective non-empty target triple, or ``None`` if none is set.
+
+    Raises
+    ------
+    ConfigurationError
+        If configuration paths cannot be resolved or read safely, or contain
+        an unsupported target setting.
+    """
     target = None
     for path in configuration_paths(
         start,

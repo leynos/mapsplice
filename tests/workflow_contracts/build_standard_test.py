@@ -153,8 +153,11 @@ def validate_coverage_exclusion(ci: dict[str, object]) -> None:
     """Refuse a missing or development-flagged coverage override."""
     steps = ci["jobs"]["build-test"]["steps"]
     coverage = [step for step in steps if "/generate-coverage@" in step.get("uses", "")]
-    assert len(coverage) == 1
-    assert coverage[0]["env"] == {"RUSTFLAGS": "-D warnings"}
+    assert len(coverage) == 1, f"expected one coverage action, found {len(coverage)}"
+    assert coverage[0]["env"] == {"RUSTFLAGS": "-D warnings"}, (
+        "coverage action must isolate RUSTFLAGS; "
+        f"observed environment {coverage[0].get('env')!r}"
+    )
 
 
 def test_ci_installs_before_every_linux_suite_and_excludes_coverage() -> None:
@@ -188,7 +191,7 @@ def test_coverage_rejects_encoded_development_flags() -> None:
 @pytest.mark.parametrize("runner", ["ubuntu-latest", ["self-hosted", "Linux"], {"group": "builders", "labels": ["Linux", "X64"]}])
 def test_runner_shapes_are_recognized(runner: object) -> None:
     """A runner syntax change must not silently erase suite coverage."""
-    assert linux_runner(runner)
+    assert linux_runner(runner), f"Linux runner shape was not recognized: {runner!r}"
 
 
 def test_matrix_runner_is_resolved_or_refused() -> None:
@@ -245,11 +248,24 @@ def validate_mutation_setup(job: dict[str, object]) -> None:
     install = commands.index("make install-build-tools")
     check = commands.index("make check-build-tools")
     flags = next(i for i, line in enumerate(commands) if "GITHUB_ENV" in line)
-    assert install < check < flags
-    assert all(flag in commands[flags] for flag in DEV_FLAGS)
-    assert "clang" in " ".join(commands[:install])
-    assert "|| true" not in "\n".join(commands)
-    assert "continue-on-error" not in job
+    assert install < check < flags, (
+        "setup commands must install, preflight, then export flags; "
+        f"observed indexes install={install}, check={check}, flags={flags}"
+    )
+    assert all(flag in commands[flags] for flag in DEV_FLAGS), (
+        f"setup command must export development flags {DEV_FLAGS!r}; "
+        f"observed {commands[flags]!r}"
+    )
+    assert "clang" in " ".join(commands[:install]), (
+        f"clang must be installed before Rust tools; observed {commands[:install]!r}"
+    )
+    assert "|| true" not in "\n".join(commands), (
+        f"setup commands must not hide failures with '|| true': {commands!r}"
+    )
+    assert "continue-on-error" not in job, (
+        "mutation job must not soften failures with continue-on-error; "
+        f"observed value {job.get('continue-on-error')!r}"
+    )
 
 
 def test_mutation_reusable_route_provisions_and_restates_flags() -> None:
@@ -285,9 +301,17 @@ def test_missing_tool_reports_an_installation_route(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
-    assert result.returncode != 0
-    assert "rustc" in result.stderr
-    assert "make install-build-tools" in result.stderr
+    assert result.returncode != 0, (
+        f"preflight must reject missing rustc; observed exit {result.returncode}, "
+        f"stderr {result.stderr!r}"
+    )
+    assert "rustc" in result.stderr, (
+        f"preflight stderr must name missing rustc; observed {result.stderr!r}"
+    )
+    assert "make install-build-tools" in result.stderr, (
+        "preflight stderr must give the installer route; "
+        f"observed {result.stderr!r}"
+    )
 
 
 @pytest.mark.skipif(
@@ -328,7 +352,10 @@ def test_installer_repairs_a_missing_linker_companion(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
-    assert result.returncode != 0
+    assert result.returncode != 0, (
+        f"installer must fail when curl cannot provision ld.mold; "
+        f"observed exit {result.returncode}, stderr {result.stderr!r}"
+    )
     assert curl_marker.exists(), "the missing ld.mold must trigger a reinstall"
 
 
@@ -342,9 +369,15 @@ def test_clang_wrapper_selects_pinned_linker_and_excludes_release(tmp_path: Path
     dev = subprocess.run(
         [*common, "-fuse-ld=mold"], capture_output=True, text=True, check=True
     )
-    assert f'"{linker}"' in dev.stderr
+    assert f'"{linker}"' in dev.stderr, (
+        f"development clang invocation must select {linker!r}; "
+        f"observed stderr {dev.stderr!r}"
+    )
     release = subprocess.run(common, capture_output=True, text=True, check=True)
-    assert "ld.mold" not in release.stderr
+    assert "ld.mold" not in release.stderr, (
+        f"release clang invocation must not select ld.mold; "
+        f"observed stderr {release.stderr!r}"
+    )
 
 
 @pytest.mark.skipif(platform.system() != "Linux", reason="the pinned linker is Linux-only")
@@ -361,5 +394,11 @@ def test_clang_wrapper_rejects_an_unpinned_linker(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
-    assert result.returncode != 0
-    assert "Pinned ld.mold 2.41.0 is required" in result.stderr
+    assert result.returncode != 0, (
+        f"clang wrapper must reject an unpinned linker; "
+        f"observed exit {result.returncode}, stderr {result.stderr!r}"
+    )
+    assert "Pinned ld.mold 2.41.0 is required" in result.stderr, (
+        f"wrapper stderr must explain the pinned linker requirement; "
+        f"observed {result.stderr!r}"
+    )

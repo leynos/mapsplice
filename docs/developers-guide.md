@@ -316,6 +316,7 @@ MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownfmt
 MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownlint-paths
 make markdownlint
 make nixie
+make spelling
 ```
 
 ### 7.1 Verus proofs

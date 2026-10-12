@@ -206,24 +206,27 @@ def test_strict_yaml_rejects_ambiguous_or_empty_input(source: str, reason: str) 
         ("pr_external_pin", "unproved external workflow call"),
         ("pr_computed_secret", "unproved PR secret route"),
         ("pr_baseline_override", "could write a coverage baseline"),
-        ("pr_ratchet_off", "assert"),
-        ("pr_artefact_on", "assert"),
+        ("pr_ratchet_off", "PR coverage must enable ratcheting"),
+        ("pr_artefact_on", "PR coverage must not publish an artefact"),
         ("remove_token_check", "Check CodeScene token"),
         ("remove_skip_warning", "missing-token warning"),
         ("change_skip_warning", "missing-token warning"),
         ("reorder_token_check", "publisher steps are out of order"),
         ("token_env", "CS_ACCESS_TOKEN"),
-        ("bypass_guard", "assert"),
+        ("bypass_guard", "exact token-available main-branch guard"),
         ("cancel", "concurrency"),
         ("coverage_parity", "PR and main coverage inputs differ"),
         ("remove_preflight", "build-tool preflight"),
-        ("preflight_after_suite", "assert"),
+        (
+            "preflight_after_suite",
+            "publisher setup and preflight must precede coverage generation",
+        ),
         ("secret_in_extra_step", "only the token check"),
         ("duplicate_writer", "baseline writers"),
         ("remove_environment", "protected codescene environment"),
         ("move_environment", "PR-reachable CodeScene"),
-        ("remove_upload", "assert"),
-        ("empty_workflows", "assert"),
+        ("remove_upload", "exactly one pinned CodeScene upload action"),
+        ("empty_workflows", "both ci.yml and coverage-main.yml are required"),
     ],
 )
 def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
@@ -231,7 +234,9 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
     MUTATIONS[mutation](workflows)
     with pytest.raises((AssertionError, ValueError)) as caught:
         validate(workflows)
-    assert reason == "assert" or reason in str(caught.value)
+    assert reason in str(caught.value), (
+        f"{mutation} should fail with {reason!r}; got {caught.value!r}"
+    )
 
 
 def test_pr_closure_follows_workflow_run_chain() -> None:

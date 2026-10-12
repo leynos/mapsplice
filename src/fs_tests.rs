@@ -1,4 +1,5 @@
-//! Concurrency coverage for temporary-file name generation.
+//! Test temporary-name uniqueness and cleanup after write or replacement
+//! failures.
 
 use std::{
     collections::BTreeSet,

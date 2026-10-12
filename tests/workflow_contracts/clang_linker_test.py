@@ -59,7 +59,10 @@ def test_clang_route_forwards_target_and_linker(
     if target == "aarch64":
         expected.append("--target=aarch64-unknown-linux-gnu")
     expected.extend(arguments)
-    assert observed == expected
+    assert observed == expected, (
+        f"clang wrapper arguments differ for {target} with pinned linker="
+        f"{uses_pinned_linker}: expected {expected!r}, observed {observed!r}"
+    )
 
 
 @pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
@@ -122,11 +125,23 @@ exit 1
     prerequisite = "clang" if missing_tool == "clang" else f"{missing_tool} 2.41.0"
     if missing_tool == "ld.mold" and linker_version is not None:
         prerequisite = "ld.mold 2.41.0"
-    assert result.returncode == 1, result.stderr
-    assert f"Build prerequisite missing: {prerequisite}" in result.stderr
-    assert "make install-build-tools" in result.stderr
+    assert result.returncode == 1, (
+        f"missing {prerequisite} must exit 1; observed exit {result.returncode}, "
+        f"stderr {result.stderr!r}"
+    )
+    assert f"Build prerequisite missing: {prerequisite}" in result.stderr, (
+        f"preflight stderr must identify missing {prerequisite}; "
+        f"observed {result.stderr!r}"
+    )
+    assert "make install-build-tools" in result.stderr, (
+        f"preflight stderr must name the installer route for {prerequisite}; "
+        f"observed {result.stderr!r}"
+    )
     if missing_tool == "clang":
-        assert "system package manager" in result.stderr
+        assert "system package manager" in result.stderr, (
+            f"missing clang diagnostic must name its system package route; "
+            f"observed {result.stderr!r}"
+        )
 
 
 @pytest.mark.parametrize(
@@ -170,6 +185,15 @@ def test_unrelated_response_arguments_do_not_select_pinned_linker(
         text=True,
         check=False,
     )
-    assert result.returncode == 0, result.stderr
-    assert recording.read_text(encoding="utf-8").splitlines() == [argument]
-    assert not (tmp_path / "SHOULD_NOT_EXIST").exists()
+    assert result.returncode == 0, (
+        f"literal response-file argument should succeed; observed exit "
+        f"{result.returncode}, stderr {result.stderr!r}"
+    )
+    assert recording.read_text(encoding="utf-8").splitlines() == [argument], (
+        f"clang wrapper must pass the response-file argument unchanged; "
+        f"expected {[argument]!r}, observed "
+        f"{recording.read_text(encoding='utf-8').splitlines()!r}"
+    )
+    assert not (tmp_path / "SHOULD_NOT_EXIST").exists(), (
+        "response-file contents must not be evaluated as shell commands"
+    )

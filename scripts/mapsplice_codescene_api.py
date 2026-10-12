@@ -34,6 +34,7 @@ Fetch = Callable[[str], ApiResponse]
 
 
 def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object while rejecting duplicate keys."""
     result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
@@ -47,6 +48,7 @@ def _reject_json_constant(_: str) -> object:
 
 
 def _response_parts(raw: str) -> tuple[list[str], str]:
+    """Split gh's included HTTP headers from its response body."""
     parts = re.split(r"\r?\n\r?\n", raw, maxsplit=1)
     if len(parts) != 2:
         raise VerificationError("api-response", "GitHub API headers are missing")

@@ -69,6 +69,7 @@ def gh_fetch(endpoint: str) -> ApiResponse:
 
 
 def _validate_repository_name(repo: str) -> None:
+    """Reject repository names outside the supported owner/name form."""
     if REPOSITORY.fullmatch(repo) is None or any(
         segment in {".", ".."} for segment in repo.split("/")
     ):
@@ -76,6 +77,7 @@ def _validate_repository_name(repo: str) -> None:
 
 
 def _repository_identifier(repo: str, fetch: Fetch) -> int:
+    """Fetch and verify the immutable GitHub repository identifier."""
     metadata = response_object(fetch(f"repos/{repo}"), "repository")
     identifier = metadata.get("id")
     if not _repository_metadata_matches(metadata, identifier, repo):

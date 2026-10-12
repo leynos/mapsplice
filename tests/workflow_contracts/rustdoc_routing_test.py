@@ -35,8 +35,15 @@ def assert_rustdoc_route(
     extra_flags: tuple[str, ...] = (),
 ) -> None:
     """Require the workspace rustdoc invocation and ordered caller flags."""
-    assert route.arguments == expected_arguments
-    assert route.rustdoc_flags == (*REQUIRED_RUSTDOC_FLAGS, *extra_flags)
+    assert route.arguments == expected_arguments, (
+        f"expected rustdoc arguments {expected_arguments!r}; "
+        f"observed {route.arguments!r}"
+    )
+    assert route.rustdoc_flags == (*REQUIRED_RUSTDOC_FLAGS, *extra_flags), (
+        "expected rustdoc flags "
+        f"{(*REQUIRED_RUSTDOC_FLAGS, *extra_flags)!r}; "
+        f"observed {route.rustdoc_flags!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -146,12 +153,19 @@ def test_rustdoc_command_failure_propagates_through_make(tmp_path: Path) -> None
     makefile = tmp_path / "Makefile"
     makefile.write_text((ROOT / "Makefile").read_text(encoding="utf-8"), encoding="utf-8")
     result, invocations = makefile_route(tmp_path, makefile, fail_documentation=True)
-    assert result.returncode != 0
-    assert "Error 23" in result.stderr
+    assert result.returncode != 0, (
+        f"Make must fail when rustdoc exits 23; observed exit {result.returncode}, "
+        f"stderr {result.stderr!r}"
+    )
+    assert "Error 23" in result.stderr, (
+        f"Make stderr must report rustdoc's exit 23; observed {result.stderr!r}"
+    )
     assert route_for(invocations, ("doc",)).arguments == (
         "doc", "--workspace", "--no-deps",
+    ), f"failed route must invoke workspace rustdoc; observed {invocations!r}"
+    assert not any(invocation.arguments[0] == "clippy" for invocation in invocations), (
+        f"Make must stop before clippy after rustdoc failure; observed {invocations!r}"
     )
-    assert not any(invocation.arguments[0] == "clippy" for invocation in invocations)
 
 
 @pytest.mark.parametrize(
@@ -178,7 +192,10 @@ def test_rustdoc_contract_rejects_required_policy_mutations(
     assert mutated != source, f"{mutation} mutation did not alter Makefile"
     makefile.write_text(mutated, encoding="utf-8")
     result, invocations = makefile_route(tmp_path, makefile)
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 0, (
+        f"recording Make route should complete successfully; observed exit "
+        f"{result.returncode}, stderr {result.stderr!r}"
+    )
     documentation = route_for(invocations, ("doc",))
     with pytest.raises(AssertionError):
         assert_rustdoc_route(documentation, expected_arguments)

@@ -105,19 +105,24 @@ def _valid_fetch(
 def _assert_code(fetch: ScriptedFetch, code: str) -> None:
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)
-    assert caught.value.code == code
+    assert caught.value.code == code, (
+        f"expected verification code {code!r}, observed error {caught.value!r}"
+    )
 
 
 def test_valid_protection_reads_environment_and_policies_back() -> None:
     """The successful proof reads the environment and first page twice."""
     fetch = _valid_fetch()
-    assert verifier.verify_environment(REPOSITORY, fetch) == (1, "main", "branch")
+    assert verifier.verify_environment(REPOSITORY, fetch) == (1, "main", "branch"), (
+        "verified main-branch protection must return policy tuple "
+        "(1, 'main', 'branch')"
+    )
     assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT] + [
         PAGE_ONE,
         PAGE_TWO,
         PAGE_ONE,
         ENVIRONMENT,
-    ]
+    ], f"successful verification made unexpected API calls: {fetch.calls!r}"
     fetch.assert_consumed()
 
 
@@ -129,7 +134,9 @@ def test_repository_metadata_must_prove_identity(repository: dict[str, object]) 
     fetch = _valid_fetch()
     fetch.replies[REPOSITORY_ENDPOINT] = [_response(repository)]
     _assert_code(fetch, "repository-identity")
-    assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT]
+    assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT], (
+        f"repository identity rejection made unexpected API calls: {fetch.calls!r}"
+    )
 
 
 def test_canonical_numeric_sentinel_links_are_accepted() -> None:
@@ -151,7 +158,10 @@ def test_environment_access_failures_remain_distinct(status: int, code: str) -> 
         {ENVIRONMENT: [_response({"token": "private"}, status=status)]}
     )
     _assert_code(fetch, code)
-    assert fetch.calls == [ENVIRONMENT]
+    assert fetch.calls == [ENVIRONMENT], (
+        f"HTTP {status} environment rejection made unexpected API calls: "
+        f"{fetch.calls!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -196,12 +206,16 @@ def test_pagination_reads_101_entries_and_an_empty_sentinel() -> None:
     fetch.replies[PAGE_TWO] = [_page([final], 101)]
     fetch.replies[PAGE_THREE] = [_page([], 101)]
     _assert_code(fetch, "policy-count")
-    assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT] + [
+    expected_calls = [ENVIRONMENT, REPOSITORY_ENDPOINT] + [
         PAGE_ONE,
         PAGE_TWO,
         PAGE_THREE,
         PAGE_ONE,
     ]
+    assert fetch.calls == expected_calls, (
+        f"101-policy pagination calls were {fetch.calls!r}; "
+        f"expected {expected_calls!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -234,8 +248,12 @@ def test_invalid_pagination_links_fail_closed(link: str | None, code: str) -> No
 
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)
-    assert caught.value.code == code
-    assert "ghp_private_marker" not in str(caught.value)
+    assert caught.value.code == code, (
+        f"invalid pagination link {link!r} produced code {caught.value.code!r}"
+    )
+    assert "ghp_private_marker" not in str(caught.value), (
+        f"invalid pagination link exposed its private marker: {caught.value!r}"
+    )
 
 
 def test_count_change_between_pages_is_reported() -> None:
@@ -271,13 +289,17 @@ def test_environment_detail_change_between_reads_is_reported() -> None:
         environment_reads=[_response(_environment()), _response(_environment("other"))]
     )
     _assert_code(fetch, "environment-shape")
-    assert fetch.calls[-1] == ENVIRONMENT
+    assert fetch.calls[-1] == ENVIRONMENT, (
+        f"environment readback ended at {fetch.calls[-1]!r}, expected {ENVIRONMENT!r}"
+    )
 
 
 def test_policy_count_above_the_audit_cap_stops_before_pagination() -> None:
     fetch = _valid_fetch(first_page=_page([], MAX_PAGES * 100 + 1))
     _assert_code(fetch, "policy-cap")
-    assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT, PAGE_ONE]
+    assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT, PAGE_ONE], (
+        f"policy-cap rejection made unexpected API calls: {fetch.calls!r}"
+    )
 
 
 def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
@@ -300,9 +322,12 @@ def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
     result = verifier.main(["--repo", REPOSITORY], fetch=verifier.gh_fetch)
     output = capsys.readouterr()
 
-    assert result == 1
-    assert secret not in output.out + output.err
-    assert invocation["arguments"] == [
+    assert result == 1, f"CLI returned status {result} for the simulated HTTP 403"
+    assert secret not in output.out + output.err, (
+        f"CLI exposed the simulated API marker in stdout/stderr: "
+        f"{output.out!r} {output.err!r}"
+    )
+    expected_arguments = [
         "gh",
         "api",
         "--hostname",
@@ -312,12 +337,20 @@ def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
         "GET",
         ENVIRONMENT,
     ]
-    assert invocation["kwargs"] == {
+    assert invocation["arguments"] == expected_arguments, (
+        f"GitHub request arguments were {invocation['arguments']!r}; "
+        f"expected GET-only arguments {expected_arguments!r}"
+    )
+    expected_kwargs = {
         "capture_output": True,
         "text": True,
         "timeout": 30,
         "check": False,
     }
+    assert invocation["kwargs"] == expected_kwargs, (
+        f"GitHub subprocess options were {invocation['kwargs']!r}; "
+        f"expected {expected_kwargs!r}"
+    )
 
 
 def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
@@ -330,8 +363,12 @@ def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.parse_http_response(raw, 0)
 
-    assert caught.value.code == "api-response"
-    assert secret not in str(caught.value)
+    assert caught.value.code == "api-response", (
+        f"duplicate JSON key produced code {caught.value.code!r}"
+    )
+    assert secret not in str(caught.value), (
+        f"duplicate JSON key error exposed its second value: {caught.value!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -350,8 +387,12 @@ def test_injected_malformed_api_response_cannot_leak_values(
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)
 
-    assert caught.value.code == "api-response"
-    assert "ghp_secret" not in str(caught.value)
+    assert caught.value.code == "api-response", (
+        f"malformed API response {response!r} produced code {caught.value.code!r}"
+    )
+    assert "ghp_secret" not in str(caught.value), (
+        f"malformed API response leaked its private marker: {caught.value!r}"
+    )
 
 
 @pytest.mark.parametrize(
