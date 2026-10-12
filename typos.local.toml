@@ -69,6 +69,8 @@ ignore = [
     '\.mold-\{VERSION\}-\{DIGEST\}',
     'mold-\{VERSION\}-\{architecture\}-linux\.tar\.gz',
     'mold-\{VERSION\}-\{case\.architecture\}-linux\.tar\.gz',
+    'mold-\{VERSION\}-\{case\.architecture\}-linux/bin',
+    '\{directory\}/mold',
     '\.mold-\{VERSION\}-\{DIGESTS\[architecture\]\}',
     '\.mold-\{VERSION\}-\{DIGESTS\[case\.architecture\]\}',
     "rui314/mold",

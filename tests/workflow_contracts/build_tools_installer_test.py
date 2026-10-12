@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import shlex
 import shutil
 import subprocess
+import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -68,56 +71,74 @@ def _write_download_tool(commands: Path) -> None:
         "  esac\n"
         "done\n"
         "printf '%s\\n' \"$url\" > \"$CURL_URL_LOG\"\n"
-        "printf '%s\\n' fixture > \"$archive\"\n",
+        "cp \"$ARCHIVE_FIXTURE\" \"$archive\"\n",
     )
 
 
 def _write_checksum_tool(commands: Path) -> None:
     real_sha256sum = shutil.which("sha256sum")
     assert real_sha256sum is not None, "test host must provide sha256sum"
+    # Map the pinned release digest to this fixture's real hash only on valid cases.
     _write_command(
         commands,
         "sha256sum",
         "#!/bin/sh\nset -eu\n"
+        "[ \"$#\" -eq 2 ] && [ \"$1\" = --check ] && [ \"$2\" = --status ] || exit 2\n"
         "read -r digest archive\n"
-        "printf '%s\\n%s\\n' \"$digest\" \"${archive##*/}\" > \"$CHECKSUM_LOG\"\n"
+        "printf '%s\\n%s\\n%s\\n%s\\n' \"$1\" \"$2\" \"$digest\" "
+        "\"${archive##*/}\" > \"$CHECKSUM_LOG\"\n"
         "[ \"$digest\" = \"$EXPECTED_DIGEST\" ] || exit 1\n"
         "[ \"${archive##*/}\" = \"$EXPECTED_ARCHIVE\" ] || exit 1\n"
-        "if [ \"$CHECKSUM_MODE\" = mismatch ]; then\n"
-        f"  printf '%s  %s\\n' \"$digest\" \"$archive\" | "
-        f"{shlex.quote(real_sha256sum)} --check --status\n"
-        "fi\n",
+        "if [ \"$CHECKSUM_MODE\" = accept ]; then\n"
+        f"  actual=$({shlex.quote(real_sha256sum)} \"$archive\")\n"
+        "  actual=${actual%% *}\n"
+        "  digest=$actual\n"
+        "fi\n"
+        "printf '%s  %s\\n' \"$digest\" \"$archive\" | "
+        f"{shlex.quote(real_sha256sum)} \"$@\"\n",
     )
 
 
-def _write_archive_tool(commands: Path, case: InstallerCase) -> None:
+def _write_archive_tool(commands: Path) -> None:
+    real_tar = shutil.which("tar")
+    assert real_tar is not None, "test host must provide tar"
     _write_command(
         commands,
         "tar",
         "#!/bin/sh\nprintf '%s\\n' called > \"$TAR_MARKER\"\n"
-        "destination=\nwhile [ \"$#\" -gt 0 ]; do\n"
-        "  if [ \"$1\" = -C ]; then destination=$2; shift 2; else shift; fi\n"
-        "done\n"
-        f"directory=\"$destination/mold-{VERSION}-{case.architecture}-linux/bin\"\n"
-        "mkdir -p \"$directory\"\n"
-        f"printf '%s\\n' '#!/bin/sh' \"printf '%s\\\\n' 'mold {VERSION} (test)'\" "
-        "> \"$directory/mold\"\n"
-        f"printf '%s\\n' '#!/bin/sh' \"printf '%s\\\\n' '{case.companion_version}'\" "
-        "> \"$directory/ld.mold\"\n",
+        f"exec {shlex.quote(real_tar)} \"$@\"\n",
     )
+
+
+def _write_archive_fixture(path: Path, case: InstallerCase) -> None:
+    directory = f"mold-{VERSION}-{case.architecture}-linux/bin"
+    binaries = {
+        f"{directory}/mold": f"#!/bin/sh\nprintf '%s\\n' 'mold {VERSION} (test)'\n",
+        f"{directory}/ld.mold": (
+            "#!/bin/sh\nprintf '%s\\n' "
+            f"{shlex.quote(case.companion_version)}\n"
+        ),
+    }
+    with tarfile.open(path, "w:gz") as archive:
+        for name, contents in binaries.items():
+            payload = contents.encode("utf-8")
+            entry = tarfile.TarInfo(name)
+            entry.mode = 0o755
+            entry.size = len(payload)
+            archive.addfile(entry, io.BytesIO(payload))
 
 
 def _installer_commands(tmp_path: Path, case: InstallerCase) -> Path:
     commands = tmp_path / "commands"
     commands.mkdir()
-    for name in ("awk", "install", "mkdir", "mktemp", "rm", "touch"):
+    for name in ("awk", "cp", "gzip", "install", "mkdir", "mktemp", "rm", "touch"):
         resolved = shutil.which(name)
         assert resolved is not None, f"test host must provide {name}"
         (commands / name).symlink_to(resolved)
     _write_platform_tools(commands, case)
     _write_download_tool(commands)
     _write_checksum_tool(commands)
-    _write_archive_tool(commands, case)
+    _write_archive_tool(commands)
     return commands
 
 
@@ -127,6 +148,10 @@ def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     archive = f"mold-{VERSION}-{case.architecture}-linux.tar.gz"
+    archive_fixture = tmp_path / "archive-fixture.tar.gz"
+    _write_archive_fixture(archive_fixture, case)
+    fixture_digest = hashlib.sha256(archive_fixture.read_bytes()).hexdigest()
+    assert fixture_digest != DIGESTS[case.architecture]
     curl_url_log = tmp_path / "curl-url.log"
     checksum_log = tmp_path / "checksum.log"
     tar_marker = tmp_path / "tar-called"
@@ -138,6 +163,7 @@ def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
         "CURL_URL_LOG": str(curl_url_log),
         "CHECKSUM_LOG": str(checksum_log),
         "TAR_MARKER": str(tar_marker),
+        "ARCHIVE_FIXTURE": str(archive_fixture),
         "EXPECTED_DIGEST": DIGESTS[case.architecture],
         "EXPECTED_ARCHIVE": archive,
         "CHECKSUM_MODE": "accept" if case.checksum_matches else "mismatch",
@@ -176,6 +202,8 @@ def test_installer_checks_ld_mold_before_writing_success_marker(
     assert run.result.returncode == case.expected_status, run.result.stderr
     assert run.curl_url_log.read_text(encoding="utf-8").strip().endswith(run.archive)
     assert run.checksum_log.read_text(encoding="utf-8").splitlines() == [
+        "--check",
+        "--status",
         DIGESTS[case.architecture],
         run.archive,
     ]
