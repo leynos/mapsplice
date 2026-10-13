@@ -26,6 +26,11 @@ use crate::prover_harness::{
 type LedgerFixture = (String, String);
 
 const LEDGER_DIAGNOSTIC: &str = "verification ledger names missing symbol:";
+/// The diagnostic for a cell that is not an identifier at all. The checker's
+/// own exit-status header separates this from a missing declaration, so the
+/// two carry different text; conflating them sends an operator to `src/` to
+/// look for a function whose name was never well formed.
+const MALFORMED_DIAGNOSTIC: &str = "verification ledger names malformed symbol:";
 /// The ledger's executable-function column, as the fixture spells it.
 const KERNEL_COLUMN: &str = "| `select_resolution` |";
 const EMPTY_LEDGER_DIAGNOSTIC: &str = "verification ledger states no verifiable claims";
@@ -165,6 +170,31 @@ fn ledger_check_rejects_a_claim_with_no_declaration(
     require(
         diagnostic == format!("{LEDGER_DIAGNOSTIC} {symbol}"),
         format!("expected the missing-symbol diagnostic, got {diagnostic:?}"),
+    )
+}
+
+#[rstest]
+#[case::a_space_in_the_name("select resolution")]
+#[case::a_path_not_a_name("ops/select_resolution")]
+#[case::a_leading_digit("1select_resolution")]
+fn ledger_check_reports_a_malformed_symbol_as_malformed(#[case] symbol: &str) -> TestResult {
+    // The source declares a real function, so the claim fails on the cell's
+    // shape alone and cannot be satisfied by a declaration. That is what keeps
+    // this case distinct from `ledger_check_rejects_a_claim_with_no_declaration`
+    // and stops the two diagnostics from being interchangeable.
+    let directory = materialize(&fixture(symbol, "fn select_resolution() {}")?)?;
+    let output = run_ledger_check(utf8(directory.path())?)?;
+
+    require(
+        !output.status.success(),
+        format!("malformed claim {symbol:?} should be rejected"),
+    )?;
+    let diagnostic = String::from_utf8_lossy(&output.stdout)
+        .trim_end()
+        .to_owned();
+    require(
+        diagnostic == format!("{MALFORMED_DIAGNOSTIC} {symbol}"),
+        format!("expected the malformed-symbol diagnostic, got {diagnostic:?}"),
     )
 }
 

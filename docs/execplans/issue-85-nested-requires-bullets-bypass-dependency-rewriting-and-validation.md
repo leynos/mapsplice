@@ -8,8 +8,18 @@ Insertion redirected a consumer to an unrelated new task; deleting a
 prerequisite produced a self-dependency; in-place deletion wrote that invalid
 result to disk.
 
-All four tasks of the coding plan are complete and committed, and every
-deterministic gate is green. This plan tracks the CodeRabbit review and the PR.
+All four tasks of the coding plan are complete and committed. Every
+deterministic gate is green, and the hosted checks are green on the current head
+`e9f0645`: CI run `38356339534` passed all twenty steps, with the coverage
+step reporting `510 tests run: 510 passed (1 slow), 0 skipped` and
+`compile_time_contracts` passing in 187.865s. `make verus` reports
+`4 verified, 0 errors` and `make verus-selftest` correctly rejects the
+deliberately false smoke proof, so both proof gates hold locally as well.
+
+This plan tracks the CodeRabbit review and the PR. The remaining gate is the
+review decision, not the build: `reviewDecision` is `CHANGES_REQUESTED` from a
+submission raised against this same head, which is a live judgement about the
+change rather than a stale one from an earlier revision.
 
 ## Progress so far
 
@@ -40,7 +50,7 @@ The four coding-plan tasks:
 - `9202dbf` — Share the verified kernel body as a macro, not an include splice.
 - `4daffb0` — Record the ICE resolution and the macro trade in the ExecPlan.
 
-The ten CodeRabbit rounds and their response commits:
+The eleven CodeRabbit rounds and their response commits:
 
 | Round | Findings | Answered by                                | Evidence artefact                                      |
 | ----- | -------- | ------------------------------------------ | ------------------------------------------------------ |
@@ -54,15 +64,23 @@ The ten CodeRabbit rounds and their response commits:
 | 8     | 3        | `ef8cda3`, `bcc6e08`, `fe72e93`, `0ae84d1` | `/tmp/walkthrough-86-0523.md`                          |
 | 9     | 4        | `c15f7a4`, `e7d5c76`                       | `/tmp/walkthrough-86-round9-31da138.md`                |
 | 10    | 1        | `4321e33`                                  | `/tmp/walkthrough-86-round10-d41c3d0.md`               |
+| 11    | 2        | `e9f0645`, see item 12                     | `/tmp/walkthrough-86-round11-e9f0645.md`               |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
 
-Rounds 9 and 10 both replied to every thread and then re-requested a review
+Rounds 9, 10 and 11 all replied to every thread and then re-requested a review
 through `comenq`; those replies and requests are operational steps that leave
-no artefact of their own, so they are recorded in item 11 rather than as a
-column here. What each row anchors is the review that raised the findings and
-the commit that answered them.
+no artefact of their own, so they are recorded in item 11 and item 12 rather
+than as a column here. What each row anchors is the review that raised the
+findings and the commit that answered them.
+
+Round 11 is the first round raised against a head that had already been pushed
+into a _hosted_ green state: its submission `5499964470` was made against
+`e9f0645`, and it carried two inline findings and five pre-merge warnings. It
+is also the first whose findings had to be separated from the round-10 ones by
+`commit_id` rather than by arrival order, because the review submission and its
+walkthrough edit are the same surface at two different timestamps.
 
 Round 9 was the first review the fresh `@coderabbitai review` was asked for,
 and it is the first round where the previously failing rows **pass**: both
@@ -156,9 +174,11 @@ reading:
   the lint already skips, while the proof and the product still expand one text.
 
 The shared text therefore moved from `verus/kernels/select_resolution.body.rs`
-(a body fragment) to `verus/kernels/select_resolution.macro.rs` (a macro
-definition), and both `verus/lib.rs` and `src/roadmap/ops/remap_kernel.rs`
-expand `select_resolution_body!` and include the macro file at item level.
+(a body fragment) to a macro definition, first at
+`verus/kernels/select_resolution.macro.rs` and then, at item 7 of Completed
+work, to its shipped home `src/roadmap/ops/select_resolution.macro.rs`. Both
+`verus/lib.rs` and `src/roadmap/ops/remap_kernel.rs` expand
+`select_resolution_body!` and include the macro file at item level.
 
 Confirmed after the change: `make verus` reports `4 verified, 0 errors`;
 `make lint` exits 0 with zero ICEs and the Whitaker toolchain banner present
@@ -638,7 +658,10 @@ Constraints confirmed by experiment:
     so the reply posts first, as in round 8.
 
 11. Round 10: one finding, live, and it is the same gate a third time.
-    **Fixed at `4321e33`; gates and reply pending.**
+    **Fixed at `4321e33`; the gates and the reply have since completed — the
+    reply is `5854780024`, and the round's remediation is what `ff84540`
+    records. This item's own status marker said "pending" for longer than the
+    work did.**
 
     Submission `5329826766` (`CHANGES_REQUESTED` on `d41c3d04`) carries one
     inline comment, `4114898863` at `scripts/check-domain-purity.sh:71`, and it
@@ -695,6 +718,79 @@ Constraints confirmed by experiment:
     A third question was settled by experiment rather than assumption: `$` in
     ripgrep's multiline mode anchors to the end of a _line_, not the end of the
     haystack, which is what the terminator group needs.
+
+12. Round 11: two findings against a hosted-green head, plus five pre-merge
+    warnings. **Fixed in the commit carrying this item.**
+
+    Submission `5499964470` (`CHANGES_REQUESTED` on `e9f0645`) is the first
+    review raised against a head whose hosted checks were already green, and
+    the distinction matters for how the two surfaces were read: a green
+    `build-test` says the deterministic gates passed, and says nothing about
+    the two documentation defects the review found, which is exactly why both
+    can be true at once.
+
+    Both inline findings were confirmed against the tree before the edit rather
+    than accepted on the reviewer's description of it:
+
+    - **`4255708771` (ExecPlan `:161`, Minor) — accepted.** Lines 158–161 said
+      the shared text moved to `verus/kernels/select_resolution.macro.rs` (a
+      macro definition), while item 7 of Completed work records that it then
+      moved to `src/roadmap/ops/select_resolution.macro.rs`, which is where
+      `ls` finds it. Both statements were true of different moments, and the
+      Task 4 section presented the superseded one as the outcome. It now names
+      the `verus/kernels/` location as the intermediate step and the `src/`
+      location as the shipped one, preserving the narrative of why the move
+      happened.
+    - **`4255708791` (`scripts/check-verification-ledger.sh:63`, Minor) —
+      accepted, and the fix carries a test.** A ledger cell that is not an
+      identifier at all reached the same `echo` as a well-formed name with no
+      declaration: `verification ledger names missing symbol`. The script's own
+      exit-status header separates the two — "a ledger claim names a malformed
+      or missing symbol" — so the message sent an operator to `src/` to look
+      for a function whose name was never well formed. The two branches now
+      differ. Because the change splits one observable outcome into two, it is
+      exactly the kind of edit that can pass every existing test while being
+      untested, so a parameterized case was added:
+      `ledger_check_reports_a_malformed_symbol_as_malformed` covers a space in
+      the name, a path rather than a name, and a leading digit, each with a
+      source file that _does_ declare `select_resolution`. That last part is
+      what keeps the new case distinct from the sibling missing-declaration
+      case: the claim fails on the cell's shape alone and cannot be satisfied
+      by a declaration. Three cases, all passing.
+
+      One candidate case was dropped deliberately. A cell holding a stray
+      backtick — `` `select_resolution `` — looks like a malformed-symbol case
+      and is not: the extractor strips backticks with `gsub` before the
+      validator sees the value, so the cell arrives well formed and the
+      assertion would have been about the stripper, passing for a reason
+      unrelated to the branch under test.
+
+    The five pre-merge warnings are disposed of in the reconciliation comment
+    rather than here, because three of them are judgements about the pull
+    request's scope rather than defects in the tree. Item 13 records the one
+    that changed tracked files.
+
+13. Out-of-scope roadmap item removed, and its defect preserved. **Done in the
+    commit carrying this item.**
+
+    Round 11's Out of Scope Changes row asked for the `1.2.4` roadmap item to be
+    removed from this pull request or moved to a separate issue, and for once
+    the row is straightforwardly right: `git log -S'1.2.4'` shows this branch
+    added the item at `0dd99de`, and `git diff origin/main HEAD -- docs/roadmap.md`
+    shows it sitting in a diff otherwise concerned with `1.2.1`. The defect it
+    describes is real and pre-existing, but recording it as unchecked work in
+    the roadmap of the pull request that does not fix it advertises scope this
+    change does not have.
+
+    The remedy is the row's second option rather than its first. Deleting the
+    text would lose a reproduction that took a fixture corpus to find, so the
+    defect now has
+    <https://github.com/leynos/mapsplice/issues/149>, written from the item's
+    own account: a task holding both a non-structural body bullet and an
+    addendum sub-task leaves the sub-task at its stale number when a
+    renumbering edit moves the parent, in breach of C4. The roadmap item is
+    gone; the reproduction, its provenance against the pre-fix revision, and
+    its acceptance criteria live in the issue.
 
 ## Lessons
 
@@ -1125,3 +1221,114 @@ Constraints confirmed by experiment:
   the macro file and the ledger rather than left implicit.
 - Byte offsets and Unicode scalar indices are distinct types in any spec that
   touches them.
+
+## Dispositions held without a code change
+
+Three of round 11's pre-merge warnings are answered by argument rather than by
+an edit, and all three are recorded here so the reasoning outlives the review
+comment that prompted it. None is a refusal to act: each names the condition
+that would change the answer.
+
+- **Linked Issues — further Verus obligations for deleted-target rejection and
+  source-span preservation.** The row asks for proof-connected obligations for
+  these two, "or an issue-compliant refinement proof". Issue #85's own wording
+  permits the alternative for the recognizer — "explicitly document its
+  unverified boundary" — and `docs/verification.md` does exactly that, naming
+  the recognizer as the larger surface and stating that nothing in the ledger
+  is evidence about it. The question is whether these two in particular can
+  carry a theorem that can fail.
+
+  Deleted-target rejection cannot, and the ledger records the experiment rather
+  than the assertion. Its theorem was written, then removed when the defect
+  battery showed it was unfalsifiable: it assumed both options absent, and with
+  neither option holding a value there is nothing to fabricate, so Verus
+  discharges the conclusion from the types alone. It survived all six injected
+  specification defects while each of its neighbours rejected at least one.
+  That is precisely the "theorem that survives every injected defect" the
+  ledger's policy says to delete rather than list, and keeping it would have
+  made the policy false. The rejection is still guaranteed, in two parts that
+  are each covered where they live:
+  `target_text_never_uses_the_cross_source_fallback` covers the kernel form,
+  and the `unresolved` collection in `src/roadmap/ops/rewrite.rs:146` turns a
+  `None` into `MapspliceError::DanglingDependency`, which the CLI regressions
+  and the property suite assert directly. The reason no _new_ kernel can carry
+  it is structural: rejection is decided by whether a collection built across a
+  whole mdast traversal is empty, which is not a narrow pure function, and
+  extracting an "is this list empty" kernel to prove it would be a theorem about
+  `Vec::is_empty`.
+
+  Source-span preservation is a property of the renderer, not of the resolution
+  kernel, and its earlier row was removed for the same falsifiability reason:
+  "resolution depends on nothing but its three inputs" concluded equality of
+  results from pairwise-equal arguments, which Verus discharges from the
+  signature alone for any total function. The property itself is covered by the
+  golden fixtures and the in-place byte-identity assertions in `tests/`,
+  including the case issue #85 makes load-bearing — a rejected in-place
+  deletion leaving the target byte-identical. `make verus` reports
+  `4 verified, 0 errors` and `make verus-selftest` correctly rejects the
+  deliberately false smoke proof, so the proof gate is live rather than
+  nominal. The condition that would change this disposition is a narrow,
+  falsifiable pure kernel for either property; neither currently exists to
+  prove.
+
+- **User-Facing Documentation — the `0.2.0` migration document.** The warning
+  asks for `docs/migrations/0.2.0.md`. That path and that convention are real,
+  but they do not exist on `origin/main`: they are introduced by
+  [PR #116](https://github.com/leynos/mapsplice/pull/116)
+  (`rust-baseline-hardening-mapsplice`, by the same author, still open), which
+  adds `docs/migrations/0.2.0.md` in commit `c8f907b`. This branch's
+  `Cargo.toml` still says `version = "0.1.0"`, unchanged from `main`, and the
+  repository has no tags, no releases, and no CHANGELOG. Creating the file here
+  would either collide with #116 or fork the convention before it has landed.
+
+  The substance the row asks for is present where users will meet it:
+  `docs/users-guide.md` §"Compatibility and migration" documents nested
+  task-body `Requires` recognition, both faults the silence caused, the new
+  rejection of edits that strand consumers, the byte-identical in-place target,
+  and the exit-status change that scripts must handle — and `README.md` links
+  to the section. When #116 merges, the migration document will exist and this
+  branch's compatibility notes are the natural content for its next entry; that
+  is the condition which would change this disposition.
+
+- **Testing (Compile-Time / Ui) — the trybuild fixture.** The row is right that
+  the const-context claim is not exercised by a `trybuild` case, and it now
+  offers the two routes this plan previously did not have: make the fixture
+  reach the production function, or place the invocation where it can. Both
+  were examined and neither is available to a `trybuild` fixture as it is
+  currently wired.
+
+  `trybuild` compiles a `tests/ui/*.rs` fixture as its own binary against the
+  crate under test, treating it as an external crate, so only the public API is
+  in scope. `select_resolution` is `pub(crate)`: `src/lib.rs:7` is
+  `mod roadmap;`, `src/roadmap/mod.rs:5` is `mod ops;`, and
+  `src/roadmap/ops/mod.rs:4` is `mod remap_kernel;`, with a `pub(crate)` alias
+  at line 8. Nothing in that chain is `pub`, so no fixture can name the
+  function, and no placement of the invocation changes the visibility of what
+  the invocation calls. Widening the public API with a `pub` re-export solely
+  so a fixture can call a kernel that no user can reach would export internal
+  structure for test convenience, which is the change the plan's own
+  "Constraints" section rules out.
+
+  What the fixture route could reach is the macro _text_, and that is the
+  cheaper half of the warning's substance: `select_resolution.macro.rs` is a
+  plain `macro_rules!` definition that can be `include!`d by relative path from
+  anywhere, including a fixture. Two things say not to do it here. The macro
+  file has no public surface and no behaviour of its own — it is the shared
+  body, and the const-context claim is about the `const fn` that wraps it, so a
+  fixture that expands the macro would compile a copy of the body into the
+  fixture's own crate and assert nothing about `select_resolution`'s
+  `const`ness or even about this crate compiling it. And the assertion already
+  in `remap_kernel.rs` is in-crate, so it exercises the production `const fn`
+  in the crate that defines it; a fixture reaching the same text from outside
+  would be strictly weaker while costing the `compile_time` binary another full
+  dependency-graph compile.
+
+  The underlying concern is nevertheless met, and was met before round 11. The
+  module-level `const _: () = { .. }` at `remap_kernel.rs:69-80` evaluates one
+  case per input class in a constant context, so dropping `const` from the
+  definition or introducing a non-const operation into the shared macro body
+  fails this crate's build — verified by the negative experiment recorded in
+  Task 4's section, where reverting the kernel to a plain `fn` produced
+  `error[E0015]: cannot call non-const function` at three sites. The condition
+  that would change this disposition is a fixture compiled as part of the crate
+  rather than against it, which is not what `trybuild` does.

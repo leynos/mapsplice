@@ -58,7 +58,7 @@ fi
 while IFS= read -r symbol; do
     [[ -z "${symbol}" ]] && continue
     if [[ ! "${symbol}" =~ ^[[:alpha:]_][[:alnum:]_]*$ ]]; then
-        echo "verification ledger names missing symbol: ${symbol}"
+        echo "verification ledger names malformed symbol: ${symbol}"
         exit 1
     fi
 
