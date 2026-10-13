@@ -21,7 +21,10 @@ from pathlib import Path
 import yaml
 
 WORKFLOW_PATH = (
-    Path(__file__).resolve().parents[2] / ".github" / "workflows" / "mutation-testing.yml"
+    Path(__file__).resolve().parents[2]
+    / ".github"
+    / "workflows"
+    / "mutation-testing.yml"
 )
 
 #: mapsplice is a single root crate with all mutable source under
@@ -137,6 +140,22 @@ def test_with_block_carries_the_caller_configuration() -> None:
     assert with_block["install-mold"] == "true", (
         "mutation builds must provision the committed Linux linker"
     )
-    assert isinstance(with_block["setup-commands"], str) and with_block[
-        "setup-commands"
-    ].strip(), "the build-tool setup hook must not be empty"
+    setup_commands = with_block["setup-commands"]
+    assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
+    commands = [line.strip() for line in setup_commands.splitlines()]
+    required_commands = (
+        "make install-build-tools",
+        "make check-build-tools",
+        (
+            "echo 'RUSTFLAGS=-D warnings -Zthreads=8 -C link-arg=-fuse-ld=mold' "
+            '>> "$GITHUB_ENV"'
+        ),
+    )
+    positions = []
+    for command in required_commands:
+        assert command in commands, f"mutation setup is missing {command!r}"
+        positions.append(commands.index(command))
+    assert positions == sorted(positions), (
+        "mutation setup must install and check build tools before assigning "
+        "the development RUSTFLAGS"
+    )

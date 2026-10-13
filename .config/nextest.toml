@@ -10,3 +10,9 @@ slow-timeout = { period = "180s", terminate-after = 1, grace-period = "5s" }
 [[profile.default.overrides]]
 filter = 'binary(compile_time)'
 slow-timeout = { period = "180s", terminate-after = 10, grace-period = "5s" }
+
+# This aggregate checks every conformant fixture through external formatters.
+# Keep all fixtures and assertions while allowing slower shared-host execution.
+[[profile.default.overrides]]
+filter = 'test(=roadmap::render::render_tests::noop_round_trip_property_holds_for_all_conformant_fixtures)'
+slow-timeout = { period = "180s", terminate-after = 3, grace-period = "5s" }

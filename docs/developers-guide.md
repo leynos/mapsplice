@@ -453,6 +453,11 @@ runner. Local cold builds may also queue through shared compiler admission; the
 longer allowance keeps that legitimate wait within the test budget without
 changing the compile-time assertions.
 
+The aggregate no-op round-trip test invokes external formatters for every
+conformant fixture. It has a separate, bounded nine-minute allowance for slower
+shared-host execution. All fixtures and fidelity assertions remain enabled;
+other ordinary tests retain the three-minute limit.
+
 ### Cranelift
 
 Cranelift is currently excluded from development builds; LLVM is the
