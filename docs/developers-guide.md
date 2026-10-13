@@ -444,11 +444,14 @@ missing instead of skipping, so a missing tool cannot read as a pass.
 
 `.config/nextest.toml` keeps the 180 s per-test allowance that the coverage
 action writes when a repository has no file of its own, and gives the
-`compile_time` tests three times that. They run a nested Cargo that compiles
-the whole dependency graph, and a pull request has no warm sccache directory
-until the default branch has written one (`setup-rust` owns that directory and
-only a push to the default branch writes it). Before that cache exists, the
-nested build alone can exceed 180 s on a GitHub-hosted runner.
+`compile_time` tests a bounded 30-minute allowance. They run a nested Cargo
+that compiles the whole dependency graph, and a pull request has no warm
+sccache directory until the default branch has written one (`setup-rust` owns
+that directory and only a push to the default branch writes it). Before that
+cache exists, the nested build alone can exceed 180 s on a GitHub-hosted
+runner. Local cold builds may also queue through shared compiler admission; the
+longer allowance keeps that legitimate wait within the test budget without
+changing the compile-time assertions.
 
 ### Cranelift
 
@@ -539,6 +542,12 @@ secret values, upload coverage, or write a baseline. Its injected API client
 and pure validation functions support offline tests without administrative
 access; it is deliberately separate from `make test-workflow-contracts`.
 
+Policy rules raise domain errors containing only a code and message. The
+verifier translates these errors at its boundary and attaches trusted audit
+operation and page context. API, pagination, and process errors remain in the
+adapters. Generated link tests exercise permitted relation subsets and reject
+changes to each required URL and paging field.
+
 The verifier must read the `codescene` environment and enumerate every
 deployment branch policy. Require `protected_branches: false` and
 `custom_branch_policies: true`, with exactly one policy whose `name` is `main`
@@ -598,10 +607,12 @@ atomic guarantee that settings cannot subsequently change.
   and guarded upload to the verified CodeScene project. PR coverage does not
   prove that publication.
 
-Merge remains blocked while the administrative prerequisites or required gates
-are incomplete. CV-005 verification does not clear the separate approved Rust
-environment-access `disallowed_methods` policy prerequisite or outstanding
-review findings. PR review status is tracked separately from merge readiness.
+Merge remains blocked while the administrative prerequisites, required gates,
+or review findings are incomplete. The maintainer has deferred canonical Rust
+environment-access policy publication and adoption to
+[Concordat issue #157](https://github.com/leynos/concordat/issues/157); that
+follow-up is outside this pull request. PR review status is tracked separately
+from merge readiness.
 
 The GitHub API references are:
 
@@ -628,9 +639,12 @@ tables under `[workspace.lints.*]` and make every member inherit them with
 the build and verification routes also require their documented tools. Keep
 environment access at an explicit CLI configuration boundary and inject an
 environment reader into code that needs deterministic testing. The
-`disallowed_methods` lint level is enabled, but an approved method list has not
-yet been selected for this repository; it does not currently enforce the
-environment-access rule.
+`disallowed_methods` lint level is enabled, but this repository has no
+forbidden-method list and therefore does not currently enforce the
+environment-access rule. The maintainer selected Netsuke as the reference for
+the seven environment and current-directory bans. Canonical publication and
+consumer adoption remain follow-up work in
+[Concordat issue #157](https://github.com/leynos/concordat/issues/157).
 
 The binding `make lint` documentation check runs
 `cargo doc --workspace --no-deps` with

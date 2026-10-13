@@ -87,7 +87,9 @@ def _response_body(raw: str) -> object:
             parse_constant=_reject_json_constant,
         )
     except (json.JSONDecodeError, ValueError) as error:
-        raise VerificationError("api-response", "GitHub API JSON is malformed") from error
+        raise VerificationError(
+            "api-response", "GitHub API JSON is malformed"
+        ) from error
 
 
 def parse_http_response(raw: str, returncode: int) -> ApiResponse:
@@ -139,10 +141,13 @@ def _validate_resource_status(response: ApiResponse, resource: str) -> None:
         raise VerificationError("access-denied", f"{resource} access denied (HTTP 403)")
     if response.status == 404:
         raise VerificationError(
-            "not-found", f"{resource} not found or unavailable to this identity (HTTP 404)"
+            "not-found",
+            f"{resource} not found or unavailable to this identity (HTTP 404)",
         )
     if response.status != 200:
-        raise VerificationError("api-status", f"{resource} returned HTTP {response.status}")
+        raise VerificationError(
+            "api-status", f"{resource} returned HTTP {response.status}"
+        )
 
 
 def response_object(response: ApiResponse, resource: str) -> Mapping[str, object]:
@@ -283,7 +288,8 @@ def _invalid_page_query() -> VerificationError:
 
 def _page_number(query_text: str) -> int:
     try:
-        query = parse_qs(query_text, strict_parsing=True)
+        # Empty values must remain visible to cardinality and exact-key checks.
+        query = parse_qs(query_text, strict_parsing=True, keep_blank_values=True)
     except ValueError as error:
         raise _invalid_page_query() from error
     pages = _validated_page_values(query)

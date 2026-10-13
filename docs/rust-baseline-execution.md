@@ -1255,3 +1255,19 @@ inventory endpoint returned 404, which is inconclusive. CodeScene project
 mapping is unavailable, and no approved Concordat Rust `disallowed_methods`
 policy was found. These documented owner prerequisites still block merge. The
 first main coverage publication remains post-merge verification.
+
+### 2026-10-13: Canonical policy scope decision
+
+The maintainer directed further canonical Rust forbidden-method policy work
+outside this pull request. The existing
+[Concordat issue #157](https://github.com/leynos/concordat/issues/157) tracks
+publication and provenance; the
+[Mapsplice follow-up](https://github.com/leynos/concordat/issues/157#issuecomment-6143247002)
+records this scope decision and the selected Netsuke reference. The seven
+environment and current-directory bans are recorded in
+[Netsuke's configuration](https://github.com/leynos/netsuke/blob/1a5fc57f943a5305d60db1cdaabb371150d960df/clippy.toml).
+Canonical publication and consumer adoption no longer block this pull request.
+Earlier checkpoint entries retain the prerequisite state measured at their
+respective dates. Required candidate gates, current-head review, CodeScene
+administrative verification, and post-merge publication remain separate
+evidence boundaries.

@@ -12,6 +12,9 @@ import argparse
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 from mapsplice_codescene_api import (
     ApiResponse,
     Fetch,
@@ -21,13 +24,30 @@ from mapsplice_codescene_api import (
     response_object,
 )
 from mapsplice_codescene_models import (
+    AuditOperation,
     EnvironmentProtection,
     VerificationError,
     failure_context,
 )
-from mapsplice_codescene_policies import policies, verify_environment_policy
+from mapsplice_codescene_policies import (
+    CodeScenePolicyError,
+    policies,
+    verify_environment_policy,
+)
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
+
+
+@contextmanager
+def _policy_context(
+    operation: AuditOperation, page: int | None = None
+) -> Iterator[None]:
+    """Translate domain failures before attaching trusted verifier context."""
+    with failure_context(operation, page=page):
+        try:
+            yield
+        except CodeScenePolicyError as error:
+            raise VerificationError(error.code, str(error)) from error
 
 
 def gh_fetch(endpoint: str) -> ApiResponse:
@@ -51,7 +71,9 @@ def gh_fetch(endpoint: str) -> ApiResponse:
         )
     except subprocess.TimeoutExpired as error:
         raise VerificationError(
-            "api-unavailable", "GitHub API request did not complete", failure_kind="timeout"
+            "api-unavailable",
+            "GitHub API request did not complete",
+            failure_kind="timeout",
         ) from error
     except OSError as error:
         raise VerificationError(
@@ -61,7 +83,9 @@ def gh_fetch(endpoint: str) -> ApiResponse:
         ) from error
     except UnicodeDecodeError as error:
         raise VerificationError(
-            "api-unavailable", "GitHub API request did not complete", failure_kind="decode"
+            "api-unavailable",
+            "GitHub API request did not complete",
+            failure_kind="decode",
         ) from error
     # In particular, never include stderr: gh can print account details or a
     # server-supplied message that is not suitable for an audit log.
@@ -116,7 +140,7 @@ def verify_environment(repo: str, fetch: Fetch) -> tuple[int, str, str]:
     with failure_context("repository"):
         _validate_repository_name(repo)
     environment_endpoint = f"repos/{repo}/environments/codescene"
-    with failure_context("environment"):
+    with _policy_context("environment"):
         original = environment(fetch(environment_endpoint))
         verify_environment_policy(original)
     with failure_context("repository"):
@@ -126,9 +150,9 @@ def verify_environment(repo: str, fetch: Fetch) -> tuple[int, str, str]:
         f"repositories/{identifier}/environments/codescene/deployment-branch-policies"
     )
     collection = deployment_policies(branch_endpoint, fetch)
-    with failure_context("policy_page", page=1):
+    with _policy_context("policy_page", page=1):
         policy = policies(collection)
-    with failure_context("environment_readback"):
+    with _policy_context("environment_readback"):
         _verify_environment_unchanged(environment_endpoint, original, fetch)
     return policy
 
