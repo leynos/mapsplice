@@ -8,11 +8,14 @@ Insertion redirected a consumer to an unrelated new task; deleting a
 prerequisite produced a self-dependency; in-place deletion wrote that invalid
 result to disk.
 
-All four tasks of the coding plan are complete and committed. Both hosted
-checks are green on the current head `40657fc8`: CI run `38365989487` and Verus
-run `38365989485` both completed successfully, and `mergeStateStatus` is
-`CLEAN`. The historical figures belong to the previous head and are kept as
-such: run `38356339534` is evidence for `e9f0645`, where the coverage step
+All four tasks of the coding plan are complete and committed. The figures below
+are a **recorded snapshot taken at head `40657fc8`**, not a claim about
+whatever head is current when this is read: both hosted checks are green there,
+with CI run `38365989487` and Verus run `38365989485` completing successfully
+and `mergeStateStatus` `CLEAN`. Later commits move the head without
+invalidating that record, and each such commit needs its own hosted result
+rather than inheriting this one. An earlier snapshot is kept for the same
+reason: run `38356339534` is evidence for `e9f0645`, where the coverage step
 reported `510 tests run: 510 passed (1 slow), 0 skipped` and
 `compile_time_contracts` passed in 187.865s.
 
@@ -47,6 +50,26 @@ the change rather than a stale one from a superseded revision.
 | 4    | Verus proofs, ledger, Makefile and CI wiring         | Done  |
 
 _Table 1: The coding plan's four tasks and their state._
+
+Task 4 is "Done" in the sense that all of its deliverables exist and run. It is
+not a claim that every proof obligation named in issue #85 is discharged, and
+the two are worth separating because the summary above cannot show the
+difference:
+
+- **Infrastructure — complete.** One shared macro body compiled by both the
+  crate and the proof, three falsifiable theorems over `select_resolution`, the
+  ledger with its claim table and policy, the `check-verification-ledger` guard
+  wired into `make lint`, the splice convention, and the pinned-Verus CI job
+  with its deliberately false self-test.
+- **Obligations — partially discharged.** Identity preservation is proved in
+  kernel form. Deleted-target rejection and source-span preservation are
+  **not** proved, and `docs/verification.md` records why each has no theorem
+  that can fail, together with the tested formulations for span preservation.
+  Both are covered by tests rather than by proofs, which is a weaker guarantee
+  and is labelled as such rather than counted as discharged.
+
+The distinction is stated here because "Task 4: Done" reads as a claim about
+the obligations unless it is spelled out, and it is not one.
 
 Commits, oldest first. This list is deliberately exhaustive: the round-tally
 error below was hidden for a while by a list that was missing entries, and a
@@ -84,6 +107,34 @@ The eleven CodeRabbit rounds and their response commits:
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
+
+Round 12 is reported here in prose rather than as a twelfth row, and the reason
+is a property of this document rather than a preference. An earlier round's
+reconciliation table used the ordered-list form round 11's own 1.2.1 change
+fixes, and the failure mode needs no further demonstration than this table
+here: renumbering the rows would rewrite `12` to follow `11`, and each row of
+round 12 would carry a `Requires` clause naming two commits. Two commits in one
+cell is exactly the shape the fixed grammar has to read, and a review round is
+the last place to be re-testing clause recognition on the document that
+describes it. Prose carries the same facts with no clause to misinterpret:
+
+- Round 12's submission is `5510574663`, raised against `77eb4ac`, after the
+  round-10 reply and the round-11 remediation.
+- It carried **no new inline findings** and two pre-merge rows, both of which
+  are also text edits rather than defects: the opening must label its head as a
+  recorded snapshot, and Task 4's status must distinguish completed
+  infrastructure from outstanding obligations.
+- It was answered in the commit carrying item 14's two edits. The reply first
+  attributed them to the preceding head, and a correction followed once they
+  were committed; both the error and its correction are recorded in item 15. No
+  commit hash is written here, and this record is the reason: a hash naming the
+  commit this text travels in is invalidated by the amend that lands it, which
+  happened twice while writing this item.
+- The **Linked Issues** row is not resolved and is not claimed to be. Round 12's
+  reply says so explicitly and keeps it open.
+- Round 12 also proposed one further probe. It had already been run before the
+  reply arrived, in both spellings, and fails identically;
+  `docs/verification.md` Table 3 records both rows and the reply cites them.
 
 Rounds 9, 10 and 11 all replied to every thread and then re-requested a review
 through `comenq`; those replies and requests are operational steps that leave
@@ -807,6 +858,68 @@ Constraints confirmed by experiment:
     renumbering edit moves the parent, in breach of C4. The roadmap item is
     gone; the reproduction, its provenance against the pre-fix revision, and
     its acceptance criteria live in the issue.
+
+14. Opening restated as a snapshot, and Task 4 separated into infrastructure
+    and obligations. **Done in the commit that carries this item.** Item 13
+    named a commit hash here, which is the error the spelling gate has already
+    caught once on this branch: the hash changed the moment the item was
+    amended into the commit it names. Naming the carrier instead is stable
+    under amendment.
+
+    The reconciliation's revision history had grown into a stack of
+    point-in-time measurements whose freshness was not legible from the prose.
+    The opening presented `40657fc8` as "the current head", which was already
+    superseded when the paragraph was written and was read as implying that the
+    later commits inherited its green checks. It now labels those figures a
+    **recorded snapshot taken at head `40657fc8`** and says plainly that each
+    later commit needs its own hosted result rather than inheriting the earlier
+    one. The same reading applies to run `38356339534` at `e9f0645`, which is
+    labelled as an earlier snapshot.
+
+    Task 4's row in Table 1 read "Done" with nothing to distinguish the
+    infrastructure, which is genuinely complete, from the two proof obligations
+    issue #85 names and the ledger declines to list. The prose following the
+    table now splits them. Infrastructure — the shared macro body, the three
+    falsifiable theorems, the ledger and its `make lint` guard, the splice
+    convention, and the pinned-Verus CI job with its false-proof self-test — is
+    complete. Obligations are partially discharged: identity preservation is
+    proved in kernel form, while deleted-target rejection and source-span
+    preservation are covered by tests rather than proofs and are labelled as
+    the weaker guarantee they are. The distinction is drawn because "Task 4:
+    Done" otherwise reads as a claim about the obligations, and CodeRabbit's
+    round-11 reply asked for exactly this separation.
+
+    Both edits are presentation. Neither weakens a claim: the ledger's tested-
+    formulation table and the dispositions above are unchanged, and the
+    obligations that remain open are still open.
+
+15. Attribution error corrected, and the round-12 record landed before the
+    merge rather than after it. **Done in the commit that carries this item,
+    with the correction posted as comment `6142025496`.**
+
+    The round-12 reply said both text edits were "done at `63c538a`". They were
+    _written_ against `63c538a` and were still uncommitted when the reply was
+    posted, so a reader running `git show 63c538a` would not have found them.
+    That is the same class of error as the one round 11 raised — a claim
+    stronger than what the tree supported — and it was mine, not the reviewer's.
+    The correction states it plainly rather than quietly re-attributing it in a
+    later comment, because the wrong attribution is in the permanent record and
+    a reader encountering it needs the correction next to it.
+
+    The cause is worth recording separately from the instance. Three commits
+    were needed to land a two-paragraph edit: the first because the plan item
+    named its own carrier's hash, and the second because the first amend
+    invalidated that hash. Item 14's carrier-independent phrasing is the fix,
+    and `make spelling` has already caught a hash written into this document
+    once on this branch — a hash in prose is a value that goes stale the moment
+    the document it sits in is amended.
+
+    Round 12's record was written into this plan before the merge rather than
+    left for a post-merge follow-up, because the plan is what a successor reads
+    to understand the merge. Three deltas had accumulated since the plan was
+    last edited: the round-11 reconciliation's five dispositions, round 12
+    itself, and the two text edits. A plan that merges without them describes a
+    review state that no longer exists.
 
 ## Lessons
 
