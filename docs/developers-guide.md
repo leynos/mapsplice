@@ -553,6 +553,18 @@ operation and page context. API, pagination, and process errors remain in the
 adapters. Generated link tests exercise permitted relation subsets and reject
 changes to each required URL and paging field.
 
+The command also emits JSON events on stderr for each API request and each
+validation stage, followed by a session summary even on early failure. Fixed
+operation and resource categories distinguish policy pages, their first-page
+readback, and environment readback. Events contain bounded HTTP status or error
+codes, outcomes, and monotonic elapsed milliseconds. The summary counts
+requests, unique policy pages, page reads, request latency, and stage and
+request outcomes, including drift, audit-cap rejection, timeout, and access
+denial. These counters are process-local audit evidence rather than exported
+monitoring metrics. Events exclude endpoints, repository names, response
+bodies, headers, exception messages, and tokens; the existing human-readable
+diagnostics remain available.
+
 The verifier must read the `codescene` environment and enumerate every
 deployment branch policy. Require `protected_branches: false` and
 `custom_branch_policies: true`, with exactly one policy whose `name` is `main`

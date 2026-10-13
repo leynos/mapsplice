@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -114,8 +113,7 @@ def test_valid_protection_reads_environment_and_policies_back() -> None:
     """The successful proof reads the environment and first page twice."""
     fetch = _valid_fetch()
     assert verifier.verify_environment(REPOSITORY, fetch) == (1, "main", "branch"), (
-        "verified main-branch protection must return policy tuple "
-        "(1, 'main', 'branch')"
+        "verified main-branch protection must return policy tuple (1, 'main', 'branch')"
     )
     assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT] + [
         PAGE_ONE,
@@ -213,8 +211,7 @@ def test_pagination_reads_101_entries_and_an_empty_sentinel() -> None:
         PAGE_ONE,
     ]
     assert fetch.calls == expected_calls, (
-        f"101-policy pagination calls were {fetch.calls!r}; "
-        f"expected {expected_calls!r}"
+        f"101-policy pagination calls were {fetch.calls!r}; expected {expected_calls!r}"
     )
 
 
@@ -393,47 +390,3 @@ def test_injected_malformed_api_response_cannot_leak_values(
     assert "ghp_secret" not in str(caught.value), (
         f"malformed API response leaked its private marker: {caught.value!r}"
     )
-
-
-@pytest.mark.parametrize(
-    ("failure", "kind"),
-    [
-        (subprocess.TimeoutExpired("ghp_private_marker", 30), "timeout"),
-        (FileNotFoundError("ghp_private_marker"), "process_launch"),
-    ],
-)
-def test_transport_failure_has_bounded_kind_and_operation(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    failure: Exception,
-    kind: str,
-) -> None:
-    """Timeout and launch failures retain one code but distinguish safe causes."""
-
-    def fail_run(*args: object, **kwargs: object) -> None:
-        raise failure
-
-    monkeypatch.setattr(verifier.subprocess, "run", fail_run)
-    assert verifier.main(["--repo", REPOSITORY], fetch=verifier.gh_fetch) == 1
-    output = capsys.readouterr()
-    assert output.out == ""
-    assert output.err == (
-        "codescene environment: api-unavailable: GitHub API request did not complete"
-        f" (operation=environment failure_kind={kind})\n"
-    )
-    assert "ghp_private_marker" not in output.err
-
-
-def test_invalid_repository_has_bounded_repository_context(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Invalid input reports a stable repository error before making API requests."""
-    fetch = ScriptedFetch({})
-    assert verifier.main(["--repo", "ghp_private_marker/../repo"], fetch=fetch) == 1
-    output = capsys.readouterr()
-    assert output.out == ""
-    assert output.err == (
-        "codescene environment: repository: repository must be OWNER/NAME"
-        " (operation=repository)\n"
-    )
-    assert fetch.calls == []

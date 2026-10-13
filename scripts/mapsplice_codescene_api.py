@@ -10,11 +10,13 @@ from urllib.parse import SplitResult, parse_qs, urlsplit
 
 from mapsplice_codescene_models import (
     PAGE_SIZE,
+    AuditOperation,
     BranchPolicy,
     DeploymentPolicyPage,
     EnvironmentProtection,
     VerificationError,
 )
+from mapsplice_codescene_observability import AuditSession
 from mapsplice_codescene_pagination import collect_policies
 
 STATUS_LINE = re.compile(r"HTTP/\S+ (?P<status>[1-5][0-9]{2})(?: [^\r\n]*)?\Z")
@@ -334,16 +336,26 @@ def links(response: ApiResponse, endpoint: str) -> dict[str, int]:
     return parsed
 
 
-def deployment_policies(endpoint: str, fetch: Fetch) -> tuple[BranchPolicy, ...]:
+def deployment_policies(
+    endpoint: str, fetch: Fetch, audit: AuditSession | None = None
+) -> tuple[BranchPolicy, ...]:
     """Read complete stable policies from one repository's GitHub API route.
 
     For example, ``deployment_policies(endpoint, gh_fetch)`` returns typed
     policies only after pagination completeness and readback are proved.
     """
-    return collect_policies(
-        lambda number: deployment_policy_page(
-            fetch(f"{endpoint}?per_page={PAGE_SIZE}&page={number}"),
-            endpoint,
-            number,
+
+    def read_page(
+        number: int, operation: AuditOperation = "policy_page"
+    ) -> DeploymentPolicyPage:
+        page_endpoint = f"{endpoint}?per_page={PAGE_SIZE}&page={number}"
+        response = (
+            audit.request(fetch, page_endpoint, operation, number)
+            if audit is not None
+            else fetch(page_endpoint)
         )
+        return deployment_policy_page(response, endpoint, number)
+
+    return collect_policies(
+        read_page, audit, readback=lambda number: read_page(number, "policy_readback")
     )

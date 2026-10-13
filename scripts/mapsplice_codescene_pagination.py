@@ -17,6 +17,7 @@ from mapsplice_codescene_models import (
     VerificationError,
     failure_context,
 )
+from mapsplice_codescene_observability import AuditSession, audit_stage
 
 PolicyPageReader = Callable[[int], DeploymentPolicyPage]
 
@@ -150,12 +151,17 @@ def _append_policies(
         state.identities.append(policy)
 
 
-def _collect_policy_pages(read_page: PolicyPageReader) -> _PolicyPages:
+def _collect_policy_pages(
+    read_page: PolicyPageReader, audit: AuditSession | None = None
+) -> _PolicyPages:
     """Read bounded sequential pages and stop only at a valid sentinel."""
     state = _PolicyPages()
     for number in range(1, MAX_PAGES + 2):
         state.last_requested_page = number
-        with failure_context("policy_page", page=number):
+        with (
+            audit_stage(audit, "policy_page", page=number),
+            failure_context("policy_page", page=number),
+        ):
             current = read_page(number)
             _require_requested_page(current, number)
             _remember_total(state, current)
@@ -194,9 +200,14 @@ def _verify_first_page_stable(
         )
 
 
-def collect_policies(read_page: PolicyPageReader) -> tuple[BranchPolicy, ...]:
+def collect_policies(
+    read_page: PolicyPageReader,
+    audit: AuditSession | None = None,
+    *,
+    readback: PolicyPageReader | None = None,
+) -> tuple[BranchPolicy, ...]:
     """Require complete bounded pages, an empty sentinel, and stable readback."""
-    state = _collect_policy_pages(read_page)
+    state = _collect_policy_pages(read_page, audit)
     with failure_context("policy_page", page=state.last_requested_page):
         if state.total != len(state.identities):
             raise VerificationError(
@@ -206,6 +217,9 @@ def collect_policies(read_page: PolicyPageReader) -> tuple[BranchPolicy, ...]:
             raise VerificationError(
                 "policy-count", "deployment branch policy page is missing"
             )
-        with failure_context("policy_readback", page=1):
-            _verify_first_page_stable(read_page, state.first_page)
+        with (
+            audit_stage(audit, "policy_readback", page=1),
+            failure_context("policy_readback", page=1),
+        ):
+            _verify_first_page_stable(readback or read_page, state.first_page)
         return tuple(state.identities)

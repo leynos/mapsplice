@@ -9,14 +9,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from codescene_observability_support import (
+    PRIVATE_MARKER,
+    REPOSITORY,
+)
+from codescene_observability_support import (
+    observations as _observations,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
-REPOSITORY = "leynos/mapsplice"
 ENVIRONMENT = f"repos/{REPOSITORY}/environments/codescene"
 REPOSITORY_ENDPOINT = f"repos/{REPOSITORY}"
 POLICIES = "repositories/1208786150/environments/codescene/deployment-branch-policies"
 COMMON_ARGS = ["api", "--hostname", "github.com", "--include", "--method", "GET"]
-PRIVATE_MARKER = "ghp_private_process_marker"
 
 
 def _fake_gh_failures() -> str:
@@ -174,7 +179,7 @@ def test_cli_process_parses_responses_and_uses_only_api_gets(
         result.stdout
         == "codescene environment: verified main-only deployment branch policy\n"
     ), f"verified audit stdout was {result.stdout!r}"
-    assert result.stderr == "", f"verified audit wrote stderr: {result.stderr!r}"
+    assert _observations(result.stderr, 6) == ""
     expected_calls = [COMMON_ARGS + [endpoint] for endpoint in expected_endpoints]
     assert calls == expected_calls, f"verified audit API calls were {calls!r}"
 
@@ -197,7 +202,11 @@ def test_cli_process_redacts_api_body_and_gh_stderr(
     assert PRIVATE_MARKER not in result.stderr, (
         f"403 response leaked its private marker in stderr: {result.stderr!r}"
     )
-    assert len(result.stderr) < 200, f"diagnostic was not bounded: {result.stderr!r}"
+    diagnostic = _observations(result.stderr, 1, "access-denied")
+    assert diagnostic == (
+        "codescene environment: access-denied: codescene environment access denied "
+        "(HTTP 403) (operation=environment)\n"
+    )
     assert calls == [COMMON_ARGS + [ENVIRONMENT]], (
         f"403 response made unexpected API calls: {calls!r}"
     )
@@ -212,7 +221,8 @@ def test_cli_process_bounds_invalid_utf8_output(tmp_path: Path, mode: str) -> No
         f"{mode} returned exit status {result.returncode}: {result.stderr!r}"
     )
     assert result.stdout == "", f"{mode} wrote stdout: {result.stdout!r}"
-    assert result.stderr == (
+    diagnostic = _observations(result.stderr, 1, "api-unavailable")
+    assert diagnostic == (
         "codescene environment: api-unavailable: GitHub API request did not complete"
         " (operation=environment failure_kind=decode)\n"
     ), f"{mode} produced an unexpected diagnostic: {result.stderr!r}"
@@ -245,9 +255,15 @@ class FailureStageCase:
         FailureStageCase("repository-error", "repository", None, "access-denied", 2),
         FailureStageCase("page-error", "policy_page", 2, "access-denied", 4),
         FailureStageCase("page-malformed", "policy_page", 2, "api-response", 4),
-        FailureStageCase("policy-readback-error", "policy_readback", 1, "access-denied", 5),
         FailureStageCase(
-            "environment-readback-error", "environment_readback", None, "access-denied", 6
+            "policy-readback-error", "policy_readback", 1, "access-denied", 5
+        ),
+        FailureStageCase(
+            "environment-readback-error",
+            "environment_readback",
+            None,
+            "access-denied",
+            6,
         ),
     ],
 )
@@ -285,9 +301,20 @@ def test_cli_process_identifies_bounded_failure_stage(
     assert "Traceback" not in result.stderr, (
         f"{case.mode} exposed a traceback: {result.stderr!r}"
     )
-    assert len(result.stderr) < 200, (
-        f"{case.mode} diagnostic was not bounded: {result.stderr!r}"
+    diagnostic = _observations(result.stderr, case.request_count, case.error_code)
+    message = (
+        "GitHub API JSON is malformed"
+        if case.error_code == "api-response"
+        else (
+            "deployment branch policies"
+            if case.page is not None
+            else "repository"
+            if case.operation == "repository"
+            else "codescene environment"
+        )
+        + " access denied (HTTP 403)"
     )
+    assert diagnostic == f"{expected_prefix} {message} ({expected_context})\n"
     assert len(calls) == case.request_count, (
         f"{case.mode} made {len(calls)} API calls: {calls!r}"
     )
