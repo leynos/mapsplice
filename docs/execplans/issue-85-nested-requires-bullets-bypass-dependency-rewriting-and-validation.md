@@ -8,18 +8,34 @@ Insertion redirected a consumer to an unrelated new task; deleting a
 prerequisite produced a self-dependency; in-place deletion wrote that invalid
 result to disk.
 
-All four tasks of the coding plan are complete and committed. Every
-deterministic gate is green, and the hosted checks are green on the current head
-`e9f0645`: CI run `38356339534` passed all twenty steps, with the coverage
-step reporting `510 tests run: 510 passed (1 slow), 0 skipped` and
-`compile_time_contracts` passing in 187.865s. `make verus` reports
-`4 verified, 0 errors` and `make verus-selftest` correctly rejects the
-deliberately false smoke proof, so both proof gates hold locally as well.
+All four tasks of the coding plan are complete and committed. Both hosted
+checks are green on the current head `40657fc8`: CI run `38365989487` and Verus
+run `38365989485` both completed successfully, and `mergeStateStatus` is
+`CLEAN`. The historical figures belong to the previous head and are kept as
+such: run `38356339534` is evidence for `e9f0645`, where the coverage step
+reported `510 tests run: 510 passed (1 slow), 0 skipped` and
+`compile_time_contracts` passed in 187.865s.
+
+Local gates on `40657fc8`: `make verus` reports `4 verified, 0 errors` and
+`make verus-selftest` correctly rejects the deliberately false smoke proof, so
+both proof gates hold locally as well. `make lint`, `make check-fmt`,
+`make markdownlint`, `make spelling`, `make check-verification-ledger`,
+`make check-domain-purity`, and `cargo test --test verus_harness` (42/42) all
+exit 0.
+
+One local result is a genuine exception rather than a green: `make test` ran
+512 of 513, with `compile_time_contracts` timing out at 541.341s against its
+540s allowance under a load average of 96 on six cores with the managed sccache
+unreachable, so `trybuild`'s nested dependency-graph compile ran uncached. It
+passes in isolation in 235.48s, and it passed hosted on the previous head. The
+`.config/nextest.toml` allowance was deliberately not raised to make the local
+number agree, so this remains an open observation about the local environment
+rather than a claim of equivalence with the hosted result.
 
 This plan tracks the CodeRabbit review and the PR. The remaining gate is the
-review decision, not the build: `reviewDecision` is `CHANGES_REQUESTED` from a
-submission raised against this same head, which is a live judgement about the
-change rather than a stale one from an earlier revision.
+review decision, not the build: `reviewDecision` is `CHANGES_REQUESTED`, held
+by submissions raised against earlier heads, which is a live judgement about
+the change rather than a stale one from a superseded revision.
 
 ## Progress so far
 
