@@ -178,31 +178,51 @@ statements about dead code.
 - The source-span preservation obligation has no kernel here, and the boundary
   is stated rather than assumed. Issue #85 permits an explicitly documented
   unverified boundary for clause extraction; this records one for span
-  preservation, and the reason is a measured limit of the verifier against the
-  production shape rather than a preference.
+  preservation. The claim this entry makes is deliberately narrow: **the
+  formulations tested did not verify the production implementation under the
+  pinned verifier.** It does not claim that no formulation exists, and it
+  should not be read that way. What follows is the tested set, so a later
+  reader can extend it rather than repeat it.
 
   `original_position_source` in `src/roadmap/source_preservation.rs` is the
   production function that widens a preserved span to the start of its line. It
-  makes two calls Verus cannot reach. `str::get(..offset)` is rejected with
-  "`core::str::impl&%0::get` is not supported", and the range itself is
-  rejected first with "`core::ops::range::RangeTo` is not supported". Both were
-  probed against the pinned `0.2025.04.19.1b16620`, so neither is a guess about
-  the tool's coverage. A byte-slice restatement of the scan verifies — the line
-  scan itself is well within reach, and a `Seq<u8>` specification for it
-  discharges in three verified obligations with zero errors — but the function
-  that would be proved is then a new function rather than the one the product
-  calls, which is the separate illustrative implementation issue #85 rules out.
+  makes two calls the verifier does not reach. `str::get(..offset)` is rejected
+  with "`core::str::impl&%0::get` is not supported", and the range itself is
+  rejected first with "`core::ops::range::RangeTo` is not supported". A
+  byte-slice restatement of the scan does verify — the scan is well within
+  reach, and a `Seq<u8>` specification for it discharges in three verified
+  obligations with zero errors — which is what makes the two rejections
+  informative rather than a statement about the tool's general power. That
+  restatement was not adopted because it is reachable only by rewriting the
+  function production calls, and #85 rules out a separate illustrative
+  implementation. A restatement that production actually called would change
+  that assessment, and is the first thing to try next.
 
-  The splice convention used for `select_resolution` cannot rescue this one.
-  Shared macro text must also parse as ordinary Rust, because `src/` compiles
-  it, and a `while` loop that carries the `invariant` clause Verus needs for
-  the scan is not ordinary Rust. Probed directly: the same loop without its
-  invariant fails to verify with "postcondition not satisfied". An
-  iterator-only restatement loses `invariant` but hits "only variables are
-  supported here, not general patterns" on the closure pattern. So the
-  production body cannot be both the compiled text and the verified text here,
-  which is exactly the condition the splice convention exists to satisfy and
-  cannot.
+  | Tested formulation                                         | Outcome                                      |
+  | ---------------------------------------------------------- | -------------------------------------------- |
+  | `str::get(..offset)`, as production writes it              | `core::str::impl&%0::get` is not supported   |
+  | `bytes.get(..offset)` on `&[u8]`                           | `core::ops::range::RangeTo` is not supported |
+  | Line scan over `Seq<u8>`, `while` with invariant           | 3 verified, 0 errors                         |
+  | The same loop with the invariant removed                   | postcondition not satisfied                  |
+  | Iterator-only restatement, needing no invariant            | closure pattern unsupported                  |
+  | Annotation tokens passed into a shared `while` header      | expected `{`, found `invariant`              |
+  | Annotation supplied by a second macro around a shared body | expected `{`, found `invariant`              |
+
+  _Table 3: Span-kernel formulations tested against `0.2025.04.19.1b16620`,
+  with their outcomes._
+
+  The last two rows are worth stating precisely, because they ruled out the
+  most promising remaining route. Sharing executable text with `src/` requires
+  the shared text to parse as ordinary Rust, since `src/` compiles it, while
+  the scan needs an `invariant` clause to verify. The obvious reconciliation is
+  to share the body and supply the annotation as macro tokens, so the ordinary
+  expansion never emits it. Both spellings were probed and both fail the same
+  way: the parser rejects `invariant` inside a macro expansion before expansion
+  is attempted, whether the tokens arrive as a `$($proof:tt)*` parameter or as
+  the body of a second macro. So the blocks are not independently composable
+  here, and no textual arrangement was found that is simultaneously valid Rust
+  for the compiler and verifiable for Verus. That is a finding about the tested
+  arrangements, not a proof of impossibility.
 
   What is preserved instead is the property issue #85 asks for. The span copy
   is covered by the golden fixtures and the in-place byte-identity assertions,
