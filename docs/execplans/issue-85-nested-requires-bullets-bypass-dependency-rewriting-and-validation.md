@@ -64,7 +64,7 @@ The eleven CodeRabbit rounds and their response commits:
 | 8     | 3        | `ef8cda3`, `bcc6e08`, `fe72e93`, `0ae84d1` | `/tmp/walkthrough-86-0523.md`                          |
 | 9     | 4        | `c15f7a4`, `e7d5c76`                       | `/tmp/walkthrough-86-round9-31da138.md`                |
 | 10    | 1        | `4321e33`                                  | `/tmp/walkthrough-86-round10-d41c3d0.md`               |
-| 11    | 2        | `e9f0645`, see item 12                     | `/tmp/walkthrough-86-round11-e9f0645.md`               |
+| 11    | 2        | `e9f0645`, `51593e7`                       | `/tmp/walkthrough-86-round11-e9f0645.md`               |
 
 _Table 2: the review rounds, re-derived from the artefacts by matching each
 round's findings against the files its response commit touched._
