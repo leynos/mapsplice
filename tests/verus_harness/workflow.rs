@@ -86,7 +86,7 @@ fn workflow_caches_the_version_scoped_verus_installation() -> TestResult {
 }
 
 #[test]
-fn workflow_uses_the_repositorys_pinned_actions() -> TestResult {
+fn workflow_uses_pinned_repository_actions() -> TestResult {
     let lines = workflow()?;
     let uses = values(&lines, "uses");
     require(

@@ -19,6 +19,10 @@
 // crates. That lint has nothing to report here — the body holds one `if`
 // inside one match arm — but a future kernel with genuinely nested conditionals
 // would go unflagged by it.
+/// Expand the shared source-local and fragment fallback decision kernel.
+///
+/// For example, `select_resolution_body!(Some(1), Some(2), false)` yields
+/// `Some(1)`.
 macro_rules! select_resolution_body {
     ($local:expr, $cross_unique:expr, $source_is_fragment:expr) => {
         match $local {

@@ -28,7 +28,7 @@ jobs:
           rustflags: ''
       - name: Install clang linker driver
         # The verification-ledger and domain-purity lint prerequisites use rg.
-        # Install it explicitly alongside clang; setup-rust supplies mold.
+        # Install it explicitly alongside clang; setup-rust supplies `mold`.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail

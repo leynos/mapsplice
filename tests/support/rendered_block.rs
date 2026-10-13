@@ -52,7 +52,7 @@ pub(crate) fn item_block<'a>(rendered: &'a str, summary: &str) -> Option<&'a str
 /// This is not currently reachable with the generator's labels — no summary is
 /// a prefix of another, and a scan of the generated document order finds no
 /// pair where the longer stem is rendered first — but a label change could make
-/// it reachable, and a silently mis-scoped assertion is exactly the kind of
+/// it reachable, and an incorrectly scoped assertion is exactly the kind of
 /// failure this module exists to prevent.
 fn carries_stem(line: &str, stem: &str) -> bool {
     let mut search_from = 0;
@@ -128,7 +128,7 @@ mod tests {
     //! The property suite reaches `carries_stem` only through `item_block`, and
     //! every stem it passes is well-formed against the current generator labels,
     //! so a regression to plain `contains` would leave those properties green
-    //! while silently mis-scoping assertions to a longer item's block. These
+    //! while silently attaching assertions to a longer item's block. These
     //! cases fail if the boundary check is dropped.
 
     use rstest::rstest;

@@ -30,11 +30,16 @@ const NESTED_BULLET_CONSUMER: &str = concat!(
     "  - Requires 1.1.1.\n",
 );
 
+/// Assert a dangling-dependency error names the expected prerequisite.
 fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
     let MapspliceError::DanglingDependency { anchor } = error else {
         panic!("expected dangling dependency error, got {error:?}");
     };
-    assert_eq!(anchor.to_string(), expected);
+    assert_eq!(
+        anchor.to_string(),
+        expected,
+        "rejection must identify the expected prerequisite anchor"
+    );
 }
 
 /// Insertion must not silently redirect a nested consumer to the new task.
