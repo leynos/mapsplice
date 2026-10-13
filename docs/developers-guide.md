@@ -47,6 +47,12 @@ boundary, and roadmap domain modules:
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
+- The private `render::inline` module, implemented in
+  `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
+  and reports unsupported nodes as roadmap errors.
+- The private `anchor::deserialize` module, implemented in
+  `src/roadmap/anchor_deserialize.rs`, validates serialized phase, step, task,
+  and sub-task numbers through their domain constructors.
 - `src/fs.rs` is the capability-oriented filesystem adapter. Filesystem
   failures must surface as `MapspliceError::Io`, not roadmap validation errors.
 
@@ -88,8 +94,11 @@ Future optional configuration settings must document which loader owns their
 discovery path. Add or update `tests/roadmap_config.rs` coverage for every
 source and precedence claim before changing the users' guide.
 
-Configuration tests must serialize process environment and current-directory
-mutation with the shared `ProcessStateGuard` in `tests/support/config.rs`.
+Configuration tests use the shared `ProcessState` fixture in
+`tests/support/config.rs`. `set_env`, `remove_env`, and `enter_dir` configure
+changes that take effect only inside `run`; `Workspace::enter_root` selects the
+workspace directory through `enter_dir`. `run` holds a shared lock while the
+closure executes, then restores the environment and working directory.
 
 ## 5. Observability
 
@@ -189,10 +198,107 @@ and the boundary of what is proven — the clause recognizer is not verified.
 
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
-[`../.cargo/config.toml`](../.cargo/config.toml). The repository requires
-Cranelift code generation through `codegen-backend = "cranelift"`, `clang`, and
-`mold` via `link-arg=-fuse-ld=mold`. The pinned toolchain must include
-`rustc-codegen-cranelift-preview`.
+[`../.cargo/config.toml`](../.cargo/config.toml). The development default uses
+LLVM code generation, the parallel rustc frontend, and, on supported Linux
+targets, `clang` plus pinned `mold`. Cargo discovers these defaults from
+`.cargo/config.toml`; Make restates the flags on gate recipes that set
+`RUSTFLAGS`. Run `make install-build-tools` and `make check-build-tools` before
+development builds. The pinned toolchain includes rustfmt, Clippy,
+rust-analyzer, and LLVM tools. Coverage, release, and Whitaker use explicit
+non-development routes; see [the contributing guide](contributing.md) for local
+setup.
+
+Make requires GNU Make 4.2 or later and Python 3.11 or later as `python3` on
+`PATH`. The resolver runs while Make parses the Makefile and uses Python's
+`tomllib` module to read Cargo configuration. On macOS, the system `make` may
+be too old, so install a recent GNU Make and invoke it as `gmake` if needed. The
+`make test-workflow-contracts` target requires `uv`; it supplies `pytest>=8`,
+`PyYAML>=6`, and `Hypothesis>=6` through `uv run`. Markdown formatting requires
+mdtablefix 0.6.0 or later; CI pins version 0.6.1.
+
+On supported Linux hosts, `make check-build-tools` checks that `clang` and
+`mold` are available on `PATH`, and that `ld.mold` reports version 2.41.0; the
+Clang wrapper resolves that linker from `PATH`. The AArch64 route uses a
+dedicated wrapper to pass `--target=aarch64-unknown-linux-gnu` to Clang.
+Cross-linking still requires a compatible AArch64 linker sysroot and supporting
+tools on the host; the preflight does not install or supply them.
+
+Make's compiler and linker routing also accounts for Cargo target selection.
+The Make recipes inspect `--target`, `CARGO_BUILD_TARGET`, and
+`--config build.target` selectors. The `scripts/resolve-cargo-build-target.py`
+helper resolves inherited `build.target` values from `CARGO_HOME` and ancestor
+`.cargo/config` or `.cargo/config.toml` files, with nearer project
+configuration overriding earlier values. A missing target leaves the current
+selection unchanged. Ambiguous filenames, unreadable or malformed files, empty
+targets, and other unsupported target values fail closed so Make cannot
+silently choose the wrong linker route.
+
+```mermaid
+flowchart TD
+    accTitle: Mapsplice compiler flag and linker routes
+    accDescr {
+        Bare Cargo and Make development gates follow separate flag routes.
+        Supported Linux triples use target-aware Clang wrappers and pinned mold.
+        Bare Cargo on other Linux triples keeps the Cargo mold flag without a pinned wrapper.
+        Make routes use the platform linker for unsupported triples; coverage, release,
+        and Whitaker use separate LLVM routes without development frontend or mold flags.
+    }
+    Start[Build or test command] --> Route{Selected route?}
+    Route -->|Bare Cargo| Config[Cargo config defaults]
+    Route -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
+    Route -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
+    Route -->|Release| Release[LLVM release profile and warning flags]
+    Route -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
+    Config --> CargoLinux{Linux target?}
+    CargoLinux -->|No| Platform[Use platform linker]
+    CargoLinux -->|Yes| CargoTriple{Supported Linux triple?}
+    CargoTriple -->|Yes| Mold[Use target-aware clang wrapper and pinned mold]
+    CargoTriple -->|No| Unsupported["Cargo mold flag; no pinned clang wrapper"]
+    Compose --> MakeTriple{Supported Linux triple?}
+    MakeTriple -->|Yes| Mold
+    MakeTriple -->|No| Platform
+    Coverage --> Platform
+    Release --> Platform
+    Whitaker --> Platform
+```
+
+*Figure 1. Compiler flag routing for Mapsplice. Bare Cargo commands use the
+repository's Cargo defaults; Make development gates compose warning and policy
+flags with the parallel frontend. The supported Linux targets are
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, which use
+target-aware `clang` wrappers and pinned `mold`. Cargo's Linux configuration
+also adds the `-fuse-ld=mold` argument for other Linux targets, but those
+targets do not have the pinned Clang wrapper and are not a supported bare-Cargo
+route. Make selects the `mold` route only for supported Linux targets; its
+other targets use the platform linker. Coverage, release, and Whitaker use LLVM
+without the development frontend or `mold` flags. Release uses the pinned
+nightly Cargo, while Whitaker uses its installer-managed toolchain.*
+
+Make also filters development-owned arguments from inherited
+`CARGO_ENCODED_RUSTFLAGS` before composing each route, preserving other caller
+policy flags. Encoded flags take precedence over `RUSTFLAGS`, so both flag
+sources must follow the selected route.
+
+Whitaker receives explicit LLVM development and test profile overrides without
+the repository's development frontend or linker flags. Keep
+`CARGO_UNSTABLE_CODEGEN_BACKEND=true` on this route: Dylint may build a driver
+from a temporary Cargo project outside the repository, where Cargo cannot
+discover the root `.cargo/config.toml` that enables the unstable profile
+setting. The environment variable opts that nested invocation into the Cargo
+setting; it does not select Cranelift. On a cold runner, Dylint can still build
+its per-toolchain driver as part of that runtime bootstrap. This is separate
+from the installer's prohibited source fallback: Whitaker's suite library and
+Dylint tool archive must come from published assets.
+
+### Cranelift exception
+
+Cranelift is excluded from the development default. On the pinned
+`nightly-2026-03-26`, the `catch_unwind` probe failed and a spawned-thread
+panic aborted the test process; the explicit LLVM route passed the full suite
+(293/293). See the
+[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
+Review this exception under
+[issue #115](https://github.com/leynos/mapsplice/issues/115) on 2027-04-01.
 
 Run these gates before committing Rust changes:
 
@@ -210,6 +316,7 @@ MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownfmt
 MARKDOWN_PATHS='docs/users-guide.md docs/developers-guide.md' make markdownlint-paths
 make markdownlint
 make nixie
+make spelling
 ```
 
 ### 7.1 Verus proofs
@@ -284,10 +391,9 @@ when ripgrep is installed under another name.
 format or lint. Use `make markdownfmt` for narrow Markdown maintenance;
 `make fmt` remains repository-wide and can reformat unrelated Markdown files.
 The `make fmt` and `make check-fmt` targets select tracked and unignored
-Markdown files. They deliberately exclude
-`tests/fixtures/golden/insert_task_preserves_indented_code_markers/target.md`
-and `expected.md`, whose non-contiguous ordered-looking lines are indented-code
-fixtures for byte-identical source preservation and are not formatter-stable.
+untracked Markdown files directly through mdtablefix. The two indented-code
+golden fixtures that are not formatter-stable have `.txt` extensions; their
+contents remain byte-identical to the authored test data.
 
 `make nixie` validates Mermaid diagrams in tracked Markdown files through the
 CI-installed `merman-cli` renderer. The target runs one Markdown file at a time
@@ -308,15 +414,18 @@ flag lives in a Linux-only table and macOS and Windows keep their platform
 linker. Cargo selects one `rustflags` source rather than merging them, so every
 source repeats the same flags apart from the linker.
 
-An assigned `RUSTFLAGS` replaces the configuration's flags, so the Makefile
-recipes that set it compose the standard's flags onto any inherited value (CI's
-`setup-rust` exports one). Two builds are deliberately excluded: coverage
-assigns `RUSTFLAGS` without the fast flags, because a measurement should not
-depend on them, and the release recipe and workflow keep the platform linker,
-because they assign `RUSTFLAGS` (even an empty value displaces the
-configuration). Cargo has no per-profile `rustflags`, so a direct
-`cargo build --release` takes the configuration's flags unless `RUSTFLAGS` is
-assigned too.
+An assigned `RUSTFLAGS` replaces the configuration's flags, while Cargo uses
+`CARGO_ENCODED_RUSTFLAGS` in preference when it is set. The Makefile therefore
+assigns both sources: it builds `RUSTFLAGS` from `RUST_FLAGS` and the selected
+route flags, and filters development-owned options from inherited
+`CARGO_ENCODED_RUSTFLAGS` before appending those route flags. This preserves
+other caller-encoded policy while removing `-Zthreads=8`, the Cranelift backend
+selector, and the `mold` linker argument from the inherited source. Coverage
+assigns warnings-only `RUSTFLAGS` and uses LLVM profiling; release uses
+`RUST_FLAGS` and the LLVM release profile. Both routes omit the development
+frontend and `mold` flags. Cargo has no per-profile `rustflags`, so a direct
+`cargo build --release` uses the discovered configuration unless an environment
+flag source is assigned.
 
 On Linux, install `mold` before building: the configuration names it, so a
 build without it fails at link time. CI installs it through `setup-rust`'s
@@ -335,22 +444,33 @@ missing instead of skipping, so a missing tool cannot read as a pass.
 
 `.config/nextest.toml` keeps the 180 s per-test allowance that the coverage
 action writes when a repository has no file of its own, and gives the
-`compile_time` tests three times that. They run a nested Cargo that compiles
-the whole dependency graph, and a pull request has no warm sccache directory
-until the default branch has written one (`setup-rust` owns that directory and
-only a push to the default branch writes it). Before that cache exists, the
-nested build alone can exceed 180 s on a GitHub-hosted runner.
+`compile_time` tests a bounded 30-minute allowance. They run a nested Cargo
+that compiles the whole dependency graph, and a pull request has no warm
+sccache directory until the default branch has written one (`setup-rust` owns
+that directory and only a push to the default branch writes it). Before that
+cache exists, the nested build alone can exceed 180 s on a GitHub-hosted
+runner. Local cold builds may also queue through shared compiler admission; the
+longer allowance keeps that legitimate wait within the test budget without
+changing the compile-time assertions.
+
+The aggregate no-op round-trip test invokes external formatters for every
+conformant fixture. It has a separate, bounded nine-minute allowance for slower
+shared-host execution. All fixtures and fidelity assertions remain enabled;
+other ordinary tests retain the three-minute limit.
 
 ### Cranelift
 
-Cranelift is the development-profile codegen backend. The full suite was
-measured under it on the pinned `nightly-2026-03-26` on 2026-09-28: all 290
-nextest tests and the doctests pass. Coverage selects LLVM explicitly
-(`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`), because instrumentation needs it,
-and release builds use the release profile, which Cranelift does not touch.
-Re-measure the whole suite on the next toolchain bump; if it fails, record the
-failing tests here as an exception and remove the backend from
-`.cargo/config.toml`.
+Cranelift is currently excluded from development builds; LLVM is the
+development default. Before the exclusion, the full suite was measured with
+Cranelift on the pinned `nightly-2026-03-26` on 2026-09-28: all 290 nextest
+tests and the doctests passed. This is historical evidence from before the
+`catch_unwind` probe failed and a spawned-thread panic aborted the test process
+on that toolchain. See the
+[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
+Coverage selects LLVM explicitly (`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`),
+because instrumentation needs it, and release builds use the release profile,
+which Cranelift does not affect. Before enabling Cranelift again, re-measure
+the full suite and reconsider the exception based on the results.
 
 ## 8. Workflow pins and Dependabot
 
@@ -387,3 +507,164 @@ def test_uses_pinned_full_sha(caller_step):
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
+
+## 9. Coverage administration and readiness
+
+CV-005 has separate static and administrative prerequisites. The offline
+`make test-workflow-contracts` gate validates the actual workflow files. Its
+workflow-shape fixtures modify copies for mutation testing; they cannot prove
+that a GitHub environment exists or that a secret has the correct scope. Keep
+the live contract strict when an administrative prerequisite is missing.
+
+The sole publisher is `coverage-main.yml`, job `coverage-publisher`, which runs
+on pushes to `main` and already declares `environment: codescene`. The owner
+must verify that this environment is provisioned and protected before readiness
+and merge. If its policy is missing or has drifted, repair it through the
+trusted administrative process and perform a fresh read-back. Do not remove the
+workflow declaration or rely on a workflow to create or repair administrative
+protection. PR workflows remain secret-free and cannot upload to CodeScene or
+write the persistent coverage baseline. If `CS_ACCESS_TOKEN` is unavailable,
+the publisher emits a fixed GitHub Actions warning that coverage was not
+published; the upload step remains guarded. This warning reports a skipped
+upload and does not prove that the environment or token has been provisioned.
+
+### Trusted owner checks
+
+Run the read-only administrative verifier from an owner-reviewed checkout in a
+trusted local session. Authenticate GitHub CLI as an authorized repository
+owner or administrator with permission to read environments and deployment
+policies. Keep those credentials outside PR workflows, logs, and committed
+files. Review the verifier before executing it with administrative access;
+executing arbitrary PR code with those credentials is not a readiness check.
+
+```bash
+python3 scripts/verify_codescene_environment.py --repo leynos/mapsplice
+```
+
+This command performs only GitHub API `GET` requests and exits non-zero when
+the protection cannot be verified. It does not provision environments, read
+secret values, upload coverage, or write a baseline. Its injected API client
+and pure validation functions support offline tests without administrative
+access; it is deliberately separate from `make test-workflow-contracts`.
+
+Policy rules raise domain errors containing only a code and message. The
+verifier translates these errors at its boundary and attaches trusted audit
+operation and page context. API, pagination, and process errors remain in the
+adapters. Generated link tests exercise permitted relation subsets and reject
+changes to each required URL and paging field.
+
+The command also emits JSON events on stderr for each API request and each
+validation stage, followed by a session summary even on early failure. Fixed
+operation and resource categories distinguish policy pages, their first-page
+readback, and environment readback. Events contain bounded HTTP status or error
+codes, outcomes, and monotonic elapsed milliseconds. The summary counts
+requests, unique policy pages, page reads, request latency, and stage and
+request outcomes, including drift, audit-cap rejection, timeout, and access
+denial. These counters are process-local audit evidence rather than exported
+monitoring metrics. Events exclude endpoints, repository names, response
+bodies, headers, exception messages, and tokens; the existing human-readable
+diagnostics remain available.
+
+The verifier must read the `codescene` environment and enumerate every
+deployment branch policy. Require `protected_branches: false` and
+`custom_branch_policies: true`, with exactly one policy whose `name` is `main`
+and whose `type` is `branch`. Tags, additional branches, and wildcard patterns
+are not permitted. Missing or unreadable state, malformed responses, incomplete
+pagination, and policy drift must block readiness. HTTP 403 means access was
+denied; HTTP 404 means the resource was not found or was concealed from the
+current identity. Neither response proves protection.
+
+Before readiness and again immediately before merge, the owner must complete
+these actions and record non-secret evidence:
+
+1. Verify that `codescene` exists and repair it through the trusted
+   administrative process if needed. Then run a fresh policy read-back. Record
+   the repository, authenticated identity, UTC time, inspected Git head, policy
+   flags, complete pagination, and the sole permitted branch policy. A
+   committed response snapshot is historical evidence, never a substitute for
+   the live check.
+2. Provision `CS_ACCESS_TOKEN` as an environment-scoped secret. Read its
+   metadata through the environment secrets API and record only its name,
+   scope, and creation/update timestamps. Never retrieve, print, or commit its
+   value. Token existence does not establish the policy or project identity.
+3. Remove obsolete repository-level or organization-level token exposure
+   through an authorized owner action. Read back repository secret metadata and
+   any applicable organization secret access configuration to establish that
+   PR-accessible routes no longer expose `CS_ACCESS_TOKEN`. If either inventory
+   is unreadable or incomplete, record an unresolved prerequisite; do not infer
+   removal.
+4. Confirm in the trusted CodeScene administrative interface that the token
+   belongs to the intended project for `leynos/mapsplice` and that the project
+   tracks this repository and the main coverage publication. Record the
+   verified project identity and mapping without its token. Do not invent a
+   project identifier or treat a fixture as confirmation.
+5. Keep `jobs.coverage-publisher.environment: codescene` on the existing
+   publisher and proceed only after authorized protection evidence is
+   available. Preserve its action pins, compiler route, coverage parity,
+   concurrency, permissions, token guard, and sole baseline writer. Rerun the
+   strict live contract and the full workflow-contract gate.
+
+Repeat the live policy and secret-scope checks at least weekly and after
+changes to environment settings, deployment policies, secret scope, or
+administrative access. Any drift blocks readiness and merge until the owner
+repairs and re-verifies it. A read-back is a point-in-time observation, not an
+atomic guarantee that settings cannot subsequently change.
+
+### Evidence boundaries
+
+- **Static validation:** Offline mocked API tests exercise verifier behaviour;
+  workflow contracts enforce the checked-out YAML trust boundary. Record the
+  exact head and any uncommitted patch identity with their actual results.
+- **Administrative verification:** Fresh owner-authorized reads establish
+  environment policy and secret metadata. Record missing evidence explicitly.
+- **Hosted PR coverage:** An actual run on the current PR head measures the
+  secret-free PR lane. Local tests do not prove that hosted measurement.
+- **Protected main publication:** The first post-merge main run must enter
+  the protected environment and demonstrate the sole publisher's baseline write
+  and guarded upload to the verified CodeScene project. PR coverage does not
+  prove that publication.
+
+Merge remains blocked while the administrative prerequisites, required gates,
+or review findings are incomplete. The maintainer has deferred canonical Rust
+environment-access policy publication and adoption to
+[Concordat issue #157](https://github.com/leynos/concordat/issues/157); that
+follow-up is outside this pull request. PR review status is tracked separately
+from merge readiness.
+
+The GitHub API references are:
+
+- [Environments](https://docs.github.com/en/rest/deployments/environments)
+- [Deployment branch policies](https://docs.github.com/en/rest/deployments/branch-policies)
+- [Environment secret metadata](https://docs.github.com/en/rest/actions/secrets#get-an-environment-secret)
+
+## Lint baseline
+
+[`Cargo.toml`](../Cargo.toml) holds the package's Clippy, Rust, and rustdoc
+lint levels. [`clippy.toml`](../clippy.toml) sets the complexity ceiling to 9,
+the argument limit to 4, the line limit to 70, and the nesting limit to 4. The
+selected estate baseline is Concordat revision
+`902d034d9da8e7ca33a0d4032770519dd1609de2`; this repository also requires
+`missing_assert_message`, `missing_docs_in_private_items`, and
+`unsafe_code = "forbid"`. Fix findings in source. Any unavoidable exception
+needs a narrow scope and a stated reason; do not use `#[allow]` to carry a
+backlog.
+
+This package has no Cargo workspace. If it gains one, put the authoritative
+tables under `[workspace.lints.*]` and make every member inherit them with
+`[lints] workspace = true`. Use the components in
+[`rust-toolchain.toml`](../rust-toolchain.toml), including rustfmt and Clippy;
+the build and verification routes also require their documented tools. Keep
+environment access at an explicit CLI configuration boundary and inject an
+environment reader into code that needs deterministic testing. The
+`disallowed_methods` lint level is enabled, but this repository has no
+forbidden-method list and therefore does not currently enforce the
+environment-access rule. The maintainer selected Netsuke as the reference for
+the seven environment and current-directory bans. Canonical publication and
+consumer adoption remain follow-up work in
+[Concordat issue #157](https://github.com/leynos/concordat/issues/157).
+
+The binding `make lint` documentation check runs
+`cargo doc --workspace --no-deps` with
+`RUSTDOCFLAGS='--cfg docsrs -D warnings'`. The doctest route uses the same
+Rustdoc flags. This enables docs.rs-only documentation paths in both checks
+while denying Rustdoc warnings.

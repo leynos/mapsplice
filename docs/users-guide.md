@@ -63,6 +63,19 @@ mapsplice replace <target> <anchor> <file-to-replace-with>
 By default the rewritten roadmap is written to standard output. Use
 `--in-place` or `-i` to rewrite the target file instead.
 
+### Help and diagnostics
+
+Use `mapsplice --help` for the command list or `mapsplice help insert` for help
+on one operation. Top-level help begins with the stable usage line
+`Usage: mapsplice [OPTIONS] <COMMAND>`. Successful roadmap output and help text
+are written to standard output. If a reader closes that output pipe, including
+while writing roadmap output or help, `mapsplice` exits successfully. Other
+standard-output write failures produce a diagnostic on standard error and an
+unsuccessful exit. Invalid command-line input and errors from reading,
+validating, or editing roadmap files also produce diagnostics on standard error
+and exit unsuccessfully. The unreleased help and diagnostic logging changes are
+listed in the [0.2.0 migration notes](migrations/0.2.0.md).
+
 ## Worked example
 
 Start with a target roadmap:
@@ -369,25 +382,23 @@ Maintainer workflows and repository gates are documented in the
 
 ### Build standard
 
-Development builds (`make test`, `make lint`, `make typecheck` and the debug
-build) use the parallel `rustc` frontend (`-Zthreads=8`) and, on Linux, the
-`mold` linker. Install `mold` before building on Linux, and `clang`, which
-`.cargo/config.toml` selects as the linker for `x86_64-unknown-linux-gnu`: the
-configuration names it, so a build without it fails at link time (on Debian or
-Ubuntu, install the `mold` package with `apt-get`). macOS keeps its platform
-linker, because `mold` ships for Linux only.
+Development Make targets (`make test`, `make lint`, `make typecheck` and the
+debug build) use the parallel `rustc` frontend (`-Zthreads=8`). On supported
+Linux targets they use the repository's target-aware Clang wrappers with
+`mold`. Install `clang` with your system package manager if needed, then run
+`make install-build-tools` to install the pinned Rust components and, on
+supported Linux hosts, `mold` and `ld.mold` 2.41.0. macOS keeps its platform
+linker because the pinned linker is installed only on Linux. LLVM is the
+development codegen default; Cranelift is currently excluded after an
+unwind-test failure on the pinned toolchain. See
+[ADR 001](adr-001-rust-build-standard.md).
 
-The flags live in `.cargo/config.toml`, but Cargo applies exactly one
-`rustflags` source and an assigned `RUSTFLAGS` replaces every configuration
-source. The Makefile therefore restates the flags in each recipe and keeps any
-`RUSTFLAGS` already in the environment, appending the standard flags after it.
-Two builds are held out deliberately. The coverage build assigns its own flags,
-because a measurement should not depend on the fast flags. `make release` keeps
-the environment's `RUSTFLAGS` and names neither fast flag, so a shipped
-artefact links with the platform linker. A bare `cargo build --release` takes
-the configuration's flags unless `RUSTFLAGS` is assigned, for example
-`RUSTFLAGS="" cargo build --release`.
-
-Cranelift is the development-profile code generator, selected in
-`.cargo/config.toml`; coverage selects LLVM explicitly because instrumentation
-needs it. See [ADR 001](adr-001-rust-build-standard.md) for the reasoning.
+Pass additional Rust policy flags to Make through `RUST_FLAGS`. Make assigns
+each recipe's `RUSTFLAGS` from that variable and the selected route flags; it
+does not retain inherited `RUSTFLAGS`. It filters development-owned flags from
+inherited `CARGO_ENCODED_RUSTFLAGS` before composing the selected route.
+Coverage assigns its own flags and selects LLVM for instrumentation.
+`make release` selects the LLVM release profile and omits the development
+frontend and `mold` flags, so it uses the platform linker. A bare
+`cargo build --release` uses discovered configuration unless an environment
+flag source is assigned, for example `RUSTFLAGS="" cargo build --release`.

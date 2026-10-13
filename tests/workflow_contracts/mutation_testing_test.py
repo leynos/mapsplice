@@ -21,18 +21,17 @@ from pathlib import Path
 import yaml
 
 WORKFLOW_PATH = (
-    Path(__file__).resolve().parents[2] / ".github" / "workflows" / "mutation-testing.yml"
+    Path(__file__).resolve().parents[2]
+    / ".github"
+    / "workflows"
+    / "mutation-testing.yml"
 )
 
 #: mapsplice is a single root crate with all mutable source under
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
-#: modules outside ``#[cfg(test)]``, so the caller only mirrors the CI
-#: baseline's feature flags (``make test`` runs --all-features).
-EXPECTED_WITH = {
-    # .cargo/config.toml links with mold on Linux; the reusable workflow installs it.
-    "install-mold": "true",
-    "extra-args": "--all-features",
-}
+#: modules outside ``#[cfg(test)]``, so the caller mirrors the CI baseline's
+#: feature flags and provisions the development linker before mutant builds.
+EXPECTED_WITH_KEYS = {"extra-args", "install-mold", "setup-commands"}
 
 
 def _load() -> dict[str, object]:
@@ -130,10 +129,33 @@ def test_triggers_keep_schedule_and_plain_dispatch() -> None:
 
 
 def test_with_block_carries_the_caller_configuration() -> None:
-    """The caller passes exactly the feature args mirroring CI."""
+    """The caller passes feature args and the supported setup hook."""
     with_block = _mutation_job(_load()).get("with")
-    assert with_block == EXPECTED_WITH, (
-        f"jobs.mutation.with must be exactly {EXPECTED_WITH!r} (mirror the "
-        f"CI baseline's --all-features and rely on the shared workflow's "
-        f"defaults for everything else), got {with_block!r}"
+    assert isinstance(with_block, dict) and set(with_block) == EXPECTED_WITH_KEYS, (
+        f"jobs.mutation.with must contain {EXPECTED_WITH_KEYS!r}, got {with_block!r}"
+    )
+    assert with_block["extra-args"] == "--all-features", (
+        "mutation testing must retain CI's all-features selection"
+    )
+    assert with_block["install-mold"] == "true", (
+        "mutation builds must provision the committed Linux linker"
+    )
+    setup_commands = with_block["setup-commands"]
+    assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
+    commands = [line.strip() for line in setup_commands.splitlines()]
+    required_commands = (
+        "make install-build-tools",
+        "make check-build-tools",
+        (
+            "echo 'RUSTFLAGS=-D warnings -Zthreads=8 -C link-arg=-fuse-ld=mold' "
+            '>> "$GITHUB_ENV"'
+        ),
+    )
+    positions = []
+    for command in required_commands:
+        assert command in commands, f"mutation setup is missing {command!r}"
+        positions.append(commands.index(command))
+    assert positions == sorted(positions), (
+        "mutation setup must install and check build tools before assigning "
+        "the development RUSTFLAGS"
     )

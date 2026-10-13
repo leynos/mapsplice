@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c0201a6ecce5b9fb1327cba7c4ee9d07ec285d614c82a82372c7f11fce5d52e8 # shrinks to (fragments, separators) = (["'; && ||' \"; && ||\" \\;\\&\\&\\|\\| (;  &&  || ) \"$(printf '%s' \"printf '%s' '; && ||'\")\""], [])

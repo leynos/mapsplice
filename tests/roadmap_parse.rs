@@ -10,11 +10,19 @@ use mapsplice::{
 };
 use rstest::rstest;
 
-fn invalid_roadmap_message(error: &MapspliceError) -> &str {
+const fn invalid_roadmap_message(error: &MapspliceError) -> Option<&str> {
     match error {
-        MapspliceError::InvalidRoadmap { message } => message,
-        other => panic!("expected InvalidRoadmap error, got {other:?}"),
+        MapspliceError::InvalidRoadmap { message } => Some(message.as_str()),
+        _ => None,
     }
+}
+
+fn assert_invalid_roadmap_error(error: &MapspliceError, expected: &str) {
+    assert_eq!(
+        invalid_roadmap_message(error),
+        Some(expected),
+        "expected InvalidRoadmap error, got {error:?}",
+    );
 }
 
 #[rstest]
@@ -78,7 +86,7 @@ fn parse_fragment_detects_supported_level(
 fn parse_task_checklist_head_diagnostics(#[case] fragment: &str, #[case] expected: &str) {
     let error = parse_fragment_text(fragment).expect_err("malformed task item should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }
 
 #[rstest]
@@ -99,7 +107,7 @@ fn parse_sub_task_fragment_checklist_head_diagnostics(
 ) {
     let error = parse_fragment_text(fragment).expect_err("malformed sub-task item should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }
 
 #[rstest]
@@ -124,7 +132,7 @@ fn parse_sub_task_fragment_checklist_head_diagnostics(
 fn parse_nested_sub_task_checklist_head_diagnostics(#[case] roadmap: &str, #[case] expected: &str) {
     let error = parse_roadmap_text(roadmap).expect_err("malformed sub-task item should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }
 
 #[rstest]
@@ -150,7 +158,7 @@ fn parse_nested_sub_task_checklist_head_diagnostics(#[case] roadmap: &str, #[cas
 fn parse_sub_task_checklist_validation_diagnostics(#[case] roadmap: &str, #[case] expected: &str) {
     let error = parse_roadmap_text(roadmap).expect_err("malformed sub-task should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }
 
 #[rstest]
@@ -188,10 +196,7 @@ fn parse_roadmap_rejects_task_from_another_step() {
     ))
     .expect_err("task numbers must belong to their containing step");
 
-    assert_eq!(
-        invalid_roadmap_message(&error),
-        "task `1.2.1` does not belong to step `1.1`",
-    );
+    assert_invalid_roadmap_error(&error, "task `1.2.1` does not belong to step `1.1`");
 }
 
 #[rstest]
@@ -199,10 +204,7 @@ fn parse_step_fragment_rejects_task_from_another_step() {
     let error = parse_fragment_text(concat!("### 9.1. Step\n\n", "- [ ] 9.2.1. Wrong step.\n",))
         .expect_err("step fragments must reject tasks from another step");
 
-    assert_eq!(
-        invalid_roadmap_message(&error),
-        "task `9.2.1` does not belong to step `9.1`",
-    );
+    assert_invalid_roadmap_error(&error, "task `9.2.1` does not belong to step `9.1`");
 }
 
 #[rstest]
@@ -220,7 +222,7 @@ fn parse_single_list_fragments_reject_extra_root_nodes(
 ) {
     let error = parse_fragment_text(fragment).expect_err("extra root nodes should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }
 
 #[rstest]
@@ -228,10 +230,7 @@ fn parse_task_fragment_keeps_sibling_step_diagnostic() {
     let error = parse_fragment_text(concat!("- [ ] 9.1.1. First.\n", "- [ ] 9.2.1. Second.\n",))
         .expect_err("task fragments must contain tasks from one step");
 
-    assert_eq!(
-        invalid_roadmap_message(&error),
-        "task fragments must contain tasks from one step",
-    );
+    assert_invalid_roadmap_error(&error, "task fragments must contain tasks from one step");
 }
 
 #[rstest]
@@ -242,8 +241,8 @@ fn parse_sub_task_fragment_keeps_sibling_task_diagnostic() {
     ))
     .expect_err("sub-task fragments must contain sub-tasks from one task");
 
-    assert_eq!(
-        invalid_roadmap_message(&error),
+    assert_invalid_roadmap_error(
+        &error,
         "sub-task fragments must contain sub-tasks from one task",
     );
 }
@@ -269,5 +268,5 @@ fn parse_sub_task_fragment_keeps_sibling_task_diagnostic() {
 fn parse_step_fragment_keeps_lifecycle_diagnostics(#[case] fragment: &str, #[case] expected: &str) {
     let error = parse_fragment_text(fragment).expect_err("malformed step fragment should fail");
 
-    assert_eq!(invalid_roadmap_message(&error), expected);
+    assert_invalid_roadmap_error(&error, expected);
 }

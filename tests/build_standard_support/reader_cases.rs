@@ -97,7 +97,7 @@ fn draws(config: Fixture, pin: Pin, expected: usize) -> Result<(), String> {
 /// Scenario: configurations of each shape, read on a nightly and a stable pin.
 ///
 /// Invariant: a compliant nightly file passes, and each way of losing the
-/// frontend flag, losing mold, naming mold beyond Linux, or letting a source
+/// frontend flag, losing `mold`, naming `mold` beyond Linux, or letting a source
 /// drift is reported; a stable pin refuses the frontend flag it cannot take.
 #[rstest]
 #[case::compliant_nightly(Fixture(NIGHTLY_OK), Pin::Nightly, 0)]
@@ -169,6 +169,24 @@ fn flags(words: &[&str], inherits: bool) -> Assignment {
     Assignment::Flags(Flags::from_words(words.iter().copied()), inherits)
 }
 
+/// Renders the Makefile's encoded-source filtering and route-append shape.
+fn encoded_command(raw_flags: &str, filtered_forms: &str, encoded_route: &str) -> String {
+    format!(
+        "CARGO_ENCODED_RUSTFLAGS=\"encoded=${{CARGO_ENCODED_RUSTFLAGS-}}; if [[ -n $encoded ]]; \
+         then IFS=$separator read -r -a arguments <<< \"$encoded\"; for current in \
+         \"${{arguments[@]}}\"; do case \"$pending:$current\" in \
+         -Z:threads=8|-Z:codegen-backend=cranelift|-C:link-arg=-fuse-ld=mold) pending=; \
+         continue;; *) kept+=(\"$pending\"); pending=;; esac; case $current in \
+         -Z|-C|{filtered_forms}) ;; *) kept+=(\"$current\");; esac; kept+=(\"$pending\"); if [[ \
+         -n $pending ]]; then kept+=(\"$pending\"); fi; (IFS=$separator; printf \"%s\" \
+         \"${{kept[*]}}\"); filtered=1; if [ -n \"$filtered\" ]; then printf '%s\u{1f}%s' \
+         \"$filtered\" \"{encoded_route}\"; else printf '%s' \"{encoded_route}\"; fi\" \
+         RUSTFLAGS=\"{raw_flags}\" cargo build"
+    )
+}
+
+const FILTERED_FORMS: &str = "-Zthreads=8|-Zcodegen-backend=cranelift|-Clink-arg=-fuse-ld=mold";
+
 /// Scenario: `make -n` output lines in each spelling of an assignment.
 ///
 /// Invariant: a quoted assignment is read, with the caller's inherited flags
@@ -211,6 +229,43 @@ fn the_command_reader_refuses_what_it_cannot_parse(#[case] line: Fixture) -> Res
         Ok(_) => Err(format!("`{}` was read, not refused", line.0)),
         Err(_) => Ok(()),
     }
+}
+
+/// Scenario: Make's separate plain and encoded flag assignments.
+///
+/// Invariant: the plain assignment carries the selected route, while the
+/// encoded source filters only development-owned flags and appends that exact
+/// route. Missing filters, mismatched encoded flags, or an encoded source with
+/// no plain route fail closed.
+#[test]
+fn the_encoded_command_source_preserves_policy_and_matches_the_plain_route() -> Result<(), String> {
+    let raw_flags = "-D warnings -Zthreads=8";
+    let encoded_route = raw_flags
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("\u{1f}");
+    let valid = encoded_command(raw_flags, FILTERED_FORMS, &encoded_route);
+    if assigned_rustflags(&valid)? != flags(&["-D", "warnings", THREADS_FLAG], true) {
+        return Err(format!("valid encoded route was read incorrectly: {valid}"));
+    }
+
+    let without_linker_filter = FILTERED_FORMS.replace("|-Clink-arg=-fuse-ld=mold", "");
+    let missing_filter = encoded_command(raw_flags, &without_linker_filter, &encoded_route);
+    if assigned_rustflags(&missing_filter).is_ok() {
+        return Err("encoded route without the linker filter was accepted".to_owned());
+    }
+
+    let wrong_route = encoded_command(raw_flags, FILTERED_FORMS, "-D\u{1f}warnings");
+    if assigned_rustflags(&wrong_route).is_ok() {
+        return Err("encoded route that differs from RUSTFLAGS was accepted".to_owned());
+    }
+
+    let encoded_only =
+        "CARGO_ENCODED_RUSTFLAGS=\"encoded=${CARGO_ENCODED_RUSTFLAGS-}\" cargo build";
+    if assigned_rustflags(encoded_only).is_ok() {
+        return Err("encoded flags without a plain route were accepted".to_owned());
+    }
+    Ok(())
 }
 
 /// Scenario: workflow steps read by each workflow reader.

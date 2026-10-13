@@ -12,13 +12,18 @@ use crate::{
     },
 };
 
+/// Hold an active step until the next step or end of input.
 pub(super) struct StepAccumulator<'source> {
+    /// Step receiving task lists and body nodes.
     current: Option<StepSection>,
+    /// Distinguish target content from inserted fragment content.
     source: SourceId,
+    /// Original Markdown used to preserve step content.
     source_text: &'source str,
 }
 
 impl<'source> StepAccumulator<'source> {
+    /// Create an empty accumulator for one source document or fragment.
     pub(super) const fn new(source: SourceId, source_text: &'source str) -> Self {
         Self {
             current: None,
@@ -27,8 +32,10 @@ impl<'source> StepAccumulator<'source> {
         }
     }
 
+    /// Report whether a step is receiving parsed content.
     pub(super) const fn has_active_step(&self) -> bool { self.current.is_some() }
 
+    /// Finish the previous step and begin accumulating a numbered step.
     pub(super) fn begin_step(
         &mut self,
         number: StepNumber,
@@ -50,6 +57,7 @@ impl<'source> StepAccumulator<'source> {
         });
     }
 
+    /// Append a task list before any trailing step content.
     pub(super) fn append_task_list(&mut self, list: &List) -> Result<()> {
         let current = self
             .current
@@ -81,6 +89,7 @@ impl<'source> StepAccumulator<'source> {
         Ok(())
     }
 
+    /// Preserve a Markdown node in the step body or trailing content.
     pub(super) fn push_non_structural_node(&mut self, node: Node) -> Result<()> {
         let current = self
             .current
@@ -96,6 +105,7 @@ impl<'source> StepAccumulator<'source> {
         Ok(())
     }
 
+    /// Move the active step into the completed collection, if present.
     pub(super) fn flush_into(&mut self, completed: &mut Vec<StepSection>) {
         if let Some(step) = self.current.take() {
             completed.push(step);

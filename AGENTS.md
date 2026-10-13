@@ -21,9 +21,6 @@
   related code (e.g., models + utilities + fixtures) close together.
 - **Group by feature, not layer.** Colocate views, logic, fixtures, and helpers
   related to a domain concept rather than splitting by type.
-- **Use consistent spelling and grammar.** Comments must use en-GB-oxendict
-  ("-ize" / "-yse" / "-our") spelling and grammar, with the exception of
-  references to external APIs.
 - **Illustrate with clear examples.** Function documentation must include clear
   examples demonstrating the usage and outcome of the function. Test
   documentation should omit examples where the example serves only to reiterate
@@ -42,9 +39,6 @@
   added/removed, or architectural patterns evolve, **proactively update** the
   relevant file(s) in the `docs/` directory to reflect the latest state.
   **Ensure the documentation remains accurate and current.**
-- Documentation must use en-GB-oxendict ("-ize" / "-yse" / "-our") spelling
-  and grammar. (EXCEPTION: the LICENSE filename is left unchanged for community
-  consistency.)
 - A documentation style guide is provided at
   `docs/documentation-style-guide.md`.
 
@@ -117,7 +111,15 @@ project:
 
 - Run `make check-fmt`, `make lint`, and `make test` before committing. These
   targets wrap the following commands, so contributors understand the exact
-  behaviour and policy enforced:
+  behaviour and policy enforced: Bare development Cargo commands discover
+  `.cargo/config.toml`, which selects LLVM, `-Zthreads=8`, and `clang` with
+  pinned `mold` on supported Linux targets. Run `make install-build-tools` and
+  `make check-build-tools` before compiling. Make's Rust gates repeat the
+  development flags because their `RUSTFLAGS` assignments otherwise replace
+  Cargo's defaults. Coverage, release, and Whitaker use explicit
+  non-development routes. Cranelift remains excluded from development defaults
+  because the pinned backend fails panic-unwinding probes; track its review in
+  [issue #115](https://github.com/leynos/mapsplice/issues/115) for 2027-04-01.
   - `make check-fmt` executes:
 
     ```sh
@@ -132,7 +134,8 @@ project:
   - `make lint` executes:
 
     ```sh
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    RUSTFLAGS="<warnings plus development flags>" cargo clippy \
+      --workspace --all-targets --all-features -- -D warnings
     ```
 
     linting every target with all features enabled and denying all Clippy
@@ -140,7 +143,8 @@ project:
   - `make test` executes:
 
     ```sh
-    cargo test --workspace
+    RUSTFLAGS="<warnings plus development flags>" cargo test --workspace \
+      --all-targets --all-features
     ```
 
     running the full workspace test suite. Use `make fmt` (`cargo fmt
@@ -254,10 +258,9 @@ project:
 
 ## Markdown Guidance
 
-- Validate Markdown files using `make markdownlint`. This target also enforces
-  en-GB-oxendict spelling.
-- Quoted APIs and identifiers retain upstream spelling. Fenced code blocks are
-  ignored by the spelling gate, so record each quoted identifier in
+- Validate Markdown files using `make markdownlint`.
+- Quoted APIs and identifiers retain upstream spelling. Fenced code
+  blocks are ignored by the spelling gate, so record each quoted identifier in
   `typos.local.toml` under `[patterns] ignore`, scoped to the form it appears
   in, rather than accepting the bare word.
 - Run `make fmt` after any documentation changes to format all Markdown

@@ -215,7 +215,11 @@ fn render_clauses(item: &mut String, model: &Model, consumer: ItemId, body_inden
             // continuation, so appending it would generate the wrong position
             // and leave the inline position untested.
             let newline = item.pop();
-            debug_assert_eq!(newline, Some('\n'));
+            debug_assert_eq!(
+                newline,
+                Some('\n'),
+                "inline clauses require a newline-terminated summary"
+            );
             item.push_str(&rendered);
             item.push('\n');
         } else {

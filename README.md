@@ -64,9 +64,11 @@ ______________________________________________________________________
 
 Local builds use the pinned nightly toolchain in
 [`rust-toolchain.toml`](rust-toolchain.toml) and the build configuration in
-[`.cargo/config.toml`](.cargo/config.toml). The repository requires
-`codegen-backend = "cranelift"` plus the configured Rust flags, including
-`-Zthreads=8` and `link-arg=-fuse-ld=mold`, during builds.
+[`.cargo/config.toml`](.cargo/config.toml). Development builds use LLVM with
+the configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold`
+on supported Linux targets. Cranelift is excluded from the development default
+because the pinned backend fails panic-unwinding probes; see
+[issue #115](https://github.com/leynos/mapsplice/issues/115).
 
 Provision the core local tooling with:
 
@@ -74,23 +76,24 @@ Provision the core local tooling with:
 rustup toolchain install nightly-2026-03-26 \
   --component rustfmt \
   --component clippy \
-  --component rustc-codegen-cranelift-preview
+  --component rust-analyzer \
+  --component llvm-tools
 ```
 
 The checked-in `rust-toolchain.toml` selects this toolchain for commands run in
 the repository.
 
-Install `clang` and `mold` through a system package manager when they are not
-already present:
+On Linux, install `clang` through your system package manager if it is not
+already present. Then run the repository installer:
 
 ```bash
-sudo apt install clang mold
-brew install llvm mold
+make install-build-tools
 ```
 
-For platforms without a packaged `mold`, use the published binaries at
-<https://github.com/rui314/mold/releases>. The full maintainer workflow lives in
-[docs/contributing.md](docs/contributing.md).
+The installer provisions the pinned Rust toolchain components on all platforms
+and provisions `mold` with its matching `ld.mold` 2.41.0 only on supported
+Linux hosts. macOS keeps its platform linker. The full maintainer workflow
+lives in [docs/contributing.md](docs/contributing.md).
 
 ______________________________________________________________________
 
@@ -110,6 +113,8 @@ ______________________________________________________________________
 
 - [Users' Guide](docs/users-guide.md) — command semantics, worked examples,
   roadmap format rules, and compatibility and migration notes
+- [Migration notes for 0.2.0](docs/migrations/0.2.0.md) — unreleased CLI help
+  presentation and diagnostic logging changes
 - [Developers' Guide](docs/developers-guide.md) — APIs, architecture,
   observability, and verification layers
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and

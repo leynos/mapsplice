@@ -2,9 +2,12 @@
 
 use std::{fmt, str::FromStr};
 
-use serde::{Deserialize, Deserializer, Serialize, de::Error as SerdeError};
+use serde::{Deserialize, Serialize};
 
 use crate::error::{MapspliceError, Result};
+
+#[path = "anchor_deserialize.rs"]
+mod deserialize;
 
 /// A phase number such as `8`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -13,21 +16,27 @@ pub struct PhaseNumber(u32);
 /// A step number such as `8.2`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct StepNumber {
+    /// Parent phase of this step.
     phase: PhaseNumber,
+    /// One-based step ordinal within the phase.
     step: u32,
 }
 
 /// A task number such as `8.2.3`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct TaskNumber {
+    /// Parent step of this task.
     step: StepNumber,
+    /// One-based task ordinal within the step.
     task: u32,
 }
 
 /// A sub-task number such as `8.2.3.4`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct SubTaskNumber {
+    /// Parent task of this sub-task.
     task: TaskNumber,
+    /// One-based sub-task ordinal within the task.
     sub_task: u32,
 }
 
@@ -149,7 +158,9 @@ impl PhaseNumber {
     /// # Errors
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `phase` is zero.
-    pub fn new(phase: u32) -> Result<Self> { validate_positive("phase", phase).map(Self) }
+    pub fn new(phase: u32) -> Result<Self> {
+        validate_positive(RoadmapItemLevel::Phase, phase).map(Self)
+    }
 
     /// Return the numeric phase value.
     ///
@@ -174,7 +185,7 @@ impl StepNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `step` is zero.
     pub fn new(phase: PhaseNumber, step: u32) -> Result<Self> {
-        let step_number = validate_positive("step", step)?;
+        let step_number = validate_positive(RoadmapItemLevel::Step, step)?;
         Ok(Self {
             phase,
             step: step_number,
@@ -197,7 +208,7 @@ impl TaskNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `task` is zero.
     pub fn new(step: StepNumber, task: u32) -> Result<Self> {
-        let task_number = validate_positive("task", task)?;
+        let task_number = validate_positive(RoadmapItemLevel::Task, task)?;
         Ok(Self {
             step,
             task: task_number,
@@ -220,7 +231,7 @@ impl SubTaskNumber {
     ///
     /// Returns [`MapspliceError::InvalidAnchor`] when `sub_task` is zero.
     pub fn new(task: TaskNumber, sub_task: u32) -> Result<Self> {
-        let sub_task_number = validate_positive("sub-task", sub_task)?;
+        let sub_task_number = validate_positive(RoadmapItemLevel::SubTask, sub_task)?;
         Ok(Self {
             task,
             sub_task: sub_task_number,
@@ -262,120 +273,73 @@ impl FromStr for RoadmapAnchor {
 /// Returns [`MapspliceError::InvalidAnchor`] when the value is empty, contains
 /// empty path segments, includes non-numeric components, or has more than
 /// four numeric parts.
-pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> {
-    let parts = value.split('.').collect::<Vec<_>>();
-    if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
-        return Err(MapspliceError::InvalidAnchor {
-            anchor: value.to_owned(),
-        });
+pub fn parse_anchor(value: &str) -> Result<RoadmapAnchor> { AnchorInput(value).parse() }
+
+/// Preserve the original text while validating each numeric path component.
+struct AnchorInput<'a>(&'a str);
+
+impl AnchorInput<'_> {
+    /// Validate the full anchor and assemble its matching roadmap level.
+    fn parse(self) -> Result<RoadmapAnchor> {
+        let parts = self.0.split('.').collect::<Vec<_>>();
+        if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
+            return Err(self.invalid());
+        }
+
+        let numbers = parts
+            .iter()
+            .map(|part| self.parse_component(part))
+            .collect::<Result<Vec<_>>>()?;
+
+        match numbers.as_slice() {
+            [phase] => Ok(PhaseNumber::new(*phase)?.into()),
+            [phase, step] => Ok(build_step_number(*phase, *step)?.into()),
+            [phase, step, task] => Ok(build_task_number(*phase, *step, *task)?.into()),
+            [phase, step, task, sub_task] => {
+                Ok(build_sub_task_number(*phase, *step, *task, *sub_task)?.into())
+            }
+            _ => Err(self.invalid()),
+        }
     }
 
-    let numbers = parts
-        .iter()
-        .map(|part| parse_canonical_positive_integer(part, value))
-        .collect::<Result<Vec<_>>>()?;
-
-    match numbers.as_slice() {
-        [phase] => Ok(PhaseNumber::new(*phase)?.into()),
-        [phase, step] => Ok(build_step_number(*phase, *step)?.into()),
-        [phase, step, task] => Ok(build_task_number(*phase, *step, *task)?.into()),
-        [phase, step, task, sub_task] => {
-            Ok(build_sub_task_number(*phase, *step, *task, *sub_task)?.into())
+    /// Parse one component and reject zero or non-canonical numeric spelling.
+    fn parse_component(&self, part: &str) -> Result<u32> {
+        let number = part.parse::<u32>().map_err(|_| self.invalid())?;
+        if number == 0 || part != number.to_string() {
+            return Err(self.invalid());
         }
-        _ => Err(MapspliceError::InvalidAnchor {
-            anchor: value.to_owned(),
-        }),
+        Ok(number)
+    }
+
+    /// Preserve the original anchor in the user-facing validation error.
+    fn invalid(&self) -> MapspliceError {
+        MapspliceError::InvalidAnchor {
+            anchor: self.0.to_owned(),
+        }
     }
 }
 
+/// Validate and assemble a step from its numeric components.
 fn build_step_number(phase: u32, step: u32) -> Result<StepNumber> {
     StepNumber::new(PhaseNumber::new(phase)?, step)
 }
 
+/// Validate and assemble a task from its numeric components.
 fn build_task_number(phase: u32, step: u32, task: u32) -> Result<TaskNumber> {
     TaskNumber::new(build_step_number(phase, step)?, task)
 }
 
+/// Validate and assemble a sub-task from its numeric components.
 fn build_sub_task_number(phase: u32, step: u32, task: u32, sub_task: u32) -> Result<SubTaskNumber> {
     SubTaskNumber::new(build_task_number(phase, step, task)?, sub_task)
 }
 
-fn parse_canonical_positive_integer(part: &str, anchor: &str) -> Result<u32> {
-    let number = part
-        .parse::<u32>()
-        .map_err(|_| MapspliceError::InvalidAnchor {
-            anchor: anchor.to_owned(),
-        })?;
-    if number == 0 || part != number.to_string() {
-        return Err(MapspliceError::InvalidAnchor {
-            anchor: anchor.to_owned(),
-        });
-    }
-    Ok(number)
-}
-
-fn validate_positive(label: &str, number: u32) -> Result<u32> {
+/// Reject a zero-valued component of a roadmap number.
+fn validate_positive(level: RoadmapItemLevel, number: u32) -> Result<u32> {
     if number == 0 {
         return Err(MapspliceError::InvalidAnchor {
-            anchor: format!("{label} number 0"),
+            anchor: format!("{level} number 0"),
         });
     }
     Ok(number)
-}
-
-impl<'de> Deserialize<'de> for PhaseNumber {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Self::new(u32::deserialize(deserializer)?).map_err(D::Error::custom)
-    }
-}
-
-#[derive(Deserialize)]
-struct StepNumberWire {
-    phase: PhaseNumber,
-    step: u32,
-}
-
-impl<'de> Deserialize<'de> for StepNumber {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let wire = StepNumberWire::deserialize(deserializer)?;
-        Self::new(wire.phase, wire.step).map_err(D::Error::custom)
-    }
-}
-
-#[derive(Deserialize)]
-struct TaskNumberWire {
-    step: StepNumber,
-    task: u32,
-}
-
-impl<'de> Deserialize<'de> for TaskNumber {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let wire = TaskNumberWire::deserialize(deserializer)?;
-        Self::new(wire.step, wire.task).map_err(D::Error::custom)
-    }
-}
-
-#[derive(Deserialize)]
-struct SubTaskNumberWire {
-    task: TaskNumber,
-    sub_task: u32,
-}
-
-impl<'de> Deserialize<'de> for SubTaskNumber {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let wire = SubTaskNumberWire::deserialize(deserializer)?;
-        Self::new(wire.task, wire.sub_task).map_err(D::Error::custom)
-    }
 }

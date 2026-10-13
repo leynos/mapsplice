@@ -59,3 +59,28 @@ the workflows, so a flag lost through a recipe or workflow edit fails there.
 - A change to a recipe or workflow step that assigns `RUSTFLAGS` must restate
   the flags, and the contract says which clause fails when it does not.
 - Re-measure the suite under Cranelift on the next toolchain bump.
+
+## Addendum (2026-10-10)
+
+This addendum supersedes the statements above about Cranelift selection and
+review timing, the coverage backend, inherited `RUSTFLAGS`, and the Linux
+linker requirement. The current toolchain is pinned to `nightly-2026-03-26`.
+LLVM is the development default. Cranelift is excluded after the `catch_unwind`
+probe failed and a spawned-thread panic aborted the test process on that
+toolchain. The Make-managed development route keeps the parallel frontend and
+uses target-aware Clang wrappers with `mold` for the supported Linux targets
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; other targets use
+their platform linker. This policy is specific to Make: bare Cargo invocations
+still receive `-fuse-ld=mold` for any Linux target from the `.cargo/config.toml`
+`cfg(target_os = "linux")` table. The x86_64 GNU route requires `clang`.
+Coverage explicitly selects LLVM, and `make release` selects the LLVM release
+profile and uses the platform linker. Make recipes assign `RUSTFLAGS` from
+`RUST_FLAGS` and the selected route flags; inherited `RUSTFLAGS` is not
+retained. They filter development-owned flags from inherited
+`CARGO_ENCODED_RUSTFLAGS` before composing the selected route.
+
+Reconsider Cranelift under
+[issue #115](https://github.com/leynos/mapsplice/issues/115) at its 2027-04-01
+review. The
+[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
+records the unwind failure.

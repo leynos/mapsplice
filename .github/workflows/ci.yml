@@ -7,7 +7,7 @@ name: CI
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
@@ -25,22 +25,18 @@ jobs:
         uses: leynos/shared-actions/.github/actions/setup-rust@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           install-mold: 'true'
-      - name: Install clang and lld
-        # ripgrep is listed here rather than left implicit: `make lint` depends
-        # on both `check-verification-ledger`, which shells out to `rg` to
-        # confirm that every symbol the ledger names still exists in `src/`,
-        # and `check-domain-purity`, which uses it to keep infrastructure
-        # access out of `src/roadmap`. The `ubuntu-latest` image does not ship
-        # `rg`, so without this the lint job fails at its first prerequisite
-        # with "ripgrep (rg) is required for the verification-ledger and
-        # domain-purity checks", before any Rust is compiled. `mold` is not
-        # listed because `setup-rust` installs it above.
+          rustflags: ''
+      - name: Install clang linker driver
+        # The verification-ledger and domain-purity lint prerequisites use rg.
+        # Install it explicitly alongside clang; setup-rust supplies `mold`.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
             && sudo apt-get install --yes --no-install-recommends clang ripgrep
+      - name: Check build tools
+        run: make check-build-tools
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
@@ -95,35 +91,25 @@ jobs:
           markdownlint-cli2 --version
       - name: Install Whitaker
         uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
-        with:
-          cranelift: true
       - name: Lint
         run: make lint
       - name: Setup uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           python-version: '3.13'
-          enable-cache: true
+          enable-cache: false
       - name: Spelling
         run: make spelling
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
         env:
-          # One of the two exclusions from the build standard: a coverage build is a
-          # measurement, so it takes neither the parallel frontend nor the mold linker.
-          # Assigning RUSTFLAGS displaces every `rustflags` table in .cargo/config.toml.
-          RUSTFLAGS: -D warnings
+          # The action selects LLVM profiles; this also excludes development
+          # frontend and linker flags while retaining its instrumentation.
+          RUSTFLAGS: '-D warnings'
         uses: leynos/shared-actions/.github/actions/generate-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           output-path: lcov.info
           format: lcov
-      - name: Upload coverage data to CodeScene
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
-        with:
-          format: lcov
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+          with-ratchet: 'true'
+          publish-artefact: 'false'

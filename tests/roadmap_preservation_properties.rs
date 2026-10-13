@@ -3,8 +3,6 @@
 #[path = "support/workspace.rs"]
 mod workspace_support;
 
-use std::fmt::Write;
-
 use mapsplice::run_from_args;
 use proptest::prelude::*;
 use workspace_support::create_workspace;
@@ -23,8 +21,7 @@ proptest! {
         sub_task_count in 0usize..4,
     ) {
         let workspace = create_workspace().expect("workspace fixture should initialize");
-        let stable_source = stable_task_source(body_shape, sub_task_count)
-            .map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let stable_source = stable_task_source(body_shape, sub_task_count);
         workspace
             .write_target(&roadmap_with_stable_task(&stable_source))
             .expect("target should be written");
@@ -58,8 +55,7 @@ proptest! {
         let workspace = create_workspace().expect("workspace fixture should initialize");
         workspace
             .write_target(
-                &roadmap_with_sub_tasks(initial_sub_task_count)
-                    .map_err(|error| TestCaseError::fail(error.to_string()))?,
+                &roadmap_with_sub_tasks(initial_sub_task_count),
             )
             .expect("target should be written");
         let mut sub_task_count = initial_sub_task_count;
@@ -194,7 +190,7 @@ where
 ///
 /// The returned text includes a wrapped summary and preserves its original
 /// two-space continuation indentation.
-fn stable_task_source(body_shape: u8, sub_task_count: usize) -> Result<String, std::fmt::Error> {
+fn stable_task_source(body_shape: u8, sub_task_count: usize) -> String {
     let mut source = concat!(
         "- [ ] 1.1.1. Stable target task deliberately wraps onto a second line while\n",
         "  preserving its two-space continuation indentation.\n"
@@ -202,12 +198,14 @@ fn stable_task_source(body_shape: u8, sub_task_count: usize) -> Result<String, s
     .to_owned();
     source.push_str(stable_body(body_shape));
     for sub_task_index in 1..=sub_task_count {
-        writeln!(
-            source,
-            "\n  - [ ] 1.1.1.{sub_task_index}. Stable nested sub-task {sub_task_index}."
-        )?;
+        let index = sub_task_index.to_string();
+        source.push_str("\n  - [ ] 1.1.1.");
+        source.push_str(&index);
+        source.push_str(". Stable nested sub-task ");
+        source.push_str(&index);
+        source.push_str(".\n");
     }
-    Ok(source.trim_end().to_owned())
+    source.trim_end().to_owned()
 }
 
 /// Return one bounded body shape used by the generated preservation cases.
@@ -239,11 +237,9 @@ fn roadmap_with_stable_task(stable_source: &str) -> String {
 }
 
 /// Build a roadmap whose first task owns the requested number of sub-tasks.
-fn roadmap_with_sub_tasks(sub_task_count: usize) -> Result<String, std::fmt::Error> {
-    let source = stable_task_source(0, sub_task_count)?;
-    Ok(format!(
-        "# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n\n- [ ] 1.1.2. Sibling task.\n"
-    ))
+fn roadmap_with_sub_tasks(sub_task_count: usize) -> String {
+    let source = stable_task_source(0, sub_task_count);
+    format!("# Roadmap\n\n## 1. Phase\n\n### 1.1. Step\n\n{source}\n\n- [ ] 1.1.2. Sibling task.\n")
 }
 
 /// Return the rendered anchor for the final sub-task in a task.

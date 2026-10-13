@@ -67,16 +67,22 @@ pub const fn select_resolution<T: Copy>(
 // compile as an external crate against the public surface only, so they
 // cannot reach it however the fixture is written.
 const _: () = {
-    assert!(matches!(
-        select_resolution(Some(1u8), Some(2u8), false),
-        Some(1)
-    ));
+    assert!(
+        matches!(select_resolution(Some(1u8), Some(2u8), false), Some(1)),
+        "source-local mapping must win in constant contexts"
+    );
     // `is_none()` rather than `matches!(.., None)`: Clippy denies the latter as
     // `redundant_pattern_matching` under the workspace's `-D warnings`. The two
     // `Some(..)` arms carry literal patterns, which that lint leaves alone, and
     // `assert_eq!` is not available here because its formatting is not const.
-    assert!(select_resolution(None, Some(2u8), false).is_none());
-    assert!(matches!(select_resolution(None, Some(2u8), true), Some(2)));
+    assert!(
+        select_resolution(None, Some(2u8), false).is_none(),
+        "target references must never use cross-source fallback"
+    );
+    assert!(
+        matches!(select_resolution(None, Some(2u8), true), Some(2)),
+        "fragment references may use the unique cross-source mapping"
+    );
 };
 
 #[cfg(test)]
@@ -108,7 +114,8 @@ mod tests {
     ) {
         assert_eq!(
             select_resolution(local, cross_unique, source_is_fragment),
-            expected
+            expected,
+            "dependency resolution must preserve reference source identity"
         );
     }
 }

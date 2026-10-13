@@ -12,7 +12,7 @@ use super::make::{Host, Target};
 /// # Parameters
 ///
 /// - `target`: the Makefile target to print the commands of.
-/// - `host`: the host `make` is told it runs on, through `BUILD_HOST_OS`.
+/// - `host`: the host `make` is told it runs on, through `HOST_OS`.
 ///
 /// # Returns
 ///
@@ -24,12 +24,7 @@ use super::make::{Host, Target};
 pub fn real_make(target: Target<'_>, host: Host) -> Result<String, String> {
     let name = target.name();
     let output = Command::new("make")
-        .args([
-            "-n",
-            "-B",
-            &format!("BUILD_HOST_OS={}", host.make_value()),
-            name,
-        ])
+        .args(["-n", "-B", &format!("HOST_OS={}", host.make_value()), name])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .map_err(|error| format!("running make: {error}"))?;

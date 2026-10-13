@@ -1,11 +1,18 @@
 # nextest's configuration for this repository. The default profile keeps the 180 s
 # per-test allowance that the coverage action writes when a repository has no file of
 # its own, and gives the trybuild tests more, because they compile the whole
-# dependency graph in a nested Cargo and a pull request has no warm sccache directory
-# until the default branch has written one.
+# dependency graph in a nested Cargo. Cold builds may also queue behind the
+# shared compiler admission pool, so this binary gets a bounded 30-minute
+# allowance while ordinary tests retain their three-minute limit.
 [profile.default]
 slow-timeout = { period = "180s", terminate-after = 1, grace-period = "5s" }
 
 [[profile.default.overrides]]
 filter = 'binary(compile_time)'
+slow-timeout = { period = "180s", terminate-after = 10, grace-period = "5s" }
+
+# This aggregate checks every conformant fixture through external formatters.
+# Keep all fixtures and assertions while allowing slower shared-host execution.
+[[profile.default.overrides]]
+filter = 'test(=roadmap::render::render_tests::noop_round_trip_property_holds_for_all_conformant_fixtures)'
 slow-timeout = { period = "180s", terminate-after = 3, grace-period = "5s" }
