@@ -61,20 +61,12 @@ OUTCOMES = (
 
 
 def _stderr_event(event: dict[str, object]) -> None:
-    """Write one trusted, payload-free event as a JSON line on stderr.
-
-    ``_stderr_event({"event": "codescene_summary"})`` writes that object
-    as one JSON line without retaining it.
-    """
+    """Emit trusted JSON to stderr; ``_stderr_event({})`` prints ``{}``."""
     print(json.dumps(event, sort_keys=True), file=sys.stderr)
 
 
 def _code(error: BaseException | None) -> str | None:
-    """Map failures to fixed codes so injected errors cannot expand log labels.
-
-    ``_code(None)`` returns ``None``; an unrecognized error returns
-    ``"unexpected"`` instead of its supplied code.
-    """
+    """Bound error labels; ``_code(None)`` returns ``None``."""
     if error is None:
         return None
     if (
@@ -87,11 +79,7 @@ def _code(error: BaseException | None) -> str | None:
 
 
 def _outcome(error: BaseException | None) -> str:
-    """Distinguish safe timeout and policy outcomes without logging messages.
-
-    ``_outcome(None)`` returns ``"success"``; a timeout verification error
-    returns ``"timeout"`` while retaining no exception message.
-    """
+    """Classify safe outcomes; ``_outcome(None)`` returns ``"success"``."""
     if error is None:
         return "success"
     if isinstance(error, VerificationError) and error.failure_kind == "timeout":
@@ -101,21 +89,13 @@ def _outcome(error: BaseException | None) -> str:
 
 
 def _status(response: object) -> int | None:
-    """Accept only HTTP-range integer statuses, excluding booleans and payloads.
-
-    ``_status(ApiResponse(200, {}, {}))`` returns ``200``; a status of
-    ``True`` produces ``None`` rather than masquerading as an integer.
-    """
+    """Accept HTTP integers only; ``_status(None)`` returns ``None``."""
     value = getattr(response, "status", None)
     return value if type(value) is int and 100 <= value <= 599 else None
 
 
 def _bounded_count(value: int) -> int:
-    """Cap cumulative counts at the page budget plus fixed audit requests.
-
-    ``_bounded_count(1)`` returns ``1``; values above the current 110-request
-    bound return ``110``.
-    """
+    """Cap audit counts; ``_bounded_count(1000)`` returns ``110``."""
     return min(value, MAX_PAGES + 10)
 
 
@@ -134,8 +114,18 @@ class AuditSession:
     ) -> None:
         """Start fresh bounded counters with an injectable clock and event sink.
 
-        ``AuditSession(emit=events.append)`` starts with zero requests and
-        sends observations to the supplied list instead of stderr.
+        Parameters
+        ----------
+        clock : Callable[[], float], optional
+            Monotonic clock returning seconds, defaulting to ``time.monotonic``.
+        emit : Callable[[dict[str, object]], None], optional
+            Sink receiving sanitized event dictionaries; the default writes JSON
+            lines on stderr.
+
+        Examples
+        --------
+        ``AuditSession(emit=events.append)`` starts with zero requests and sends
+        observations to the supplied list instead of stderr.
         """
         self.clock = clock
         self.emit = emit
@@ -148,11 +138,7 @@ class AuditSession:
         self.stage_outcomes = dict.fromkeys(OUTCOMES, 0)
 
     def _elapsed(self, started: float) -> float:
-        """Clamp monotonic-clock deltas to finite milliseconds within one day.
-
-        With a clock returning ``2.0``, ``session._elapsed(1.5)`` returns
-        ``500.0``; a negative delta is clamped to zero.
-        """
+        """Clamp timing; ``self._elapsed(future)`` returns ``0.0`` for a future start."""
         elapsed = self.clock() - started
         if not math.isfinite(elapsed):
             return 0.0
@@ -161,11 +147,7 @@ class AuditSession:
     def _context(
         self, operation: AuditOperation, page: int | None
     ) -> dict[str, object]:
-        """Build safe resource labels from trusted operations, never endpoints.
-
-        ``session._context("policy_readback", 1)`` labels the resource
-        ``"deployment_policies"`` and records page ``1``.
-        """
+        """Bound labels; ``self._context("repository", None)`` keeps page ``None``."""
         safe_operation = operation if operation in OPERATIONS else "unknown"
         safe_page = page if type(page) is int and 1 <= page <= MAX_PAGES + 1 else None
         resource = {
