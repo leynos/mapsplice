@@ -71,7 +71,11 @@ const _: () = {
         select_resolution(Some(1u8), Some(2u8), false),
         Some(1)
     ));
-    assert!(matches!(select_resolution(None, Some(2u8), false), None));
+    // `is_none()` rather than `matches!(.., None)`: Clippy denies the latter as
+    // `redundant_pattern_matching` under the workspace's `-D warnings`. The two
+    // `Some(..)` arms carry literal patterns, which that lint leaves alone, and
+    // `assert_eq!` is not available here because its formatting is not const.
+    assert!(select_resolution(None, Some(2u8), false).is_none());
     assert!(matches!(select_resolution(None, Some(2u8), true), Some(2)));
 };
 

@@ -644,7 +644,7 @@ Constraints confirmed by experiment:
     inline comment, `4114898863` at `scripts/check-domain-purity.sh:71`, and it
     is correct:
 
-    - The `grouped` alternative reads to the *first* closing brace, so
+    - The `grouped` alternative reads to the _first_ closing brace, so
       `use std::{fmt::{self, Display}, fs as files};` stops it inside
       `fmt::{self, Display}` and the `fs` after that inner brace is never
       examined. The `declaration` alternative needs the name adjacent to the
@@ -655,11 +655,11 @@ Constraints confirmed by experiment:
 
     The finding is the third defeat of the same design, and that is the part
     worth recording. Round 9 found the brace group at all and the fix was a
-    third *alternative*; round 10 found nesting inside it. Each patch added a
+    third _alternative_; round 10 found nesting inside it. Each patch added a
     shape, and each was defeated by a shape it had not enumerated — because a
     `use` tree's braces nest arbitrarily, so no finite list of alternations can
     cover them. Measured rather than argued: a "one brace deeper" matcher was
-    written and misses *both* the round-10 case and the
+    written and misses _both_ the round-10 case and the
     `use std::{fmt::{self::{a, b}, D}, net};` case, so the obvious next patch
     would have bought one round and not the property.
 
@@ -693,7 +693,7 @@ Constraints confirmed by experiment:
     production tree is clean in both modes. `shellcheck` passes.
 
     A third question was settled by experiment rather than assumption: `$` in
-    ripgrep's multiline mode anchors to the end of a *line*, not the end of the
+    ripgrep's multiline mode anchors to the end of a _line_, not the end of the
     haystack, which is what the terminator group needs.
 
 ## Lessons
@@ -1090,7 +1090,7 @@ Constraints confirmed by experiment:
   same way, the next nesting would have defeated it again, because a `use`
   tree's braces nest arbitrarily and a list of alternations is finite. The
   signal was not the second instance; it was that the second instance was the
-  *same* instance, at a different depth. The fix that holds asks the question
+  _same_ instance, at a different depth. The fix that holds asks the question
   the enumeration was standing in for — is the infrastructure name a path
   segment inside this statement — and represents none of the structure that
   kept being miscounted. Reaching for it was cheaper than the third patch, and
@@ -1106,7 +1106,7 @@ Constraints confirmed by experiment:
   assumption would have produced a passing test suite and a gate that misses
   half its shapes.
 - **A multiline-capable matcher must be run by a multiline-capable scan.** The
-  rewritten import pattern is correct in either mode; the *scan* was not. It
+  rewritten import pattern is correct in either mode; the _scan_ was not. It
   read one line at a time, so a `use` spanning lines could never be seen whole
   and the multi-line spelling of every shape the pattern knows was invisible.
   The repository already contains such a `use` in `src/roadmap/render.rs`. A
