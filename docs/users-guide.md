@@ -105,9 +105,34 @@ The result will:
 - renumber the original phase 2 to `3`
 - rewrite dependency prose such as `Requires 2.1.1.` to `Requires 3.1.1.`
 
-Only `Requires` dependency references are rewritten. Incidental numeric text
-such as section references (`§2.1`), semantic versions (`1.4.0`), and prose
-quantities is preserved.
+Only `Requires` dependency references are rewritten. A `Requires` clause is
+recognized in three positions: on the task or sub-task title line, beginning a
+plain indented continuation line, and beginning a nested task or sub-task body
+bullet item.
+
+A numeric range such as `Requires 1.1.1-1.1.3.` is not a supported clause form,
+but it is not ignored either. A hyphen is not an anchor character, so the
+scanner reads the two endpoints as two separate anchors and rewrites each one
+on its own item's behalf. The range is never expanded: a clause naming two
+anchors keeps exactly two anchors, however many items the range spanned.
+Deleting `1.1.2` from a roadmap requiring `1.1.1-1.1.3` therefore yields
+`Requires 1.1.1-1.1.2.`, while deleting an endpoint fails the edit as a
+dangling dependency.
+
+Dependency references follow the item, not the number. Inserting items shifts
+the anchors of everything after the insertion point while leaving every
+existing item's identity intact, so a clause that required `1.1.1` before the
+insert still names whichever item that was, now carrying its new anchor.
+Replacing an item retires it instead: the addressed item's identity ends with
+the edit, and any surviving clause that still required it makes the operation
+fail with a dangling-dependency error rather than silently re-pointing the
+consumer at a replacement item that inherited the old number. Delete behaves
+the same way. Nothing is written in any failing case, including in place, so
+the target is left byte-identical.
+
+Incidental numeric text is preserved: section references (`§2.1`), semantic
+versions (`1.4.0`), ordered-list numbering, and numbers inside code examples
+are all left exactly as written.
 
 ## Command details
 
@@ -305,6 +330,37 @@ a file default should be disabled for one process.
 
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.
+
+## Compatibility and migration
+
+### Nested task-body `Requires` clauses
+
+A `Requires` clause written as a bullet in a task's body is now recognized.
+Previously only inline clauses and plain continuation clauses were scanned, so
+a clause in a body bullet was silently ignored during renumbering and
+dangling-dependency validation. Two faults followed from that silence, and both
+are fixed:
+
+- **Insertion could re-point a consumer.** Inserting before a prerequisite
+  renumbered the consumer to the anchor the prerequisite vacated, so a clause
+  that was never scanned kept its old text and the consumer ended up depending
+  on whichever unrelated item inherited that number. A rewritten clause now
+  names its prerequisite's own new anchor.
+- **Deletion could produce a self-dependency.** Deleting a still-required
+  prerequisite left the surviving consumer naming the anchor the deleted item
+  used to hold, which now resolved to the consumer itself. In in-place mode
+  that invalid result was written to disk.
+
+**Upgrading may surface new failures.** An edit that would strand a surviving
+consumer is now rejected with a dangling-dependency error *before* anything is
+written, and in in-place mode the original file is left byte-identical. A
+`delete` or `replace` that previously appeared to succeed while writing an
+invalid roadmap will now fail instead. The failure is the correct outcome — the
+roadmap it used to write did not satisfy its own `Requires` clauses — but a
+script that ignored the exit status and relied on the write will need updating.
+
+No other behaviour changes. Section references such as `§2.1`, version numbers,
+ordered-list numbering, and fenced code examples keep their bytes.
 
 ## Contributing
 

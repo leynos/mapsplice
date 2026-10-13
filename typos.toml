@@ -46,6 +46,7 @@ extend-ignore-re = [
     "\\brust-analyzer\\b",
     "\\{COLOR\\}",
     "\\{color\\}",
+    "`[0-9a-f]{7,40}`",
     "`artifact\\.kind = \"[a-z_]+\"`",
     "`color`",
     "`install-mold`",

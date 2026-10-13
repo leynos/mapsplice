@@ -160,7 +160,8 @@ fn rewrite_task_entry(
 ) -> Result<()> {
     let summary_changed = rewrite_markdown_nodes(&mut task.summary, task.identity.source, context)?;
     let body_changed = rewrite_markdown_nodes(&mut task.body, task.identity.source, context)?;
-    let task_text_changed = summary_changed || body_changed;
+    let children_changed = rewrite_task_body_children(task, context)?;
+    let task_text_changed = summary_changed || body_changed || children_changed;
     if task_text_changed && task.clear_original_source() {
         report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
@@ -174,6 +175,28 @@ fn rewrite_task_entry(
         report.record_invalidation(PreservationInvalidationReason::DependencyRewrite);
     }
     Ok(())
+}
+
+/// Rewrite nested task-body blocks, leaving structural sub-tasks untouched.
+///
+/// Body-child blocks carry the nested body Markdown that
+/// [`TaskEntry::body`] has already had drained into them by the parser, so a
+/// dependency clause inside a body bullet is only reachable here. Sub-task
+/// children are skipped because [`TaskEntry::sub_tasks_mut`] rewrites the same
+/// content and visiting both would double-process it.
+///
+/// Returns whether any body block changed, and reports unresolved dependency
+/// anchors through `context`.
+fn rewrite_task_body_children(
+    task: &mut TaskEntry,
+    context: &mut DependencyRewriteContext<'_>,
+) -> Result<bool> {
+    let source = task.identity.source;
+    let mut changed = false;
+    for body in task.body_children_mut() {
+        changed |= rewrite_markdown_nodes(body, source, context)?;
+    }
+    Ok(changed)
 }
 
 /// Rewrite dependency references in one sub-task and report whether it changed.

@@ -2,10 +2,12 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
+#[path = "roadmap_ops/nested_requires.rs"]
+mod nested_requires;
+#[path = "roadmap_ops/assertions.rs"]
+mod ops_assertions;
 #[path = "support/ops.rs"]
 mod support;
-
-use std::fmt::Debug;
 
 use assertions::assert_contains;
 use mapsplice::{
@@ -17,6 +19,7 @@ use mapsplice::{
     parse_roadmap,
     run_from_args,
 };
+use ops_assertions::{assert_anchor_not_found, assert_equal, assert_level_mismatch};
 use rstest::rstest;
 use support::{
     PHASE_FRAGMENT,
@@ -29,21 +32,6 @@ use support::{
     Workspace,
     workspace,
 };
-
-fn assert_equal<T>(actual: &T, expected: &T)
-where
-    T: Debug + PartialEq,
-{
-    assert_eq!(actual, expected);
-}
-
-fn assert_level_mismatch(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::LevelMismatch { .. }));
-}
-
-fn assert_anchor_not_found(error: &MapspliceError) {
-    assert!(matches!(error, MapspliceError::AnchorNotFound { .. }));
-}
 
 #[rstest]
 #[serial_test::serial(cli_env)]

@@ -108,8 +108,8 @@ ______________________________________________________________________
 
 ## Learn more
 
-- [Users' Guide](docs/users-guide.md) — command semantics, worked examples, and
-  roadmap format rules
+- [Users' Guide](docs/users-guide.md) — command semantics, worked examples,
+  roadmap format rules, and compatibility and migration notes
 - [Developers' Guide](docs/developers-guide.md) — APIs, architecture,
   observability, and verification layers
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and

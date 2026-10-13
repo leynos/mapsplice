@@ -26,12 +26,21 @@ jobs:
         with:
           install-mold: 'true'
       - name: Install clang and lld
+        # ripgrep is listed here rather than left implicit: `make lint` depends
+        # on both `check-verification-ledger`, which shells out to `rg` to
+        # confirm that every symbol the ledger names still exists in `src/`,
+        # and `check-domain-purity`, which uses it to keep infrastructure
+        # access out of `src/roadmap`. The `ubuntu-latest` image does not ship
+        # `rg`, so without this the lint job fails at its first prerequisite
+        # with "ripgrep (rg) is required for the verification-ledger and
+        # domain-purity checks", before any Rust is compiled. `mold` is not
+        # listed because `setup-rust` installs it above.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang
+            && sudo apt-get install --yes --no-install-recommends clang ripgrep
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.

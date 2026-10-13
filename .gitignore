@@ -1,4 +1,5 @@
 target/
+.verus/
 **/*.rs.bk
 __pycache__/
 .coverage
@@ -20,3 +21,6 @@ __pycache__/
 *~
 *.un~
 .vtcode/
+
+# Compiler crash dumps (whitaker ICEs); never commit these.
+rustc-ice-*.txt

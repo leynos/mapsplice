@@ -6,7 +6,7 @@ mod assertions;
 mod workspace_support;
 
 use assertions::assert_contains;
-use mapsplice::run_from_args;
+use mapsplice::{MapspliceError, run_from_args};
 use rstest::rstest;
 use workspace_support::{TestResult, Workspace, workspace};
 
@@ -122,8 +122,15 @@ fn replace_sub_task_preserves_interleaved_body_order(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
     let test_workspace = workspace?;
+    // A replace retires the addressed sub-task's identity. The clauses that
+    // required it are therefore dropped first: leaving one in place would make
+    // the operation fail closed rather than quietly re-point the consumer at
+    // whichever replacement inherited the old number.
+    let target = TARGET_WITH_INTERLEAVED_SUB_TASK_BODY
+        .replace("Parent task. Requires 1.1.1.2.", "Parent task.")
+        .replace("Sibling task. Requires 1.1.1.2.", "Sibling task.");
     test_workspace
-        .write_target(TARGET_WITH_INTERLEAVED_SUB_TASK_BODY)
+        .write_target(&target)
         .expect("target should be written");
     test_workspace
         .write_fragment(REPLACEMENT_SUB_TASK_FRAGMENT)
@@ -150,7 +157,46 @@ fn replace_sub_task_preserves_interleaved_body_order(
             "Body after sub-tasks.",
         ],
     );
-    assert_contains(&stdout, "Parent task. Requires 1.1.1.3.");
-    assert_contains(&stdout, "Sibling task. Requires 1.1.1.3.");
+    assert_contains(&stdout, "- [ ] 1.1.1. Parent task.");
+    assert_contains(&stdout, "- [ ] 1.1.2. Sibling task.");
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_sub_task_required_by_a_surviving_consumer_is_rejected(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(TARGET_WITH_INTERLEAVED_SUB_TASK_BODY)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment(REPLACEMENT_SUB_TASK_FRAGMENT)
+        .expect("fragment should be written");
+
+    let error = run_from_args([
+        "mapsplice",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1.2",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect_err("a surviving consumer of the retired identity must fail the replace");
+
+    let MapspliceError::DanglingDependency { anchor } = error else {
+        return Err(format!("expected a dangling-dependency rejection, got `{error}`").into());
+    };
+    if anchor.to_string() != "1.1.1.2" {
+        return Err(format!("rejection must name the retired identity, named `{anchor}`").into());
+    }
+    let after = test_workspace.dir.read_to_string("target.md")?;
+    if after != TARGET_WITH_INTERLEAVED_SUB_TASK_BODY {
+        return Err(format!(
+            "a rejected replace must leave the target \
+             byte-identical\nexpected:\n{TARGET_WITH_INTERLEAVED_SUB_TASK_BODY}\ngot:\n{after}"
+        )
+        .into());
+    }
     Ok(())
 }
