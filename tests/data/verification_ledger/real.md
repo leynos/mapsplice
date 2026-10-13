@@ -174,6 +174,41 @@ statements about dead code.
 
   Retaining either row would have made the ledger's own falsifiability rule
   false, which is the failure this entry exists to prevent.
+
+- The source-span preservation obligation has no kernel here, and the boundary
+  is stated rather than assumed. Issue #85 permits an explicitly documented
+  unverified boundary for clause extraction; this records one for span
+  preservation, and the reason is a measured limit of the verifier against the
+  production shape rather than a preference.
+
+  `original_position_source` in `src/roadmap/source_preservation.rs` is the
+  production function that widens a preserved span to the start of its line. It
+  makes two calls Verus cannot reach. `str::get(..offset)` is rejected with
+  "`core::str::impl&%0::get` is not supported", and the range itself is
+  rejected first with "`core::ops::range::RangeTo` is not supported". Both were
+  probed against the pinned `0.2025.04.19.1b16620`, so neither is a guess about
+  the tool's coverage. A byte-slice restatement of the scan verifies — the line
+  scan itself is well within reach, and a `Seq<u8>` specification for it
+  discharges in three verified obligations with zero errors — but the function
+  that would be proved is then a new function rather than the one the product
+  calls, which is the separate illustrative implementation issue #85 rules out.
+
+  The splice convention used for `select_resolution` cannot rescue this one.
+  Shared macro text must also parse as ordinary Rust, because `src/` compiles
+  it, and a `while` loop that carries the `invariant` clause Verus needs for
+  the scan is not ordinary Rust. Probed directly: the same loop without its
+  invariant fails to verify with "postcondition not satisfied". An
+  iterator-only restatement loses `invariant` but hits "only variables are
+  supported here, not general patterns" on the closure pattern. So the
+  production body cannot be both the compiled text and the verified text here,
+  which is exactly the condition the splice convention exists to satisfy and
+  cannot.
+
+  What is preserved instead is the property issue #85 asks for. The span copy
+  is covered by the golden fixtures and the in-place byte-identity assertions,
+  including the case #85 makes load-bearing: a rejected in-place deletion
+  leaves the target byte-identical. Those are tests, not proofs, and the ledger
+  records them as such rather than counting them as discharged obligations.
 - Every claim row must name a function that exists in `src/`. The checker
   matches a line-initial declaration, so a name surviving only in a doc comment
   does not satisfy a claim. The check is necessary rather than sufficient: it

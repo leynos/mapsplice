@@ -171,6 +171,24 @@ proof fn target_text_keeps_its_source_local_mapping<T>(
 // no theorem here would be evidence for it. It is covered by the golden
 // fixtures and the in-place byte-identity assertions in `tests/` instead, and
 // `docs/verification.md` records the boundary.
+//
+// The boundary is a measured limit rather than a preference, which matters
+// because "no kernel fits" is otherwise indistinguishable from "no kernel was
+// attempted". `original_position_source` in `src/roadmap/source_preservation.rs`
+// is the production function that would carry the obligation, and it calls
+// `str::get(..offset)`, rejected by Verus as unsupported, over a `RangeTo`,
+// rejected against the pinned release as unsupported in turn. A byte-slice
+// restatement does verify, but it would be a second implementation rather than
+// the function production compiles, which #85 rules out.
+//
+// The splice convention above cannot close that gap here, and the reason is
+// structural rather than a matter of effort: text shared with `src/` must also
+// parse as ordinary Rust, and the line scan needs an `invariant` clause to
+// verify. Probed both ways — the identical loop without its invariant fails
+// with "postcondition not satisfied", and an iterator-only restatement trips
+// "only variables are supported here, not general patterns". `docs/verification.md`
+// carries the probe results, so the next reader can re-run them rather than
+// re-deriving the conclusion.
 
 /// Fragment text does consult the cross-source fallback.
 ///
