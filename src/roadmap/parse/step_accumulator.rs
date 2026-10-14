@@ -2,7 +2,7 @@
 
 use markdown::mdast::{List, Node};
 
-use super::{parse_task_list, validate_tasks_belong_to_step};
+use super::{locate, parse_task_list, validate_tasks_belong_to_step};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
@@ -59,23 +59,30 @@ impl<'source> StepAccumulator<'source> {
 
     /// Append a task list before any trailing step content.
     pub(super) fn append_task_list(&mut self, list: &List) -> Result<()> {
-        let current = self
-            .current
-            .as_mut()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "task list appeared without a current step".to_owned(),
-            })?;
+        let current = self.current.as_mut().ok_or_else(|| {
+            locate(
+                MapspliceError::InvalidRoadmap {
+                    message: "task list appeared without a current step".to_owned(),
+                    location: None,
+                },
+                list.position.as_ref(),
+            )
+        })?;
         if !current.trailing.is_empty() {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: format!(
-                    "task list for step `{}` cannot appear after trailing step content",
-                    current.number
-                ),
-            });
+            return Err(locate(
+                MapspliceError::InvalidRoadmap {
+                    message: format!(
+                        "task list for step `{}` cannot appear after trailing step content",
+                        current.number
+                    ),
+                    location: None,
+                },
+                list.position.as_ref(),
+            ));
         }
 
         let mut tasks = parse_task_list(list, self.source, self.source_text)?;
-        validate_tasks_belong_to_step(current.number, &tasks)?;
+        validate_tasks_belong_to_step(current.number, &tasks, list)?;
         if current.tasks().is_empty() {
             current.set_task_list_source(
                 list.position
@@ -91,12 +98,15 @@ impl<'source> StepAccumulator<'source> {
 
     /// Preserve a Markdown node in the step body or trailing content.
     pub(super) fn push_non_structural_node(&mut self, node: Node) -> Result<()> {
-        let current = self
-            .current
-            .as_mut()
-            .ok_or_else(|| MapspliceError::InvalidRoadmap {
-                message: "step fragments must contain only step sections".to_owned(),
-            })?;
+        let current = self.current.as_mut().ok_or_else(|| {
+            locate(
+                MapspliceError::InvalidRoadmap {
+                    message: "step fragments must contain only step sections".to_owned(),
+                    location: None,
+                },
+                node.position(),
+            )
+        })?;
         if current.tasks().is_empty() {
             current.body.push_preserved(node, self.source_text);
         } else {

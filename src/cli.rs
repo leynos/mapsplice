@@ -1,5 +1,7 @@
 //! CLI parsing and `ortho-config` integration for `mapsplice`.
 
+#[path = "cli_export.rs"]
+mod cli_export;
 #[path = "cli_config.rs"]
 mod config;
 
@@ -19,7 +21,8 @@ use clap::{
 use ortho_config::{OrthoConfig, load_and_merge_subcommand_for};
 use serde::{Deserialize, Serialize};
 
-use self::config::load_global_config;
+pub use self::cli_export::ExportFormat;
+use self::{cli_export::ExportArgs, config::load_global_config};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::RoadmapAnchor,
@@ -83,6 +86,13 @@ pub enum CommandKind {
         /// Fragment file.
         fragment: Utf8PathBuf,
     },
+    /// Export the roadmap as a stable machine-readable document.
+    Export {
+        /// Output format.
+        format: ExportFormat,
+        /// Compare the fresh export to a committed JSON file.
+        check: Option<Utf8PathBuf>,
+    },
 }
 
 impl CommandKind {
@@ -133,7 +143,7 @@ impl CommandKind {
             Self::Append { fragment }
             | Self::Insert { fragment, .. }
             | Self::Replace { fragment, .. } => Some(fragment),
-            Self::Delete { .. } => None,
+            Self::Delete { .. } | Self::Export { .. } => None,
         }
     }
 }
@@ -199,6 +209,9 @@ enum Commands {
     /// Collect the target, anchor, and fragment for a replacement.
     #[command(about = None)]
     Replace(ReplaceArgs),
+    /// Read and export a roadmap without entering the mutation pipeline.
+    #[command(about = None)]
+    Export(ExportArgs),
 }
 
 impl Commands {
@@ -209,6 +222,7 @@ impl Commands {
             Self::Insert(args) => args.into_request(global, subcommand_matches(matches)?),
             Self::Delete(args) => Ok(args.into_request(global)),
             Self::Replace(args) => Ok(args.into_request(global)),
+            Self::Export(args) => Ok(args.into_request()),
         }
     }
 }

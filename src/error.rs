@@ -1,12 +1,37 @@
 //! Error types for `mapsplice`.
 
 use camino::Utf8PathBuf;
+use markdown::unist::Point;
 use thiserror::Error;
 
 use crate::roadmap::{RoadmapAnchor, RoadmapItemLevel};
 
 /// Convenient result alias for `mapsplice`.
 pub type Result<T> = std::result::Result<T, MapspliceError>;
+
+/// One-based source coordinates captured from a Markdown parser point.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourceLocation {
+    /// One-based source line.
+    pub line: usize,
+    /// One-based source column.
+    pub column: usize,
+}
+
+impl From<&Point> for SourceLocation {
+    fn from(point: &Point) -> Self {
+        Self {
+            line: point.line,
+            column: point.column,
+        }
+    }
+}
+
+impl std::fmt::Display for SourceLocation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "line {}, column {}", self.line, self.column)
+    }
+}
 
 /// Errors raised while parsing or rewriting roadmap documents.
 #[derive(Debug, Error)]
@@ -19,10 +44,12 @@ pub enum MapspliceError {
     },
 
     /// The document structure is not a supported roadmap.
-    #[error("{message}")]
+    #[error("{prefix}{message}", prefix = location.map_or_else(String::new, |source_location| format!("{source_location}: ")))]
     InvalidRoadmap {
         /// Human-readable validation error.
         message: String,
+        /// Source position of the rejected Markdown node, when known.
+        location: Option<SourceLocation>,
     },
 
     /// The fragment level does not match the target anchor level.
@@ -67,10 +94,44 @@ pub enum MapspliceError {
     },
 
     /// A dependency clause references an anchor that no longer exists.
-    #[error("dependency anchor `{anchor}` was not found in the target roadmap")]
+    #[error("{prefix}dependency anchor `{anchor}` was not found in the target roadmap", prefix = location.map_or_else(String::new, |source_location| format!("{source_location}: ")))]
     DanglingDependency {
         /// Missing dependency anchor.
         anchor: RoadmapAnchor,
+        /// Source position of the unresolved reference, when known.
+        location: Option<SourceLocation>,
+    },
+
+    /// The committed JSON export differs from the Markdown source.
+    #[error(
+        "export `{export}` differs from roadmap `{roadmap}`:\n{differences}\nregenerate with \
+         `{regenerate}`"
+    )]
+    ExportDrift {
+        /// Committed JSON export path.
+        export: Utf8PathBuf,
+        /// Canonical Markdown roadmap path.
+        roadmap: Utf8PathBuf,
+        /// Human-readable semantic or formatting differences.
+        differences: String,
+        /// Command that regenerates the committed export.
+        regenerate: String,
+    },
+
+    /// A committed JSON export could not be read or does not match the schema.
+    #[error("invalid export `{path}`: {message}")]
+    InvalidExport {
+        /// Committed JSON export path.
+        path: Utf8PathBuf,
+        /// Read or schema diagnostic, including JSON line and column when available.
+        message: String,
+    },
+
+    /// The in-memory roadmap could not be serialized to JSON.
+    #[error("failed to serialize roadmap export: {message}")]
+    JsonSerialization {
+        /// Underlying serialization diagnostic.
+        message: String,
     },
 
     /// Markdown parsing failed.
@@ -117,6 +178,9 @@ impl MapspliceError {
             Self::UnexpectedFragment { .. } => "unexpected_fragment",
             Self::AnchorNotFound { .. } => "anchor_not_found",
             Self::DanglingDependency { .. } => "dangling_dependency",
+            Self::ExportDrift { .. } => "export_drift",
+            Self::InvalidExport { .. } => "invalid_export",
+            Self::JsonSerialization { .. } => "json_serialization",
             Self::Markdown { .. } => "markdown",
             Self::Clap(_) => "cli",
             Self::Configuration { .. } => "configuration",
