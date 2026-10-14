@@ -200,3 +200,6 @@ fn replace_sub_task_required_by_a_surviving_consumer_is_rejected(
     }
     Ok(())
 }
+
+#[path = "roadmap_sub_task_invariants/mixed_body.rs"]
+mod mixed_body;
