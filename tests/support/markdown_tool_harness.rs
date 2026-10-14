@@ -15,7 +15,9 @@ use tempfile::TempDir;
 
 /// A temporary PATH prefix with controlled formatter version output.
 pub(super) struct FakeMarkdownTools {
+    /// Keeps the fake executables alive for the duration of each test.
     _directory: TempDir,
+    /// Supplies the directory prepended to child commands' `PATH`.
     path: Utf8PathBuf,
 }
 
