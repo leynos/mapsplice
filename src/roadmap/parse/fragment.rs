@@ -57,6 +57,7 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
         .first()
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
             message: "fragment file is empty".to_owned(),
+            location: None,
         })?;
 
     if is_phase_fragment_start(first) {
@@ -81,6 +82,7 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
             "task list, or numbered sub-task list"
         )
         .to_owned(),
+        location: None,
     })
 }
 
@@ -110,6 +112,7 @@ fn parse_phase_fragment(root: Root, source_text: &str) -> Result<RoadmapFragment
     if !document.preamble.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
             message: "phase fragments must not contain a preamble".to_owned(),
+            location: None,
         });
     }
     Ok(RoadmapFragment::Phase(document.phases))
@@ -129,6 +132,7 @@ fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
             Node::Heading(_) => {
                 return Err(MapspliceError::InvalidRoadmap {
                     message: "step fragments must contain only step sections".to_owned(),
+                    location: None,
                 });
             }
             Node::List(list) if looks_like_task_list(&list) => {
@@ -143,6 +147,7 @@ fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
     if steps.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
             message: "step fragments must contain only step sections".to_owned(),
+            location: None,
         });
     }
     validate_step_siblings(&steps)?;
@@ -225,18 +230,21 @@ fn parse_single_list_fragment<T>(
     if root.children.len() != 1 {
         return Err(MapspliceError::InvalidRoadmap {
             message: messages.single_list.to_owned(),
+            location: None,
         });
     }
 
     let Some(Node::List(list)) = root.children.into_iter().next() else {
         return Err(MapspliceError::InvalidRoadmap {
             message: messages.single_list.to_owned(),
+            location: None,
         });
     };
     let items = parse_list(&list, source_text)?;
     if items.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
             message: messages.empty_list.to_owned(),
+            location: None,
         });
     }
     validate(&items)?;
@@ -253,6 +261,7 @@ fn validate_step_siblings(steps: &[StepSection]) -> Result<()> {
         if step.number.phase() != phase {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "step fragments must contain steps from one phase".to_owned(),
+                location: None,
             });
         }
     }
@@ -269,6 +278,7 @@ fn validate_task_siblings(tasks: &[TaskEntry]) -> Result<()> {
         if task.number().step_number() != step_number {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "task fragments must contain tasks from one step".to_owned(),
+                location: None,
             });
         }
     }
@@ -285,6 +295,7 @@ fn validate_sub_task_siblings(sub_tasks: &[SubTaskEntry]) -> Result<()> {
         if sub_task.number.task_number() != parent {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "sub-task fragments must contain sub-tasks from one task".to_owned(),
+                location: None,
             });
         }
     }
