@@ -11,9 +11,97 @@ use cap_std::{ambient_authority, fs_utf8::Dir};
 use rstest::rstest;
 use tempfile::TempDir;
 
+#[cfg(unix)]
+#[path = "support/markdown_tool_harness.rs"]
+mod markdown_tool_harness;
+#[cfg(unix)]
+use markdown_tool_harness::FakeMarkdownTools;
+
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
 const SAMPLE_MARKDOWN_PATHS: &str = "docs/users-guide.md docs/developers-guide.md";
+
+/// Return an error when a Markdown-tool preflight expectation is not met.
+fn require(condition: bool, reason: String) -> TestResult {
+    if condition {
+        Ok(())
+    } else {
+        Err(reason.into())
+    }
+}
+
+#[test]
+fn check_markdown_tools_names_a_missing_executable() -> TestResult {
+    let output = Command::new("make")
+        .args(["--no-print-directory", "check-markdown-tools"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("MARKDOWN_TEST_TOOLS", "definitely-not-a-markdown-tool")
+        .env("MDTABLEFIX_REQUIRED_VERSION", "")
+        .env("MARKDOWNLINT_CLI2_REQUIRED_VERSION", "")
+        .output()?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    require(
+        !output.status.success(),
+        "missing formatter must fail".to_owned(),
+    )?;
+    require(
+        stderr.contains("check-markdown-tools: definitely-not-a-markdown-tool not found on PATH"),
+        format!("missing-tool diagnostic was not specific: {stderr:?}"),
+    )?;
+    require(
+        stderr.contains(".github/workflows/ci.yml"),
+        format!("missing-tool diagnostic must point to the CI pins: {stderr:?}"),
+    )?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[rstest]
+#[case::mdtablefix(
+    "mdtablefix 9.9.9",
+    "0.22.1",
+    "check-markdown-tools: mdtablefix version mismatch"
+)]
+#[case::markdownlint_cli2(
+    "mdtablefix 0.6.1",
+    "9.9.9",
+    "check-markdown-tools: markdownlint-cli2 version mismatch"
+)]
+fn check_markdown_tools_rejects_a_wrong_version(
+    #[case] mdtablefix_output: &str,
+    #[case] markdownlint_output: &str,
+    #[case] expected_diagnostic: &str,
+) -> TestResult {
+    let tools = FakeMarkdownTools::new(mdtablefix_output, markdownlint_output)?;
+    let output = tools.make_check("0.6.1", "0.22.1")?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    require(
+        !output.status.success(),
+        "wrong formatter version must fail".to_owned(),
+    )?;
+    require(
+        stderr.contains(expected_diagnostic),
+        format!("expected {expected_diagnostic:?}, got {stderr:?}"),
+    )?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn check_markdown_tools_accepts_the_required_versions() -> TestResult {
+    let tools = FakeMarkdownTools::new("mdtablefix 0.6.1", "0.22.1")?;
+    let output = tools.make_check("0.6.1", "0.22.1")?;
+
+    require(
+        output.status.success(),
+        format!(
+            "make check-markdown-tools failed with status {}",
+            output.status
+        ),
+    )
+}
 
 #[rstest]
 #[case::format_target("markdownfmt")]

@@ -26,17 +26,80 @@ WORKFLOW_PATH = (
     / "workflows"
     / "mutation-testing.yml"
 )
+REPOSITORY_ROOT = WORKFLOW_PATH.parents[2]
+CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 
 #: mapsplice is a single root crate with all mutable source under
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
 #: modules outside ``#[cfg(test)]``, so the caller mirrors the CI baseline's
 #: feature flags and provisions the development linker before mutant builds.
-EXPECTED_WITH_KEYS = {"extra-args", "install-mold", "setup-commands"}
+EXPECTED_WITH_KEYS = {
+    "extra-args",
+    "install-mold",
+    "install-mdtablefix",
+    "mdtablefix-version",
+    "setup-commands",
+}
 
 
 def _load() -> dict[str, object]:
     """Parse the workflow file."""
     return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+
+def _ci_markdown_tool_versions() -> tuple[str, str]:
+    """Return formatter versions pinned by the standard CI workflow."""
+    ci_workflow = yaml.safe_load(CI_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    match ci_workflow:
+        case {"jobs": {"build-test": dict() as build_test}}:
+            pass
+        case _:
+            raise AssertionError("ci.yml must declare the build-test job")
+
+    match build_test:
+        case {"env": {"MARKDOWNLINT_CLI2_VERSION": str(markdownlint_version)}} if (
+            markdownlint_version
+        ):
+            pass
+        case _:
+            raise AssertionError(
+                "ci.yml build-test must declare MARKDOWNLINT_CLI2_VERSION"
+            )
+
+    match build_test:
+        case {"steps": list(steps)}:
+            pass
+        case _:
+            raise AssertionError("ci.yml build-test must declare a steps list")
+
+    mdtablefix_version = None
+    for step in steps:
+        match step:
+            case {
+                "name": "Install mdtablefix",
+                "with": {"version": str(version)},
+            } if version:
+                mdtablefix_version = version
+                break
+            case {"name": "Install mdtablefix"}:
+                raise AssertionError(
+                    "ci.yml Install mdtablefix step must declare its version"
+                )
+
+    if mdtablefix_version is None:
+        raise AssertionError("ci.yml must contain an 'Install mdtablefix' step")
+    return mdtablefix_version, markdownlint_version
+
+
+def _setup_command_index(
+    commands: list[str], expected: str, *, exact: bool = False
+) -> int:
+    """Return the setup-command index or fail with the missing contract."""
+    for index, command in enumerate(commands):
+        matches = command == expected if exact else expected in command
+        if matches:
+            return index
+    raise AssertionError(f"mutation setup-commands must include {expected!r}")
 
 
 def _triggers(workflow: dict[str, object]) -> dict[str, object]:
@@ -129,7 +192,7 @@ def test_triggers_keep_schedule_and_plain_dispatch() -> None:
 
 
 def test_with_block_carries_the_caller_configuration() -> None:
-    """The caller passes feature args and the supported setup hook."""
+    """The caller passes mutant arguments and provisions the development linker."""
     with_block = _mutation_job(_load()).get("with")
     assert isinstance(with_block, dict) and set(with_block) == EXPECTED_WITH_KEYS, (
         f"jobs.mutation.with must contain {EXPECTED_WITH_KEYS!r}, got {with_block!r}"
@@ -140,9 +203,17 @@ def test_with_block_carries_the_caller_configuration() -> None:
     assert with_block["install-mold"] == "true", (
         "mutation builds must provision the committed Linux linker"
     )
+    assert with_block["install-mdtablefix"] == "true", (
+        "the golden baseline must provision mdtablefix before setup commands"
+    )
+    mdtablefix_version, _ = _ci_markdown_tool_versions()
+    assert with_block["mdtablefix-version"] == mdtablefix_version, (
+        "mutation testing must use the mdtablefix version pinned by ci.yml"
+    )
     setup_commands = with_block["setup-commands"]
     assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
     commands = [line.strip() for line in setup_commands.splitlines()]
+
     required_commands = (
         "make install-build-tools",
         "make check-build-tools",
@@ -158,4 +229,39 @@ def test_with_block_carries_the_caller_configuration() -> None:
     assert positions == sorted(positions), (
         "mutation setup must install and check build tools before assigning "
         "the development RUSTFLAGS"
+    )
+
+
+def test_setup_commands_install_markdown_tools_at_ci_pins() -> None:
+    """Install both formatters and check them before mutation enumeration."""
+    with_block = _mutation_job(_load()).get("with")
+    assert isinstance(with_block, dict), "jobs.mutation.with must be a mapping"
+    setup_commands = with_block.get("setup-commands")
+    assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
+    mdtablefix_version, markdownlint_version = _ci_markdown_tool_versions()
+    commands = [line.strip() for line in setup_commands.splitlines()]
+
+    assert f"markdownlint-cli2@{markdownlint_version}" in setup_commands, (
+        "mutation setup must install the markdownlint-cli2 version pinned by ci.yml"
+    )
+    assert f"MDTABLEFIX_REQUIRED_VERSION={mdtablefix_version}" in setup_commands, (
+        "the markdown-tools preflight must check ci.yml's mdtablefix pin"
+    )
+    assert f"MARKDOWNLINT_CLI2_REQUIRED_VERSION={markdownlint_version}" in setup_commands, (
+        "the markdown-tools preflight must check ci.yml's markdownlint-cli2 pin"
+    )
+    npm_install = _setup_command_index(
+        commands, "npm install --global --prefix"
+    )
+    path_prepend = _setup_command_index(
+        commands, 'export PATH="$npm_root/bin:$PATH"', exact=True
+    )
+    github_path_export = _setup_command_index(
+        commands, 'echo "$npm_root/bin" >> "$GITHUB_PATH"', exact=True
+    )
+    markdown_preflight = _setup_command_index(
+        commands, "make check-markdown-tools"
+    )
+    assert npm_install < path_prepend < github_path_export < markdown_preflight, (
+        "install markdownlint-cli2, prepend and persist its bin directory, then run the preflight"
     )
