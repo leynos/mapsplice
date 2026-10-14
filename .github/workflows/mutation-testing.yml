@@ -53,6 +53,30 @@ jobs:
         export PATH="$HOME/.local/bin:$PATH"
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         make check-build-tools
+        # The baseline contract checks require Make's cargo-nextest route.
+        # Verify the pinned upstream binary before adding it to PATH.
+        nextest_version=0.9.148
+        nextest_sha256=223ba936714cc861a9cdedad5a8eb664dfdd69d6fbdf6cea6aa8184f523290dc
+        nextest_release="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$nextest_version"
+        nextest_archive_name="cargo-nextest-$nextest_version-x86_64-unknown-linux-gnu.tar.gz"
+        nextest_archive="$RUNNER_TEMP/$nextest_archive_name"
+        nextest_url="$nextest_release/$nextest_archive_name"
+        curl --fail --location --retry 3 --silent --show-error \
+          --output "$nextest_archive" "$nextest_url"
+        printf '%s  %s\n' "$nextest_sha256" "$nextest_archive" \
+          | sha256sum --check --status
+        nextest_bin="$RUNNER_TEMP/mapsplice-nextest/bin"
+        mkdir -p "$nextest_bin"
+        tar -xzf "$nextest_archive" -C "$nextest_bin" cargo-nextest
+        export PATH="$nextest_bin:$PATH"
+        echo "$nextest_bin" >> "$GITHUB_PATH"
+        case "$(cargo nextest --version)" in
+          "cargo-nextest $nextest_version"*) ;;
+          *)
+            echo "mutation setup: expected cargo-nextest $nextest_version" >&2
+            exit 1
+            ;;
+        esac
         MDTABLEFIX_REQUIRED_VERSION=0.6.1 \
         MARKDOWNLINT_CLI2_REQUIRED_VERSION=0.22.1 \
         make check-markdown-tools

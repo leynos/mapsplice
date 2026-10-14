@@ -28,6 +28,10 @@ WORKFLOW_PATH = (
 )
 REPOSITORY_ROOT = WORKFLOW_PATH.parents[2]
 CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
+CARGO_NEXTEST_VERSION = "0.9.148"
+CARGO_NEXTEST_ARCHIVE_SHA256 = (
+    "223ba936714cc861a9cdedad5a8eb664dfdd69d6fbdf6cea6aa8184f523290dc"
+)
 
 #: mapsplice is a single root crate with all mutable source under
 #: ``src/`` (the shared workflow's default paths) and no scaffolding
@@ -275,4 +279,53 @@ def test_setup_commands_install_markdown_tools_at_ci_pins() -> None:
     )
     assert npm_install < path_prepend < github_path_export < markdown_preflight, (
         "install markdownlint-cli2, prepend and persist its bin directory, then run the preflight"
+    )
+
+
+def test_setup_commands_install_checksum_verified_nextest_before_baseline() -> None:
+    """Install Make's required Nextest route from its pinned upstream binary."""
+    with_block = _mutation_job(_load()).get("with")
+    assert isinstance(with_block, dict), "jobs.mutation.with must be a mapping"
+    setup_commands = with_block.get("setup-commands")
+    assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
+    commands = [line.strip() for line in setup_commands.splitlines()]
+    archive_name = (
+        'nextest_archive_name="cargo-nextest-$nextest_version-'
+        'x86_64-unknown-linux-gnu.tar.gz"'
+    )
+
+    assert f"nextest_version={CARGO_NEXTEST_VERSION}" in commands, (
+        "mutation baseline must pin cargo-nextest to the validated version"
+    )
+    assert f"nextest_sha256={CARGO_NEXTEST_ARCHIVE_SHA256}" in commands, (
+        "mutation baseline must pin the upstream archive SHA-256"
+    )
+    assert archive_name in commands, (
+        "mutation baseline must download the versioned Linux x86_64 archive"
+    )
+
+    checksum_check = _setup_command_index(
+        commands, "| sha256sum --check --status"
+    )
+    extraction = _setup_command_index(
+        commands,
+        'tar -xzf "$nextest_archive" -C "$nextest_bin" cargo-nextest',
+        exact=True,
+    )
+    path_prepend = _setup_command_index(
+        commands, 'export PATH="$nextest_bin:$PATH"', exact=True
+    )
+    github_path_export = _setup_command_index(
+        commands, 'echo "$nextest_bin" >> "$GITHUB_PATH"', exact=True
+    )
+    version_check = _setup_command_index(commands, 'cargo nextest --version')
+    markdown_preflight = _setup_command_index(commands, "make check-markdown-tools")
+    assert checksum_check < extraction < path_prepend < github_path_export, (
+        "verify the pinned Nextest archive before extracting and exporting it"
+    )
+    assert extraction < version_check < markdown_preflight, (
+        "verify the Nextest executable before the baseline setup completes"
+    )
+    assert "cargo install cargo-nextest" not in setup_commands, (
+        "mutation setup must use the pinned binary, not build Nextest from source"
     )
