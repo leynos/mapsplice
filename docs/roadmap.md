@@ -398,7 +398,10 @@ one seam rather than across duplicated branches.
 Idea: `mapsplice` should be usable safely by agents and humans before it edits
 roadmaps. A dedicated validator, miette-style human diagnostics, and strict
 JSON contracts make syntax errors, dependency drift, and broken links visible
-without requiring an edit attempt.
+without requiring an edit attempt. Explicit documentation-set validation
+extends those checks to scoped ADR/RFC sequence numbers without making task
+anchors global. The design and proposed ADRs below define target behaviour,
+not completed implementation.
 
 ### 6.1. Validate roadmap structure, links, and dependencies
 
@@ -413,6 +416,8 @@ evidence rather than prose-only terminal text.
   - Extend the parser error channel for multi-finding validation with
     source ranges, then reuse the roadmap model to classify syntax,
     dependency, and link findings without mutating the target document.
+  - Record pass prerequisites and skipped checks without inventing a valid
+    graph after fatal syntax or ambiguous anchor ownership.
   - See docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs/roadmap.md` exits successfully for a
     valid roadmap, reports typed findings for invalid roadmaps, and never
@@ -420,11 +425,16 @@ evidence rather than prose-only terminal text.
 
 - [ ] 6.1.2. Check dependency references and Markdown links.
 
-  - Requires 6.1.1.
+  - Requires 1.2.3 and 6.1.1.
   - Validate every `Requires` anchor against the parsed roadmap and validate
     local Markdown links against headings, files, and fragments, with file and
-    fragment resolution confined to the workspace repository root. Link checks
-    must not follow `../` paths that escape that root or external targets.
+    fragment resolution confined to the declared workspace boundary.
+    Single-roadmap validation uses the containing Git root, or the target
+    directory outside Git; explicit sets use their manifest workspace.
+  - Reuse the hard-wrap-aware scanner and ownership visitor; retain source
+    provenance and distinguish warning policy from strict export errors.
+    Reject escaping paths, symlink traversal, and external targets without
+    network access; distinguish missing links from unreadable inputs.
   - Success: missing anchors, malformed dependency tokens, missing files, and
     unresolved local heading fragments are reported with stable finding codes.
 
@@ -433,6 +443,9 @@ evidence rather than prose-only terminal text.
   - Requires 6.1.2.
   - Walk the parsed dependency graph and report any cycle, including a task
     that requires itself, with the full cycle path in the finding.
+  - Include a deterministic closed witness per cyclic component, separate
+    self-edge findings, and related clause locations at every anchor level.
+    An incomplete graph cannot certify the absence of cycles.
   - Success: a roadmap containing `A requires B, B requires A` and a roadmap
     containing a self-reference each produce an error-severity finding with a
     stable code, and an acyclic roadmap produces none.
@@ -444,6 +457,9 @@ evidence rather than prose-only terminal text.
     requires both a prerequisite and something that prerequisite already
     requires) and for status inconsistencies (a checked item that requires an
     unchecked item).
+  - Define redundancy by an alternate path after removing the direct edge;
+    skip it on unresolved or cyclic graphs. Check explicit direct status
+    edges only, without inferring completion of phases or steps.
   - Success: fixtures pin both advisory findings with stable codes, neither
     affects the exit class on its own, and a clean roadmap reports neither.
 
@@ -488,11 +504,17 @@ stdout payloads.
 
 - [ ] 6.2.3. Export the parsed roadmap graph as JSON.
 
-  - Requires 6.2.1.
+  - Requires 6.1.2 and 6.2.1.
   - Emit the parsed model — phases, steps, tasks, sub-tasks, checkbox status,
     and resolved dependency edges — as a schema-versioned JSON document, so
     agents and downstream tooling can query ready tasks, critical paths, and
     status consistency without reparsing Markdown.
+  - Reconcile issue #144 and PR #153 with the global protocol: preserve the
+    raw export artefact version separately from the agent envelope, retain
+    detail ownership and edge provenance, and name strict export-profile
+    failures without narrowing the validator grammar.
+  - Keep export drift checking read-only and distinct from full validation;
+    pin paired validation/export and raw/enveloped-output fixtures.
   - Success: a documented command produces one JSON document whose anchors,
     statuses, and dependency edges match the parsed roadmap exactly, pinned by
     a golden fixture.
@@ -517,6 +539,49 @@ stdout payloads.
     JSON diagnostics by `code` and `exit_class`, and stops for maintainer
     judgement on ambiguous links, duplicate anchors, or failed postflight
     checks.
+
+### 6.3. Validate explicitly scoped documentation sets
+
+This step answers whether the same validation pipeline can detect duplicate
+ADR/RFC sequence numbers across a declared documentation set without confusing
+independent series or companion roadmap anchors. Its outcome informs whether
+agents can rely on reproducible inventory and namespace evidence rather than
+repository-wide number guesses. This tracks issue #150; the proposed decisions
+require review before implementation.
+
+- [ ] 6.3.1. Discover documentation sets from an explicit manifest.
+
+  - Requires 6.1.1.
+  - Implement the mutually exclusive documentation-set command form, versioned
+    manifest, built-in ADR/RFC filename classifiers, explicit roadmap files,
+    exclusions, and bounded directory traversal described in
+    [ADR 002](adr-002-documentation-set-discovery.md).
+  - Success: fixtures pin deterministic inventories inside and outside Git,
+    missing and empty selections, path and symlink boundaries, archives, and
+    unchanged single-roadmap scope, without reading ambient membership policy.
+
+- [ ] 6.3.2. Enforce set-scoped record and document-scoped task identities.
+
+  - Requires 6.3.1.
+  - Reuse a typed uniqueness kernel for positive canonical sequence numbers
+    within each declared ADR/RFC set and anchors within each roadmap, following
+    [ADR 003](adr-003-documentation-namespaces.md).
+  - Report all collision claimants and ambiguous cross-set membership; preserve
+    legal numbering gaps and document-local dependency lookup.
+  - Success: fixtures distinguish duplicate ADR 006 claims, padding variants,
+    independent series, archive collisions, and legitimate companion-roadmap
+    task numbers without inventing global task identities or renumbering files.
+
+- [ ] 6.3.3. Publish aggregate set-validation evidence and contracts.
+
+  - Requires 6.1.4, 6.1.5, 6.2.1, and 6.3.2.
+  - Include selected sets, document inventory, exclusions, per-document pass
+    status, all related collision locations, and aggregate findings in human
+    and JSON output. Keep usage, I/O, and document-defect failures distinct.
+  - Update agent context and guides only when these interfaces become available.
+  - Success: golden and property tests pin deterministic namespace findings,
+    mixed-success documents, no false success on incomplete discovery, strict
+    output streams, and byte-identical inputs on every success/failure path.
 
 ## 7. Renumber ExecPlans after roadmap updates
 
