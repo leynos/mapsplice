@@ -1,7 +1,7 @@
 //! Deterministic renderer for the supported roadmap subset.
 
 #[path = "render_inline.rs"]
-mod inline;
+pub(super) mod inline;
 #[path = "render_preservation.rs"]
 mod preservation;
 #[cfg(test)]
@@ -258,6 +258,7 @@ fn render_block(node: &Node, indent: usize) -> Result<String> {
                 "unsupported block node `{}` in rendered roadmap",
                 node_name(other)
             ),
+            location: None,
         }),
     }
 }
@@ -283,6 +284,7 @@ fn render_list(list: &List, indent: usize) -> Result<String> {
         let Node::ListItem(item) = node else {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "lists must contain only list items".to_owned(),
+                location: None,
             });
         };
         rendered.push(render_list_item(
@@ -308,6 +310,7 @@ fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32)
         .first()
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
             message: "list items must contain at least one child block".to_owned(),
+            location: None,
         })?;
     let mut lines = Vec::new();
     match first {
@@ -330,5 +333,6 @@ fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32)
 fn list_offset(index: usize) -> Result<u32> {
     u32::try_from(index).map_err(|_| MapspliceError::InvalidRoadmap {
         message: "list item count exceeds supported numbering range".to_owned(),
+        location: None,
     })
 }

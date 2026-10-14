@@ -20,6 +20,7 @@ pub(super) fn parse_sub_task_fragment_list(
     if list.ordered {
         return Err(MapspliceError::InvalidRoadmap {
             message: "roadmap sub-task fragments must be unordered checklist items".to_owned(),
+            location: None,
         });
     }
 
@@ -29,6 +30,7 @@ pub(super) fn parse_sub_task_fragment_list(
             Node::ListItem(item) => parse_sub_task_item_unchecked(item, context),
             _ => Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap sub-task fragments must contain only list items".to_owned(),
+                location: None,
             }),
         })
         .collect()

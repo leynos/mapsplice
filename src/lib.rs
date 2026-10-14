@@ -15,7 +15,7 @@ pub mod doctest_support {
 }
 
 use camino::Utf8PathBuf;
-pub use error::{MapspliceError, Result};
+pub use error::{MapspliceError, Result, SourceLocation};
 use fs::{read_utf8, rewrite_utf8};
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,
@@ -163,7 +163,13 @@ fn should_record_failure(error: &MapspliceError) -> bool {
 /// document is invalid, when the splice operation is not valid for the
 /// addressed anchor, or when in-place rewriting fails.
 pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
-    let operation = operation_from_command(&request.command);
+    if let CommandKind::Export { format, check } = &request.command {
+        return run_export(&request.target, *format, check.as_ref());
+    }
+    let edit = edit_command(&request.command).ok_or_else(|| MapspliceError::Configuration {
+        message: "edit command conversion failed before mutation".to_owned(),
+    })?;
+    let operation = operation_from_command(edit);
     let operation_name = operation.name();
     let anchor = operation.anchor().map(|anchor| anchor.to_string());
     let span = tracing::info_span!(
@@ -196,6 +202,46 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     }
 }
 
+/// Execute the read-only JSON export and optional committed-file comparison.
+fn run_export(
+    target: &camino::Utf8Path,
+    format: cli::ExportFormat,
+    check: Option<&Utf8PathBuf>,
+) -> Result<RunOutcome> {
+    let target_text = read_utf8(target)?;
+    let roadmap = parse_roadmap_inner(&target_text)?;
+    let fresh_schema = roadmap::export::to_schema(&roadmap)?;
+    let fresh_json = match format {
+        cli::ExportFormat::Json => roadmap::export::serialize(&fresh_schema)?,
+    };
+    let Some(export_path) = check else {
+        return Ok(RunOutcome::stdout(fresh_json));
+    };
+
+    let committed_json = read_utf8(export_path).map_err(|error| MapspliceError::InvalidExport {
+        path: export_path.to_owned(),
+        message: error.to_string(),
+    })?;
+    if committed_json.as_bytes() == fresh_json.as_bytes() {
+        return Ok(RunOutcome::silent_success());
+    }
+    let committed_schema = serde_json::from_str::<roadmap::export::RoadmapExport>(&committed_json)
+        .map_err(|error| MapspliceError::InvalidExport {
+            path: export_path.to_owned(),
+            message: error.to_string(),
+        })?;
+    let mut differences = roadmap::export::drift::differences(&committed_schema, &fresh_schema);
+    if differences.is_empty() {
+        differences.push("formatting-only drift: semantic JSON values are equal".to_owned());
+    }
+    Err(MapspliceError::ExportDrift {
+        export: export_path.to_owned(),
+        roadmap: target.to_owned(),
+        differences: differences.join("\n"),
+        regenerate: format!("mapsplice export {target} > {export_path}"),
+    })
+}
+
 /// Load a fragment only for commands that consume one.
 fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment>> {
     match request.command.fragment_path() {
@@ -208,16 +254,51 @@ fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment
     }
 }
 
-/// Translate the parsed CLI command into the roadmap operation to apply.
-const fn operation_from_command(command: &cli::CommandKind) -> RoadmapOperationInner {
+/// Edit-only command values accepted by the mutating execution pipeline.
+#[derive(Clone, Copy)]
+enum EditCommand {
+    /// Append a fragment to the roadmap.
+    Append,
+    /// Insert a fragment around an existing anchor.
+    Insert {
+        /// Existing roadmap location where the fragment is inserted.
+        anchor: RoadmapAnchor,
+        /// Insert after the anchor when true, before it otherwise.
+        after: bool,
+    },
+    /// Delete an existing anchor.
+    Delete {
+        /// Roadmap location to remove.
+        anchor: RoadmapAnchor,
+    },
+    /// Replace an existing anchor with a fragment.
+    Replace {
+        /// Roadmap location to replace.
+        anchor: RoadmapAnchor,
+    },
+}
+
+/// Convert a parsed command only when it belongs to the edit pipeline.
+const fn edit_command(command: &CommandKind) -> Option<EditCommand> {
     match command {
-        CommandKind::Append { .. } => RoadmapOperationInner::Append,
-        CommandKind::Insert { anchor, after, .. } => RoadmapOperationInner::Insert {
+        CommandKind::Append { .. } => Some(EditCommand::Append),
+        CommandKind::Insert { anchor, after, .. } => Some(EditCommand::Insert {
             anchor: *anchor,
             after: *after,
-        },
-        CommandKind::Delete { anchor } => RoadmapOperationInner::Delete { anchor: *anchor },
-        CommandKind::Replace { anchor, .. } => RoadmapOperationInner::Replace { anchor: *anchor },
+        }),
+        CommandKind::Delete { anchor } => Some(EditCommand::Delete { anchor: *anchor }),
+        CommandKind::Replace { anchor, .. } => Some(EditCommand::Replace { anchor: *anchor }),
+        CommandKind::Export { .. } => None,
+    }
+}
+
+/// Translate an edit-only command into the roadmap operation to apply.
+const fn operation_from_command(command: EditCommand) -> RoadmapOperationInner {
+    match command {
+        EditCommand::Append => RoadmapOperationInner::Append,
+        EditCommand::Insert { anchor, after } => RoadmapOperationInner::Insert { anchor, after },
+        EditCommand::Delete { anchor } => RoadmapOperationInner::Delete { anchor },
+        EditCommand::Replace { anchor } => RoadmapOperationInner::Replace { anchor },
     }
 }
 
@@ -246,9 +327,17 @@ impl RunOutcome {
             written_path: Some(path),
         }
     }
+
+    /// Return a successful outcome with no stdout or file mutation.
+    const fn silent_success() -> Self {
+        Self {
+            stdout: None,
+            written_path: None,
+        }
+    }
 }
 
-pub use cli::{CliRequest, CommandKind, GlobalOptions, parse_cli_request};
+pub use cli::{CliRequest, CommandKind, ExportFormat, GlobalOptions, parse_cli_request};
 pub use observability::{
     MetricsSnapshot,
     metrics_snapshot,

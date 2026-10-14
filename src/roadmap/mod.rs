@@ -1,6 +1,7 @@
 //! Roadmap parsing, mutation, renumbering, and rendering.
 
 mod anchor;
+pub(crate) mod export;
 mod model;
 mod ops;
 mod parse;

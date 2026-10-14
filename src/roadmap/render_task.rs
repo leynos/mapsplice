@@ -121,6 +121,7 @@ pub(super) fn find_sub_task_for_child(
                 "task `{}` child ordering references missing sub-task `{}`",
                 task.number, identity.anchor
             ),
+            location: None,
         })
 }
 

@@ -12,7 +12,7 @@ use rstest::rstest;
 
 const fn invalid_roadmap_message(error: &MapspliceError) -> Option<&str> {
     match error {
-        MapspliceError::InvalidRoadmap { message } => Some(message.as_str()),
+        MapspliceError::InvalidRoadmap { message, .. } => Some(message.as_str()),
         _ => None,
     }
 }
