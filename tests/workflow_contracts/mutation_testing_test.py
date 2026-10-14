@@ -282,6 +282,30 @@ def test_setup_commands_install_markdown_tools_at_ci_pins() -> None:
     )
 
 
+def test_setup_commands_provision_ripgrep_for_domain_purity_baseline() -> None:
+    """Install and preflight ripgrep before baseline tests invoke it."""
+    with_block = _mutation_job(_load()).get("with")
+    assert isinstance(with_block, dict), "jobs.mutation.with must be a mapping"
+    setup_commands = with_block.get("setup-commands")
+    assert isinstance(setup_commands, str), "the build-tool setup hook must be text"
+    commands = [line.strip() for line in setup_commands.splitlines()]
+
+    apt_install = _setup_command_index(
+        commands,
+        "sudo apt-get install --yes --no-install-recommends clang ripgrep",
+        exact=True,
+    )
+    ripgrep_preflight = _setup_command_index(
+        commands, "make check-ripgrep", exact=True
+    )
+    markdown_preflight = _setup_command_index(
+        commands, "make check-markdown-tools"
+    )
+    assert apt_install < ripgrep_preflight < markdown_preflight, (
+        "install ripgrep and verify it before formatter checks and the baseline"
+    )
+
+
 def test_setup_commands_install_checksum_verified_nextest_before_baseline() -> None:
     """Install Make's required Nextest route from its pinned upstream binary."""
     with_block = _mutation_job(_load()).get("with")

@@ -48,7 +48,9 @@ jobs:
         export PATH="$npm_root/bin:$PATH"
         echo "$npm_root/bin" >> "$GITHUB_PATH"
         sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends clang
+        # Domain-purity baseline tests invoke rg, matching the CI prerequisite.
+        sudo apt-get install --yes --no-install-recommends clang ripgrep
+        make check-ripgrep
         make install-build-tools
         export PATH="$HOME/.local/bin:$PATH"
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
