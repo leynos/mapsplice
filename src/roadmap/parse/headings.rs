@@ -31,6 +31,7 @@ pub(super) fn parse_phase_heading(heading: &Heading) -> Result<(PhaseNumber, Vec
         RoadmapAnchor::Phase(number) => Ok((number, title)),
         _ => Err(MapspliceError::InvalidRoadmap {
             message: "expected a phase heading".to_owned(),
+            location: None,
         }),
     }
 }
@@ -44,6 +45,7 @@ pub(super) fn parse_step_heading(heading: &Heading) -> Result<(StepNumber, Vec<N
         RoadmapAnchor::Step(number) => Ok((number, title)),
         _ => Err(MapspliceError::InvalidRoadmap {
             message: "expected a step heading".to_owned(),
+            location: None,
         }),
     }
 }
@@ -61,10 +63,12 @@ fn strip_heading_prefix(
             .first()
             .ok_or_else(|| MapspliceError::InvalidRoadmap {
                 message: "roadmap headings must start with plain text".to_owned(),
+                location: None,
             })?
     else {
         return Err(MapspliceError::InvalidRoadmap {
             message: "roadmap headings must start with plain text".to_owned(),
+            location: None,
         });
     };
     let (anchor, remainder) = split_numbered_prefix(value, level)?;

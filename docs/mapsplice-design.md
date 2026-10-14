@@ -7,8 +7,9 @@
   towards.
 - **Scope:** the roadmap-splicing engine — parsing, the roadmap model, the four
   structural operations, renumbering, dependency-reference rewriting, and
-  rendering. CLI plumbing (`ortho-config`, `--in-place`) is covered only where
-  it bears on the guarantees below.
+  rendering, plus the read-only JSON export and drift contract. CLI plumbing
+  (`ortho-config`, `--in-place`) is covered only where it bears on the
+  guarantees below.
 - **Audience:** contributors to `mapsplice`, and operators who run it
   unsupervised over real roadmaps (for example as part of a df12-build
   workshop).
@@ -74,6 +75,8 @@ flowchart LR
   E --> F[Reference rewrite]
   F --> G[Render grammar]
   G --> H[stdout or in-place]
+  C --> J[JSON export adapter]
+  J --> K[stdout or drift check]
 ```
 
 *Figure 1: The mapsplice edit pipeline.*
@@ -103,6 +106,13 @@ by both the production `const fn` and the proof in `verus/lib.rs`, rather than
 the reverse. The gate and the roadmap proof boundary are described in
 [developers-guide.md](developers-guide.md) and
 [verification.md](verification.md).
+
+The read-only export follows the same boundary. `src/lib.rs` reads the Markdown
+path and committed export; the pure adapter in `src/roadmap/export/` maps the
+existing roadmap model to an ordered, versioned schema and compares decoded
+values for drift. The adapter owns no filesystem or process operations. Exact
+bytes are checked first so a current export succeeds silently; semantic
+comparison runs only when bytes differ.
 
 ## 4. The roadmap grammar (normative reference)
 
@@ -226,12 +236,11 @@ contract behind C3.
   dangling dependency like any other retired requirement. The form is tolerated
   rather than rejected because rejecting it would mean declining an edit over a
   stylistic choice in prose the author is entitled to write.
-- **Clause exclusions.** One form is outside the grammar and is left
-  **unrewritten**: a clause split across a hard line wrap, meaning a newline
-  between `Requires` and its anchors, or between anchors in one clause. Joining
-  wrapped continuations before scanning remains tracked by `docs/roadmap.md`
-  item 1.2.2. This exclusion does not change the anchor-token or
-  dependency-context definitions above.
+- **Hard-wrapped clauses.** A line ending or Markdown hard break between
+  `Requires` and its anchors, or between anchors in one clause, is treated as
+  whitespace by the shared dependency visitor. Rewriting and JSON export
+  therefore see the same references. Semicolons and non-numeric periods still
+  terminate a clause.
 - **Incidental numbers are preserved.** An anchor token that is not in a
   dependency context, or that is immediately preceded by a section sigil (`§`),
   is incidental: it is a section reference, a version, or prose, and it is left
@@ -351,3 +360,19 @@ fixture corpus and round-trip guarantees that pin the contract mechanically.
 - **One edit per invocation (current limit).** Batched multi-edit transactions
   are a possible future extension; until then, compose edits as a pipeline and
   review the standard-output diff between steps.
+
+## 11. Versioned JSON export
+
+Markdown remains the canonical roadmap. `mapsplice export --format json`
+derives a stable JSON view for downstream design-contract checkers, while
+`--check EXPORT.json` reports drift without writing either input. The
+schema-versioned fields, normalization rules, dependency endpoints, strict
+block allow-list and example are specified in
+[roadmap-export-format.md](roadmap-export-format.md).
+
+The export adapter consumes typed phases, steps, tasks and ordered task
+children. It shares dependency candidate recognition with the rewriter, so a
+hard-wrapped or nested-bullet `Requires` clause has one classification and one
+source order. Unsupported content fails with a located `InvalidRoadmap`
+diagnostic rather than disappearing from the export. JSON schema and semantic
+changes require a `FORMAT_VERSION` increment.

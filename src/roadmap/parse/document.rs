@@ -5,6 +5,7 @@ use markdown::mdast::{Heading, List, Node, Root};
 use super::{
     is_phase_heading,
     is_step_heading,
+    locate,
     looks_like_sub_task_list,
     looks_like_task_list,
     parse_phase_heading,
@@ -66,11 +67,13 @@ impl<'source> DocumentParser<'source> {
             Node::Heading(heading) if is_step_heading(&heading) => self.begin_step(&heading),
             Node::Heading(heading) => self.handle_non_roadmap_heading(heading),
             Node::List(list) if looks_like_task_list(&list) => self.append_task_list(&list),
-            Node::List(list) if looks_like_sub_task_list(&list) => {
-                Err(MapspliceError::InvalidRoadmap {
+            Node::List(list) if looks_like_sub_task_list(&list) => Err(locate(
+                MapspliceError::InvalidRoadmap {
                     message: "sub-task list appeared without a parent task".to_owned(),
-                })
-            }
+                    location: None,
+                },
+                list.position.as_ref(),
+            )),
             other => self.push_non_structural_node(other),
         }
     }
@@ -81,7 +84,8 @@ impl<'source> DocumentParser<'source> {
         if let Some(phase) = self.current_phase.take() {
             self.document.phases.push(phase);
         }
-        let (number, title) = parse_phase_heading(heading)?;
+        let (number, title) = parse_phase_heading(heading)
+            .map_err(|error| locate(error, heading.position.as_ref()))?;
         self.current_phase = Some(PhaseSection {
             identity: ItemIdentity {
                 source: self.source,
@@ -103,22 +107,34 @@ impl<'source> DocumentParser<'source> {
             .as_ref()
             .ok_or_else(|| MapspliceError::InvalidRoadmap {
                 message: "step heading appeared before the first phase heading".to_owned(),
+                location: heading
+                    .position
+                    .as_ref()
+                    .map(|position| crate::error::SourceLocation::from(&position.start)),
             })?;
-        let (number, title) = parse_step_heading(heading)?;
+        let (number, title) = parse_step_heading(heading)
+            .map_err(|error| locate(error, heading.position.as_ref()))?;
         if number.phase() != phase.number {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: format!(
-                    "step heading `{number}` does not belong to phase `{}`",
-                    phase.number
-                ),
-            });
+            return Err(locate(
+                MapspliceError::InvalidRoadmap {
+                    message: format!(
+                        "step heading `{number}` does not belong to phase `{}`",
+                        phase.number
+                    ),
+                    location: None,
+                },
+                heading.position.as_ref(),
+            ));
         }
-        let current_phase =
-            self.current_phase
-                .as_mut()
-                .ok_or_else(|| MapspliceError::InvalidRoadmap {
+        let current_phase = self.current_phase.as_mut().ok_or_else(|| {
+            locate(
+                MapspliceError::InvalidRoadmap {
                     message: "step heading appeared before the first phase heading".to_owned(),
-                })?;
+                    location: None,
+                },
+                heading.position.as_ref(),
+            )
+        })?;
         self.steps
             .begin_step(number, title, &mut current_phase.steps);
         Ok(())
@@ -133,11 +149,16 @@ impl<'source> DocumentParser<'source> {
             return Ok(());
         }
 
+        let location = heading
+            .position
+            .as_ref()
+            .map(|position| crate::error::SourceLocation::from(&position.start));
+        let heading_text = Node::Heading(heading).to_string();
         Err(MapspliceError::InvalidRoadmap {
             message: format!(
-                "unsupported non-roadmap heading `{}` inside the roadmap body",
-                Node::Heading(heading).to_string()
+                "unsupported non-roadmap heading `{heading_text}` inside the roadmap body"
             ),
+            location,
         })
     }
 
@@ -152,6 +173,7 @@ impl<'source> DocumentParser<'source> {
                     .as_mut()
                     .ok_or_else(|| MapspliceError::InvalidRoadmap {
                         message: "step flush attempted without a phase".to_owned(),
+                        location: None,
                     })?;
             self.steps.flush_into(&mut phase.steps);
         }
@@ -186,6 +208,7 @@ impl<'source> DocumentParser<'source> {
         if self.document.phases.is_empty() {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "roadmap must contain at least one numbered phase".to_owned(),
+                location: None,
             });
         }
 

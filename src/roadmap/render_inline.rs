@@ -3,25 +3,44 @@
 use markdown::mdast::{Link, Node};
 
 use super::text::escape_markdown;
-use crate::error::{MapspliceError, Result};
+use crate::error::{MapspliceError, Result, SourceLocation};
 
 /// Render inline Markdown nodes into a single string.
 pub(super) fn render_inline(nodes: &[Node]) -> Result<String> {
     nodes
         .iter()
-        .map(render_inline_node)
+        .map(|node| render_inline_node(node, false))
+        .collect::<Result<Vec<_>>>()
+        .map(|parts| parts.concat())
+}
+
+/// Render inline nodes for export, replacing hard breaks with whitespace.
+pub(crate) fn render_inline_export(nodes: &[Node]) -> Result<String> {
+    nodes
+        .iter()
+        .map(|node| render_inline_node(node, true))
         .collect::<Result<Vec<_>>>()
         .map(|parts| parts.concat())
 }
 
 /// Render one supported inline Markdown node.
-fn render_inline_node(node: &Node) -> Result<String> {
+fn render_inline_node(node: &Node, break_as_space: bool) -> Result<String> {
     match node {
         Node::Text(text) => Ok(escape_markdown(&text.value)),
-        Node::Emphasis(emphasis) => Ok(format!("*{}*", render_inline(&emphasis.children)?)),
-        Node::Strong(strong) => Ok(format!("**{}**", render_inline(&strong.children)?)),
-        Node::Delete(delete) => Ok(format!("~~{}~~", render_inline(&delete.children)?)),
+        Node::Emphasis(emphasis) => Ok(format!(
+            "*{}*",
+            render_inline_children(&emphasis.children, break_as_space)?
+        )),
+        Node::Strong(strong) => Ok(format!(
+            "**{}**",
+            render_inline_children(&strong.children, break_as_space)?
+        )),
+        Node::Delete(delete) => Ok(format!(
+            "~~{}~~",
+            render_inline_children(&delete.children, break_as_space)?
+        )),
         Node::InlineCode(code) => Ok(format!("`{}`", code.value)),
+        Node::Break(_) if break_as_space => Ok(" ".to_owned()),
         Node::Break(_) => Ok("\\\n".to_owned()),
         Node::Link(Link {
             children,
@@ -32,15 +51,30 @@ fn render_inline_node(node: &Node) -> Result<String> {
             let suffix = title
                 .as_ref()
                 .map_or_else(String::new, |link_title| format!(" \"{link_title}\""));
-            Ok(format!("[{}]({url}{suffix})", render_inline(children)?))
+            Ok(format!(
+                "[{}]({url}{suffix})",
+                render_inline_children(children, break_as_space)?
+            ))
         }
         other => Err(MapspliceError::InvalidRoadmap {
             message: format!(
                 "unsupported inline node `{}` in rendered roadmap",
                 node_name(other)
             ),
+            location: node
+                .position()
+                .map(|position| SourceLocation::from(&position.start)),
         }),
     }
+}
+
+/// Render the children of a supported inline container with the same break policy.
+fn render_inline_children(nodes: &[Node], break_as_space: bool) -> Result<String> {
+    nodes
+        .iter()
+        .map(|node| render_inline_node(node, break_as_space))
+        .collect::<Result<Vec<_>>>()
+        .map(|parts| parts.concat())
 }
 
 /// Return a stable mdast node name for renderer diagnostics.

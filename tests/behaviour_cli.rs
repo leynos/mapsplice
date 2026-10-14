@@ -119,3 +119,54 @@ fn missing_anchor_in_place(cli_state: CliFixture) -> Result<(), Box<dyn std::err
     let _ = cli_state?;
     Ok(())
 }
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Export writes versioned JSON and preserves the roadmap"
+)]
+fn export_writes_versioned_json(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Export check succeeds silently without modifying either file"
+)]
+fn export_check_succeeds_silently(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Export check reports a changed task title"
+)]
+fn export_check_reports_task_title_drift(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Export check reports a changed dependency"
+)]
+fn export_check_reports_dependency_drift(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Export check reports a changed checkbox"
+)]
+fn export_check_reports_checkbox_drift(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}

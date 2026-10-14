@@ -99,7 +99,7 @@ fn render_fails_when_task_child_references_missing_sub_task() {
     let error =
         render_roadmap(&roadmap).expect_err("orphaned sub-task child should fail rendering");
 
-    let MapspliceError::InvalidRoadmap { message } = error else {
+    let MapspliceError::InvalidRoadmap { message, .. } = error else {
         panic!("expected InvalidRoadmap for orphaned sub-task child");
     };
     assert_eq!(

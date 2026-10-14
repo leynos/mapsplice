@@ -225,6 +225,7 @@ mod diagnostic_tracing_tests {
         let marker = "user-supplied-diagnostic-marker";
         let error = MapspliceError::InvalidRoadmap {
             message: marker.to_owned(),
+            location: None,
         };
 
         let exit_code = tracing::subscriber::with_default(subscriber, || report_error(&error));

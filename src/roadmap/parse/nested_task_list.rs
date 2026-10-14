@@ -9,9 +9,9 @@ use super::{
     ParseContext,
     RoadmapItemLevel,
     TaskNumber,
-    looks_like_numbered_item,
-    parse_sub_task_item,
+    locate,
     task_children::TaskChildren,
+    task_item::{looks_like_numbered_item, parse_sub_task_item},
 };
 use crate::error::{MapspliceError, Result};
 
@@ -23,21 +23,30 @@ pub(super) fn parse_sub_task_list(
     task_children: &mut TaskChildren,
 ) -> Result<()> {
     if list.ordered {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
-        });
+        return Err(locate(
+            MapspliceError::InvalidRoadmap {
+                message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
+                location: None,
+            },
+            list.position.as_ref(),
+        ));
     }
     let mut body_run = Vec::new();
     for node in &list.children {
         let Node::ListItem(item) = node else {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: "roadmap sub-task lists must contain only list items".to_owned(),
-            });
+            return Err(locate(
+                MapspliceError::InvalidRoadmap {
+                    message: "roadmap sub-task lists must contain only list items".to_owned(),
+                    location: None,
+                },
+                node.position(),
+            ));
         };
         if looks_like_numbered_item(item, RoadmapItemLevel::SubTask) {
             push_body_list_run(list, &mut body_run, context.source_text, task_children);
             let expected_ordinal = task_children.next_sub_task_ordinal()?;
-            let sub_task = parse_sub_task_item(item, parent, expected_ordinal, context)?;
+            let sub_task = parse_sub_task_item(item, parent, expected_ordinal, context)
+                .map_err(|error| locate(error, item.position.as_ref()))?;
             task_children.push_sub_task(sub_task);
         } else {
             body_run.push(item.clone());

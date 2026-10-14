@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "phases": [
+    {
+      "number": "1",
+      "title": "Planning",
+      "entries": [
+        {
+          "key": "Idea",
+          "value": "Keep Markdown canonical.",
+          "entries": []
+        },
+        {
+          "key": "See",
+          "value": "",
+          "entries": [
+            {
+              "key": null,
+              "value": "mapsplice-design.md",
+              "entries": []
+            }
+          ]
+        }
+      ],
+      "requires": [],
+      "steps": [
+        {
+          "number": "1.1",
+          "title": "Export the roadmap",
+          "question": "Can tools read this roadmap reliably?",
+          "entries": [],
+          "requires": [],
+          "tasks": [
+            {
+              "number": "1.1.1",
+              "title": "Emit **stable** JSON. Requires 1.1.2.",
+              "state": "open",
+              "requires": [
+                "1.1.2"
+              ],
+              "entries": [],
+              "details": [
+                {
+                  "number": null,
+                  "title": "Compare the export without writing files.",
+                  "state": "done",
+                  "requires": [],
+                  "entries": [
+                    {
+                      "key": null,
+                      "value": "Preserve nested detail order.",
+                      "entries": []
+                    }
+                  ],
+                  "details": []
+                }
+              ]
+            },
+            {
+              "number": "1.1.2",
+              "title": "Verify the export drift.",
+              "state": "done",
+              "requires": [],
+              "entries": [],
+              "details": []
+            }
+          ],
+          "trailing": []
+        }
+      ],
+      "trailing": []
+    }
+  ]
+}
