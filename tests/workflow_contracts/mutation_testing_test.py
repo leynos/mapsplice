@@ -47,48 +47,56 @@ def _load() -> dict[str, object]:
     return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
 
-def _ci_markdown_tool_versions() -> tuple[str, str]:
-    """Return formatter versions pinned by the standard CI workflow."""
-    ci_workflow = yaml.safe_load(CI_WORKFLOW_PATH.read_text(encoding="utf-8"))
+def _build_test_job(ci_workflow: object) -> dict[str, object]:
+    """Return the required build-test job mapping from ci.yml."""
     match ci_workflow:
         case {"jobs": {"build-test": dict() as build_test}}:
-            pass
+            return build_test
         case _:
             raise AssertionError("ci.yml must declare the build-test job")
 
+
+def _markdownlint_cli2_version(build_test: dict[str, object]) -> str:
+    """Return the markdownlint-cli2 version pinned in the build-test job."""
     match build_test:
         case {"env": {"MARKDOWNLINT_CLI2_VERSION": str(markdownlint_version)}} if (
             markdownlint_version
         ):
-            pass
+            return markdownlint_version
         case _:
             raise AssertionError(
                 "ci.yml build-test must declare MARKDOWNLINT_CLI2_VERSION"
             )
 
+
+def _mdtablefix_version(build_test: dict[str, object]) -> str:
+    """Return the version in the build-test mdtablefix install step."""
     match build_test:
         case {"steps": list(steps)}:
             pass
         case _:
             raise AssertionError("ci.yml build-test must declare a steps list")
 
-    mdtablefix_version = None
     for step in steps:
         match step:
             case {
                 "name": "Install mdtablefix",
                 "with": {"version": str(version)},
             } if version:
-                mdtablefix_version = version
-                break
+                return version
             case {"name": "Install mdtablefix"}:
                 raise AssertionError(
                     "ci.yml Install mdtablefix step must declare its version"
                 )
 
-    if mdtablefix_version is None:
-        raise AssertionError("ci.yml must contain an 'Install mdtablefix' step")
-    return mdtablefix_version, markdownlint_version
+    raise AssertionError("ci.yml must contain an 'Install mdtablefix' step")
+
+
+def _ci_markdown_tool_versions() -> tuple[str, str]:
+    """Return formatter versions pinned by the standard CI workflow."""
+    ci_workflow = yaml.safe_load(CI_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    build_test = _build_test_job(ci_workflow)
+    return _mdtablefix_version(build_test), _markdownlint_cli2_version(build_test)
 
 
 def _setup_command_index(
@@ -247,7 +255,10 @@ def test_setup_commands_install_markdown_tools_at_ci_pins() -> None:
     assert f"MDTABLEFIX_REQUIRED_VERSION={mdtablefix_version}" in setup_commands, (
         "the markdown-tools preflight must check ci.yml's mdtablefix pin"
     )
-    assert f"MARKDOWNLINT_CLI2_REQUIRED_VERSION={markdownlint_version}" in setup_commands, (
+    required_markdownlint_version = (
+        f"MARKDOWNLINT_CLI2_REQUIRED_VERSION={markdownlint_version}"
+    )
+    assert required_markdownlint_version in setup_commands, (
         "the markdown-tools preflight must check ci.yml's markdownlint-cli2 pin"
     )
     npm_install = _setup_command_index(

@@ -26,6 +26,11 @@ impl FakeMarkdownTools {
     ///
     /// For example, `new("mdtablefix 0.6.1", "0.22.1")` writes that
     /// `markdownlint-cli2` version to a fake npm package manifest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the temporary directory or any fake tool file
+    /// cannot be created.
     pub(super) fn new(
         mdtablefix_output: &str,
         markdownlint_version: &str,
@@ -42,7 +47,8 @@ impl FakeMarkdownTools {
             ("mdtablefix", mdtablefix_output),
             ("markdownlint-cli2", "markdownlint-cli2 stub"),
         ] {
-            handle.write(name, format!("#!/bin/sh\nprintf '%s\\n' '{output}'\n"))?;
+            handle.write(format!("{name}.version"), output)?;
+            handle.write(name, "#!/bin/sh\ncat \"$0.version\"\n")?;
             handle.set_permissions(name, Permissions::from_mode(0o755))?;
         }
         Ok(Self {
@@ -55,6 +61,11 @@ impl FakeMarkdownTools {
     ///
     /// For example, `make_check("0.6.1", "0.22.1")` passes those required
     /// versions to the child process without changing the test process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the child `PATH` cannot be constructed or `make`
+    /// cannot be launched.
     pub(super) fn make_check(
         &self,
         mdtablefix_version: &str,

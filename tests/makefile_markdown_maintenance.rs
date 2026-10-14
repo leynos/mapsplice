@@ -21,7 +21,8 @@ type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
 const SAMPLE_MARKDOWN_PATHS: &str = "docs/users-guide.md docs/developers-guide.md";
 
-/// Return an error when a Markdown-tool preflight expectation is not met.
+/// Return an error because `clippy::panic_in_result_fn` denies panics in these
+/// `TestResult` tests.
 fn require(condition: bool, reason: String) -> TestResult {
     if condition {
         Ok(())
@@ -56,10 +57,36 @@ fn check_markdown_tools_names_a_missing_executable() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn check_markdown_tools_rejects_a_whitespace_only_tool_list() -> TestResult {
+    let output = Command::new("make")
+        .args(["--no-print-directory", "check-markdown-tools"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("MARKDOWN_TEST_TOOLS", " \t")
+        .env("MDTABLEFIX_REQUIRED_VERSION", "")
+        .env("MARKDOWNLINT_CLI2_REQUIRED_VERSION", "")
+        .output()?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    require(
+        !output.status.success(),
+        "an empty tool list must fail".to_owned(),
+    )?;
+    require(
+        stderr.contains("check-markdown-tools: MARKDOWN_TEST_TOOLS must name at least one tool"),
+        format!("empty-tool-list diagnostic was not specific: {stderr:?}"),
+    )
+}
+
 #[cfg(unix)]
 #[rstest]
 #[case::mdtablefix(
     "mdtablefix 9.9.9",
+    "0.22.1",
+    "check-markdown-tools: mdtablefix version mismatch"
+)]
+#[case::mdtablefix_with_single_quote(
+    "mdtablefix 9'9.9",
     "0.22.1",
     "check-markdown-tools: mdtablefix version mismatch"
 )]

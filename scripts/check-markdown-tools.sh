@@ -12,12 +12,18 @@ MDTABLEFIX_REQUIRED_VERSION=${MDTABLEFIX_REQUIRED_VERSION:-}
 MARKDOWNLINT_CLI2_REQUIRED_VERSION=${MARKDOWNLINT_CLI2_REQUIRED_VERSION:-}
 
 read -r -a markdown_test_tools <<<"$MARKDOWN_TEST_TOOLS"
+if [[ -z ${markdown_test_tools[0]-} ]]; then
+  fail 'MARKDOWN_TEST_TOOLS must name at least one tool'
+fi
+
 for tool in "${markdown_test_tools[@]}"; do
   command -v "$tool" >/dev/null 2>&1 || \
     fail "$tool not found on PATH; see .github/workflows/ci.yml for the pinned installation"
 done
 
 if [[ -n $MDTABLEFIX_REQUIRED_VERSION ]]; then
+  command -v mdtablefix >/dev/null 2>&1 || \
+    fail 'mdtablefix not found on PATH (see .github/workflows/ci.yml)'
   if ! actual=$(mdtablefix --version); then
     fail 'could not read mdtablefix version (see .github/workflows/ci.yml)'
   fi
@@ -28,7 +34,8 @@ if [[ -n $MDTABLEFIX_REQUIRED_VERSION ]]; then
 fi
 
 if [[ -n $MARKDOWNLINT_CLI2_REQUIRED_VERSION ]]; then
-  markdownlint_cli2_path=$(command -v markdownlint-cli2)
+  markdownlint_cli2_path=$(command -v markdownlint-cli2) || \
+    fail 'markdownlint-cli2 not found on PATH (see .github/workflows/ci.yml)'
   if ! actual=$(node - "$markdownlint_cli2_path" 2>/dev/null <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
