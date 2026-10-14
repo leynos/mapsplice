@@ -93,9 +93,9 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
         task.number,
         render_item_summary(&render_inline(task.summary.nodes())?, 2)
     )];
-    for child in task.children() {
+    for (index, child) in task.children().iter().enumerate() {
         match child {
-            TaskChild::Body(body) => parts.extend(render_nested_body(body, 2)?),
+            TaskChild::Body(body) => parts.extend(render_body_child(task, index, body)?),
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2, report)?);
@@ -103,6 +103,80 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
         }
     }
     Ok(parts.join("\n"))
+}
+
+/// Render one body run and trim separators where a tight list touches an addendum.
+fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Result<Vec<String>> {
+    let mut body_blocks = render_nested_body(body, 2)?;
+    let begins_with_tight_list = body
+        .nodes()
+        .first()
+        .is_some_and(|node| matches!(node, Node::List(list) if !list.spread));
+    let ends_with_tight_list = body
+        .nodes()
+        .last()
+        .is_some_and(|node| matches!(node, Node::List(list) if !list.spread));
+    let follows_sub_task = index
+        .checked_sub(1)
+        .and_then(|previous_index| task.children().get(previous_index))
+        .is_some_and(|previous_child| matches!(previous_child, TaskChild::SubTask(_)));
+    let precedes_sub_task = matches!(task.children().get(index + 1), Some(TaskChild::SubTask(_)));
+    let touches_sub_task = follows_sub_task || precedes_sub_task;
+    trim_leading_tight_list_separator(&mut body_blocks, begins_with_tight_list, touches_sub_task);
+    trim_trailing_tight_list_separator(&mut body_blocks, ends_with_tight_list, precedes_sub_task);
+    Ok(body_blocks)
+}
+
+/// Remove the canonical blank before a tight list adjacent to an addendum.
+fn trim_leading_tight_list_separator(
+    body_blocks: &mut Vec<String>,
+    begins_with_tight_list: bool,
+    touches_sub_task: bool,
+) {
+    if should_trim_leading_tight_list_separator(
+        body_blocks,
+        begins_with_tight_list,
+        touches_sub_task,
+    ) {
+        body_blocks.remove(0);
+    }
+}
+
+/// Identify a generated blank before a tight list touching an addendum.
+fn should_trim_leading_tight_list_separator(
+    body_blocks: &[String],
+    begins_with_tight_list: bool,
+    touches_sub_task: bool,
+) -> bool {
+    let list_touches_sub_task = begins_with_tight_list && touches_sub_task;
+    let has_leading_separator = body_blocks.first().is_some_and(String::is_empty);
+    list_touches_sub_task && has_leading_separator
+}
+
+/// Remove the canonical blank after a tight list adjacent to a sub-task.
+fn trim_trailing_tight_list_separator(
+    body_blocks: &mut Vec<String>,
+    ends_with_tight_list: bool,
+    precedes_sub_task: bool,
+) {
+    if should_trim_trailing_tight_list_separator(
+        body_blocks,
+        ends_with_tight_list,
+        precedes_sub_task,
+    ) {
+        drop(body_blocks.pop());
+    }
+}
+
+/// Identify a generated blank after a tight list adjacent to a sub-task.
+fn should_trim_trailing_tight_list_separator(
+    body_blocks: &[String],
+    ends_with_tight_list: bool,
+    precedes_sub_task: bool,
+) -> bool {
+    let list_ends_at_sub_task = ends_with_tight_list && precedes_sub_task;
+    let has_trailing_separator = body_blocks.last().is_some_and(String::is_empty);
+    list_ends_at_sub_task && has_trailing_separator
 }
 
 /// Resolve a structural child identity to its corresponding sub-task.
