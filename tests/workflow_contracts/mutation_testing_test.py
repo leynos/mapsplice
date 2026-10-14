@@ -1,21 +1,20 @@
 """Contract tests for the mutation-testing caller workflow.
 
 The executable logic lives in the ``leynos/shared-actions`` reusable
-workflow, which carries its own unit and integration tests; mapsplice's
-caller is declarative configuration. These tests parse the caller with
-PyYAML and assert that it references the correct reusable workflow at a
-commit SHA, and that other structural properties (permissions, triggers,
-feature-flag configuration) hold, so drift (repointing the pin at a
-branch, widening permissions, or losing the feature-flag configuration)
-fails CI on the pull request rather than surfacing in a scheduled or
-manual run. Dependabot owns the pinned SHA value; these tests do not
-assert which SHA is pinned.
+workflow, which carries its own unit and integration tests. These tests
+parse the caller with PyYAML and check its cargo-mutants configuration, so
+drift (repointing the pin at a branch, widening permissions, losing the
+feature-flag configuration, or changing the mutation test runner) fails CI
+on the pull request rather than surfacing in a scheduled or manual run.
+Dependabot owns the pinned SHA value; these tests do not assert which SHA
+is pinned.
 
 Run via ``make test-workflow-contracts``.
 """
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -28,6 +27,7 @@ WORKFLOW_PATH = (
 )
 REPOSITORY_ROOT = WORKFLOW_PATH.parents[2]
 CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
+CARGO_MUTANTS_CONFIG_PATH = REPOSITORY_ROOT / ".cargo" / "mutants.toml"
 CARGO_NEXTEST_VERSION = "0.9.148"
 CARGO_NEXTEST_ARCHIVE_SHA256 = (
     "223ba936714cc861a9cdedad5a8eb664dfdd69d6fbdf6cea6aa8184f523290dc"
@@ -241,6 +241,14 @@ def test_with_block_carries_the_caller_configuration() -> None:
     assert positions == sorted(positions), (
         "mutation setup must install and check build tools before assigning "
         "the development RUSTFLAGS"
+    )
+
+
+def test_cargo_mutants_uses_nextest() -> None:
+    """Use the configured Make test runner for baseline and mutant tests."""
+    config = tomllib.loads(CARGO_MUTANTS_CONFIG_PATH.read_text(encoding="utf-8"))
+    assert config.get("test_tool") == "nextest", (
+        "cargo-mutants must use Nextest, matching the Make test route"
     )
 
 
