@@ -58,6 +58,7 @@ mapsplice insert <target> <anchor> <file-to-insert>
 mapsplice insert --after <target> <anchor> <file-to-insert>
 mapsplice delete <target> <anchor>
 mapsplice replace <target> <anchor> <file-to-replace-with>
+mapsplice export [--format json] <target> [--check <export>]
 ```
 
 By default the rewritten roadmap is written to standard output. Use
@@ -75,6 +76,29 @@ unsuccessful exit. Invalid command-line input and errors from reading,
 validating, or editing roadmap files also produce diagnostics on standard error
 and exit unsuccessfully. The unreleased help and diagnostic logging changes are
 listed in the [0.2.0 migration notes](migrations/0.2.0.md).
+
+### `export`
+
+```bash
+mapsplice export --format json docs/roadmap.md
+mapsplice export --check docs/roadmap.json docs/roadmap.md
+```
+
+`export` reads the canonical Markdown roadmap and writes a deterministic,
+versioned JSON representation to standard output. The JSON contains phases,
+steps, tasks, checkbox states, dependency references, labelled content and
+nested checkbox details. Its complete version 1 contract is documented in the
+[roadmap export format](roadmap-export-format.md). The Markdown preamble is
+excluded.
+
+`--format json` is the default. `--check <export>` compares the committed JSON
+with a fresh export. An exact match exits 0 without output. A mismatch exits 1
+and writes an item-oriented diff and regeneration command to standard error;
+unreadable or invalid JSON reports the export path and parse diagnostic. The
+diff identifies changed source order as well as fields, additions and removals.
+The command never writes either input file and ignores `--in-place` and its
+configuration defaults. Exporting without `--check` exits 0 with JSON on
+standard output; parse, schema, I/O and drift errors exit 1.
 
 ## Worked example
 
@@ -119,9 +143,10 @@ The result will:
 - rewrite dependency prose such as `Requires 2.1.1.` to `Requires 3.1.1.`
 
 Only `Requires` dependency references are rewritten. A `Requires` clause is
-recognized in three positions: on the task or sub-task title line, beginning a
-plain indented continuation line, and beginning a nested task or sub-task body
-bullet item.
+recognized in task or sub-task text, including hard-wrapped lines, and at the
+start of a nested task or sub-task body bullet item. Whitespace and Markdown
+hard breaks between the keyword and anchors, and between anchors in one clause,
+do not change the references that are found.
 
 A numeric range such as `Requires 1.1.1-1.1.3.` is not a supported clause form,
 but it is not ignored either. A hyphen is not an anchor character, so the

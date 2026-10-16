@@ -47,6 +47,10 @@ boundary, and roadmap domain modules:
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
+- `src/roadmap/export` adapts the existing model to the pure, ordered JSON
+  schema. It shares dependency recognition with the rewriter and contains the
+  semantic drift comparison; `src/lib.rs` owns reading the source and committed
+  export files.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.
@@ -77,7 +81,17 @@ The library API is intentionally small:
 Public APIs must return typed `MapspliceError` variants. Opaque reports belong
 only at external process boundaries.
 
-## 4. Configuration behaviour
+## 4. Roadmap export schema changes
+
+`docs/roadmap-export-format.md` is the downstream contract for
+`mapsplice export`. Treat both field shape and field meaning as versioned API.
+For any incompatible or semantic change, increment `FORMAT_VERSION`, update the
+format document and example, add or update byte-exact fixtures, and verify
+semantic drift reports against the prior shape. Deserialization rejects unknown
+fields so consumers do not silently accept a schema they cannot interpret. The
+pre-commit quality gates must pass before the change is reviewed.
+
+## 5. Configuration behaviour
 
 Configuration behaviour has two current owners:
 
@@ -100,7 +114,7 @@ changes that take effect only inside `run`; `Workspace::enter_root` selects the
 workspace directory through `enter_dir`. `run` holds a shared lock while the
 closure executes, then restores the environment and working directory.
 
-## 5. Observability
+## 6. Observability
 
 Tracing spans exist at the process, filesystem, parse, splice, render, and
 rewrite boundaries. Stable fields include operation, anchor, path, byte count,
@@ -128,7 +142,7 @@ at task or sub-task mutation points in `src/roadmap/model_task_entry.rs` and
 recorded at the source-preservation rendering decision in
 `src/roadmap/render_preservation.rs`.
 
-## 6. Verification layers
+## 7. Verification layers
 
 The test suite has four layers:
 
@@ -194,7 +208,7 @@ nested body Markdown. A clause is reachable through a task's body blocks rather
 than through its summary. `docs/verification.md` records the proof obligations
 and the boundary of what is proven — the clause recognizer is not verified.
 
-## 7. Local tooling
+## 8. Local tooling
 
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
