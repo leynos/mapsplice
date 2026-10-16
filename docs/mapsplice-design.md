@@ -115,11 +115,13 @@ summary, a roadmap has an optional preamble followed by three structural levels:
 - **Tasks** — list items whose first inline text begins with a task number
   (`- [ ] 8.2.3.`).
 
-A task may carry continuation paragraphs and nested bullet lists. A nested list
-item whose number extends its parent task by one level (`- [ ] 8.2.3.1.`) is an
-**addendum sub-task** — a fourth structural level. Anchors on the command line
-address these levels directly: `8` a phase, `8.2` a step, `8.2.3` a task,
-`8.2.3.1` an addendum sub-task.
+A task may carry continuation paragraphs and nested bullet lists. Addendum
+sub-tasks are recognized per nested-list item: an item whose number extends its
+parent task by one level (`- [ ] 8.2.3.1.`) is an **addendum sub-task** — a
+fourth structural level. Ordinary bullets may share that list and remain
+non-structural body content. Anchors on the command line address these levels
+directly: `8` a phase, `8.2` a step, `8.2.3` a task, `8.2.3.1` an addendum
+sub-task.
 
 ## 5. Fidelity guarantees
 

@@ -4,10 +4,14 @@ mod checklist;
 mod document;
 mod fragment;
 mod headings;
+mod nested_task_list;
 mod step_accumulator;
 mod sub_task_body;
 mod sub_task_fragment;
 mod task_children;
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
 
 use checklist::{ChecklistKind, parse_checklist_item_head};
 pub use fragment::parse_fragment;
@@ -168,14 +172,14 @@ fn split_task_children(
     let mut task_children = TaskChildren::new();
     for child in children {
         if let Node::List(list) = child {
-            if looks_like_sub_task_list(list) {
-                parse_sub_task_list(list, parent, context, &mut task_children)?;
-                continue;
-            }
-            if looks_like_task_list(list) {
+            if list_contains_numbered_item(list, RoadmapItemLevel::Task) {
                 return Err(MapspliceError::InvalidRoadmap {
                     message: "nested roadmap task lists must use sub-task numbers".to_owned(),
                 });
+            }
+            if list_contains_numbered_item(list, RoadmapItemLevel::SubTask) {
+                nested_task_list::parse_sub_task_list(list, parent, context, &mut task_children)?;
+                continue;
             }
         }
         task_children.push_body_node(child.clone(), context.source_text);
@@ -183,37 +187,11 @@ fn split_task_children(
     Ok(task_children.finish())
 }
 
-/// Parse a nested checklist and enforce consecutive sub-task ordinals.
-fn parse_sub_task_list(
-    list: &List,
-    parent: TaskNumber,
-    context: ParseContext<'_>,
-    task_children: &mut TaskChildren,
-) -> Result<()> {
-    if list.ordered {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: "roadmap sub-task lists must be unordered checklist items".to_owned(),
-        });
-    }
-    let expected_start = task_children.next_sub_task_ordinal()?;
-    for (offset, node) in list.children.iter().enumerate() {
-        let Node::ListItem(item) = node else {
-            return Err(MapspliceError::InvalidRoadmap {
-                message: "roadmap sub-task lists must contain only list items".to_owned(),
-            });
-        };
-        let ordinal_offset = u32::try_from(offset).map_err(|_| MapspliceError::InvalidRoadmap {
-            message: "sub-task count exceeds supported numbering range".to_owned(),
-        })?;
-        let expected_ordinal = expected_start.checked_add(ordinal_offset).ok_or_else(|| {
-            MapspliceError::InvalidRoadmap {
-                message: "sub-task count exceeds supported numbering range".to_owned(),
-            }
-        })?;
-        let sub_task = parse_sub_task_item(item, parent, expected_ordinal, context)?;
-        task_children.push_sub_task(sub_task);
-    }
-    Ok(())
+/// Report whether any list item starts with a numbered prefix at `level`.
+fn list_contains_numbered_item(list: &List, level: RoadmapItemLevel) -> bool {
+    list.children
+        .iter()
+        .any(|node| matches!(node, Node::ListItem(item) if looks_like_numbered_item(item, level)))
 }
 
 /// Parse and validate one structural sub-task list item.
@@ -366,6 +344,11 @@ fn looks_like_numbered_list(list: &List, level: RoadmapItemLevel) -> bool {
     let Some(Node::ListItem(item)) = list.children.first() else {
         return false;
     };
+    looks_like_numbered_item(item, level)
+}
+
+/// Match one list item's first paragraph prefix against a roadmap level.
+fn looks_like_numbered_item(item: &ListItem, level: RoadmapItemLevel) -> bool {
     let Some(Node::Paragraph(paragraph)) = item.children.first() else {
         return false;
     };
