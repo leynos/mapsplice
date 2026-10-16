@@ -1,7 +1,8 @@
 .PHONY: help all clean test build release lint lint-clippy lint-whitaker fmt check-fmt markdownfmt \
 	markdownlint markdownlint-paths nixie typecheck test-workflow-contracts \
 	spelling install-build-tools check-build-tools check-ripgrep \
-	check-verification-ledger check-domain-purity check-prover-tools \
+	check-markdown-tools check-verification-ledger check-domain-purity \
+	check-prover-tools \
 	verus-install verus verus-selftest
 
 # A composite gate must not overlap its Cargo invocations under `make -j`.
@@ -62,6 +63,9 @@ CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep 
 JQ ?= jq
 DOC_TEST_TARGETS ?= $(shell if command -v $(JQ) >/dev/null 2>&1; then $(CARGO) metadata --no-deps --format-version 1 2>/dev/null | $(JQ) -r 'any(.packages[].targets[]; (.kind | index("lib")) or (.kind | index("proc-macro")))' 2>/dev/null; else echo jq-missing; fi)
 MDLINT ?= markdownlint-cli2
+MARKDOWN_TEST_TOOLS ?= mdtablefix markdownlint-cli2
+MDTABLEFIX_REQUIRED_VERSION ?=
+MARKDOWNLINT_CLI2_REQUIRED_VERSION ?=
 # Git selection includes tracked and unignored untracked Markdown, including
 # documents before they are staged. Fixture data with intentionally unusual
 # Markdown is stored as .txt so it is not mistaken for maintainable prose.
@@ -181,6 +185,12 @@ check-ripgrep: ## Verify ripgrep is available
 		echo "ripgrep (rg) is required for the verification-ledger and domain-purity checks" >&2; \
 		exit 1; \
 	}
+
+check-markdown-tools: ## Verify formatters used by the golden round-trip tests
+	@MARKDOWN_TEST_TOOLS='$(MARKDOWN_TEST_TOOLS)' \
+		MDTABLEFIX_REQUIRED_VERSION='$(MDTABLEFIX_REQUIRED_VERSION)' \
+		MARKDOWNLINT_CLI2_REQUIRED_VERSION='$(MARKDOWNLINT_CLI2_REQUIRED_VERSION)' \
+		bash scripts/check-markdown-tools.sh
 
 check-verification-ledger: check-ripgrep ## Verify verification-ledger symbols exist
 	@RG='$(RG)' scripts/check-verification-ledger.sh .
