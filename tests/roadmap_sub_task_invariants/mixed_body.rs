@@ -225,6 +225,52 @@ fn delete_sub_task_joins_body_runs_left_on_either_side(
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
+fn delete_sub_task_preserves_paragraph_separator_before_tight_body_list(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Parent task.\n\n",
+            "  Paragraph body.\n\n",
+            "  - [ ] 1.1.1.1. Addendum to remove.\n",
+            "  - Ordinary body list item.\n",
+            "  - [ ] 1.1.1.2. Later addendum.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "delete",
+        test_workspace.target.as_str(),
+        "1.1.1.1",
+    ])
+    .expect("sub-task deletion should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+    let expected = concat!(
+        "# Example\n\n",
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  Paragraph body.\n\n",
+        "  - Ordinary body list item.\n",
+        "  - [ ] 1.1.1.1. Later addendum.\n",
+    );
+
+    if stdout != expected {
+        return Err(format!(
+            "unexpected rendered roadmap\nexpected:\n{expected}\nactual:\n{stdout}"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[rstest]
 #[case::body_before(
     concat!(
         "  - A non-structural body bullet.\n",

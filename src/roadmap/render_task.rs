@@ -123,7 +123,6 @@ fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Re
     let follows_sub_task =
         previous_child.is_some_and(|child| matches!(child, TaskChild::SubTask(_)));
     let precedes_sub_task = matches!(next_child, Some(TaskChild::SubTask(_)));
-    let touches_sub_task = follows_sub_task || precedes_sub_task;
     let follows_compatible_body = previous_child.is_some_and(|child| {
         matches!(
             child,
@@ -136,7 +135,9 @@ fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Re
         Some(TaskChild::Body(next_body))
             if body_runs_share_tight_list_boundary(body, next_body)
     );
-    let joins_neighbouring_child = touches_sub_task || follows_compatible_body;
+    let joins_neighbouring_child = follows_sub_task
+        || follows_compatible_body
+        || (previous_child.is_none() && precedes_sub_task);
     let joins_next_child = precedes_sub_task || precedes_compatible_body;
     trim_leading_tight_list_separator(
         &mut body_blocks,
