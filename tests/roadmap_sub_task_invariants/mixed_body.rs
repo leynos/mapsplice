@@ -181,6 +181,50 @@ fn delete_sub_task_from_mixed_nested_body_preserves_order_and_rewrites_dependenc
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
+fn delete_sub_task_joins_body_runs_left_on_either_side(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Parent task.\n",
+            "  - Body item before the addendum.\n",
+            "  - [ ] 1.1.1.1. Addendum to remove.\n",
+            "  - Body item after the addendum.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "delete",
+        test_workspace.target.as_str(),
+        "1.1.1.1",
+    ])
+    .expect("sub-task deletion should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+    let expected = concat!(
+        "# Example\n\n",
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n\n",
+        "  - Body item before the addendum.\n",
+        "  - Body item after the addendum.\n",
+    );
+
+    if stdout != expected {
+        return Err(format!(
+            "unexpected rendered roadmap\nexpected:\n{expected}\nactual:\n{stdout}"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[rstest]
 #[case::body_before(
     concat!(
         "  - A non-structural body bullet.\n",

@@ -141,8 +141,15 @@ fn mixed_nested_list_classification_survives_canonical_renumbering(
     #[case] expected_rendered_order: &[&str],
 ) {
     let roadmap = parse_roadmap_text(&format!(
-        "# Example\n\n## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. First task.\n- [ ] \
-         1.1.2. Parent.\n{nested_items}"
+        concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n",
+            "- [ ] 1.1.2. Parent.\n",
+            "{}"
+        ),
+        nested_items
     ))
     .expect("mixed nested task list should parse");
     let task = roadmap
