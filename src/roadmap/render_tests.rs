@@ -1,7 +1,10 @@
 //! Unit tests for roadmap render fidelity.
 
 #[path = "render_task_tests.rs"]
-mod task_tests;
+mod render_task_tests;
+
+#[path = "render_task_boundary_tests.rs"]
+mod task_boundary_tests;
 
 use std::process::Command;
 

@@ -289,7 +289,13 @@ inspection.
   preserved item is emitted verbatim, with trailing newlines trimmed and the
   required separator restored when it is joined to canonical output. Ordered or
   nested list markers and code-fence delimiters that are formatter-unstable
-  force canonical rendering instead.
+  force canonical rendering instead. Canonical rendering gives every
+  paragraph-first body run a blank-line boundary, including runs after an
+  addendum sub-task. When removing a structural child joins same-kind body-list
+  runs, it inserts an invisible HTML comment between them unless both tight
+  bullet runs are intentionally joined. This keeps `CommonMark` from merging
+  distinct ordered lists or changing loose-list state. The marker reuses an
+  existing separator where possible to avoid extra blank lines.
 - **Preservation observability.** `MetricsSnapshot` exposes aggregate counts
   for preserved-source renders, preserved-source invalidations, and canonical
   fallbacks, together with reason counters for `renumber`, `dependency_rewrite`,

@@ -1,6 +1,6 @@
 //! Task and sub-task rendering with source-preservation fallbacks.
 
-use markdown::mdast::Node;
+use markdown::mdast::{List, Node};
 
 use super::{
     checkbox_marker,
@@ -19,6 +19,9 @@ use crate::{
         preservation_events::PreservationReport,
     },
 };
+
+/// Preserve distinct body lists after a structural child is removed.
+const BODY_LIST_BOUNDARY_MARKER: &str = "  <!-- mapsplice: preserve body list boundary -->";
 
 /// Render a task from preserved source when stable, otherwise canonically.
 ///
@@ -95,14 +98,7 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
     )];
     for (index, child) in task.children().iter().enumerate() {
         match child {
-            TaskChild::Body(body) => {
-                let body_blocks = render_body_child(task, index, body)?;
-                if needs_summary_body_separator(index, body, &body_blocks) {
-                    // Keep a separate body paragraph outside the task summary.
-                    parts.push(String::new());
-                }
-                parts.extend(body_blocks);
-            }
+            TaskChild::Body(body) => push_body_child(&mut parts, task, index, body)?,
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2, report)?);
@@ -112,26 +108,58 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
     Ok(parts.join("\n"))
 }
 
+/// Append one rendered body run with its list marker or paragraph separator.
+fn push_body_child(
+    parts: &mut Vec<String>,
+    task: &TaskEntry,
+    index: usize,
+    body: &MarkdownNodes,
+) -> Result<()> {
+    let body_blocks = render_body_child(task, index, body)?;
+    if needs_body_list_boundary_marker(task, index, body) {
+        push_body_list_boundary_marker(parts, &body_blocks);
+    }
+    if needs_paragraph_body_separator(body, &body_blocks) {
+        // Keep this body paragraph outside the preceding child summary.
+        parts.push(String::new());
+    }
+    parts.extend(body_blocks);
+    Ok(())
+}
+
+/// Emit the marker that stops `CommonMark` merging adjacent same-kind lists.
+fn push_body_list_boundary_marker(parts: &mut Vec<String>, body_blocks: &[String]) {
+    if !parts.last().is_some_and(String::is_empty) {
+        parts.push(String::new());
+    }
+    parts.push(BODY_LIST_BOUNDARY_MARKER.to_owned());
+    if !body_blocks.first().is_some_and(String::is_empty) {
+        parts.push(String::new());
+    }
+}
+
+/// Keep adjacent same-kind body lists distinct when a child is removed.
+fn needs_body_list_boundary_marker(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> bool {
+    index
+        .checked_sub(1)
+        .and_then(|previous_index| task.children().get(previous_index))
+        .and_then(|previous_child| match previous_child {
+            TaskChild::Body(previous_body) => Some((previous_body, body)),
+            TaskChild::SubTask(_) => None,
+        })
+        .is_some_and(|(previous_body, right_body)| {
+            body_runs_need_list_boundary_marker(previous_body, right_body)
+        })
+}
+
 /// Return whether a body run begins with a separate paragraph block.
 fn body_starts_with_paragraph(body: &MarkdownNodes) -> bool {
     matches!(body.nodes().first(), Some(Node::Paragraph(_)))
 }
 
-/// Return whether canonical rendering needs to separate the task summary
-/// from its first body paragraph.
-fn needs_summary_body_separator(
-    index: usize,
-    body: &MarkdownNodes,
-    body_blocks: &[String],
-) -> bool {
-    matches!(
-        (
-            index,
-            body_starts_with_paragraph(body),
-            body_blocks.first().is_some_and(String::is_empty),
-        ),
-        (0, true, false)
-    )
+/// Return whether a paragraph-first body run needs a separate boundary.
+fn needs_paragraph_body_separator(body: &MarkdownNodes, body_blocks: &[String]) -> bool {
+    body_starts_with_paragraph(body) && !body_blocks.first().is_some_and(String::is_empty)
 }
 
 /// Render one body run and trim separators at compatible tight-list boundaries.
@@ -143,7 +171,7 @@ fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Re
     let next_child = task.children().get(index + 1);
     trim_leading_tight_list_separator(
         &mut body_blocks,
-        is_tight_list(body.nodes().first()),
+        is_tight_interrupting_list(body.nodes().first()),
         joins_previous_child(previous_child, next_child, body),
     );
     trim_trailing_tight_list_separator(
@@ -159,6 +187,19 @@ const fn is_tight_list(node: Option<&Node>) -> bool {
     matches!(node, Some(Node::List(list)) if !list.spread)
 }
 
+/// Return whether a tight list can interrupt the preceding paragraph.
+fn is_tight_interrupting_list(node: Option<&Node>) -> bool {
+    matches!(node, Some(Node::List(list)) if is_tight_and_interrupting(list))
+}
+
+/// Return whether a list is tight and can interrupt its preceding paragraph.
+fn is_tight_and_interrupting(list: &List) -> bool {
+    !list.spread && list_can_interrupt_paragraph(list)
+}
+
+/// Return whether `CommonMark` allows a list to interrupt its preceding paragraph.
+fn list_can_interrupt_paragraph(list: &List) -> bool { !list.ordered || list.start == Some(1) }
+
 /// Return whether a body run joins the child before it without a blank.
 fn joins_previous_child(
     previous_child: Option<&TaskChild>,
@@ -168,7 +209,7 @@ fn joins_previous_child(
     match previous_child {
         Some(TaskChild::SubTask(_)) => true,
         Some(TaskChild::Body(previous_body)) => {
-            body_runs_share_tight_list_boundary(previous_body, body)
+            body_runs_have_managed_list_boundary(previous_body, body)
         }
         None => matches!(next_child, Some(TaskChild::SubTask(_))),
     }
@@ -178,22 +219,36 @@ fn joins_previous_child(
 fn joins_next_child(body: &MarkdownNodes, next_child: Option<&TaskChild>) -> bool {
     match next_child {
         Some(TaskChild::SubTask(_)) => true,
-        Some(TaskChild::Body(next_body)) => body_runs_share_tight_list_boundary(body, next_body),
+        Some(TaskChild::Body(next_body)) => body_runs_have_managed_list_boundary(body, next_body),
         None => false,
     }
 }
 
-/// Return whether adjacent body runs can form one tight Markdown list.
-fn body_runs_share_tight_list_boundary(left: &MarkdownNodes, right: &MarkdownNodes) -> bool {
+/// Return whether adjacent tight bullet-list runs intentionally join.
+fn body_runs_share_tight_bullet_list_boundary(left: &MarkdownNodes, right: &MarkdownNodes) -> bool {
     let (Some(Node::List(left_list)), Some(Node::List(right_list))) =
         (left.nodes().last(), right.nodes().first())
     else {
         return false;
     };
-    !left_list.spread
-        && !right_list.spread
-        && left_list.ordered == right_list.ordered
-        && left_list.start == right_list.start
+    !left_list.spread && !right_list.spread && !left_list.ordered && !right_list.ordered
+}
+
+/// Return whether same-kind lists merge unless a structural boundary separates them.
+fn body_runs_need_list_boundary_marker(left: &MarkdownNodes, right: &MarkdownNodes) -> bool {
+    let (Some(Node::List(left_list)), Some(Node::List(right_list))) =
+        (left.nodes().last(), right.nodes().first())
+    else {
+        return false;
+    };
+    left_list.ordered == right_list.ordered
+        && !body_runs_share_tight_bullet_list_boundary(left, right)
+}
+
+/// Return whether adjacent body lists need a separator or intentionally join.
+fn body_runs_have_managed_list_boundary(left: &MarkdownNodes, right: &MarkdownNodes) -> bool {
+    body_runs_share_tight_bullet_list_boundary(left, right)
+        || body_runs_need_list_boundary_marker(left, right)
 }
 
 /// Remove the generated leading blank when a body list joins a task child.
