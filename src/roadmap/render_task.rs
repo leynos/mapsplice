@@ -136,12 +136,12 @@ fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Re
         Some(TaskChild::Body(next_body))
             if body_runs_share_tight_list_boundary(body, next_body)
     );
-    let joins_neighboring_child = touches_sub_task || follows_compatible_body;
+    let joins_neighbouring_child = touches_sub_task || follows_compatible_body;
     let joins_next_child = precedes_sub_task || precedes_compatible_body;
     trim_leading_tight_list_separator(
         &mut body_blocks,
         begins_with_tight_list,
-        joins_neighboring_child,
+        joins_neighbouring_child,
     );
     trim_trailing_tight_list_separator(&mut body_blocks, ends_with_tight_list, joins_next_child);
     Ok(body_blocks)
@@ -164,12 +164,12 @@ fn body_runs_share_tight_list_boundary(left: &MarkdownNodes, right: &MarkdownNod
 fn trim_leading_tight_list_separator(
     body_blocks: &mut Vec<String>,
     begins_with_tight_list: bool,
-    joins_neighboring_child: bool,
+    joins_neighbouring_child: bool,
 ) {
     if should_trim_leading_tight_list_separator(
         body_blocks,
         begins_with_tight_list,
-        joins_neighboring_child,
+        joins_neighbouring_child,
     ) {
         body_blocks.remove(0);
     }
@@ -179,9 +179,9 @@ fn trim_leading_tight_list_separator(
 fn should_trim_leading_tight_list_separator(
     body_blocks: &[String],
     begins_with_tight_list: bool,
-    joins_neighboring_child: bool,
+    joins_neighbouring_child: bool,
 ) -> bool {
-    let list_joins_child = begins_with_tight_list && joins_neighboring_child;
+    let list_joins_child = begins_with_tight_list && joins_neighbouring_child;
     let has_leading_separator = body_blocks.first().is_some_and(String::is_empty);
     list_joins_child && has_leading_separator
 }
