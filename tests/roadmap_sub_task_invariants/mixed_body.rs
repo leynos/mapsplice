@@ -255,7 +255,7 @@ fn delete_sub_task_preserves_paragraph_separator_before_tight_body_list(
         "# Example\n\n",
         "## 1. Phase one\n\n",
         "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Parent task.\n",
+        "- [ ] 1.1.1. Parent task.\n\n",
         "  Paragraph body.\n\n",
         "  - Ordinary body list item.\n",
         "  - [ ] 1.1.1.1. Later addendum.\n",

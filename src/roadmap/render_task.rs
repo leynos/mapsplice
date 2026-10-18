@@ -95,7 +95,14 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
     )];
     for (index, child) in task.children().iter().enumerate() {
         match child {
-            TaskChild::Body(body) => parts.extend(render_body_child(task, index, body)?),
+            TaskChild::Body(body) => {
+                let body_blocks = render_body_child(task, index, body)?;
+                if needs_summary_body_separator(index, body, &body_blocks) {
+                    // Keep a separate body paragraph outside the task summary.
+                    parts.push(String::new());
+                }
+                parts.extend(body_blocks);
+            }
             TaskChild::SubTask(identity) => {
                 let sub_task = find_sub_task_for_child(task, *identity)?;
                 parts.push(render_sub_task(sub_task, 2, report)?);
@@ -105,47 +112,75 @@ fn render_task_canonical(task: &TaskEntry, report: &mut PreservationReport) -> R
     Ok(parts.join("\n"))
 }
 
+/// Return whether a body run begins with a separate paragraph block.
+fn body_starts_with_paragraph(body: &MarkdownNodes) -> bool {
+    matches!(body.nodes().first(), Some(Node::Paragraph(_)))
+}
+
+/// Return whether canonical rendering needs to separate the task summary
+/// from its first body paragraph.
+fn needs_summary_body_separator(
+    index: usize,
+    body: &MarkdownNodes,
+    body_blocks: &[String],
+) -> bool {
+    matches!(
+        (
+            index,
+            body_starts_with_paragraph(body),
+            body_blocks.first().is_some_and(String::is_empty),
+        ),
+        (0, true, false)
+    )
+}
+
 /// Render one body run and trim separators at compatible tight-list boundaries.
 fn render_body_child(task: &TaskEntry, index: usize, body: &MarkdownNodes) -> Result<Vec<String>> {
     let mut body_blocks = render_nested_body(body, 2)?;
-    let begins_with_tight_list = body
-        .nodes()
-        .first()
-        .is_some_and(|node| matches!(node, Node::List(list) if !list.spread));
-    let ends_with_tight_list = body
-        .nodes()
-        .last()
-        .is_some_and(|node| matches!(node, Node::List(list) if !list.spread));
     let previous_child = index
         .checked_sub(1)
         .and_then(|previous_index| task.children().get(previous_index));
     let next_child = task.children().get(index + 1);
-    let follows_sub_task =
-        previous_child.is_some_and(|child| matches!(child, TaskChild::SubTask(_)));
-    let precedes_sub_task = matches!(next_child, Some(TaskChild::SubTask(_)));
-    let follows_compatible_body = previous_child.is_some_and(|child| {
-        matches!(
-            child,
-            TaskChild::Body(previous_body)
-                if body_runs_share_tight_list_boundary(previous_body, body)
-        )
-    });
-    let precedes_compatible_body = matches!(
-        next_child,
-        Some(TaskChild::Body(next_body))
-            if body_runs_share_tight_list_boundary(body, next_body)
-    );
-    let joins_neighbouring_child = follows_sub_task
-        || follows_compatible_body
-        || (previous_child.is_none() && precedes_sub_task);
-    let joins_next_child = precedes_sub_task || precedes_compatible_body;
     trim_leading_tight_list_separator(
         &mut body_blocks,
-        begins_with_tight_list,
-        joins_neighbouring_child,
+        is_tight_list(body.nodes().first()),
+        joins_previous_child(previous_child, next_child, body),
     );
-    trim_trailing_tight_list_separator(&mut body_blocks, ends_with_tight_list, joins_next_child);
+    trim_trailing_tight_list_separator(
+        &mut body_blocks,
+        is_tight_list(body.nodes().last()),
+        joins_next_child(body, next_child),
+    );
     Ok(body_blocks)
+}
+
+/// Return whether a Markdown node is a tight list.
+const fn is_tight_list(node: Option<&Node>) -> bool {
+    matches!(node, Some(Node::List(list)) if !list.spread)
+}
+
+/// Return whether a body run joins the child before it without a blank.
+fn joins_previous_child(
+    previous_child: Option<&TaskChild>,
+    next_child: Option<&TaskChild>,
+    body: &MarkdownNodes,
+) -> bool {
+    match previous_child {
+        Some(TaskChild::SubTask(_)) => true,
+        Some(TaskChild::Body(previous_body)) => {
+            body_runs_share_tight_list_boundary(previous_body, body)
+        }
+        None => matches!(next_child, Some(TaskChild::SubTask(_))),
+    }
+}
+
+/// Return whether a body run joins the child after it without a blank.
+fn joins_next_child(body: &MarkdownNodes, next_child: Option<&TaskChild>) -> bool {
+    match next_child {
+        Some(TaskChild::SubTask(_)) => true,
+        Some(TaskChild::Body(next_body)) => body_runs_share_tight_list_boundary(body, next_body),
+        None => false,
+    }
 }
 
 /// Return whether adjacent body runs can form one tight Markdown list.
