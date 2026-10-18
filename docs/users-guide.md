@@ -36,7 +36,9 @@ Optional document preamble content may appear before the first numbered phase.
 Tasks may also contain extra paragraphs or nested bullet lists beneath the
 first numbered paragraph. Ordinary nested bullets remain task body Markdown;
 numbered nested checklist items that use the fourth-level form are addendum
-sub-tasks owned by their parent task.
+sub-tasks owned by their parent task. A nested list is invalid if any item
+begins with a task-level number, even when other items are ordinary bullets or
+fourth-level addenda.
 
 Anchors on the command line map directly to those levels:
 
