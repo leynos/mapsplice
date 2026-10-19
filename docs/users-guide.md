@@ -208,6 +208,11 @@ the same or deeper levels are renumbered as needed.
 Task-level deletes preserve unchanged surviving task source byte-for-byte,
 including continuation-line indentation.
 
+Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
+when a deleted addendum leaves same-kind body lists that must remain distinct.
+The marker remains stable while its task remains in the roadmap. Adjacent tight
+bullet-list runs merge into one list when the separating addendum is removed.
+
 ### `replace`
 
 ```bash
@@ -220,6 +225,11 @@ provided the fragment itself contains phases.
 
 Task-level replacements preserve unchanged sibling task source byte-for-byte,
 including continuation-line indentation.
+
+Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
+when replacement output must keep same-kind body lists distinct. The marker
+remains stable while its task remains in the roadmap. Adjacent tight
+bullet-list runs merge into one list when the separating addendum is removed.
 
 Inserted or replaced tasks, and tasks whose number or dependency reference
 changes, or whose sub-task content is edited, are rendered canonically.

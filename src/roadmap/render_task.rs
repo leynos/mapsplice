@@ -115,11 +115,16 @@ fn push_body_child(
     index: usize,
     body: &MarkdownNodes,
 ) -> Result<()> {
-    let body_blocks = render_body_child(task, index, body)?;
+    let mut body_blocks = render_body_child(task, index, body)?;
     if needs_body_list_boundary_marker(task, index, body) {
         push_body_list_boundary_marker(parts, &body_blocks);
     }
-    if needs_paragraph_body_separator(body, &body_blocks) {
+    let has_trailing_separator = parts.last().is_some_and(String::is_empty);
+    if has_trailing_separator && body_blocks.first().is_some_and(String::is_empty) {
+        // Adjacent body runs share this boundary after a removed sub-task.
+        body_blocks.remove(0);
+    }
+    if !has_trailing_separator && needs_paragraph_body_separator(body, &body_blocks) {
         // Keep this body paragraph outside the preceding child summary.
         parts.push(String::new());
     }

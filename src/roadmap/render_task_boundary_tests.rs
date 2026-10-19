@@ -12,6 +12,52 @@ use crate::roadmap::{
     parse_roadmap,
 };
 
+#[rstest]
+#[case::paragraph("\n  Paragraph body.\n", "  Paragraph body.\n")]
+#[case::ordered_list("\n  1. Ordered body item.\n", "  1. Ordered body item.\n")]
+fn deleting_sub_task_keeps_single_separator_between_body_runs(
+    #[case] following_body: &str,
+    #[case] expected_following_body: &str,
+) {
+    let source = format!(
+        concat!(
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Parent task.\n",
+            "  - Body item.\n",
+            "  - [ ] 1.1.1.1. Addendum to remove.\n",
+            "{}",
+        ),
+        following_body
+    );
+    let mut roadmap = parse_roadmap(&source).expect("roadmap should parse");
+    let anchor = parse_anchor("1.1.1.1").expect("sub-task anchor should parse");
+
+    apply_command(&mut roadmap, RoadmapOperation::Delete { anchor }, None)
+        .expect("sub-task deletion should succeed");
+
+    let expected = format!(
+        concat!(
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. Parent task.\n\n",
+            "  - Body item.\n\n",
+            "{}",
+        ),
+        expected_following_body
+    );
+    let rendered = render_roadmap(&roadmap).expect("roadmap should render");
+
+    assert_eq!(rendered, expected);
+
+    let reparsed = parse_roadmap(&rendered).expect("rendered roadmap should reparse");
+    assert_eq!(
+        render_roadmap(&reparsed).expect("reparsed roadmap should render"),
+        expected,
+        "the body-run boundary should survive a parse-render round trip"
+    );
+}
+
 #[test]
 fn deleting_later_sub_task_separates_parent_paragraph_after_sub_task() {
     let source = concat!(

@@ -15,6 +15,9 @@ use super::{
 use crate::error::{MapspliceError, Result};
 
 #[cfg(test)]
+#[path = "mixed_list_property_tests.rs"]
+mod mixed_list_property_tests;
+#[cfg(test)]
 #[path = "model_property_tests.rs"]
 mod property_tests;
 #[path = "model_task_entry.rs"]

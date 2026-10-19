@@ -10,6 +10,21 @@ use mapsplice::{
 };
 use rstest::rstest;
 
+const NESTED_TASK_AFTER_BODY_ITEM: &str = concat!(
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "- [ ] 1.1.1. Parent task.\n",
+    "  - Ordinary body item.\n",
+    "  - [ ] 1.1.2. Nested roadmap task.\n",
+);
+const NESTED_TASK_AFTER_ADDENDUM: &str = concat!(
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "- [ ] 1.1.1. Parent task.\n",
+    "  - [ ] 1.1.1.1. Existing addendum.\n",
+    "  - [ ] 1.1.2. Nested roadmap task.\n",
+);
+
 const fn invalid_roadmap_message(error: &MapspliceError) -> Option<&str> {
     match error {
         MapspliceError::InvalidRoadmap { message } => Some(message.as_str()),
@@ -133,6 +148,19 @@ fn parse_nested_sub_task_checklist_head_diagnostics(#[case] roadmap: &str, #[cas
     let error = parse_roadmap_text(roadmap).expect_err("malformed sub-task item should fail");
 
     assert_invalid_roadmap_error(&error, expected);
+}
+
+#[rstest]
+#[case::ordinary_body_before_task_level_item(NESTED_TASK_AFTER_BODY_ITEM)]
+#[case::addendum_before_task_level_item(NESTED_TASK_AFTER_ADDENDUM)]
+fn parse_nested_task_lists_reject_task_level_items_after_other_items(#[case] roadmap: &str) {
+    let error =
+        parse_roadmap_text(roadmap).expect_err("nested task-level roadmap items must be rejected");
+
+    assert_invalid_roadmap_error(
+        &error,
+        "nested roadmap task lists must use sub-task numbers",
+    );
 }
 
 #[rstest]
