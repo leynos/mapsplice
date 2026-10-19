@@ -127,6 +127,17 @@ fn c4_addendum_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn c4_addendum_body_bullet_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+    let case = golden_success_case(
+        "c4_addendum_body_bullet_renumber",
+        GoldenCommand::InsertBefore { anchor: "1.1.2" },
+        true,
+    );
+    assert_golden_case(&workspace?, case)
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn c4_addendum_render_fidelity(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

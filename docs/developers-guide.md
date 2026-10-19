@@ -47,6 +47,16 @@ boundary, and roadmap domain modules:
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
+- `src/roadmap/parse/nested_task_list.rs` recognizes addendum sub-tasks per
+  nested-list item and preserves consecutive ordinary items as
+  `TaskChild::Body` runs in child order. Canonical rendering keeps tight list
+  boundaries intact when those runs are adjacent to sub-tasks. See the
+  [roadmap grammar][grammar],
+  [C4](mapsplice-design.md#6-functional-and-contract-guarantees), and
+  mixed-list regressions in
+  [`tests/roadmap_sub_tasks.rs`](../tests/roadmap_sub_tasks.rs) and
+  [`mixed_body.rs`](../tests/roadmap_sub_task_invariants/mixed_body.rs).
+
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.
@@ -55,6 +65,8 @@ boundary, and roadmap domain modules:
   and sub-task numbers through their domain constructors.
 - `src/fs.rs` is the capability-oriented filesystem adapter. Filesystem
   failures must surface as `MapspliceError::Io`, not roadmap validation errors.
+
+[grammar]: mapsplice-design.md#4-the-roadmap-grammar-normative-reference
 
 The roadmap model stores Markdown content in `MarkdownNodes`, a value object
 that keeps parser nodes behind the parse/render boundary. New roadmap fields

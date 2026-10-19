@@ -115,11 +115,13 @@ summary, a roadmap has an optional preamble followed by three structural levels:
 - **Tasks** — list items whose first inline text begins with a task number
   (`- [ ] 8.2.3.`).
 
-A task may carry continuation paragraphs and nested bullet lists. A nested list
-item whose number extends its parent task by one level (`- [ ] 8.2.3.1.`) is an
-**addendum sub-task** — a fourth structural level. Anchors on the command line
-address these levels directly: `8` a phase, `8.2` a step, `8.2.3` a task,
-`8.2.3.1` an addendum sub-task.
+A task may carry continuation paragraphs and nested bullet lists. Addendum
+sub-tasks are recognized per nested-list item: an item whose number extends its
+parent task by one level (`- [ ] 8.2.3.1.`) is an **addendum sub-task** — a
+fourth structural level. Ordinary bullets may share that list and remain
+non-structural body content. Anchors on the command line address these levels
+directly: `8` a phase, `8.2` a step, `8.2.3` a task, `8.2.3.1` an addendum
+sub-task.
 
 ## 5. Fidelity guarantees
 
@@ -287,7 +289,13 @@ inspection.
   preserved item is emitted verbatim, with trailing newlines trimmed and the
   required separator restored when it is joined to canonical output. Ordered or
   nested list markers and code-fence delimiters that are formatter-unstable
-  force canonical rendering instead.
+  force canonical rendering instead. Canonical rendering gives every
+  paragraph-first body run a blank-line boundary, including runs after an
+  addendum sub-task. When removing a structural child joins same-kind body-list
+  runs, it inserts an invisible HTML comment between them unless both tight
+  bullet runs are intentionally joined. This keeps `CommonMark` from merging
+  distinct ordered lists or changing loose-list state. The marker reuses an
+  existing separator where possible to avoid extra blank lines.
 - **Preservation observability.** `MetricsSnapshot` exposes aggregate counts
   for preserved-source renders, preserved-source invalidations, and canonical
   fallbacks, together with reason counters for `renumber`, `dependency_rewrite`,

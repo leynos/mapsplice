@@ -36,7 +36,9 @@ Optional document preamble content may appear before the first numbered phase.
 Tasks may also contain extra paragraphs or nested bullet lists beneath the
 first numbered paragraph. Ordinary nested bullets remain task body Markdown;
 numbered nested checklist items that use the fourth-level form are addendum
-sub-tasks owned by their parent task.
+sub-tasks owned by their parent task. A nested list is invalid if any item
+begins with a task-level number, even when other items are ordinary bullets or
+fourth-level addenda.
 
 Anchors on the command line map directly to those levels:
 
@@ -206,6 +208,11 @@ the same or deeper levels are renumbered as needed.
 Task-level deletes preserve unchanged surviving task source byte-for-byte,
 including continuation-line indentation.
 
+Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
+when a deleted addendum leaves same-kind body lists that must remain distinct.
+The marker remains stable while its task remains in the roadmap. Adjacent tight
+bullet-list runs merge into one list when the separating addendum is removed.
+
 ### `replace`
 
 ```bash
@@ -218,6 +225,11 @@ provided the fragment itself contains phases.
 
 Task-level replacements preserve unchanged sibling task source byte-for-byte,
 including continuation-line indentation.
+
+Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
+when replacement output must keep same-kind body lists distinct. The marker
+remains stable while its task remains in the roadmap. Adjacent tight
+bullet-list runs merge into one list when the separating addendum is removed.
 
 Inserted or replaced tasks, and tasks whose number or dependency reference
 changes, or whose sub-task content is edited, are rendered canonically.
