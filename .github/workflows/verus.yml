@@ -33,7 +33,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@82feb2b7aac45b7efff40c9c4bb632551b14521c
+        uses: leynos/shared-actions/.github/actions/setup-rust@126d02e32a07c2b049e8b68fff09298526e5971a
       # `rust-prover-tools` installs Verus into `.verus/<version>`, which
       # `make verus-install` reuses rather than re-downloading. The key is
       # pinned to the version so a bumped verifier cannot be served a cached
