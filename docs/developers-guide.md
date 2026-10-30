@@ -470,6 +470,17 @@ conformant fixture. It has a separate, bounded nine-minute allowance for slower
 shared-host execution. All fixtures and fidelity assertions remain enabled;
 other ordinary tests retain the three-minute limit.
 
+Mutation runs install the SHA-256-verified `cargo-nextest` 0.9.148 binary. The
+`.cargo/mutants.toml` setting selects Nextest for the cargo-mutants baseline
+and mutant tests, matching Make's configured test route. They also install
+`ripgrep` alongside `clang`, matching CI, because the domain-purity baseline
+tests invoke `rg`; `make check-ripgrep` checks that prerequisite before the
+baseline. The workflow provisions `mdtablefix` and `markdownlint-cli2` at the
+versions pinned in `.github/workflows/ci.yml`. The named
+`make check-markdown-tools` preflight verifies both formatter executables and
+their versions before mutation enumeration and the unchanged-source baseline
+begin.
+
 ### Cranelift
 
 Cranelift is currently excluded from development builds; LLVM is the
