@@ -24,7 +24,7 @@ from build_standard_test import ROOT
 WORKFLOWS = ROOT / ".github" / "workflows"
 ACTION = (
     "leynos/shared-actions/.github/actions/install-whitaker"
-    "@2ddf19b3fd52c0f1089db0d57b015f859b80ab67"
+    "@5a99aed78ce68dcebd3052b75c31e6f173162b1e"
 )
 MAKE_CALL = re.compile(r"(?<![\w-])make\s+(?:--[\w-]+\s+)*([a-z][\w-]*)")
 DIRECT_GATE = re.compile(r"(?<![\w-])whitaker\s+--all\b")

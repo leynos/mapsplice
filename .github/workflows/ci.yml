@@ -90,7 +90,7 @@ jobs:
           fi
           markdownlint-cli2 --version
       - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/install-whitaker@5a99aed78ce68dcebd3052b75c31e6f173162b1e # shared-actions 5a99aed7 (whitaker-installer 0.2.11)
       - name: Lint
         run: make lint
       - name: Setup uv
