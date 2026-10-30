@@ -32,7 +32,7 @@ MutationApplier = Callable[[MutationContext], object]
 MUTATIONS: dict[str, MutationApplier] = {
     "remove_action": lambda context: context.steps.pop(context.install_index),
     "wrong_pin": lambda context: context.install.__setitem__(
-        "uses", ACTION.replace("2ddf19b3", "00000000")
+        "uses", ACTION.replace("5a99aed7", "00000000")
     ),
     "suite_pin": lambda context: context.install.setdefault("with", {}).__setitem__(
         "suite-version", "v1"
