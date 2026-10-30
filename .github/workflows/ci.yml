@@ -22,7 +22,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/setup-rust@5a99aed78ce68dcebd3052b75c31e6f173162b1e
         with:
           install-mold: 'true'
           rustflags: ''
@@ -40,7 +40,7 @@ jobs:
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@5a99aed78ce68dcebd3052b75c31e6f173162b1e
         with:
           version: "0.6.1"
       - name: Format
@@ -107,7 +107,7 @@ jobs:
           # The action selects LLVM profiles; this also excludes development
           # frontend and linker flags while retaining its instrumentation.
           RUSTFLAGS: '-D warnings'
-        uses: leynos/shared-actions/.github/actions/generate-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/generate-coverage@5a99aed78ce68dcebd3052b75c31e6f173162b1e
         with:
           output-path: lcov.info
           format: lcov
