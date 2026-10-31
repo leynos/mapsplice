@@ -252,3 +252,24 @@ def test_the_publisher_linter_step_installs_and_exposes_the_binary(
     run = str(_publisher_linter_step().get("run", ""))
     assert needle in run, f"the publisher linter step must use {reason}; observed {run!r}"
     assert "set -euo pipefail" in run, f"the step must fail closed; observed {run!r}"
+
+
+def test_the_publisher_installs_ripgrep_for_the_domain_purity_tests() -> None:
+    """The publisher's suite runs check-domain-purity.sh, which needs rg."""
+    publisher = WORKFLOW.with_name("coverage-main.yml")
+    document = yaml.safe_load(publisher.read_text(encoding="utf-8"))
+    steps = document["jobs"]["coverage-publisher"]["steps"]
+    install = steps[_step_index(steps, "Install clang linker driver")]
+    command = str(install.get("run", ""))
+    packages = command.rsplit("--no-install-recommends", 1)[-1].split()
+    assert "ripgrep" in packages, (
+        f"the publisher must install ripgrep; observed packages {packages!r}"
+    )
+    coverage_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "generate-coverage@" in str(step.get("uses", ""))
+    )
+    assert _step_index(steps, "Install clang linker driver") < coverage_index, (
+        "ripgrep must be installed before the publisher measures coverage"
+    )
