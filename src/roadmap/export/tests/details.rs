@@ -147,11 +147,11 @@ fn numbered_title_ignores_non_anchor_prefixes() {
     assert_eq!(at(&plain_details, 0).number, None);
     assert_eq!(at(&plain_details, 0).title, "Version 1.0 notes.");
 
-    let emphasis = document("  - [ ] *Emphasised detail*.\n");
+    let emphasis = document("  - [ ] *Emphasized detail*.\n");
     let (_, emphasis_details) =
         task_content(&task(&emphasis), &anchors(&emphasis)).expect("emphasis detail should export");
     assert_eq!(at(&emphasis_details, 0).number, None);
-    assert_eq!(at(&emphasis_details, 0).title, "*Emphasised detail*.");
+    assert_eq!(at(&emphasis_details, 0).title, "*Emphasized detail*.");
 }
 
 #[test]
