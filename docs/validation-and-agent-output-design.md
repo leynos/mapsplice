@@ -173,7 +173,7 @@ claimants:
   "severity": "error",
   "message": "duplicate ADR sequence number 6 in docs",
   "path": "docs/adr-006-first.md",
-  "help": "renumber one record and update its cross-references; see the documentation style guide for published RFCs",
+  "help": "renumber one ADR and update its cross-references",
   "related": [{ "path": "docs/adr-006-second.md" }]
 }
 ```
@@ -280,8 +280,8 @@ its declared scope. The rule has two scopes.
   filename-only. The message names the set kind and number, and the help text
   asks the maintainer to renumber one record and update its cross-references.
   Because the directory check does not read document bodies, it cannot know
-  which RFCs are published; the help text therefore points to the escalation
-  rule in `docs/documentation-style-guide.md` for published records.
+  which RFCs are published; an RFC finding's help text therefore also points to
+  the escalation rule in `docs/documentation-style-guide.md`.
 
 ### Documentation-set discovery
 
@@ -295,7 +295,9 @@ roadmap by naming the file.
 - An **ADR set** is the set of regular files directly contained in one
   directory whose names match `adr-<digits>-<slug>.md`.
 - An **RFC set** is the set of regular files directly contained in a directory
-  named `rfcs` whose names match `<digits>-<slug>.md`.
+  named `rfcs` whose names match `<digits>-<slug>.md`. Each `rfcs` directory
+  forms its own set, so a nested `rfcs` directory is independent of
+  `docs/rfcs/` and does not share its numbers.
 
 `<digits>` is one or more ASCII decimal digits, and `<slug>` is the non-empty
 remainder of the name. Only direct children of the directory belong to its set,
@@ -305,13 +307,14 @@ producing false positives.
 
 Discovery stays inside the git repository root that contains the target, as the
 link pass does. It follows a symbolic link only when the link target resolves
-inside that root; when no git root contains the target, the target directory
-itself is the boundary. Enumerate directories through the capability helpers in
-`src/fs.rs` and collect paths with the recursive sorted-walk pattern used by
-`src/roadmap/render_tests.rs`. Sort traversal results before emitting findings,
-so output does not depend on directory enumeration order. An unreadable
-directory aborts discovery with the io exit class rather than reporting a
-partial set as complete.
+inside that root, and records the canonical path of each directory it enters so
+that a directory already visited is skipped. When no git root contains the
+target, the target directory itself is the boundary. Enumerate directories
+through the capability helpers in `src/fs.rs` and collect paths with the
+recursive sorted-walk pattern used by `src/roadmap/render_tests.rs`. Sort
+traversal results before emitting findings, so output does not depend on
+directory enumeration order. An unreadable directory aborts discovery with the
+io exit class rather than reporting a partial set as complete.
 
 A duplicate sequence number is recoverable. Discovery continues through the
 rest of the tree, and findings from other sets and other documents are still
