@@ -179,7 +179,7 @@ fn compare_tasks(
             &task.requires,
         );
         compare_entries(&item, &previous.entries, &task.entries, report);
-        compare_details(&task.number, &previous.details, &task.details, report);
+        compare_details(&item, &previous.details, &task.details, report);
     }
     for task in old {
         if !new.iter().any(|candidate| candidate.number == task.number) {
@@ -189,15 +189,18 @@ fn compare_tasks(
 }
 
 /// Compare numbered details by number and unnumbered details by source ordinal.
+///
+/// `owner` is already formatted, such as `task 1.1.1` or `sub-task 1.1.1.1`, so
+/// recursive calls do not stack another level of prefix onto the label.
 fn compare_details(
-    parent: &str,
+    owner: &str,
     old: &[ExportDetail],
     new: &[ExportDetail],
     report: &mut DriftReport<'_>,
 ) {
     let old_order = detail_order(old);
     let new_order = detail_order(new);
-    report.order(&format!("task {parent} details"), &old_order, &new_order);
+    report.order(&format!("{owner} details"), &old_order, &new_order);
     let old_unnumbered = old
         .iter()
         .filter(|detail| detail.number.is_none())
@@ -217,7 +220,7 @@ fn compare_details(
             },
         );
         let name = detail.number.as_ref().map_or_else(
-            || format!("detail {new_unnumbered_ordinal} of task {parent}"),
+            || format!("detail {new_unnumbered_ordinal} of {owner}"),
             |number| format!("sub-task {number}"),
         );
         let Some(previous) = matched else {
@@ -241,7 +244,7 @@ fn compare_details(
         );
         if removed {
             let name = detail.number.as_ref().map_or_else(
-                || format!("detail {old_unnumbered_ordinal} of task {parent}"),
+                || format!("detail {old_unnumbered_ordinal} of {owner}"),
                 |number| format!("sub-task {number}"),
             );
             report.lines.push(format!("- {name} removed"));
