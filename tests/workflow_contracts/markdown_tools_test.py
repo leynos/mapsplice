@@ -187,3 +187,68 @@ def test_markdown_tool_contract_rejects_mutations(mutation: str) -> None:
 
     with pytest.raises(AssertionError):
         _check_contract(yaml.safe_dump(workflow))
+
+
+def test_the_publisher_installs_the_markdown_tools_before_it_measures_coverage() -> None:
+    """The publisher runs the suite, whose golden tests need both tools.
+
+    The golden and formatter-boundary tests run mdtablefix and markdownlint-cli2
+    as subprocesses, so the main-only publisher installs them as ci.yml does;
+    without them every Coverage (main) run failed before reaching the upload.
+    """
+    publisher = WORKFLOW.with_name("coverage-main.yml")
+    document = yaml.safe_load(publisher.read_text(encoding="utf-8"))
+    job = document["jobs"]["coverage-publisher"]
+    steps = job["steps"]
+    install_index, installer = _action_step(steps, MDTABLEFIX_ACTION)
+    assert installer.get("with") == {"version": "0.6.1"}, (
+        "the publisher must pin mdtablefix 0.6.1; "
+        f"observed with={installer.get('with')!r}"
+    )
+    coverage_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "generate-coverage@" in str(step.get("uses", ""))
+    )
+    assert install_index < coverage_index, (
+        "mdtablefix must be installed before the publisher measures coverage; "
+        f"observed installer index {install_index}, coverage index {coverage_index}"
+    )
+    linter_index = _step_index(steps, "Install the golden-test Markdown linter")
+    assert linter_index < coverage_index, (
+        "the golden-test Markdown linter must be installed before coverage; "
+        f"observed linter index {linter_index}, coverage index {coverage_index}"
+    )
+    ci_version = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"][
+        "build-test"
+    ]["env"]["MARKDOWNLINT_CLI2_VERSION"]
+    assert job["env"]["MARKDOWNLINT_CLI2_VERSION"] == ci_version, (
+        "the publisher must install the same markdownlint-cli2 as ci.yml; "
+        f"observed {job['env']['MARKDOWNLINT_CLI2_VERSION']!r} against {ci_version!r}"
+    )
+
+
+def _publisher_linter_step() -> dict[str, object]:
+    """Return the publisher's golden-test linter install step."""
+    publisher = WORKFLOW.with_name("coverage-main.yml")
+    document = yaml.safe_load(publisher.read_text(encoding="utf-8"))
+    steps = document["jobs"]["coverage-publisher"]["steps"]
+    return steps[_step_index(steps, "Install the golden-test Markdown linter")]
+
+
+@pytest.mark.parametrize(
+    ("needle", "reason"),
+    [
+        ("npm install --global --prefix", "an isolated global npm prefix"),
+        ('"markdownlint-cli2@$MARKDOWNLINT_CLI2_VERSION"', "the pinned version"),
+        ('>> "$GITHUB_PATH"', "an export to GITHUB_PATH"),
+        ("markdownlint-cli2\" --version", "a version check of the installed binary"),
+    ],
+)
+def test_the_publisher_linter_step_installs_and_exposes_the_binary(
+    needle: str, reason: str
+) -> None:
+    """The publisher's linter step must install, expose and check the tool."""
+    run = str(_publisher_linter_step().get("run", ""))
+    assert needle in run, f"the publisher linter step must use {reason}; observed {run!r}"
+    assert "set -euo pipefail" in run, f"the step must fail closed; observed {run!r}"
