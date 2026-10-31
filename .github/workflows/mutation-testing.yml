@@ -65,17 +65,21 @@ jobs:
         nextest_url="$nextest_release/$nextest_archive_name"
         curl --fail --location --retry 3 --silent --show-error \
           --output "$nextest_archive" "$nextest_url"
-        printf '%s  %s\n' "$nextest_sha256" "$nextest_archive" \
-          | sha256sum --check --status
+        # State the failed archive so a checksum mismatch is diagnosable.
+        if ! printf '%s  %s\n' "$nextest_sha256" "$nextest_archive" | sha256sum --check --status; then
+          echo "mutation setup: cargo-nextest archive checksum failed for $nextest_archive" >&2
+          exit 1
+        fi
         nextest_bin="$RUNNER_TEMP/mapsplice-nextest/bin"
         mkdir -p "$nextest_bin"
         tar -xzf "$nextest_archive" -C "$nextest_bin" cargo-nextest
         export PATH="$nextest_bin:$PATH"
         echo "$nextest_bin" >> "$GITHUB_PATH"
-        case "$(cargo nextest --version)" in
+        nextest_actual_version="$(cargo nextest --version)"
+        case "$nextest_actual_version" in
           "cargo-nextest $nextest_version"*) ;;
           *)
-            echo "mutation setup: expected cargo-nextest $nextest_version" >&2
+            echo "mutation setup: expected cargo-nextest $nextest_version, found $nextest_actual_version" >&2
             exit 1
             ;;
         esac

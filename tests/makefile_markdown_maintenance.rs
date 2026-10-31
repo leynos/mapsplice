@@ -31,6 +31,7 @@ fn require(condition: bool, reason: String) -> TestResult {
     }
 }
 
+/// A missing formatter must be named, with a pointer to the CI pins.
 #[test]
 fn check_markdown_tools_names_a_missing_executable() -> TestResult {
     let output = Command::new("make")
@@ -57,6 +58,7 @@ fn check_markdown_tools_names_a_missing_executable() -> TestResult {
     Ok(())
 }
 
+/// An empty tool list must be rejected rather than silently skipped.
 #[test]
 fn check_markdown_tools_rejects_a_whitespace_only_tool_list() -> TestResult {
     let output = Command::new("make")
@@ -78,6 +80,7 @@ fn check_markdown_tools_rejects_a_whitespace_only_tool_list() -> TestResult {
     )
 }
 
+/// Either formatter at the wrong version must fail with a specific diagnostic.
 #[cfg(unix)]
 #[rstest]
 #[case::mdtablefix(
@@ -115,6 +118,7 @@ fn check_markdown_tools_rejects_a_wrong_version(
     Ok(())
 }
 
+/// The preflight must succeed when both formatters match the pins.
 #[cfg(unix)]
 #[test]
 fn check_markdown_tools_accepts_the_required_versions() -> TestResult {

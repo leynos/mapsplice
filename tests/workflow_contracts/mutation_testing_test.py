@@ -369,6 +369,15 @@ def test_setup_commands_install_checksum_verified_nextest_before_baseline() -> N
     assert extraction < version_check < markdown_preflight, (
         "verify the Nextest executable before the baseline setup completes"
     )
+    assert any(
+        "mutation setup: cargo-nextest archive checksum failed" in command
+        for command in commands
+    ), "a checksum mismatch must name the archive it rejected"
+    assert any(
+        "mutation setup: expected cargo-nextest" in command
+        and "$nextest_actual_version" in command
+        for command in commands
+    ), "a version mismatch must report the version actually found"
     assert "cargo install cargo-nextest" not in setup_commands, (
         "mutation setup must use the pinned binary, not build Nextest from source"
     )
