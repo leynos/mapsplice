@@ -218,6 +218,9 @@ Name RFC files using the pattern `0001-short-topic.md`, where `0001` is a
 zero-padded sequence number. Place RFCs in the `docs/rfcs/` directory.
 
 - Number RFCs sequentially in allocation order rather than by date.
+- RFC sequence numbers must be unique within `docs/rfcs/`. Two files claiming
+  the same number are a defect; renumber one record and update its
+  cross-references.
 - Do not renumber existing RFCs after publication. Gaps are acceptable when
   numbers are reserved, drafted on another branch, or intentionally skipped.
 
@@ -357,7 +360,9 @@ providing a historical record for future maintainers.
 
 Name ADR files using the pattern `adr-NNN-short-description.md`, where `NNN` is
 a zero-padded sequence number (e.g. `adr-001-async-fixtures-and-tests.md`).
-Place ADRs in the `docs/` directory.
+Place ADRs in the `docs/` directory. ADR sequence numbers must be unique within
+each directory. Two files claiming the same number are a defect; renumber one
+record and update its cross-references.
 
 ### Required sections
 
