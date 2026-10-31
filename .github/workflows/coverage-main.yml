@@ -18,6 +18,7 @@ jobs:
       contents: read
     env:
       CARGO_TERM_COLOR: always
+      MARKDOWNLINT_CLI2_VERSION: '0.22.1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -36,6 +37,24 @@ jobs:
             && sudo apt-get install --yes --no-install-recommends clang
       - name: Check build tools
         run: make check-build-tools
+      # The suite includes golden and formatter-boundary tests that run
+      # mdtablefix and markdownlint-cli2 as subprocesses, as in ci.yml.
+      - name: Install mdtablefix
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        with:
+          version: '0.6.1'
+      - name: Install the golden-test Markdown linter
+        env:
+          MARKDOWNLINT_CLI2_VERSION: ${{ env.MARKDOWNLINT_CLI2_VERSION }}
+        run: |
+          set -euo pipefail
+
+          npm_root="$HOME/.local/share/mapsplice/markdown-formatters/npm"
+          mkdir -p "$npm_root/bin"
+          echo "$npm_root/bin" >> "$GITHUB_PATH"
+          npm install --global --prefix "$npm_root" \
+            "markdownlint-cli2@$MARKDOWNLINT_CLI2_VERSION"
+          "$npm_root/bin/markdownlint-cli2" --version
       - name: Generate coverage
         env:
           RUSTFLAGS: '-D warnings'

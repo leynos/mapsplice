@@ -187,3 +187,42 @@ def test_markdown_tool_contract_rejects_mutations(mutation: str) -> None:
 
     with pytest.raises(AssertionError):
         _check_contract(yaml.safe_dump(workflow))
+
+
+def test_the_publisher_installs_the_markdown_tools_before_it_measures_coverage() -> None:
+    """The publisher runs the suite, whose golden tests need both tools.
+
+    The golden and formatter-boundary tests run mdtablefix and markdownlint-cli2
+    as subprocesses, so the main-only publisher installs them as ci.yml does;
+    without them every Coverage (main) run failed before reaching the upload.
+    """
+    publisher = WORKFLOW.with_name("coverage-main.yml")
+    document = yaml.safe_load(publisher.read_text(encoding="utf-8"))
+    job = document["jobs"]["coverage-publisher"]
+    steps = job["steps"]
+    install_index, installer = _action_step(steps, MDTABLEFIX_ACTION)
+    assert installer.get("with") == {"version": "0.6.1"}, (
+        "the publisher must pin mdtablefix 0.6.1; "
+        f"observed with={installer.get('with')!r}"
+    )
+    coverage_index = next(
+        index
+        for index, step in enumerate(steps)
+        if "generate-coverage@" in str(step.get("uses", ""))
+    )
+    assert install_index < coverage_index, (
+        "mdtablefix must be installed before the publisher measures coverage; "
+        f"observed installer index {install_index}, coverage index {coverage_index}"
+    )
+    linter_index = _step_index(steps, "Install the golden-test Markdown linter")
+    assert linter_index < coverage_index, (
+        "the golden-test Markdown linter must be installed before coverage; "
+        f"observed linter index {linter_index}, coverage index {coverage_index}"
+    )
+    ci_version = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"][
+        "build-test"
+    ]["env"]["MARKDOWNLINT_CLI2_VERSION"]
+    assert job["env"]["MARKDOWNLINT_CLI2_VERSION"] == ci_version, (
+        "the publisher must install the same markdownlint-cli2 as ci.yml; "
+        f"observed {job['env']['MARKDOWNLINT_CLI2_VERSION']!r} against {ci_version!r}"
+    )
