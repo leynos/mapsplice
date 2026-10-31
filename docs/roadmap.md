@@ -468,8 +468,9 @@ evidence rather than prose-only terminal text.
   - See the uniqueness rule and documentation-set discovery sections of
     docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs` exits `1` with that finding for a
-    fixture containing two `adr-006-*.md` files, and exits `0` for a fixture
-    whose primary and companion roadmaps both contain task `1.1.1`.
+    fixture containing two `adr-006-*.md` files. Validating the primary and
+    companion roadmaps as separate file targets, when both contain task
+    `1.1.1`, exits `0` for each.
 
 ### 6.2. Align every command with agent-native output contracts
 
