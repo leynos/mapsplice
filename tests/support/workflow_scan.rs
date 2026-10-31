@@ -186,8 +186,9 @@ pub fn has_value(lines: &[Line], key: &str, value: &str) -> bool {
 pub fn sequence<'a>(lines: &'a [Line], key: &str) -> Vec<&'a str> {
     entries(lines, key)
         .first()
-        .map(|line| line.sequence())
-        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|line| line.sequence())
+        .collect()
 }
 
 /// Strip a matching pair of surrounding quotes.
