@@ -13,6 +13,24 @@ pub enum ExportFormat {
     Json,
 }
 
+impl ExportFormat {
+    /// Return the stable lowercase spelling used in diagnostics and spans.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use mapsplice::ExportFormat;
+    ///
+    /// assert_eq!(ExportFormat::Json.as_str(), "json");
+    /// ```
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+        }
+    }
+}
+
 /// Positional roadmap input and optional export validation path.
 #[derive(Debug, Args)]
 #[command(about = None)]

@@ -344,7 +344,7 @@ make nixie
 make spelling
 ```
 
-### 7.1 Verus proofs
+### 8.1 Verus proofs
 
 `make verus` verifies the production-used kernels, and `make verus-selftest`
 runs a deliberately false proof that must be rejected. Both are required in CI:
@@ -372,7 +372,7 @@ unproved are recorded in [verification.md](verification.md); the Markdown
 clause recognizer is outside every proof, which is why the CLI regressions and
 golden fixtures carry that part of the contract.
 
-### 7.2 The domain-purity gate
+### 8.2 The domain-purity gate
 
 `make lint` also depends on `check-domain-purity`, which runs
 `scripts/check-domain-purity.sh`. The roadmap domain owns the Markdown model,
@@ -497,7 +497,7 @@ because instrumentation needs it, and release builds use the release profile,
 which Cranelift does not affect. Before enabling Cranelift again, re-measure
 the full suite and reconsider the exception based on the results.
 
-## 8. Workflow pins and Dependabot
+## 9. Workflow pins and Dependabot
 
 Dependabot owns the upgrade of GitHub Actions and reusable workflows, including
 calls into `leynos/shared-actions`. Contract tests that assert a caller's exact
@@ -533,7 +533,7 @@ If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
 
-## 9. Coverage administration and readiness
+## 10. Coverage administration and readiness
 
 CV-005 has separate static and administrative prerequisites. The offline
 `make test-workflow-contracts` gate validates the actual workflow files. Its

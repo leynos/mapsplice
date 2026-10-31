@@ -12,6 +12,7 @@ const EXPORT_ROADMAP: &str = concat!(
     "- [ ] 1.1.2. Second task.\n",
 );
 
+/// Path of the committed JSON export beside the workspace roadmap.
 fn export_path(workspace: &Workspace) -> camino::Utf8PathBuf {
     workspace.target.with_file_name("roadmap.json")
 }

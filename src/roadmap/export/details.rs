@@ -109,7 +109,6 @@ pub(super) fn append_task_list(list: &List, content: &mut TaskContentBuilder<'_>
     Ok(())
 }
 
-/// Convert one non-checkbox list item and its nested non-checkbox bullets.
 /// Convert a numbered structural sub-task into an export detail.
 pub(super) fn structural_detail(
     sub_task: &SubTaskEntry,

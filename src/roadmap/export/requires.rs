@@ -123,7 +123,7 @@ enum FormattedRequires {
 }
 
 /// Return Markdown children for recursive formatted-keyword inspection.
-fn node_children(node: &Node) -> Option<&[Node]> {
+pub(super) fn node_children(node: &Node) -> Option<&[Node]> {
     match node {
         Node::Root(value) => Some(&value.children),
         Node::Paragraph(value) => Some(&value.children),

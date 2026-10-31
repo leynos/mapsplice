@@ -52,7 +52,7 @@ items at the same level as the target anchor.
 
 ## Command overview
 
-`mapsplice` supports four operations:
+`mapsplice` supports four edit operations and a read-only export:
 
 ```text
 mapsplice append <target> <file-to-append>

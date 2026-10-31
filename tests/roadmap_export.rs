@@ -20,17 +20,20 @@ const NESTED_REQUIRES_ROADMAP: &str = concat!(
 );
 const INSERTED_TASK: &str = "- [ ] 1.1.1. Inserted task.\n";
 
+/// Export the workspace roadmap and return the JSON written to standard output.
 fn export(workspace: &Workspace) -> TestResult<String> {
     run_from_args(["mapsplice", "export", workspace.target.as_str()])?
         .stdout
         .ok_or_else(|| "export should write JSON to stdout".into())
 }
 
+/// Write a committed export beside the workspace roadmap and return its path.
 fn write_committed_export(workspace: &Workspace, contents: &str) -> TestResult<Utf8PathBuf> {
     workspace.dir.write("roadmap.json", contents)?;
     Ok(workspace.target.with_file_name("roadmap.json"))
 }
 
+/// Fail the test with `message` when `condition` does not hold.
 fn require(condition: bool, message: impl Into<String>) -> TestResult {
     if condition {
         Ok(())
@@ -39,6 +42,7 @@ fn require(condition: bool, message: impl Into<String>) -> TestResult {
     }
 }
 
+/// Fail the test when `actual` and `expected` differ.
 fn require_equal<T: std::fmt::Debug + PartialEq>(
     actual: &T,
     expected: &T,
@@ -50,6 +54,7 @@ fn require_equal<T: std::fmt::Debug + PartialEq>(
     )
 }
 
+/// Fail the test when `actual` does not contain `expected`.
 fn require_contains(actual: &str, expected: &str) -> TestResult {
     require(
         actual.contains(expected),
@@ -57,6 +62,7 @@ fn require_contains(actual: &str, expected: &str) -> TestResult {
     )
 }
 
+/// Borrow the ordered task array of the first exported step.
 fn task_array_mut(document: &mut serde_json::Value) -> TestResult<&mut Vec<serde_json::Value>> {
     document
         .get_mut("phases")
@@ -70,6 +76,7 @@ fn task_array_mut(document: &mut serde_json::Value) -> TestResult<&mut Vec<serde
         .ok_or_else(|| "the export should have an ordered task array".into())
 }
 
+/// Borrow the dependency list of one exported task.
 fn task_requires(
     document: &serde_json::Value,
     task_index: usize,
@@ -119,18 +126,21 @@ fn export_of_repository_roadmap_matches_snapshot(workspace: TestResult<Workspace
 }
 
 #[rstest]
-#[case::soft_wrap(
-    "## 1. Planning\n\n### 1.1. Export\n\n- [ ] 1.1.1. Emit JSON. Requires\n  1.1.2.\n- [ ] \
-     1.1.2. Check JSON.\n"
-)]
-#[case::crlf(
-    "## 1. Planning\r\n\r\n### 1.1. Export\r\n\r\n- [ ] 1.1.1. Emit JSON. Requires 1.1.2.\r\n- [ \
-     ] 1.1.2. Check JSON.\r\n"
-)]
-#[case::trailing_spaces(
-    "## 1. Planning   \n\n### 1.1. Export\n\n- [ ] 1.1.1. Emit JSON. Requires 1.1.2.   \n- [ ] \
-     1.1.2. Check JSON.\n"
-)]
+#[case::soft_wrap(concat!(
+    "## 1. Planning\n\n### 1.1. Export\n\n",
+    "- [ ] 1.1.1. Emit JSON. Requires\n  1.1.2.\n",
+    "- [ ] 1.1.2. Check JSON.\n",
+))]
+#[case::crlf(concat!(
+    "## 1. Planning\r\n\r\n### 1.1. Export\r\n\r\n",
+    "- [ ] 1.1.1. Emit JSON. Requires 1.1.2.\r\n",
+    "- [ ] 1.1.2. Check JSON.\r\n",
+))]
+#[case::trailing_spaces(concat!(
+    "## 1. Planning   \n\n### 1.1. Export\n\n",
+    "- [ ] 1.1.1. Emit JSON. Requires 1.1.2.   \n",
+    "- [ ] 1.1.2. Check JSON.\n",
+))]
 #[serial_test::serial(cli_env)]
 fn export_normalizes_wrapping_and_whitespace(
     workspace: TestResult<Workspace>,
