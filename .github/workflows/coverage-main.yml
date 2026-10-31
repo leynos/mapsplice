@@ -29,12 +29,14 @@ jobs:
           install-mold: 'true'
           rustflags: ''
       - name: Install clang linker driver
+        # The domain-purity tests run scripts/check-domain-purity.sh, which uses
+        # rg. Install it alongside clang, as ci.yml does.
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang
+            && sudo apt-get install --yes --no-install-recommends clang ripgrep
       - name: Check build tools
         run: make check-build-tools
       # The suite includes golden and formatter-boundary tests that run
