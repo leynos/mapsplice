@@ -53,7 +53,7 @@ fn first_inline(source: &str) -> Node {
 #[case::keyword_only("Requires", true)]
 #[case::longer_word("Required 1.1.1.", false)]
 #[case::unrelated("Notes.", false)]
-fn is_requires_clause_recognises_only_whole_keywords(#[case] source: &str, #[case] expected: bool) {
+fn is_requires_clause_recognizes_only_whole_keywords(#[case] source: &str, #[case] expected: bool) {
     let result = is_requires_clause(&paragraph(source).children).expect("text should render");
 
     assert_eq!(result, expected);

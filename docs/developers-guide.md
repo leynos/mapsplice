@@ -58,8 +58,8 @@ boundary, and roadmap domain modules:
   [`mixed_body.rs`](../tests/roadmap_sub_task_invariants/mixed_body.rs).
 - `src/roadmap/export` adapts the existing model to the pure, ordered JSON
   schema. It shares dependency recognition with the rewriter and contains the
-  semantic drift comparison; `src/lib.rs` owns reading the source and committed
-  export files.
+  semantic drift comparison; `src/export_command.rs` executes the read-only
+  export, reading the source and committed export files without writing.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.
