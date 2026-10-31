@@ -468,9 +468,10 @@ evidence rather than prose-only terminal text.
   - See the uniqueness rule and documentation-set discovery sections of
     docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs` exits `1` with that finding for a
-    fixture containing two `adr-006-*.md` files. Validating the primary and
-    companion roadmaps as separate file targets, when both contain task
-    `1.1.1`, exits `0` for each.
+    fixture containing two `adr-006-*.md` files, and for a fixture containing
+    two RFC files in one `rfcs` directory that claim the same sequence number.
+    Validating the primary and companion roadmaps as separate file targets,
+    when both contain task `1.1.1`, exits `0` for each.
 
 ### 6.2. Align every command with agent-native output contracts
 
@@ -524,15 +525,15 @@ stdout payloads.
 
 - [ ] 6.2.5. Package an agent skill for roadmap maintenance.
 
-  - Requires 6.1.5 and 6.2.4.
+  - Requires 6.1.5, 6.1.6, and 6.2.4.
   - Author a skill that tells agents when to run validation, how to prefer
     JSON output, how to interpret miette diagnostics, and when to refuse
     unsafe roadmap edits.
   - Success: the skill is tested against the generated agent context, requires
     validate-before-edit and validate-after-edit, directs agents to inspect
     JSON diagnostics by `code` and `exit_class`, and stops for maintainer
-    judgement on ambiguous links, duplicate anchors, or failed postflight
-    checks.
+    judgement on ambiguous links, duplicate anchors, duplicate sequence
+    numbers, or failed postflight checks.
 
 ## 7. Renumber ExecPlans after roadmap updates
 

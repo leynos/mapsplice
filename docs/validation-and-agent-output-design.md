@@ -277,11 +277,12 @@ its declared scope. The rule has two scopes.
   severity. Emit one finding per colliding number per set. The first colliding
   file in byte-wise sorted path order is the primary location; every other
   colliding file is a related location. Omit the range because the finding is
-  filename-only. The message names the set kind and number, and the help text
-  asks the maintainer to renumber one record and update its cross-references.
-  Because the directory check does not read document bodies, it cannot know
-  which RFCs are published; an RFC finding's help text therefore also points to
-  the escalation rule in `docs/documentation-style-guide.md`.
+  filename-only. The message names the set kind and number. An ADR finding's
+  help text asks the maintainer to renumber one record and update its
+  cross-references. Because the directory check does not read document bodies,
+  it cannot know which RFCs are published, so an RFC finding's help text points
+  to the RFC collision rule in `docs/documentation-style-guide.md` rather than
+  naming a repair.
 
 ### Documentation-set discovery
 
