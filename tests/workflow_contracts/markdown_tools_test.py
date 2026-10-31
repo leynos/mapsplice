@@ -226,3 +226,29 @@ def test_the_publisher_installs_the_markdown_tools_before_it_measures_coverage()
         "the publisher must install the same markdownlint-cli2 as ci.yml; "
         f"observed {job['env']['MARKDOWNLINT_CLI2_VERSION']!r} against {ci_version!r}"
     )
+
+
+def _publisher_linter_step() -> dict[str, object]:
+    """Return the publisher's golden-test linter install step."""
+    publisher = WORKFLOW.with_name("coverage-main.yml")
+    document = yaml.safe_load(publisher.read_text(encoding="utf-8"))
+    steps = document["jobs"]["coverage-publisher"]["steps"]
+    return steps[_step_index(steps, "Install the golden-test Markdown linter")]
+
+
+@pytest.mark.parametrize(
+    ("needle", "reason"),
+    [
+        ("npm install --global --prefix", "an isolated global npm prefix"),
+        ('"markdownlint-cli2@$MARKDOWNLINT_CLI2_VERSION"', "the pinned version"),
+        ('>> "$GITHUB_PATH"', "an export to GITHUB_PATH"),
+        ("markdownlint-cli2\" --version", "a version check of the installed binary"),
+    ],
+)
+def test_the_publisher_linter_step_installs_and_exposes_the_binary(
+    needle: str, reason: str
+) -> None:
+    """The publisher's linter step must install, expose and check the tool."""
+    run = str(_publisher_linter_step().get("run", ""))
+    assert needle in run, f"the publisher linter step must use {reason}; observed {run!r}"
+    assert "set -euo pipefail" in run, f"the step must fail closed; observed {run!r}"

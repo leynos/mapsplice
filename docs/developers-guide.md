@@ -540,6 +540,15 @@ the publisher emits a fixed GitHub Actions warning that coverage was not
 published; the upload step remains guarded. This warning reports a skipped
 upload and does not prove that the environment or token has been provisioned.
 
+The publisher runs the whole test suite, whose golden and formatter-boundary
+tests run `mdtablefix` and `markdownlint-cli2` as subprocesses.
+`coverage-main.yml` therefore installs both before it measures coverage, as
+`ci.yml` does: `install-mdtablefix` at 0.6.1, and `markdownlint-cli2` from npm
+at the version in `MARKDOWNLINT_CLI2_VERSION`, which must agree with `ci.yml`.
+Without them every `Coverage (main)` run failed before the upload step (from
+about 19 October). `tests/workflow_contracts/markdown_tools_test.py` holds both
+installs and their order.
+
 ### Trusted owner checks
 
 Run the read-only administrative verifier from an owner-reviewed checkout in a
