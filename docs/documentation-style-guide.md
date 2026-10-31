@@ -220,8 +220,9 @@ zero-padded sequence number. Place RFCs in the `docs/rfcs/` directory.
 - Number RFCs sequentially in allocation order rather than by date.
 - RFC sequence numbers must be unique within `docs/rfcs/`. Two files claiming
   the same number are a defect. Renumber the unpublished duplicate and update
-  its cross-references; if both records are published, escalate the collision
-  for maintainer resolution rather than renumbering either.
+  its cross-references; leave a published record's number unchanged. If both
+  records are published, escalate the collision for maintainer resolution
+  rather than renumbering either.
 - Do not renumber existing RFCs after publication. Gaps are acceptable when
   numbers are reserved, drafted on another branch, or intentionally skipped.
 
