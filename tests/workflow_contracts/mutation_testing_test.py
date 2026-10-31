@@ -115,7 +115,7 @@ def _setup_command_index(
 
 
 def _logical_shell_commands(setup_commands: str) -> list[str]:
-    """Return whitespace-normalised commands with continuations joined.
+    """Return whitespace-normalized commands with continuations joined.
 
     A trailing backslash continues one logical command onto the next line. A
     check against the raw text cannot tell that apart from a stray assignment,
