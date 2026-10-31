@@ -173,7 +173,7 @@ claimants:
   "severity": "error",
   "message": "duplicate ADR sequence number 6 in docs",
   "path": "docs/adr-006-first.md",
-  "help": "renumber one record and update its cross-references",
+  "help": "renumber one record and update its cross-references; see the documentation style guide for published RFCs",
   "related": [{ "path": "docs/adr-006-second.md" }]
 }
 ```
@@ -279,8 +279,9 @@ its declared scope. The rule has two scopes.
   colliding file is a related location. Omit the range because the finding is
   filename-only. The message names the set kind and number, and the help text
   asks the maintainer to renumber one record and update its cross-references.
-  When both records are published RFCs, the help text directs the maintainer to
-  escalate the collision rather than renumber a published record.
+  Because the directory check does not read document bodies, it cannot know
+  which RFCs are published; the help text therefore points to the escalation
+  rule in `docs/documentation-style-guide.md` for published records.
 
 ### Documentation-set discovery
 
