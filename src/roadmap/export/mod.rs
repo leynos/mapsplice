@@ -7,6 +7,9 @@ mod requires;
 mod schema;
 mod text;
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::HashSet;
 
 use markdown::mdast::{ListItem, Node};

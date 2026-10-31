@@ -96,8 +96,11 @@ fn export_ignores_in_place_even_for_a_direct_request(
     "malformed numbered checkbox detail prefix"
 )]
 #[case::out_of_order_numbered_checkbox(
-    "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n  - Context.\n  - [ ] 1.1.1.2. Skipped \
-     ordinal.\n",
+    concat!(
+        "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n",
+        "  - Context.\n",
+        "  - [ ] 1.1.1.2. Skipped ordinal.\n",
+    ),
     "sub-task `1.1.1.2` is not in document order"
 )]
 #[case::formatted_requires_keyword(

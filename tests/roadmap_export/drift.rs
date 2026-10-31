@@ -49,6 +49,35 @@ fn export_check_names_semantic_drift_and_preserves_both_files(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn nested_detail_drift_names_its_owning_task(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(BASIC_ROADMAP)?;
+    let committed = export(&test_workspace)?;
+    let export_path = write_committed_export(&test_workspace, &committed)?;
+    let original = test_workspace.dir.read_to_string("target.md")?;
+    let changed = original.replacen(
+        "Compare the export without writing files.",
+        "Compare the export without rewriting files.",
+        1,
+    );
+    require(changed != original, "the detail mutation should apply")?;
+    test_workspace.write_target(&changed)?;
+
+    let error = run_from_args([
+        "mapsplice",
+        "export",
+        "--check",
+        export_path.as_str(),
+        test_workspace.target.as_str(),
+    ])
+    .expect_err("a changed detail title is semantic drift");
+
+    require_contains(&error.to_string(), "~ detail 1 of task 1.1.1 title")?;
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn export_check_succeeds_silently_and_does_not_rewrite_files(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
