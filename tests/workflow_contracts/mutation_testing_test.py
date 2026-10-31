@@ -114,6 +114,17 @@ def _setup_command_index(
     raise AssertionError(f"mutation setup-commands must include {expected!r}")
 
 
+def _logical_shell_commands(setup_commands: str) -> list[str]:
+    """Return whitespace-normalised commands with continuations joined.
+
+    A trailing backslash continues one logical command onto the next line. A
+    check against the raw text cannot tell that apart from a stray assignment,
+    so join continuations before comparing.
+    """
+    joined = setup_commands.replace("\\\n", " ")
+    return [" ".join(line.split()) for line in joined.splitlines()]
+
+
 def _triggers(workflow: dict[str, object]) -> dict[str, object]:
     """Return the ``on:`` mapping (PyYAML parses the bare key as True)."""
     triggers = workflow.get("on", workflow.get(True))
@@ -264,14 +275,14 @@ def test_setup_commands_install_markdown_tools_at_ci_pins() -> None:
     assert f"markdownlint-cli2@{markdownlint_version}" in setup_commands, (
         "mutation setup must install the markdownlint-cli2 version pinned by ci.yml"
     )
-    assert f"MDTABLEFIX_REQUIRED_VERSION={mdtablefix_version}" in setup_commands, (
-        "the markdown-tools preflight must check ci.yml's mdtablefix pin"
+    logical_commands = _logical_shell_commands(setup_commands)
+    expected_preflight = (
+        f"MDTABLEFIX_REQUIRED_VERSION={mdtablefix_version} "
+        f"MARKDOWNLINT_CLI2_REQUIRED_VERSION={markdownlint_version} "
+        "make check-markdown-tools"
     )
-    required_markdownlint_version = (
-        f"MARKDOWNLINT_CLI2_REQUIRED_VERSION={markdownlint_version}"
-    )
-    assert required_markdownlint_version in setup_commands, (
-        "the markdown-tools preflight must check ci.yml's markdownlint-cli2 pin"
+    assert expected_preflight in logical_commands, (
+        "the markdown-tools preflight must pass ci.yml's pins to one make command"
     )
     npm_install = _setup_command_index(
         commands, "npm install --global --prefix"
