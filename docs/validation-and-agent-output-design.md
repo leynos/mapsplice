@@ -180,7 +180,7 @@ claimants:
 
 `related` is optional and is omitted when there are no related locations. Each
 related location has a `path` and may carry a `range` using the same shape as
-the primary location. Adding the field does not change `schema_version: "1"`,
+the primary location. Adding the field does not change `schema_version: "1"`
 because it lands before the first schema release.
 
 ## Output mode rules
@@ -264,7 +264,7 @@ its declared scope. The rule has two scopes.
 
 - **Roadmap document scope.** Canonical anchors must be unique within one
   roadmap document. Reusing an anchor in a different roadmap document is not a
-  finding, because a companion roadmap is a separate namespace; this prevents
+  finding because a companion roadmap is a separate namespace; this prevents
   false positives where two documents both contain task `1.1.1`. A repeated
   anchor inside one document is `mapsplice::validate::duplicate_anchor` at
   `error` severity. The later occurrence is the primary location and the first
@@ -279,6 +279,8 @@ its declared scope. The rule has two scopes.
   colliding file is a related location. Omit the range because the finding is
   filename-only. The message names the set kind and number, and the help text
   asks the maintainer to renumber one record and update its cross-references.
+  When both records are published RFCs, the help text directs the maintainer to
+  escalate the collision rather than renumber a published record.
 
 ### Documentation-set discovery
 
@@ -305,13 +307,14 @@ link pass does. It follows a symbolic link only when the link target resolves
 inside that root; when no git root contains the target, the target directory
 itself is the boundary. Enumerate directories through the capability helpers in
 `src/fs.rs` and collect paths with the recursive sorted-walk pattern used by
-`src/roadmap/render_tests.rs`. Sort traversal results before emitting findings
+`src/roadmap/render_tests.rs`. Sort traversal results before emitting findings,
 so output does not depend on directory enumeration order. An unreadable
 directory aborts discovery with the io exit class rather than reporting a
 partial set as complete.
 
-A duplicate filename is recoverable. Discovery continues through the rest of
-the tree, and findings from other sets and other documents are still reported.
+A duplicate sequence number is recoverable. Discovery continues through the
+rest of the tree, and findings from other sets and other documents are still
+reported.
 
 Every finding carries:
 
@@ -421,7 +424,7 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 - A documentation-set fixture with two `adr-006-*.md` files in one directory
   produces exactly one `duplicate_sequence_number` finding in a JSON golden.
 - A primary and companion roadmap that both contain task `1.1.1` produce no
-  findings.
+  findings when each is validated as a file target.
 - RFC files `0001` and `0003` in `docs/rfcs/` produce no findings, proving that
   gaps are allowed.
 - Two matching anchors in one roadmap produce a `duplicate_anchor` finding.
