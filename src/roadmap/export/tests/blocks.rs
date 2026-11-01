@@ -1,6 +1,7 @@
 //! Unit tests for ordered export entries and task-body blocks.
 
 use markdown::mdast::Node;
+use rstest::rstest;
 
 use super::{anchors, at, list, list_item, markdown, markdown_nodes, task};
 use crate::roadmap::export::blocks::{
@@ -32,43 +33,24 @@ fn entries_skip_requires_clauses_and_thematic_breaks() {
     assert_eq!(at(&at(&exported, 1).entries, 1).value, "second");
 }
 
-#[test]
-fn entries_reject_a_list_without_an_empty_label() {
-    let error = entries(&markdown_nodes("- stray\n")).expect_err("a bare list is unsupported");
+/// Structures outside the export grammar are rejected with a specific reason.
+#[rstest]
+#[case::bare_list("- stray\n", "must follow an empty labelled paragraph")]
+#[case::checkbox_outside_task(
+    "Label:\n\n- [ ] one\n",
+    "checkbox details are only valid in task bodies"
+)]
+#[case::heading("## Heading\n", "unsupported block in phase or step content")]
+fn entries_reject_unsupported_structures(#[case] source: &str, #[case] expected: &str) {
+    let error = entries(&markdown_nodes(source)).expect_err("the structure is unsupported");
 
     assert!(
-        error
-            .to_string()
-            .contains("must follow an empty labelled paragraph"),
+        error.to_string().contains(expected),
         "unexpected error: {error}"
     );
 }
 
-#[test]
-fn entries_reject_checkbox_items_outside_task_bodies() {
-    let error = entries(&markdown_nodes("Label:\n\n- [ ] one\n"))
-        .expect_err("checkbox items are task-body only");
-
-    assert!(
-        error
-            .to_string()
-            .contains("checkbox details are only valid in task bodies"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn entries_reject_unsupported_blocks() {
-    let error = entries(&markdown_nodes("## Heading\n")).expect_err("a heading is unsupported");
-
-    assert!(
-        error
-            .to_string()
-            .contains("unsupported block in phase or step content"),
-        "unexpected error: {error}"
-    );
-}
-
+/// The leading unlabelled paragraph becomes the step question.
 #[test]
 fn step_content_takes_the_first_unlabelled_paragraph_as_the_question() {
     let source = "What is it?\n\nNote: label\n\nAnother line.\n";

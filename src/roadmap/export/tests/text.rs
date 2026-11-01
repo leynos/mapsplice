@@ -1,6 +1,7 @@
 //! Unit tests for export inline rendering and label recognition.
 
 use markdown::mdast::{Node, Text};
+use rstest::rstest;
 
 use super::paragraph;
 use crate::roadmap::export::text::{paragraph_entry, render_text};
@@ -14,6 +15,7 @@ fn plain_paragraph_without_a_label_is_unlabelled() {
     assert_eq!(value, "A plain sentence.");
 }
 
+/// A colon in plain text divides the key from the value at the first split.
 #[test]
 fn plain_label_splits_at_the_first_colon() {
     let (key, value) =
@@ -23,23 +25,19 @@ fn plain_label_splits_at_the_first_colon() {
     assert_eq!(value, "what next?");
 }
 
-#[test]
-fn plain_label_rejects_digits_and_punctuation() {
-    for source in ["Step 1: continue.", "A/B: value."] {
-        let (key, value) =
-            paragraph_entry(&paragraph(source)).expect("invalid labels stay in the value");
+/// Text that cannot form a label is kept whole in the value.
+#[rstest]
+#[case::digit_in_label("Step 1: continue.")]
+#[case::punctuation_in_label("A/B: value.")]
+#[case::empty_label(": value")]
+#[case::strong_without_colon("**Note** body text")]
+#[case::strong_unsupported_characters("**Note 2:** body")]
+#[case::emphasis_first("*Emphasis*: body")]
+fn unrecognized_label_keeps_the_original_text(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("text should render");
 
-        assert_eq!(key, None, "unexpected label for {source:?}");
-        assert_eq!(value, source, "the original text should be preserved");
-    }
-}
-
-#[test]
-fn empty_label_is_not_a_label() {
-    let (key, value) = paragraph_entry(&paragraph(": value")).expect("text should render");
-
-    assert_eq!(key, None);
-    assert_eq!(value, ": value");
+    assert_eq!(key, None, "unexpected label for {source:?}");
+    assert_eq!(value, source, "the original text should be preserved");
 }
 
 #[test]
@@ -49,33 +47,6 @@ fn strong_label_splits_and_is_removed_from_the_value() {
 
     assert_eq!(key.as_deref(), Some("Note"));
     assert_eq!(value, "body text");
-}
-
-#[test]
-fn strong_without_a_trailing_colon_is_not_a_label() {
-    let (key, value) =
-        paragraph_entry(&paragraph("**Note** body text")).expect("strong text should render");
-
-    assert_eq!(key, None);
-    assert_eq!(value, "**Note** body text");
-}
-
-#[test]
-fn strong_label_with_unsupported_characters_is_not_a_label() {
-    let (key, value) =
-        paragraph_entry(&paragraph("**Note 2:** body")).expect("strong text should render");
-
-    assert_eq!(key, None);
-    assert_eq!(value, "**Note 2:** body");
-}
-
-#[test]
-fn non_text_first_inline_is_not_a_label() {
-    let (key, value) =
-        paragraph_entry(&paragraph("*Emphasis*: body")).expect("emphasis should render");
-
-    assert_eq!(key, None);
-    assert_eq!(value, "*Emphasis*: body");
 }
 
 #[test]

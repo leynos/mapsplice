@@ -214,6 +214,7 @@ mod diagnostic_tracing_tests {
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
 
+    /// Trace fields record the error class without echoing user-supplied text.
     #[test]
     fn command_trace_keeps_error_class_without_user_supplied_message() {
         let captured = Arc::new(Mutex::new(Vec::new()));
