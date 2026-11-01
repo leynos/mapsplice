@@ -108,6 +108,7 @@ mod tests {
         assert_eq!(invalid_roadmap_message(&error), expected);
     }
 
+    /// Extract the diagnostic text so cases can assert on the reason only.
     fn invalid_roadmap_message(error: &MapspliceError) -> &str {
         match error {
             MapspliceError::InvalidRoadmap { message, .. } => message,

@@ -119,6 +119,7 @@ fn formatted_requires_keyword_is_rejected_where_the_scanner_cannot_reach_it() {
     );
 }
 
+/// Dependency scanning descends into every container node the parser produces.
 #[test]
 fn node_children_covers_every_parsed_container() {
     let containers = [
