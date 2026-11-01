@@ -2,8 +2,7 @@
 
 use rstest::rstest;
 
-use super::TaskChild;
-use crate::roadmap::parse_roadmap;
+use crate::roadmap::{model::TaskChild, parse_roadmap};
 
 const TASK_PREFIX: &str = concat!(
     "# Example\n\n",

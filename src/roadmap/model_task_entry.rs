@@ -200,6 +200,7 @@ fn validate_task_children(parts: &TaskEntryParts) -> Result<()> {
                 "task `{}` has inconsistent structural sub-task children",
                 parts.number
             ),
+            location: None,
         })
     }
 }

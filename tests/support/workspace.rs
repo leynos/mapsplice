@@ -17,6 +17,9 @@ pub struct Workspace {
     /// UTF-8 path to the `target.md` file inside the workspace.
     pub target: Utf8PathBuf,
     /// UTF-8 path to the `fragment.md` file inside the workspace.
+    ///
+    /// Some integration tests only read or rewrite the target, so the shared
+    /// fixture keeps both paths available and tolerates selective use.
     pub fragment: Utf8PathBuf,
     _tempdir: TempDir,
 }

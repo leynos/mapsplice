@@ -99,7 +99,7 @@ fn render_fails_when_task_child_references_missing_sub_task() {
     let error =
         render_roadmap(&roadmap).expect_err("orphaned sub-task child should fail rendering");
 
-    let MapspliceError::InvalidRoadmap { message } = error else {
+    let MapspliceError::InvalidRoadmap { message, .. } = error else {
         panic!("expected InvalidRoadmap for orphaned sub-task child");
     };
     assert_eq!(
@@ -111,6 +111,7 @@ fn render_fails_when_task_child_references_missing_sub_task() {
     );
 }
 
+/// Every required Markdown surface is present in the fixture list.
 #[test]
 fn round_trip_fixture_list_covers_required_surfaces() {
     let fixture_paths = conformant_round_trip_fixture_paths()
@@ -127,6 +128,7 @@ fn round_trip_fixture_list_covers_required_surfaces() {
     }
 }
 
+/// Rendering is idempotent for every fixture the formatter already accepted.
 #[test]
 fn noop_round_trip_property_holds_for_all_conformant_fixtures() -> Result<(), String> {
     for fixture_path in conformant_round_trip_fixture_paths()
@@ -192,6 +194,7 @@ const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[
     "tests/fixtures/reference_rewrite/version_quantity.input.md",
 ];
 
+/// Collect the unsafe-metacharacter fixtures used by the round-trip property.
 fn conformant_round_trip_fixture_paths() -> Result<Vec<Utf8PathBuf>, String> {
     let repository = Dir::open_ambient_dir(".", ambient_authority())
         .map_err(|error| format!("open repository directory: {error}"))?;
@@ -246,6 +249,7 @@ fn collect_suffixed_fixture_paths(
     })
 }
 
+/// Recursively collect fixture paths whose file name passes the filter.
 fn collect_fixture_paths(
     repository: &Dir,
     directory: &Utf8Path,
@@ -303,6 +307,7 @@ fn read_fixture(fixture_path: &Utf8Path) -> Result<String, String> {
         .map_err(|error| format!("read fixture {fixture_path}: {error}"))
 }
 
+/// Assert that re-running the formatter leaves the rendered fixture unchanged.
 fn assert_formatter_noop(fixture_path: &Utf8Path, rendered: &str) -> Result<(), String> {
     let temporary_directory =
         tempdir().map_err(|error| format!("create temporary formatter directory: {error}"))?;
@@ -350,6 +355,7 @@ fn assert_formatter_noop(fixture_path: &Utf8Path, rendered: &str) -> Result<(), 
     }
 }
 
+/// Run a formatter with the rendered fixture as its only input.
 fn run_formatter_command<const ARG_COUNT: usize>(
     fixture_path: &Utf8Path,
     command: &str,

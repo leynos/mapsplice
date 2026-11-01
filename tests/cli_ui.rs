@@ -19,10 +19,11 @@ fn top_level_help_lists_supported_commands() {
     insta::assert_snapshot!(stable_help_lines(&stdout), @r"
 Usage: mapsplice [OPTIONS] <COMMAND>
 Commands:
-  append   
-  insert   
-  delete   
-  replace  
+  append
+  insert
+  delete
+  replace
+  export
   help     Print this message or the help of the given subcommand(s)
 Global options:
   -i, --in-place  Rewrite the target file instead of printing to stdout
@@ -41,9 +42,11 @@ fn stable_help_lines(stdout: &str) -> String {
                 || line.starts_with("  insert")
                 || line.starts_with("  delete")
                 || line.starts_with("  replace")
+                || line.starts_with("  export")
                 || line.starts_with("  help")
                 || line.starts_with("  -i, --in-place")
         })
+        .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
 }

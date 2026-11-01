@@ -214,6 +214,7 @@ mod diagnostic_tracing_tests {
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
 
+    /// Trace fields record the error class without echoing user-supplied text.
     #[test]
     fn command_trace_keeps_error_class_without_user_supplied_message() {
         let captured = Arc::new(Mutex::new(Vec::new()));
@@ -225,6 +226,7 @@ mod diagnostic_tracing_tests {
         let marker = "user-supplied-diagnostic-marker";
         let error = MapspliceError::InvalidRoadmap {
             message: marker.to_owned(),
+            location: None,
         };
 
         let exit_code = tracing::subscriber::with_default(subscriber, || report_error(&error));

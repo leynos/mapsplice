@@ -47,9 +47,11 @@ impl TaskChildren {
                 .checked_add(1)
                 .ok_or_else(|| MapspliceError::InvalidRoadmap {
                     message: "sub-task count exceeds supported numbering range".to_owned(),
+                    location: None,
                 })?;
         u32::try_from(expected).map_err(|_| MapspliceError::InvalidRoadmap {
             message: "sub-task count exceeds supported numbering range".to_owned(),
+            location: None,
         })
     }
 
