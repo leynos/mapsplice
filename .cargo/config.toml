@@ -4,6 +4,7 @@ rustflags = ["-Zthreads=8"]
 # Explicit LLVM profile overrides protect coverage and Whitaker from inherited
 # backend settings; enabling this Cargo feature does not select Cranelift.
 [unstable]
+embed-metadata = false
 codegen-backend = true
 
 [target.x86_64-unknown-linux-gnu]

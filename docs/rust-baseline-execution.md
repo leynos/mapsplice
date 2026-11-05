@@ -801,7 +801,7 @@ env CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm \
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
   make test RUST_FLAGS='-D warnings' \
   TEST_FLAGS='--workspace --all-targets --all-features' \
-  BUILD_JOBS='-j 2' 'gate_rust_flags=$(RUST_FLAGS)'
+  BUILD_JOBS='-j 2'
 ```
 
 It passed all 293 ordinary tests, with no skipped tests; the doctest leg passed

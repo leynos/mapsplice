@@ -14,8 +14,7 @@ TARGET ?= mapsplice
 CARGO ?= cargo
 WHITAKER ?= whitaker
 WHITAKER_PACKAGES ?= mapsplice
-WHITAKER_ENV = CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(RUST_FLAGS))" \
-	RUSTFLAGS="$(RUST_FLAGS)" CARGO_UNSTABLE_CODEGEN_BACKEND=true \
+WHITAKER_ENV = RUSTFLAGS="-D warnings" CARGO_UNSTABLE_CODEGEN_BACKEND=true \
 	CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm
 BUILD_TOOLS_PREFIX ?= $(HOME)/.local
 BUILD_JOBS ?=
@@ -40,9 +39,15 @@ targets_from_words = $(if $(strip $(1)),$(if $(filter --target,$(firstword $(1))
 config_targets_from_words = $(if $(strip $(1)),$(if $(filter --config,$(firstword $(1))),$(patsubst build.target=%,%,$(filter build.target=%,$(word 2,$(1)))) $(call config_targets_from_words,$(wordlist 3,$(words $(1)),$(1))),$(if $(filter --config=build.target=%,$(firstword $(1))),$(patsubst --config=build.target=%,%,$(firstword $(1))) $(call config_targets_from_words,$(wordlist 2,$(words $(1)),$(1))),$(call config_targets_from_words,$(wordlist 2,$(words $(1)),$(1))))))
 target_input_present = $(strip $(filter --target --target=%,$(1)) $(filter --config=build.target=%,$(1)) $(call config_targets_from_words,$(1)) $(CARGO_BUILD_TARGET) $(CARGO_CONFIG_BUILD_TARGET))
 requested_targets = $(strip $(call targets_from_words,$(1)) $(call config_targets_from_words,$(1)) $(CARGO_BUILD_TARGET) $(CARGO_CONFIG_BUILD_TARGET))
-native_linker_flag = $(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-C link-arg=-fuse-ld=mold))
-linker_flag_for = $(if $(call target_input_present,$(1)),$(if $(filter 1,$(words $(sort $(call requested_targets,$(1))))),$(if $(filter $(SUPPORTED_LINKER_TARGETS),$(call requested_targets,$(1))),-C link-arg=-fuse-ld=mold)),$(native_linker_flag))
-gate_rust_flags = $(RUST_FLAGS) -Zthreads=8 $(call linker_flag_for,$(1))
+native_linker_flag = $(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold))
+linker_flag_for = $(if $(call target_input_present,$(1)),$(if $(filter 1,$(words $(sort $(call requested_targets,$(1))))),$(if $(filter $(SUPPORTED_LINKER_TARGETS),$(call requested_targets,$(1))),-Clink-arg=-fuse-ld=mold)),$(native_linker_flag))
+# The gate recipes restate the development flags as variables rather than a
+# function call, so each assignment stays statically readable. Where a target
+# is requested, only the supported Linux triples keep the mold linker.
+GATE_RUSTFLAGS_BASE = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(empty)),$(call linker_flag_for,$(empty)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
+GATE_RUSTFLAGS_TEST = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(TEST_FLAGS)),$(call linker_flag_for,$(TEST_FLAGS)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
+GATE_RUSTFLAGS_CARGO = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(CARGO_FLAGS)),$(call linker_flag_for,$(CARGO_FLAGS)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
+GATE_RUSTFLAGS_CLIPPY = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(CLIPPY_FLAGS)),$(call linker_flag_for,$(CLIPPY_FLAGS)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
 empty :=
 space := $(empty) $(empty)
 unit_separator := $(shell printf '\037')
@@ -119,16 +124,16 @@ test: check-build-tools ## Run tests with warnings treated as errors
 		echo "error: jq is required to detect doctest-capable packages; install jq or set DOC_TEST_TARGETS=true/false" >&2; \
 		exit 2; \
 	fi
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,$(TEST_FLAGS)))" RUSTFLAGS="$(call gate_rust_flags,$(TEST_FLAGS))" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifeq ($(DOC_TEST_TARGETS),true)
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
 endif
 
 test-workflow-contracts: ## Validate the mutation-testing caller contract
 	uv run --with 'pytest>=8' --with 'pyyaml>=6' --with 'hypothesis>=6' pytest tests/workflow_contracts -q
 
 target/debug/$(TARGET): | check-build-tools ## Build the development binary
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" $(CARGO) build $(BUILD_JOBS) --bin $(TARGET)
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" $(CARGO) build $(BUILD_JOBS) --bin $(TARGET)
 
 target/release/$(TARGET): ## Build the production binary with LLVM
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(RUST_FLAGS))" RUSTFLAGS="$(RUST_FLAGS)" CARGO_PROFILE_RELEASE_CODEGEN_BACKEND=llvm \
@@ -137,17 +142,17 @@ target/release/$(TARGET): ## Build the production binary with LLVM
 lint: check-verification-ledger check-domain-purity lint-clippy lint-whitaker ## Run Clippy, then the Whitaker Dylint suite
 
 lint-clippy: check-build-tools ## Check Rust documentation and run Clippy
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,))" RUSTFLAGS="$(call gate_rust_flags,)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,$(CLIPPY_FLAGS)))" RUSTFLAGS="$(call gate_rust_flags,$(CLIPPY_FLAGS))" $(CARGO) clippy $(CLIPPY_FLAGS)
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_CLIPPY))" RUSTFLAGS="$(GATE_RUSTFLAGS_CLIPPY)" $(CARGO) clippy $(CLIPPY_FLAGS)
 
 # Whitaker uses its installer-managed toolchain. A warnings-only RUSTFLAGS
 # assignment keeps its route separate from the parallel development frontend
 # and linker; explicit profile overrides also reject inherited backend input.
 lint-whitaker: ## Run the rolling Whitaker suite over every workspace package
-	$(WHITAKER_ENV) $(WHITAKER) --all $(foreach package,$(WHITAKER_PACKAGES),--package $(package)) -- $(CARGO_FLAGS)
+	unset CARGO_ENCODED_RUSTFLAGS; $(WHITAKER_ENV) $(WHITAKER) --all $(foreach package,$(WHITAKER_PACKAGES),--package $(package)) -- $(CARGO_FLAGS)
 
 typecheck: check-build-tools ## Type-check without building
-	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(call gate_rust_flags,$(CARGO_FLAGS)))" RUSTFLAGS="$(call gate_rust_flags,$(CARGO_FLAGS))" $(CARGO) check $(CARGO_FLAGS)
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_CARGO))" RUSTFLAGS="$(GATE_RUSTFLAGS_CARGO)" $(CARGO) check $(CARGO_FLAGS)
 
 install-build-tools: ## Install the pinned nightly and Linux linker
 	@bash scripts/install-build-tools.sh

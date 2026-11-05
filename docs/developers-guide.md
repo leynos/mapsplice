@@ -257,7 +257,7 @@ flowchart TD
     }
     Start[Build or test command] --> Route{Selected route?}
     Route -->|Bare Cargo| Config[Cargo config defaults]
-    Route -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
+    Route -->|Make development gates| Compose[Compose policy flags with the GATE_RUSTFLAGS_* variables]
     Route -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
     Route -->|Release| Release[LLVM release profile and warning flags]
     Route -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
@@ -292,7 +292,9 @@ policy flags. Encoded flags take precedence over `RUSTFLAGS`, so both flag
 sources must follow the selected route.
 
 Whitaker receives explicit LLVM development and test profile overrides without
-the repository's development frontend or linker flags. Keep
+the repository's development frontend or linker flags. Its recipe unsets
+`CARGO_ENCODED_RUSTFLAGS` and assigns the literal `RUSTFLAGS="-D warnings"`, so
+the isolation is statically readable. Keep
 `CARGO_UNSTABLE_CODEGEN_BACKEND=true` on this route: Dylint may build a driver
 from a temporary Cargo project outside the repository, where Cargo cannot
 discover the root `.cargo/config.toml` that enables the unstable profile
