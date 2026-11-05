@@ -141,8 +141,8 @@ def assert_development_route(
     expected = [*COMPATIBLE_FLAGS, "-D", "warnings", "-Zthreads=8"]
     rust_flags = ["-D", "warnings", "-Zthreads=8"]
     if uses_pinned_linker:
-        expected.extend(["-C", "link-arg=-fuse-ld=mold"])
-        rust_flags.extend(["-C", "link-arg=-fuse-ld=mold"])
+        expected.extend(["-Clink-arg=-fuse-ld=mold"])
+        rust_flags.extend(["-Clink-arg=-fuse-ld=mold"])
     assert list(invocation.encoded_flags) == expected, (
         "encoded development route flags were "
         f"{invocation.encoded_flags!r}, expected {expected!r}"
@@ -175,10 +175,8 @@ def assert_whitaker_route(invocation: RouteInvocation) -> None:
         f"Whitaker arguments were {invocation.arguments!r}, "
         f"expected {expected_arguments!r}"
     )
-    expected_encoded_flags = (*COMPATIBLE_FLAGS, "-D", "warnings")
-    assert invocation.encoded_flags == expected_encoded_flags, (
-        f"Whitaker encoded flags were {invocation.encoded_flags!r}, "
-        f"expected {expected_encoded_flags!r}"
+    assert invocation.encoded_flags == (), (
+        f"Whitaker encoded flags were {invocation.encoded_flags!r}, expected none"
     )
     expected_rust_flags = ("-D", "warnings")
     assert invocation.rust_flags == expected_rust_flags, (
