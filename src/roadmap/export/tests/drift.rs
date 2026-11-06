@@ -130,7 +130,7 @@ fn identical_documents_have_no_differences() {
     let committed = document(vec![phase("1")]);
     let fresh = committed.clone();
 
-    assert!(differences(&committed, &fresh).is_empty());
+    assert_eq!(differences(&committed, &fresh), Vec::<String>::new());
 }
 
 #[test]

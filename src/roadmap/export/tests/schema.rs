@@ -21,7 +21,7 @@ fn export_state_rejects_unknown_spellings() {
     let error = serde_json::from_str::<ExportState>("\"blocked\"")
         .expect_err("unknown states are rejected");
 
-    assert!(!error.to_string().is_empty());
+    assert_ne!(error.to_string(), "");
 }
 
 #[test]
