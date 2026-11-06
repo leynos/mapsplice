@@ -234,10 +234,12 @@ fn rewrite_markdown_nodes(
     context: &mut DependencyRewriteContext<'_>,
 ) -> bool {
     let before = context.rewrite_count;
+    let source_text = markdown.source();
     visit_dependency_nodes(
         markdown.nodes_mut(),
         &mut DependencyVisitMode::Rewrite {
             source,
+            source_text: source_text.as_deref(),
             plan: context.plan,
             rewrite_count: &mut context.rewrite_count,
             unresolved: &mut context.unresolved,

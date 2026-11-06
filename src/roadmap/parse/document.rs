@@ -92,7 +92,7 @@ impl<'source> DocumentParser<'source> {
                 anchor: RoadmapAnchor::Phase(number),
             },
             number,
-            title: MarkdownNodes::from_nodes(title),
+            title: MarkdownNodes::from_nodes_in(title, self.source_text),
             body: MarkdownNodes::new(),
             steps: Vec::new(),
             trailing: MarkdownNodes::new(),

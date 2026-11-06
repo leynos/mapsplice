@@ -139,7 +139,7 @@ fn prose_after_a_requires_clause_is_exported(workspace: TestResult<Workspace>) -
         "- [ ] 1.1.2. Other task.\n",
     ),
     "invalid dependency anchor token",
-    "line 8, column 5"
+    "line 8, column 7"
 )]
 #[case::malformed_numbered_checkbox(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n  - [ ] 1.1.1.0. Malformed detail.\n",

@@ -64,8 +64,10 @@ boundary, and roadmap domain modules:
   testable without a temporary filesystem. `run_export` is the instrumented
   command boundary: it records one export attempt and exactly one outcome in
   the process-local counters. Its `export_request` query performs the work
-  without touching counters or tracing, so a caller that only needs the
-  rendered result cannot alter observable process state.
+  without touching counters and without opening a span of its own, so a caller
+  that only needs the rendered result cannot alter the recorded metrics. The
+  spans owned by its callees, `parse_roadmap` and the injected reader, are
+  unchanged.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.

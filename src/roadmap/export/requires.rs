@@ -1,6 +1,6 @@
 //! Dependency validation for export items using the rewriter's shared scanner.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use markdown::mdast::{ListItem, Node, Paragraph};
 
@@ -79,18 +79,22 @@ pub(super) fn from_markdown(
     for section in content {
         nodes.extend_from_slice(section.nodes());
     }
-    dependencies(&nodes, known_anchors, true)
+    let source = first_source(std::iter::once(title).chain(content.iter().copied()));
+    dependencies(&nodes, source.as_deref(), known_anchors, true)
 }
 
 /// Collect dependencies owned by a task, excluding its nested checkbox items.
 pub(super) fn from_task(task: &TaskEntry, known_anchors: &HashSet<String>) -> Result<Vec<String>> {
     let mut nodes = task.summary.nodes().to_vec();
+    let mut bodies = Vec::new();
     for child in task.children() {
         if let TaskChild::Body(body) = child {
             nodes.extend_from_slice(body.nodes());
+            bodies.push(body);
         }
     }
-    dependencies(&nodes, known_anchors, true)
+    let source = first_source(std::iter::once(&task.summary).chain(bodies));
+    dependencies(&nodes, source.as_deref(), known_anchors, true)
 }
 
 /// Collect dependencies owned by a structural sub-task, excluding nested checkboxes.
@@ -100,7 +104,8 @@ pub(super) fn from_sub_task(
 ) -> Result<Vec<String>> {
     let mut nodes = sub_task.summary.nodes().to_vec();
     nodes.extend_from_slice(sub_task.body.nodes());
-    dependencies(&nodes, known_anchors, true)
+    let source = first_source([&sub_task.summary, &sub_task.body]);
+    dependencies(&nodes, source.as_deref(), known_anchors, true)
 }
 
 /// Collect dependencies owned by an unnumbered checkbox item.
@@ -109,12 +114,20 @@ pub(super) fn from_checkbox(
     known_anchors: &HashSet<String>,
 ) -> Result<Vec<String>> {
     let nodes = item.children.clone();
-    dependencies(&nodes, known_anchors, true)
+    // A bare list item carries no document handle, so its diagnostics fall
+    // back to the text node's start.
+    dependencies(&nodes, None, known_anchors, true)
+}
+
+/// Return the first document text available among the given collections.
+fn first_source<'a>(collections: impl IntoIterator<Item = &'a MarkdownNodes>) -> Option<Arc<str>> {
+    collections.into_iter().find_map(MarkdownNodes::source)
 }
 
 /// Scan candidates in source order, rejecting malformed and unresolved anchors.
 fn dependencies(
     nodes: &[Node],
+    source_text: Option<&str>,
     known_anchors: &HashSet<String>,
     skip_checkbox_items: bool,
 ) -> Result<Vec<String>> {
@@ -125,7 +138,8 @@ fn dependencies(
         });
     }
 
-    let candidates = super::super::ops::collect_dependencies(nodes, skip_checkbox_items);
+    let candidates =
+        super::super::ops::collect_dependencies(nodes, source_text, skip_checkbox_items);
     let mut dependencies = Vec::new();
     for candidate in candidates {
         let location = candidate.location;
