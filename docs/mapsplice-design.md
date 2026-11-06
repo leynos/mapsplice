@@ -108,7 +108,7 @@ the reverse. The gate and the roadmap proof boundary are described in
 [verification.md](verification.md).
 
 The read-only export follows the same boundary. `src/lib.rs` dispatches a
-`CommandKind::Export` request to `src/export_command.rs`, which reads the
+`CommandKind::Export` request to `src/export_command/mod.rs`, which reads the
 Markdown path and any committed export through an injected UTF-8 reader and
 turns a mismatch into an `ExportError::Drift` report. The pure adapter in
 `src/roadmap/export/` maps the existing roadmap model to an ordered, versioned
