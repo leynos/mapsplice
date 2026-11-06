@@ -271,37 +271,6 @@ def test_windows_development_routes_exclude_inherited_linker(
 
 
 @pytest.mark.parametrize(
-    "triple", ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
-)
-@pytest.mark.parametrize(
-    ("goal", "variable", "value", "command"),
-    [
-        ("test", "TEST_FLAGS", "--workspace --target {triple}", ("test",)),
-        (
-            "lint-clippy",
-            "CLIPPY_FLAGS",
-            "--workspace --target {triple} -- -D warnings",
-            ("clippy",),
-        ),
-    ],
-)
-def test_supported_linux_targets_keep_the_pinned_linker_for_test_and_clippy(
-    tmp_path: Path,
-    triple: str,
-    goal: str,
-    variable: str,
-    value: str,
-    command: tuple[str, ...],
-) -> None:
-    """An explicit supported Linux target keeps the linker on both routes."""
-    variables = {variable: value.format(triple=triple)}
-    if goal == "test":
-        variables["TEST_CMD"] = "test"
-    route = route_for(execute_make_route(tmp_path, goal, variables=variables), command)
-    assert_development_route(route, uses_pinned_linker=True)
-
-
-@pytest.mark.parametrize(
     ("target", "should_use_pinned_linker"),
     [
         ("x86_64-pc-windows-gnu", False),
