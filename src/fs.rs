@@ -16,7 +16,11 @@ use crate::error::{MapspliceError, Result};
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Read a UTF-8 file through a capability directory.
-#[tracing::instrument(skip_all, fields(path = %path))]
+///
+/// The span omits the user-supplied path so its cardinality stays bounded; a
+/// failed read still reports the path through [`MapspliceError::Io`], and the
+/// caller's own span identifies the operation.
+#[tracing::instrument(skip_all)]
 pub fn read_utf8(path: &Utf8Path) -> Result<String> {
     let cap = open_parent_dir(path)?;
     cap.dir
