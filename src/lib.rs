@@ -8,7 +8,7 @@ pub mod observability;
 mod roadmap;
 
 use camino::Utf8PathBuf;
-pub use error::{MapspliceError, Result, SourceLocation};
+pub use error::{ExportError, MapspliceError, Result, SourceLocation};
 use fs::{read_utf8, rewrite_utf8};
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,

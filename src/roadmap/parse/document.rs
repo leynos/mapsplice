@@ -110,7 +110,7 @@ impl<'source> DocumentParser<'source> {
                 location: heading
                     .position
                     .as_ref()
-                    .map(|position| crate::error::SourceLocation::from(&position.start)),
+                    .map(crate::roadmap::source_location::source_location),
             })?;
         let (number, title) = parse_step_heading(heading)
             .map_err(|error| locate(error, heading.position.as_ref()))?;
@@ -152,7 +152,7 @@ impl<'source> DocumentParser<'source> {
         let location = heading
             .position
             .as_ref()
-            .map(|position| crate::error::SourceLocation::from(&position.start));
+            .map(crate::roadmap::source_location::source_location);
         let heading_text = Node::Heading(heading).to_string();
         Err(MapspliceError::InvalidRoadmap {
             message: format!(

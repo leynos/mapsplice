@@ -29,6 +29,7 @@ use crate::{
             TaskEntry,
             TaskEntryParts,
         },
+        numbered_detail::nested_numbered_checkbox,
         source_preservation::original_position_source,
         sub_task_numbering::{SubTaskOrderError, validate_sub_task_position},
     },
@@ -85,10 +86,28 @@ fn split_task_children(
                 nested_task_list::parse_sub_task_list(list, parent, context, &mut task_children)?;
                 continue;
             }
+            reject_nested_numbered_detail(list)?;
         }
         task_children.push_body_node(child.clone(), context.source_text);
     }
     Ok(task_children.finish())
+}
+
+/// Reject a numbered checkbox nested beneath a checkbox detail in a task body.
+///
+/// The export adapter cannot represent a numbered detail below another detail,
+/// so the parser refuses the same shape with the offending item's location.
+pub(super) fn reject_nested_numbered_detail(list: &List) -> Result<()> {
+    let Some(item) = nested_numbered_checkbox(list) else {
+        return Ok(());
+    };
+    Err(locate(
+        MapspliceError::InvalidRoadmap {
+            message: "numbered checkbox details are not valid beneath a checkbox detail".to_owned(),
+            location: None,
+        },
+        item.position.as_ref(),
+    ))
 }
 
 /// Parse and validate one structural sub-task list item.

@@ -106,13 +106,16 @@ The same operation is available to library callers through `run_request` with
 `CommandKind::Export { format, check }`. A request without `check` returns a
 `RunOutcome` whose `stdout` holds the rendered JSON and whose `written_path` is
 `None`. A request with `check` returns a silent success when the committed
-export matches, and otherwise fails with `MapspliceError::ExportDrift`, whose
-`differences` field carries the same item-oriented report as the CLI. An
-unreadable or schema-invalid committed export fails with
-`MapspliceError::InvalidExport`, and a source read failure surfaces as
-`MapspliceError::Io`. Library callers supply the roadmap path in the request;
-the export orchestration reads it through the same UTF-8 reader as the edit
-commands.
+export matches, and otherwise fails with
+`MapspliceError::Export(ExportError::Drift)`, whose `differences` field carries
+the same item-oriented report as the CLI. An unreadable or schema-invalid
+committed export fails with
+`MapspliceError::Export(ExportError::InvalidCommitted)`, and a serialization
+failure with `MapspliceError::Export(ExportError::Serialization)`. A source
+read failure surfaces as `MapspliceError::Io`, because it belongs to the
+caller-supplied reader rather than the export contract. Library callers supply
+the roadmap path in the request; the export orchestration reads it through the
+same UTF-8 reader as the edit commands.
 
 ## Worked example
 

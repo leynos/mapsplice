@@ -22,6 +22,7 @@ use crate::{
         SubTaskEntry,
         TaskNumber,
         model::MarkdownNodes,
+        numbered_detail::numbered_prefix,
         sub_task_numbering::{SubTaskOrderError, validate_sub_task_position},
     },
 };
@@ -164,23 +165,20 @@ fn checkbox_detail(
     })
 }
 
-/// Remove and validate an anchor-like prefix from a mixed-list checkbox item.
+/// Remove and validate a numbered prefix from a mixed-list checkbox item.
+///
+/// Recognition uses the same predicate as the parser, so a numbered checkbox
+/// the parser accepts is the only shape this function will try to interpret.
 fn numbered_title(
     paragraph: &Paragraph,
     numbering: &mut NumberedDetails,
 ) -> Result<(Option<String>, Vec<Node>)> {
     let mut title_nodes = paragraph.children.clone();
-    let Some(Node::Text(text)) = title_nodes.first_mut() else {
+    let Some(prefix) = numbered_prefix(paragraph).map(str::to_owned) else {
         return Ok((None, title_nodes));
     };
-    let Some((prefix, remainder)) = text.value.split_once(". ") else {
-        return Ok((None, title_nodes));
-    };
-    if !is_anchor_like(prefix) {
-        return Ok((None, title_nodes));
-    }
     let position = paragraph.position.as_ref();
-    let anchor = super::super::parse_anchor(prefix).map_err(|_| {
+    let anchor = super::super::parse_anchor(&prefix).map_err(|_| {
         invalid_at(
             position,
             format!("malformed numbered checkbox detail prefix `{prefix}`"),
@@ -193,16 +191,14 @@ fn numbered_title(
         ));
     };
     numbering.accept_number(number, position)?;
-    text.value = remainder.to_owned();
+    if let Some(Node::Text(text)) = title_nodes.first_mut() {
+        text.value = text
+            .value
+            .get(prefix.len() + 2..)
+            .unwrap_or_default()
+            .to_owned();
+    }
     Ok((Some(number.to_string()), title_nodes))
-}
-
-/// Return whether a prefix is composed only of dotted numeric anchor characters.
-fn is_anchor_like(prefix: &str) -> bool {
-    prefix.contains('.')
-        && prefix
-            .chars()
-            .all(|character| character.is_ascii_digit() || character == '.')
 }
 
 /// Convert nested task-body content owned by a structural sub-task.
