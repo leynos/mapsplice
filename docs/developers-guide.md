@@ -310,7 +310,11 @@ Dylint tool archive must come from published assets.
 
 Cranelift is excluded from the development default. On `nightly-2026-03-26`, the
 `catch_unwind` probe failed and a spawned-thread panic aborted the test
-process; the explicit LLVM route passed the full suite (293/293). See the
+process; the explicit LLVM route passed the full suite (293/293). Re-measured on
+`nightly-2026-11-05` on 2026-11-06 with
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift make test`: the same two tests
+still fail (`catch_unwind_catches_a_development_panic` fails, and
+`spawned_thread_panic_does_not_abort_the_process` aborts with SIGABRT). See the
 [investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
 Review this exception under
 [issue #115](https://github.com/leynos/mapsplice/issues/115) on 2027-04-01.
