@@ -9,6 +9,7 @@
 mod drift;
 mod layout;
 mod model;
+mod structural;
 
 #[path = "../support/export_workspace.rs"]
 mod export_workspace;

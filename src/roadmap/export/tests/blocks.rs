@@ -6,7 +6,7 @@ use rstest::rstest;
 use super::{anchors, at, list, list_item, markdown, markdown_nodes, task};
 use crate::roadmap::export::blocks::{
     entries,
-    list_item_entry,
+    list_item_entries,
     list_items,
     step_content,
     task_content,
@@ -101,11 +101,11 @@ fn list_items_reject_non_list_item_children() {
 }
 
 #[test]
-fn list_item_entry_requires_a_first_paragraph() {
+fn list_item_entries_requires_a_first_paragraph() {
     let mut item = list_item("- outer\n");
     item.children = vec![Node::List(list("- inner\n"))];
 
-    let error = list_item_entry(&item).expect_err("a leading nested list is unsupported");
+    let error = list_item_entries(&item).expect_err("a leading nested list is unsupported");
 
     assert!(
         error
@@ -116,7 +116,7 @@ fn list_item_entry_requires_a_first_paragraph() {
 }
 
 #[test]
-fn list_item_entry_maps_nested_paragraphs_and_bullets() {
+fn list_item_entries_maps_nested_paragraphs_and_bullets() {
     let source = concat!(
         "- Outer.\n\n",
         "  Continuation paragraph.\n\n",
@@ -124,10 +124,10 @@ fn list_item_entry_maps_nested_paragraphs_and_bullets() {
         "  - nested two\n",
     );
 
-    let entry = list_item_entry(&list_item(source))
-        .expect("nested blocks should map")
-        .expect("a non-requires item should produce an entry");
+    let entries = list_item_entries(&list_item(source)).expect("nested blocks should map");
 
+    assert_eq!(entries.len(), 1);
+    let entry = at(&entries, 0);
     assert_eq!(entry.value, "Outer.");
     assert_eq!(entry.entries.len(), 3);
     assert_eq!(at(&entry.entries, 0).value, "Continuation paragraph.");
@@ -135,24 +135,53 @@ fn list_item_entry_maps_nested_paragraphs_and_bullets() {
 }
 
 #[test]
-fn list_item_entry_skips_requires_and_thematic_break_in_children() {
+fn list_item_entries_skips_requires_and_thematic_break_in_children() {
     let source = "- Outer.\n\n  Requires 1.1.1.\n\n  ---\n";
 
-    let entry = list_item_entry(&list_item(source))
-        .expect("nested blocks should map")
-        .expect("a non-requires item should produce an entry");
+    let entries = list_item_entries(&list_item(source)).expect("nested blocks should map");
 
+    assert_eq!(entries.len(), 1);
     assert!(
-        entry.entries.is_empty(),
+        at(&entries, 0).entries.is_empty(),
         "skipped blocks should not be entries"
     );
 }
 
 #[test]
-fn list_item_entry_rejects_ordered_nested_lists() {
+fn list_item_entries_exports_supported_children_of_a_requires_bullet() {
+    let source = "- Requires 1.1.1.\n\n  Success: retain this criterion.\n";
+
+    let entries = list_item_entries(&list_item(source))
+        .expect("supported children of a dependency bullet should export");
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(at(&entries, 0).key.as_deref(), Some("Success"));
+    assert_eq!(at(&entries, 0).value, "retain this criterion.");
+}
+
+#[test]
+fn list_item_entries_rejects_unsupported_children_of_a_requires_bullet() {
+    let source = "- Requires 1.1.1.\n\n  - [ ] nested checkbox\n";
+
+    let error = list_item_entries(&list_item(source))
+        .expect_err("a checkbox beneath a dependency bullet cannot be represented");
+
+    let diagnostic = error.to_string();
+    assert!(
+        diagnostic.contains("checkbox detail cannot be nested beneath a non-checkbox entry"),
+        "unexpected error: {diagnostic}"
+    );
+    assert!(
+        diagnostic.contains("line 3, column 3"),
+        "the rejection should carry the nested item's location: {diagnostic}"
+    );
+}
+
+#[test]
+fn list_item_entries_rejects_ordered_nested_lists() {
     let source = "- Outer.\n\n  1. ordered\n";
 
-    let error = list_item_entry(&list_item(source)).expect_err("ordered nested lists fail");
+    let error = list_item_entries(&list_item(source)).expect_err("ordered nested lists fail");
 
     assert!(
         error
@@ -163,10 +192,10 @@ fn list_item_entry_rejects_ordered_nested_lists() {
 }
 
 #[test]
-fn list_item_entry_rejects_nested_checkbox_items() {
+fn list_item_entries_rejects_nested_checkbox_items() {
     let source = "- Outer.\n\n  - [ ] nested checkbox\n";
 
-    let error = list_item_entry(&list_item(source)).expect_err("nested checkboxes fail");
+    let error = list_item_entries(&list_item(source)).expect_err("nested checkboxes fail");
 
     assert!(
         error

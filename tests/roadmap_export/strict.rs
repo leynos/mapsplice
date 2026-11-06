@@ -83,6 +83,27 @@ fn export_ignores_in_place_even_for_a_direct_request(
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
+fn dependency_bullet_exports_its_supported_children(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "## 1. Planning\n\n### 1.1. Export\n\n",
+        "- [ ] 1.1.1. Emit JSON.\n",
+        "  - Requires 1.1.2.\n\n",
+        "    Success: retain this criterion.\n",
+        "- [ ] 1.1.2. Check JSON.\n",
+    ))?;
+
+    let exported = export(&test_workspace)?;
+
+    require_contains(&exported, "\"key\": \"Success\"")?;
+    require_contains(&exported, "\"value\": \"retain this criterion.\"")?;
+    Ok(())
+}
+
+#[rstest]
 #[case::unsupported_task_block(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n\n  ```text\n  body\n  ```\n",
     "unsupported block in task body"
@@ -114,6 +135,14 @@ fn export_ignores_in_place_even_for_a_direct_request(
 #[case::task_list_without_step(
     "## 1. Phase\n\n- [ ] 1.1.1. Task appears too early.\n",
     "task list appeared without a current step"
+)]
+#[case::checkbox_beneath_dependency_bullet(
+    concat!(
+        "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n",
+        "  - Requires 1.1.1.\n",
+        "    - [ ] nested checkbox\n",
+    ),
+    "checkbox detail cannot be nested beneath a non-checkbox entry"
 )]
 #[serial_test::serial(cli_env)]
 fn malformed_or_unsupported_exports_fail_with_source_locations(

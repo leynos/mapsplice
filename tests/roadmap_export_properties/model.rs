@@ -177,27 +177,13 @@ pub(super) fn roadmap_model() -> impl Strategy<Value = Vec<PhaseModel>> {
     prop::collection::vec(phase(), 1..3)
 }
 
-/// Split text into wrap tokens whose labels stay attached to their colon.
+/// Split text into wrap tokens, keeping each word's colon attached to it.
 ///
-/// A label is only recognized when it contains no line break, so wrapping
-/// between the words of a label would legitimately change the export. Keeping
-/// each colon-terminated label in one token models the same semantics under a
-/// tighter layout rather than asserting that layout can be arbitrary.
-fn wrap_tokens(text: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut pending = Vec::new();
-    for word in text.split_whitespace() {
-        pending.push(word);
-        if word.ends_with(':') {
-            tokens.push(pending.join(" "));
-            pending.clear();
-        }
-    }
-    if !pending.is_empty() {
-        tokens.push(pending.join(" "));
-    }
-    tokens
-}
+/// A label may span several words, and the exporter normalizes whitespace
+/// inside a label before recognizing it. Allowing a wrap between label words
+/// exercises that normalization: the split form must export identically to the
+/// single-line form.
+fn wrap_tokens(text: &str) -> Vec<String> { text.split_whitespace().map(str::to_owned).collect() }
 
 /// Soft-wrap text at token boundaries.
 fn wrap(text: &str, width: usize, gap: &str) -> Vec<String> {

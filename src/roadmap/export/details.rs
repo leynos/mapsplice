@@ -8,7 +8,7 @@ use super::{
         empty_entry,
         invalid_at,
         invalid_node,
-        list_item_entry,
+        list_item_entries,
         list_items,
     },
     requires::{from_checkbox, from_sub_task, is_requires_clause},
@@ -102,8 +102,8 @@ pub(super) fn append_task_list(list: &List, content: &mut TaskContentBuilder<'_>
         if item.checked.is_some() {
             let detail = checkbox_detail(item, content.known_anchors, &mut content.numbering)?;
             content.details.push(detail);
-        } else if let Some(entry) = list_item_entry(item)? {
-            content.entries.push(entry);
+        } else {
+            content.entries.extend(list_item_entries(item)?);
         }
     }
     Ok(())
