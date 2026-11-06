@@ -49,7 +49,7 @@ impl<'source> StepAccumulator<'source> {
                 anchor: number.into(),
             },
             number,
-            title: MarkdownNodes::from_nodes(title),
+            title: MarkdownNodes::from_nodes_in(title, self.source_text),
             body: MarkdownNodes::new(),
             tasks: Vec::new(),
             task_list_source: None,

@@ -56,7 +56,7 @@ pub(super) fn parse_task_item(
         },
         number,
         checked: head.checked,
-        summary: MarkdownNodes::from_nodes(summary),
+        summary: MarkdownNodes::from_nodes_in(summary, context.source_text),
         body,
         original_source,
         sub_tasks,
@@ -143,7 +143,7 @@ pub(super) fn parse_sub_task_item_unchecked(
         },
         number,
         checked: head.checked,
-        summary: MarkdownNodes::from_nodes(summary),
+        summary: MarkdownNodes::from_nodes_in(summary, context.source_text),
         body,
         original_source: original_item_source(item, context),
     })

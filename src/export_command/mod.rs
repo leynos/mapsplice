@@ -26,8 +26,10 @@ pub(crate) type ReadUtf8Fn<'reader> = &'reader dyn Fn(&Utf8Path) -> Result<Strin
 ///
 /// This is the instrumented command boundary: each call records one attempt
 /// and exactly one outcome. The underlying [`export_request`] query performs
-/// the actual work and touches no process-global state, so it can be exercised
-/// directly without perturbing the counters.
+/// the actual work and touches no counters, so it can be exercised directly
+/// without perturbing the metrics. It still emits the spans its callees own
+/// (parsing and the injected reader); only the boundary span and the counter
+/// updates belong here.
 pub(crate) fn run_export(
     target: &Utf8Path,
     format: ExportFormat,
@@ -62,9 +64,10 @@ const fn decision_for(result: &Result<RunOutcome>, has_check: bool) -> ExportOut
 
 /// Render the export and, when requested, compare it with the committed file.
 ///
-/// This query is deliberately free of logging and counter updates. Every
-/// side effect belongs to the [`run_export`] boundary so callers that only
-/// need the rendered result cannot alter observable process state.
+/// This query is deliberately free of counter updates and of any span of its
+/// own. Every counter side effect belongs to the [`run_export`] boundary, so
+/// callers that only need the rendered result cannot alter the recorded
+/// metrics. Spans emitted by [`export_schema`]'s callees are unchanged.
 fn export_request(
     target: &Utf8Path,
     format: ExportFormat,

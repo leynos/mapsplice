@@ -38,7 +38,9 @@ fn markdown(source: &str) -> Vec<Node> {
 }
 
 /// Wrap parsed Markdown in the roadmap-owned node collection.
-fn markdown_nodes(source: &str) -> MarkdownNodes { MarkdownNodes::from_nodes(markdown(source)) }
+fn markdown_nodes(source: &str) -> MarkdownNodes {
+    MarkdownNodes::from_nodes_in(markdown(source), source)
+}
 
 /// Parse a roadmap fixture, failing the test when it is not valid.
 fn roadmap(source: &str) -> RoadmapDocument {
