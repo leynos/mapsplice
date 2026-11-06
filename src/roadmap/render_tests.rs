@@ -194,7 +194,8 @@ const REQUIRED_ROUND_TRIP_SURFACES: &[&str] = &[
     "tests/fixtures/reference_rewrite/version_quantity.input.md",
 ];
 
-/// Collect the unsafe-metacharacter fixtures used by the round-trip property.
+/// Collect the golden and reference-rewrite fixtures that must round-trip
+/// byte-for-byte, excluding the deliberately non-conformant `f5_` cases.
 fn conformant_round_trip_fixture_paths() -> Result<Vec<Utf8PathBuf>, String> {
     let repository = Dir::open_ambient_dir(".", ambient_authority())
         .map_err(|error| format!("open repository directory: {error}"))?;

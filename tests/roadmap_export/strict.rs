@@ -106,15 +106,18 @@ fn dependency_bullet_exports_its_supported_children(
 #[rstest]
 #[case::unsupported_task_block(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n\n  ```text\n  body\n  ```\n",
-    "unsupported block in task body"
+    "unsupported block in task body",
+    "line 7, column 3"
 )]
 #[case::malformed_requires_anchor(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task. Requires 1.0.1.\n",
-    "invalid dependency anchor token"
+    "invalid dependency anchor token",
+    "line 5, column 7"
 )]
 #[case::malformed_numbered_checkbox(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n  - [ ] 1.1.1.0. Malformed detail.\n",
-    "malformed numbered checkbox detail prefix"
+    "malformed numbered checkbox detail prefix",
+    "line 6, column 9"
 )]
 #[case::out_of_order_numbered_checkbox(
     concat!(
@@ -122,19 +125,23 @@ fn dependency_bullet_exports_its_supported_children(
         "  - Context.\n",
         "  - [ ] 1.1.1.2. Skipped ordinal.\n",
     ),
-    "sub-task `1.1.1.2` is not in document order"
+    "sub-task `1.1.1.2` is not in document order",
+    "line 7, column 3"
 )]
 #[case::formatted_requires_keyword(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task. **Requires** 1.1.1.\n",
-    "formatted `Requires` keyword"
+    "formatted `Requires` keyword",
+    "line 5, column 20"
 )]
 #[case::missing_task_checkbox(
     "## 1. Phase\n\n### 1.1. Step\n\n- 1.1.1. Task without a checkbox.\n",
-    "roadmap task lists must be unordered checklist items"
+    "roadmap task lists must be unordered checklist items",
+    "line 5, column 1"
 )]
 #[case::task_list_without_step(
     "## 1. Phase\n\n- [ ] 1.1.1. Task appears too early.\n",
-    "task list appeared without a current step"
+    "task list appeared without a current step",
+    "line 3, column 1"
 )]
 #[case::checkbox_beneath_dependency_bullet(
     concat!(
@@ -142,13 +149,15 @@ fn dependency_bullet_exports_its_supported_children(
         "  - Requires 1.1.1.\n",
         "    - [ ] nested checkbox\n",
     ),
-    "checkbox detail cannot be nested beneath a non-checkbox entry"
+    "checkbox detail cannot be nested beneath a non-checkbox entry",
+    "line 7, column 5"
 )]
 #[serial_test::serial(cli_env)]
 fn malformed_or_unsupported_exports_fail_with_source_locations(
     workspace: TestResult<Workspace>,
     #[case] source: &str,
     #[case] expected_message: &str,
+    #[case] expected_location: &str,
 ) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(source)?;
@@ -158,7 +167,6 @@ fn malformed_or_unsupported_exports_fail_with_source_locations(
     let diagnostic = error.to_string();
 
     require_contains(&diagnostic, expected_message)?;
-    require_contains(&diagnostic, "line ")?;
-    require_contains(&diagnostic, ", column ")?;
+    require_contains(&diagnostic, expected_location)?;
     Ok(())
 }

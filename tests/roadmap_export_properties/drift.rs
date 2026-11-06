@@ -188,6 +188,8 @@ pub(super) const NESTED_ROADMAP: &str = concat!(
     "    Detail note: detail value.\n\n",
     "    - [ ] Nested detail.\n\n",
     "      Nested note: nested value.\n\n",
+    "- [ ] 1.1.2. Task two.\n\n",
+    "  Second note: second value.\n\n",
     "Step close: step trailing value.\n",
 );
 

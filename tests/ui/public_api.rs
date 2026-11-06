@@ -10,7 +10,11 @@ use mapsplice::{
     parse_roadmap_text,
 };
 
+/// The format name must be usable where a `const` string is required.
+const JSON_FORMAT: &str = ExportFormat::Json.as_str();
+
 fn main() {
+    assert_eq!(JSON_FORMAT, "json");
     let anchor: RoadmapAnchor = parse_anchor("1.2.3").expect("anchor should parse");
     let _command = CommandKind::Delete { anchor };
     let _export = CommandKind::Export {

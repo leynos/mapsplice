@@ -156,10 +156,14 @@ fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>)
     ])
     .expect_err("unresolved valid dependency references must fail");
 
-    let MapspliceError::DanglingDependency { anchor, .. } = error else {
+    let MapspliceError::DanglingDependency { anchor, location } = error else {
         return Err(format!("expected dangling dependency error, got {error:?}").into());
     };
     assert_equal(&anchor.to_string(), &"99.1.1".to_owned());
+    let Some(reported) = location else {
+        return Err("the dangling reference should carry its source location".into());
+    };
+    assert_equal(&reported.to_string(), &"line 7, column 7".to_owned());
     Ok(())
 }
 
