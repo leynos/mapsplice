@@ -17,8 +17,26 @@ use super::{
 };
 use crate::{
     error::Result,
-    roadmap::{RoadmapAnchor, SubTaskEntry, TaskNumber, model::MarkdownNodes},
+    roadmap::{
+        RoadmapAnchor,
+        SubTaskEntry,
+        TaskNumber,
+        model::MarkdownNodes,
+        sub_task_numbering::{SubTaskOrderError, validate_sub_task_position},
+    },
 };
+
+/// Render a shared numbering violation for the export adapter's diagnostics.
+fn describe_numbered_detail_error(error: SubTaskOrderError) -> String {
+    match error {
+        SubTaskOrderError::WrongParent { parent, actual } => {
+            format!("numbered detail `{actual}` does not belong to task `{parent}`")
+        }
+        SubTaskOrderError::OutOfOrder { expected, actual } => {
+            format!("numbered detail `{actual}` is out of order; expected ordinal {expected}")
+        }
+    }
+}
 
 /// Numbered details expected beneath one task, in source order.
 pub(super) struct NumberedDetails {
@@ -65,21 +83,8 @@ impl NumberedDetails {
                 format!("numbered detail `{number}` is not valid beneath a checkbox detail"),
             ));
         };
-        if number.task_number() != parent_task {
-            return Err(invalid_at(
-                position,
-                format!("numbered detail `{number}` does not belong to task `{parent_task}`"),
-            ));
-        }
-        if number.sub_task() != self.next_ordinal {
-            return Err(invalid_at(
-                position,
-                format!(
-                    "numbered detail `{number}` is out of order; expected ordinal {}",
-                    self.next_ordinal
-                ),
-            ));
-        }
+        validate_sub_task_position(parent_task, self.next_ordinal, number)
+            .map_err(|error| invalid_at(position, describe_numbered_detail_error(error)))?;
         self.next_ordinal = self.next_ordinal.checked_add(1).ok_or_else(|| {
             invalid_at(
                 position,

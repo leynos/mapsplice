@@ -9,6 +9,7 @@ pub(crate) mod preservation_events;
 mod render;
 pub(crate) mod source_preservation;
 mod step_section;
+pub(crate) mod sub_task_numbering;
 
 pub use anchor::{
     PhaseNumber,
