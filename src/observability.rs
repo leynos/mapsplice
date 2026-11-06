@@ -68,6 +68,8 @@ pub struct MetricsSnapshot {
     pub export_matches: u64,
     /// Committed exports that differed from the freshly rendered document.
     pub export_drifts: u64,
+    /// Export invocations that failed before producing a decision.
+    pub export_failures: u64,
 }
 
 /// Process-local count of failed commands, excluding help and version output.
@@ -100,6 +102,8 @@ static EXPORT_EMITTED: AtomicU64 = AtomicU64::new(0);
 static EXPORT_MATCHES: AtomicU64 = AtomicU64::new(0);
 /// Process-local count of committed exports that drifted.
 static EXPORT_DRIFTS: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of export invocations that failed.
+static EXPORT_FAILURES: AtomicU64 = AtomicU64::new(0);
 
 /// Record one failed command.
 ///
@@ -143,6 +147,7 @@ pub(crate) fn record_export_outcome(outcome: ExportOutcome) {
         ExportOutcome::Emitted => &EXPORT_EMITTED,
         ExportOutcome::Matched => &EXPORT_MATCHES,
         ExportOutcome::Drifted => &EXPORT_DRIFTS,
+        ExportOutcome::Failed => &EXPORT_FAILURES,
     };
     let total = counter.fetch_add(1, Ordering::Relaxed) + 1;
     tracing::debug!(outcome = outcome.as_str(), total, "recorded export outcome");
@@ -157,6 +162,8 @@ pub(crate) enum ExportOutcome {
     Matched,
     /// The committed export differed from the freshly rendered document.
     Drifted,
+    /// The invocation failed before reaching a rendered or compared decision.
+    Failed,
 }
 
 impl ExportOutcome {
@@ -166,6 +173,7 @@ impl ExportOutcome {
             Self::Emitted => "emitted",
             Self::Matched => "matched",
             Self::Drifted => "drifted",
+            Self::Failed => "failed",
         }
     }
 }
@@ -316,6 +324,7 @@ pub fn metrics_snapshot() -> MetricsSnapshot {
         export_emitted: EXPORT_EMITTED.load(Ordering::Relaxed),
         export_matches: EXPORT_MATCHES.load(Ordering::Relaxed),
         export_drifts: EXPORT_DRIFTS.load(Ordering::Relaxed),
+        export_failures: EXPORT_FAILURES.load(Ordering::Relaxed),
     }
 }
 

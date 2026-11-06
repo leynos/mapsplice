@@ -122,24 +122,6 @@ fn numbered_details_are_rejected_beneath_a_checkbox_detail_builder() {
 }
 
 #[test]
-fn numbered_details_are_rejected_beneath_checkbox_details() {
-    let source = document(concat!(
-        "  - [ ] Detail one.\n\n",
-        "    - [ ] 1.1.1.1. Nested numbered.\n",
-    ));
-
-    let error = task_content(&task(&source), &anchors(&source))
-        .expect_err("numbered details cannot nest beneath a checkbox detail");
-
-    assert!(
-        error
-            .to_string()
-            .contains("is not valid beneath a checkbox detail"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn numbered_title_ignores_non_anchor_prefixes() {
     let plain = document("  - [ ] Version 1.0 notes.\n");
     let (_, plain_details) =

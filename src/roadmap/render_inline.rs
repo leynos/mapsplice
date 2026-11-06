@@ -3,7 +3,10 @@
 use markdown::mdast::{Link, Node};
 
 use super::text::escape_markdown;
-use crate::error::{MapspliceError, Result, SourceLocation};
+use crate::{
+    error::{MapspliceError, Result},
+    roadmap::source_location::source_location,
+};
 
 /// Render inline Markdown nodes into a single string.
 pub(super) fn render_inline(nodes: &[Node]) -> Result<String> {
@@ -61,9 +64,7 @@ fn render_inline_node(node: &Node, break_as_space: bool) -> Result<String> {
                 "unsupported inline node `{}` in rendered roadmap",
                 node_name(other)
             ),
-            location: node
-                .position()
-                .map(|position| SourceLocation::from(&position.start)),
+            location: node.position().map(source_location),
         }),
     }
 }

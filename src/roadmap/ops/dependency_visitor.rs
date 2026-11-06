@@ -11,7 +11,7 @@ use super::{
     },
     dependency_text::{dependency_candidates, rewrite_text_value},
 };
-use crate::error::SourceLocation;
+use crate::{error::SourceLocation, roadmap::source_location::source_location};
 
 /// A dependency candidate and the Markdown source position of its text node.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -199,10 +199,7 @@ impl TextGroupVisitor<'_, '_, '_> {
         let Some(Node::Text(text)) = self.nodes.get_mut(segment_index) else {
             return;
         };
-        let location = text
-            .position
-            .as_ref()
-            .map(|position| SourceLocation::from(&position.start));
+        let location = text.position.as_ref().map(source_location);
         match self.mode {
             DependencyVisitMode::Rewrite { .. } => {
                 self.record_rewrite(
@@ -293,20 +290,14 @@ fn visit_single_text(text: &mut Text, mode: &mut DependencyVisitMode<'_>) {
         } => {
             let report = rewrite_text_value(&text.value, *source, plan);
             if !report.unresolved.is_empty() && unresolved_location.is_none() {
-                **unresolved_location = text
-                    .position
-                    .as_ref()
-                    .map(|position| SourceLocation::from(&position.start));
+                **unresolved_location = text.position.as_ref().map(source_location);
             }
             unresolved.extend(report.unresolved);
             text.value = report.value;
             **rewrite_count += report.rewrite_count;
         }
         DependencyVisitMode::Collect { references, .. } => {
-            let location = text
-                .position
-                .as_ref()
-                .map(|position| SourceLocation::from(&position.start));
+            let location = text.position.as_ref().map(source_location);
             references.extend(
                 dependency_candidates(&text.value)
                     .into_iter()

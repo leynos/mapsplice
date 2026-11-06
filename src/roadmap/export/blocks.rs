@@ -9,8 +9,11 @@ use super::{
     text::paragraph_entry,
 };
 use crate::{
-    error::{MapspliceError, Result, SourceLocation},
-    roadmap::model::{MarkdownNodes, TaskChild, TaskEntry},
+    error::{MapspliceError, Result},
+    roadmap::{
+        model::{MarkdownNodes, TaskChild, TaskEntry},
+        source_location::source_location,
+    },
 };
 
 /// Convert phase or trailing content into labelled entries.
@@ -272,6 +275,6 @@ pub(super) fn invalid_at(
 ) -> MapspliceError {
     MapspliceError::InvalidRoadmap {
         message,
-        location: position.map(|source_position| SourceLocation::from(&source_position.start)),
+        location: position.map(source_location),
     }
 }

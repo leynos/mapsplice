@@ -7,7 +7,10 @@ use markdown::mdast::{ListItem, Node};
 use super::text::render_text;
 use crate::{
     error::{MapspliceError, Result, SourceLocation},
-    roadmap::model::{MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+    roadmap::{
+        model::{MarkdownNodes, SubTaskEntry, TaskChild, TaskEntry},
+        source_location::source_location,
+    },
 };
 
 /// Return whether paragraph content begins a dependency clause.
@@ -101,8 +104,7 @@ fn formatted_requires(nodes: &[Node]) -> Result<FormattedRequires> {
             && render_text(&strong.children)?.trim() == "Requires"
         {
             return Ok(FormattedRequires::Found(
-                node.position()
-                    .map(|position| SourceLocation::from(&position.start)),
+                node.position().map(source_location),
             ));
         }
         if let Some(children) = node_children(node)

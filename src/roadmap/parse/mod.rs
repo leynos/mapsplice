@@ -35,11 +35,14 @@ use super::{
     model::{SourceId, TaskEntry},
     source_preservation::task_item_sources,
 };
-use crate::error::{MapspliceError, Result, SourceLocation};
+use crate::{
+    error::{MapspliceError, Result},
+    roadmap::source_location::source_location,
+};
 
 /// Add a source location to a grammar error when the parser has one available.
 pub(super) fn locate(error: MapspliceError, position: Option<&Position>) -> MapspliceError {
-    let location = position.map(|source_position| SourceLocation::from(&source_position.start));
+    let location = position.map(source_location);
     match error {
         MapspliceError::InvalidRoadmap {
             message,

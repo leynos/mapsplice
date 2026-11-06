@@ -85,9 +85,11 @@ them. It requires checkboxes on tasks and details. Task bodies accept
 paragraphs and unordered bullets, including numbered structural sub-tasks and
 checkbox details. Code blocks, tables, HTML, block quotes, ordered lists,
 unsupported inline nodes, and malformed numbered checkbox prefixes fail with a
-source location. Phase and step lists are accepted only beneath an empty
-labelled paragraph. The preamble is parsed for Markdown validity but is not
-included in the JSON document.
+source location. A numbered checkbox nested beneath a checkbox detail has no
+representation in this schema, so the parser rejects it with a source location
+rather than letting the exporter meet a structure it cannot encode. Phase and
+step lists are accepted only beneath an empty labelled paragraph. The preamble
+is parsed for Markdown validity but is not included in the JSON document.
 
 ## Example
 

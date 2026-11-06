@@ -40,6 +40,21 @@ fn assert_invalid_roadmap_error(error: &MapspliceError, expected: &str) {
     );
 }
 
+/// Assert the message and that the rejection names the offending source line.
+fn assert_located_invalid_roadmap_error(
+    error: &MapspliceError,
+    expected: &str,
+) -> mapsplice::SourceLocation {
+    assert_invalid_roadmap_error(error, expected);
+    match error {
+        MapspliceError::InvalidRoadmap {
+            location: Some(location),
+            ..
+        } => *location,
+        other => panic!("expected a located InvalidRoadmap error, got {other:?}"),
+    }
+}
+
 #[rstest]
 #[case("8", "8")]
 #[case("8.2", "8.2")]
@@ -161,6 +176,46 @@ fn parse_nested_task_lists_reject_task_level_items_after_other_items(#[case] roa
         &error,
         "nested roadmap task lists must use sub-task numbers",
     );
+}
+
+#[rstest]
+fn parse_rejects_numbered_details_beneath_other_details() {
+    let roadmap = concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] Unnumbered detail.\n",
+        "    - [ ] 1.1.1.1. Nested numbered detail.\n",
+    );
+
+    let error =
+        parse_roadmap_text(roadmap).expect_err("the export adapter cannot represent this nesting");
+
+    let location = assert_located_invalid_roadmap_error(
+        &error,
+        "numbered checkbox details are not valid beneath a checkbox detail",
+    );
+    assert!(
+        location.line > 1,
+        "the rejection should point at the nested item, got {location}"
+    );
+}
+
+#[rstest]
+fn parse_rejects_sub_task_body_list_with_a_later_numbered_checkbox() {
+    let roadmap = concat!(
+        "## 1. Phase one\n\n",
+        "### 1.1. Step one\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] 1.1.1.1. Sub-task.\n",
+        "    - Ordinary bullet.\n",
+        "      - [ ] 1.1.1.2. Nested numbered detail.\n",
+    );
+
+    let error =
+        parse_roadmap_text(roadmap).expect_err("a nested numbered checkbox must be refused");
+
+    assert_located_invalid_roadmap_error(&error, "sub-tasks cannot contain nested roadmap lists");
 }
 
 #[rstest]

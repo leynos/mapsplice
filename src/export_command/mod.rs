@@ -4,14 +4,14 @@
 //! roadmap to the versioned schema and compares two documents. This module
 //! owns the surrounding infrastructure—reading the source and committed
 //! export, serializing the fresh document, and turning a mismatch into an
-//! [`MapspliceError::ExportDrift`] report—while never writing to disk.
+//! [`ExportError::Drift`] report—while never writing to disk.
 
 use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
     RunOutcome,
     cli::ExportFormat,
-    error::{MapspliceError, Result},
+    error::{ExportError, MapspliceError, Result},
     observability::{ExportOutcome, record_export_attempt, record_export_outcome},
     roadmap::{self, parse_roadmap},
 };
@@ -37,6 +37,31 @@ pub(crate) fn run_export(
     );
     let _span_guard = span.enter();
     record_export_attempt();
+    let result = export_request(target, format, check, read);
+    record_export_outcome(decision_for(&result, check.is_some()));
+    result
+}
+
+/// Return the single outcome recorded for one completed export attempt.
+///
+/// Deriving the decision from the result keeps the accounting exhaustive: every
+/// return path, including a source read failure, records exactly one outcome.
+const fn decision_for(result: &Result<RunOutcome>, has_check: bool) -> ExportOutcome {
+    match result {
+        Ok(_) if has_check => ExportOutcome::Matched,
+        Ok(_) => ExportOutcome::Emitted,
+        Err(MapspliceError::Export(ExportError::Drift { .. })) => ExportOutcome::Drifted,
+        Err(_) => ExportOutcome::Failed,
+    }
+}
+
+/// Render the export and, when requested, compare it with the committed file.
+fn export_request(
+    target: &Utf8Path,
+    format: ExportFormat,
+    check: Option<&Utf8PathBuf>,
+    read: ReadUtf8Fn<'_>,
+) -> Result<RunOutcome> {
     let schema = export_schema(target, read)?;
     let rendered = RenderedExport {
         json: serialize_export(&schema, format)?,
@@ -56,9 +81,8 @@ struct RenderedExport<'schema> {
     schema: &'schema roadmap::export::RoadmapExport,
 }
 
-/// Return the freshly rendered export after recording the emitted decision.
+/// Return the freshly rendered export.
 fn emitted_export(fresh_json: String) -> RunOutcome {
-    record_export_outcome(ExportOutcome::Emitted);
     tracing::debug!(decision = "emitted", "export completed");
     RunOutcome::stdout(fresh_json)
 }
@@ -95,25 +119,22 @@ fn verify_export(
         return Ok(matched_export());
     }
     let committed_schema = parse_committed_export(export_path, &committed_json)?;
-    Err(export_drift(
-        export_path,
-        target,
-        rendered.schema,
-        &committed_schema,
-    ))
+    Err(export_drift(export_path, target, rendered.schema, &committed_schema).into())
 }
 
 /// Read a committed export, attributing unreadable input to the committed file.
 fn read_committed_export(export_path: &Utf8PathBuf, read: ReadUtf8Fn<'_>) -> Result<String> {
-    read(export_path).map_err(|error| MapspliceError::InvalidExport {
-        path: export_path.to_owned(),
-        message: error.to_string(),
+    read(export_path).map_err(|error| {
+        ExportError::InvalidCommitted {
+            path: export_path.to_owned(),
+            message: error.to_string(),
+        }
+        .into()
     })
 }
 
 /// Return the successful outcome for a committed export that matches exactly.
 fn matched_export() -> RunOutcome {
-    record_export_outcome(ExportOutcome::Matched);
     tracing::debug!(decision = "match", "export check completed");
     RunOutcome::silent_success()
 }
@@ -124,8 +145,7 @@ fn export_drift(
     target: &Utf8Path,
     fresh_schema: &roadmap::export::RoadmapExport,
     committed_schema: &roadmap::export::RoadmapExport,
-) -> MapspliceError {
-    record_export_outcome(ExportOutcome::Drifted);
+) -> ExportError {
     let mut differences = roadmap::export::drift::differences(committed_schema, fresh_schema);
     if differences.is_empty() {
         differences.push("formatting-only drift: semantic JSON values are equal".to_owned());
@@ -135,7 +155,7 @@ fn export_drift(
         differences = differences.len(),
         "export check completed"
     );
-    MapspliceError::ExportDrift {
+    ExportError::Drift {
         export: export_path.to_owned(),
         roadmap: target.to_owned(),
         differences: differences.join("\n"),
@@ -148,82 +168,14 @@ fn parse_committed_export(
     export_path: &Utf8PathBuf,
     committed_json: &str,
 ) -> Result<roadmap::export::RoadmapExport> {
-    serde_json::from_str(committed_json).map_err(|error| MapspliceError::InvalidExport {
-        path: export_path.to_owned(),
-        message: error.to_string(),
+    serde_json::from_str(committed_json).map_err(|error| {
+        ExportError::InvalidCommitted {
+            path: export_path.to_owned(),
+            message: error.to_string(),
+        }
+        .into()
     })
 }
 
 #[cfg(test)]
-mod tests {
-    //! Unit coverage for the export orchestration seam.
-
-    use super::*;
-
-    /// Minimal roadmap accepted by the parser and export adapter.
-    const ROADMAP: &str = concat!(
-        "## 1. Phase one\n\n",
-        "### 1.1. Step one\n\n",
-        "- [ ] 1.1.1. Task one.\n",
-    );
-
-    #[test]
-    fn run_export_emits_json_from_the_injected_reader() {
-        let target = Utf8Path::new("target.md");
-        let read = |_path: &Utf8Path| Ok(ROADMAP.to_owned());
-
-        let outcome = run_export(target, ExportFormat::Json, None, &read)
-            .expect("a readable roadmap should export");
-
-        let stdout = outcome.stdout.expect("export should write to stdout");
-        assert!(
-            stdout.contains("\"format_version\""),
-            "unexpected export: {stdout}"
-        );
-    }
-
-    #[test]
-    fn run_export_propagates_a_source_read_failure() {
-        let target = Utf8Path::new("target.md");
-        let read = |path: &Utf8Path| {
-            Err(MapspliceError::Io {
-                action: "failed to read",
-                path: path.to_owned(),
-                source: std::io::Error::other("unreadable"),
-            })
-        };
-
-        let error = run_export(target, ExportFormat::Json, None, &read)
-            .expect_err("an unreadable roadmap should fail");
-
-        assert!(
-            matches!(error, MapspliceError::Io { .. }),
-            "a source read failure should surface unchanged: {error}"
-        );
-    }
-
-    #[test]
-    fn run_export_attributes_a_committed_read_failure_to_the_export() {
-        let target = Utf8Path::new("target.md");
-        let export = Utf8PathBuf::from("roadmap.json");
-        let read = |path: &Utf8Path| {
-            if path == target {
-                Ok(ROADMAP.to_owned())
-            } else {
-                Err(MapspliceError::Io {
-                    action: "failed to read",
-                    path: path.to_owned(),
-                    source: std::io::Error::other("denied"),
-                })
-            }
-        };
-
-        let error = run_export(target, ExportFormat::Json, Some(&export), &read)
-            .expect_err("an unreadable committed export should fail");
-
-        assert!(
-            matches!(error, MapspliceError::InvalidExport { .. }),
-            "a committed read failure should be attributed to the export: {error}"
-        );
-    }
-}
+mod tests;

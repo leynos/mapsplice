@@ -27,16 +27,19 @@ use super::{
     RoadmapAnchor,
     RoadmapDocument,
     model::{StepSection, TaskEntry},
+    numbered_detail::numbered_prefix,
 };
-use crate::error::{MapspliceError, Result, SourceLocation};
+use crate::{
+    error::{ExportError, MapspliceError, Result},
+    roadmap::source_location::source_location,
+};
 
 /// Serialize one already validated export schema in its stable byte form.
 pub(crate) fn serialize(document: &ExportDocument) -> Result<String> {
-    let mut output = serde_json::to_string_pretty(document).map_err(|error| {
-        MapspliceError::JsonSerialization {
+    let mut output =
+        serde_json::to_string_pretty(document).map_err(|error| ExportError::Serialization {
             message: error.to_string(),
-        }
-    })?;
+        })?;
     output.push('\n');
     Ok(output)
 }
@@ -95,7 +98,7 @@ fn export_task(task: &TaskEntry, known_anchors: &HashSet<String>) -> Result<Expo
         .nodes()
         .first()
         .and_then(Node::position)
-        .map(|position| SourceLocation::from(&position.start));
+        .map(source_location);
     let state = task.checked.map_or_else(
         || {
             Err(MapspliceError::InvalidRoadmap {
@@ -179,10 +182,7 @@ fn add_checkbox_sub_task_anchor(item: &ListItem, anchors: &mut HashSet<String>) 
     let Some(Node::Paragraph(paragraph)) = item.children.first() else {
         return;
     };
-    let Some(Node::Text(text)) = paragraph.children.first() else {
-        return;
-    };
-    let Some((prefix, _)) = text.value.split_once(". ") else {
+    let Some(prefix) = numbered_prefix(paragraph) else {
         return;
     };
     if let Ok(RoadmapAnchor::SubTask(number)) = super::parse_anchor(prefix) {
