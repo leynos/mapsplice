@@ -115,7 +115,10 @@ turns a mismatch into an `ExportError::Drift` report. The pure adapter in
 schema and compares decoded values for drift. The adapter owns no filesystem or
 process operations, and the orchestration owns no parsing or comparison rules.
 Exact bytes are checked first so a current export succeeds silently; semantic
-comparison runs only when bytes differ.
+comparison runs only when bytes differ. The grammar is enforced once at parse
+time: a numbered checkbox item beneath a checkbox detail has no roadmap level,
+so the parser rejects it with a source location for every command rather than
+leaving the export adapter to discover it later.
 
 ## 4. The roadmap grammar (normative reference)
 

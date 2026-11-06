@@ -104,6 +104,24 @@ fn dependency_bullet_exports_its_supported_children(
 }
 
 #[rstest]
+#[serial_test::serial(cli_env)]
+fn prose_after_a_requires_clause_is_exported(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "## 1. Planning\n\n### 1.1. Export\n\n",
+        "- [ ] 1.1.1. Emit JSON.\n",
+        "  - Requires 1.1.2. Success: retain this criterion.\n",
+        "- [ ] 1.1.2. Check JSON.\n",
+    ))?;
+
+    let exported = export(&test_workspace)?;
+
+    require_contains(&exported, "\"key\": \"Success\"")?;
+    require_contains(&exported, "\"value\": \"retain this criterion.\"")?;
+    Ok(())
+}
+
+#[rstest]
 #[case::unsupported_task_block(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n\n  ```text\n  body\n  ```\n",
     "unsupported block in task body",
@@ -112,7 +130,16 @@ fn dependency_bullet_exports_its_supported_children(
 #[case::malformed_requires_anchor(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task. Requires 1.0.1.\n",
     "invalid dependency anchor token",
-    "line 5, column 7"
+    "line 5, column 29"
+)]
+#[case::wrapped_requires_anchor(
+    concat!(
+        "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n\n",
+        "  Requires 1.1.2\n  and 1.0.1.\n\n",
+        "- [ ] 1.1.2. Other task.\n",
+    ),
+    "invalid dependency anchor token",
+    "line 8, column 5"
 )]
 #[case::malformed_numbered_checkbox(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n  - [ ] 1.1.1.0. Malformed detail.\n",

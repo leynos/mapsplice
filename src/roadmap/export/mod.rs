@@ -13,16 +13,9 @@ mod tests;
 use std::collections::HashSet;
 
 use markdown::mdast::{ListItem, Node};
-pub(crate) use schema::ExportDocument as RoadmapExport;
+pub(crate) use schema::{ExportDocument as RoadmapExport, FORMAT_VERSION};
 
-use self::schema::{
-    ExportDocument,
-    ExportPhase,
-    ExportState,
-    ExportStep,
-    ExportTask,
-    FORMAT_VERSION,
-};
+use self::schema::{ExportDocument, ExportPhase, ExportState, ExportStep, ExportTask};
 use super::{
     RoadmapAnchor,
     RoadmapDocument,

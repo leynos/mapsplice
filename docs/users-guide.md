@@ -40,6 +40,12 @@ sub-tasks owned by their parent task. A nested list is invalid if any item
 begins with a task-level number, even when other items are ordinary bullets or
 fourth-level addenda.
 
+A checkbox detail inside a task body may contain ordinary nested bullets and
+paragraphs, but it must not contain a numbered checklist item. Only a task owns
+addendum sub-tasks, so a number beneath a checkbox detail has no valid anchor
+and the document is rejected at parse time. Keep addendum sub-tasks in the
+task's own list instead.
+
 Anchors on the command line map directly to those levels:
 
 - `8` targets a phase

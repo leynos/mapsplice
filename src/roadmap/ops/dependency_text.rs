@@ -24,19 +24,24 @@ pub(super) struct DependencyRewriteReport {
     pub(super) rewrite_count: u64,
     /// Valid dependency anchors with no resolvable mapping.
     pub(super) unresolved: Vec<RoadmapAnchor>,
+    /// Byte range of the first unresolved candidate in the original value.
+    ///
+    /// The rewritten value shifts every later offset, so reporters that map a
+    /// diagnostic back to source coordinates need this original range.
+    pub(super) first_unresolved_range: Option<Range<usize>>,
 }
 
 /// One anchor-like token in a dependency clause.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct DependencyCandidate {
+pub(crate) struct DependencyCandidate {
     /// Byte range occupied by the token in its source text node.
-    pub(super) range: Range<usize>,
+    pub(crate) range: Range<usize>,
     /// Parsed anchor, or `None` when the token is malformed.
     pub(crate) anchor: Option<RoadmapAnchor>,
 }
 
 /// Find valid anchors and malformed anchor-like tokens in dependency clauses.
-pub(super) fn dependency_candidates(value: &str) -> Vec<DependencyCandidate> {
+pub(crate) fn dependency_candidates(value: &str) -> Vec<DependencyCandidate> {
     let mut candidates = Vec::new();
     let mut index = 0;
     while let Some((start, end)) = next_anchor_candidate(value, index) {
@@ -64,6 +69,7 @@ pub(super) fn rewrite_text_value(
     let mut result = String::with_capacity(value.len());
     let mut rewrite_count = 0;
     let mut unresolved = Vec::new();
+    let mut first_unresolved_range = None;
     let mut index = 0;
 
     for candidate in dependency_candidates(value) {
@@ -77,6 +83,7 @@ pub(super) fn rewrite_text_value(
                 result.push_str(&mapped.to_string());
             } else {
                 unresolved.push(anchor);
+                first_unresolved_range.get_or_insert(start..end);
                 result.push_str(token);
             }
         } else {
@@ -90,6 +97,7 @@ pub(super) fn rewrite_text_value(
         value: result,
         rewrite_count,
         unresolved,
+        first_unresolved_range,
     }
 }
 

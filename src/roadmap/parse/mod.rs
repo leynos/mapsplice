@@ -204,11 +204,30 @@ fn parse_numbered_paragraph(
         });
     };
     let (anchor, remainder) = split_numbered_prefix(value, level)?;
+    let removed = value
+        .get(..value.len().saturating_sub(remainder.len()))
+        .unwrap_or_default();
     let mut summary = paragraph.children.clone();
     if let Some(Node::Text(text)) = summary.first_mut() {
         text.value = remainder;
+        advance_text_start(text, removed);
     }
     Ok((anchor, summary))
+}
+
+/// Move a text node's start past a prefix removed from its value.
+///
+/// The node keeps the span it had before the numbered prefix was replaced by
+/// the summary. Dependency diagnostics derive coordinates from offsets inside
+/// the value, so the start must move with it or every token would be reported
+/// before its real column. Numbered prefixes never contain a line break, so
+/// only the column changes.
+fn advance_text_start(text: &mut Text, removed: &str) {
+    let Some(position) = text.position.as_mut() else {
+        return;
+    };
+    position.start.offset += removed.len();
+    position.start.column += removed.chars().count();
 }
 
 /// Split one paragraph prefix into a typed anchor and its trimmed remainder.

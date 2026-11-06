@@ -78,6 +78,12 @@ task-body content. A dependency bullet contributes no entry of its own, but its
 supported child blocks are exported as entries and unsupported nesting is
 rejected with a source location, so no content is silently discarded.
 
+A clause ends at its last recognized anchor, so prose after that point is
+ordinary content and is exported as an entry. For example,
+`Requires 1.1.1. Success: keep this.` retains a `Success` entry. Text between
+the keyword and the final anchor remains part of the clause, matching the
+shared rewriter's scanner.
+
 ## Strictness
 
 The exporter rejects unsupported or malformed structures instead of omitting
@@ -90,6 +96,11 @@ representation in this schema, so the parser rejects it with a source location
 rather than letting the exporter meet a structure it cannot encode. Phase and
 step lists are accepted only beneath an empty labelled paragraph. The preamble
 is parsed for Markdown validity but is not included in the JSON document.
+
+A bold `Requires` keyword is rejected with a source location because the shared
+scanner reads plain text and cannot reach a formatted keyword. A thematic break
+is accepted in phase and step content, task bodies, nested entries and checkbox
+details, but contributes no JSON value.
 
 ## Example
 
