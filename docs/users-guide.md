@@ -102,6 +102,18 @@ The command never writes either input file and ignores `--in-place` and its
 configuration defaults. Exporting without `--check` exits 0 with JSON on
 standard output; parse, schema, I/O and drift errors exit 1.
 
+The same operation is available to library callers through `run_request` with
+`CommandKind::Export { format, check }`. A request without `check` returns a
+`RunOutcome` whose `stdout` holds the rendered JSON and whose `written_path` is
+`None`. A request with `check` returns a silent success when the committed
+export matches, and otherwise fails with `MapspliceError::ExportDrift`, whose
+`differences` field carries the same item-oriented report as the CLI. An
+unreadable or schema-invalid committed export fails with
+`MapspliceError::InvalidExport`, and a source read failure surfaces as
+`MapspliceError::Io`. Library callers supply the roadmap path in the request;
+the export orchestration reads it through the same UTF-8 reader as the edit
+commands.
+
 ## Worked example
 
 Start with a target roadmap:

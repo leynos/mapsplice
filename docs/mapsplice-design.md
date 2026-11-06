@@ -107,11 +107,14 @@ the reverse. The gate and the roadmap proof boundary are described in
 [developers-guide.md](developers-guide.md) and
 [verification.md](verification.md).
 
-The read-only export follows the same boundary. `src/lib.rs` reads the Markdown
-path and committed export; the pure adapter in `src/roadmap/export/` maps the
-existing roadmap model to an ordered, versioned schema and compares decoded
-values for drift. The adapter owns no filesystem or process operations. Exact
-bytes are checked first so a current export succeeds silently; semantic
+The read-only export follows the same boundary. `src/lib.rs` dispatches a
+`CommandKind::Export` request to `src/export_command.rs`, which reads the
+Markdown path and any committed export through an injected UTF-8 reader and
+turns a mismatch into an `ExportDrift` report. The pure adapter in
+`src/roadmap/export/` maps the existing roadmap model to an ordered, versioned
+schema and compares decoded values for drift. The adapter owns no filesystem or
+process operations, and the orchestration owns no parsing or comparison rules.
+Exact bytes are checked first so a current export succeeds silently; semantic
 comparison runs only when bytes differ.
 
 ## 4. The roadmap grammar (normative reference)
