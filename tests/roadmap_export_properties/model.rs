@@ -11,26 +11,32 @@ struct EntryModel {
     value: String,
 }
 
-/// One structural sub-task with optional body content.
+/// One structural sub-task with body content and nested checkbox details.
 #[derive(Clone, Debug)]
 struct DetailModel {
     /// Sub-task title.
     title: String,
-    /// Optional body entry.
-    body: Option<EntryModel>,
+    /// Whether the title carries a dependency clause.
+    requires: bool,
+    /// Ordered body entries.
+    body: Vec<EntryModel>,
+    /// Unnumbered checkbox details nested beneath this one.
+    nested: Vec<Self>,
 }
 
-/// One task with optional body content and a structural sub-task.
+/// One task with body content and ordered structural sub-tasks.
 #[derive(Clone, Debug)]
 struct TaskModel {
     /// Task title.
     title: String,
     /// Whether the task checkbox is done.
     is_done: bool,
-    /// Optional task body entry.
-    body: Option<EntryModel>,
-    /// Optional structural sub-task.
-    sub_task: Option<DetailModel>,
+    /// Whether the title carries a dependency clause.
+    requires: bool,
+    /// Ordered body entries.
+    entries: Vec<EntryModel>,
+    /// Ordered structural sub-tasks.
+    sub_tasks: Vec<DetailModel>,
 }
 
 /// One step with an optional question and at least one task.
@@ -123,24 +129,50 @@ fn entry() -> impl Strategy<Value = EntryModel> {
     })
 }
 
-/// Generate a structural sub-task.
-fn detail() -> impl Strategy<Value = DetailModel> {
-    (title(), prop::option::of(entry())).prop_map(|(title, body)| DetailModel { title, body })
+/// Generate zero to two ordered body entries.
+fn entries() -> impl Strategy<Value = Vec<EntryModel>> { prop::collection::vec(entry(), 0..3) }
+
+/// Generate a nested checkbox detail, which cannot own numbered details.
+fn nested_detail() -> impl Strategy<Value = DetailModel> {
+    (title(), any::<bool>(), entries()).prop_map(|(title, requires, body)| DetailModel {
+        title,
+        requires,
+        body,
+        nested: Vec::new(),
+    })
 }
 
-/// Generate a task with optional body content and sub-task.
+/// Generate a structural sub-task with optional nested checkbox details.
+fn detail() -> impl Strategy<Value = DetailModel> {
+    (
+        title(),
+        any::<bool>(),
+        entries(),
+        prop::collection::vec(nested_detail(), 0..2),
+    )
+        .prop_map(|(title, requires, body, nested)| DetailModel {
+            title,
+            requires,
+            body,
+            nested,
+        })
+}
+
+/// Generate a task with body entries and ordered structural sub-tasks.
 fn task() -> impl Strategy<Value = TaskModel> {
     (
         title(),
         any::<bool>(),
-        prop::option::of(entry()),
-        prop::option::of(detail()),
+        any::<bool>(),
+        entries(),
+        prop::collection::vec(detail(), 0..3),
     )
-        .prop_map(|(title, is_done, body, sub_task)| TaskModel {
+        .prop_map(|(title, is_done, requires, entries, sub_tasks)| TaskModel {
             title,
             is_done,
-            body,
-            sub_task,
+            requires,
+            entries,
+            sub_tasks,
         })
 }
 
@@ -251,35 +283,78 @@ impl TaskPosition {
     fn anchor(self) -> String { format!("{}.{}.{}", self.phase, self.step, self.task) }
 }
 
-/// Render one task, its body, and its structural sub-task.
+/// Render a dependency clause, or nothing when the item has none.
+const fn requires_text(has_requires: bool) -> &'static str {
+    if has_requires { " Requires 1.1.1." } else { "" }
+}
+
+/// Render ordered body entries followed by a blank line each.
+fn render_entries(lines: &mut Vec<String>, indent: usize, entries: &[EntryModel], layout: Layout) {
+    for entry in entries {
+        lines.extend(paragraph_lines(indent, &entry_text(entry), layout));
+        lines.push(String::new());
+    }
+}
+
+/// Render one task, its body entries, and its ordered sub-tasks.
 fn render_task(lines: &mut Vec<String>, position: TaskPosition, task: &TaskModel, layout: Layout) {
     let marker = if task.is_done { "[x]" } else { "[ ]" };
     let anchor = position.anchor();
-    lines.push(format!("- {marker} {anchor}. {}", task.title));
+    lines.push(format!(
+        "- {marker} {anchor}. {}{}",
+        task.title,
+        requires_text(task.requires)
+    ));
     lines.push(String::new());
-    if let Some(body) = &task.body {
-        lines.extend(paragraph_lines(
-            layout.body_indent,
-            &entry_text(body),
+    render_entries(lines, layout.body_indent, &task.entries, layout);
+    for (index, sub_task) in task.sub_tasks.iter().enumerate() {
+        render_detail(
+            lines,
+            DetailPosition {
+                indent: layout.detail_indent,
+                anchor: &format!("{anchor}.{}", index + 1),
+            },
+            sub_task,
             layout,
-        ));
-        lines.push(String::new());
+        );
     }
-    if let Some(sub_task) = &task.sub_task {
+}
+
+/// Indentation and anchor prefix for one numbered detail.
+#[derive(Clone, Copy)]
+struct DetailPosition<'anchor> {
+    /// Leading spaces before the list marker.
+    indent: usize,
+    /// Dotted anchor prefix written before the title.
+    anchor: &'anchor str,
+}
+
+/// Render a numbered detail and any unnumbered details nested beneath it.
+fn render_detail(
+    lines: &mut Vec<String>,
+    position: DetailPosition<'_>,
+    detail: &DetailModel,
+    layout: Layout,
+) {
+    let indent = position.indent;
+    let anchor = position.anchor;
+    lines.push(format!(
+        "{}- [ ] {anchor}. {}{}",
+        " ".repeat(indent),
+        detail.title,
+        requires_text(detail.requires)
+    ));
+    lines.push(String::new());
+    render_entries(lines, indent + 2, &detail.body, layout);
+    for nested in &detail.nested {
         lines.push(format!(
-            "{}- [ ] {anchor}.1. {}",
-            " ".repeat(layout.detail_indent),
-            sub_task.title
+            "{}- [ ] {}{}",
+            " ".repeat(indent + 2),
+            nested.title,
+            requires_text(nested.requires)
         ));
         lines.push(String::new());
-        if let Some(body) = &sub_task.body {
-            lines.extend(paragraph_lines(
-                layout.detail_indent + 2,
-                &entry_text(body),
-                layout,
-            ));
-            lines.push(String::new());
-        }
+        render_entries(lines, indent + 4, &nested.body, layout);
     }
 }
 

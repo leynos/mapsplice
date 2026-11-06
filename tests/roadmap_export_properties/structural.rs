@@ -21,6 +21,11 @@ struct StructuralCase {
     description: &'static str,
     /// Fragment that the drift report must contain.
     expected: &'static str,
+    /// Fragments that a drift report must not contain.
+    ///
+    /// A reorder must be reported as an order change, not as one task being
+    /// removed and another added.
+    forbidden: &'static [&'static str],
     /// Mutator applied to the decoded committed export.
     ///
     /// A mutator reports the fixture path it needs but cannot find, so a
@@ -74,15 +79,13 @@ fn append_vanished_task(root: &mut Value, _replacement: &str) -> Result<(), Stri
     Ok(())
 }
 
-/// Insert extra tasks around the original so the task order changes.
+/// Swap the first two tasks so their document order changes.
 fn reorder_tasks(root: &mut Value, _replacement: &str) -> Result<(), String> {
     let tasks = array_at(root, "/phases/0/steps/0/tasks")?;
-    let mut trailing = cloned_first(tasks)?;
-    set_field(&mut trailing, "number", json!("1.1.8"))?;
-    let mut leading = cloned_first(tasks)?;
-    set_field(&mut leading, "number", json!("1.1.9"))?;
-    tasks.insert(0, leading);
-    tasks.push(trailing);
+    if tasks.len() < 2 {
+        return Err("fixture export should contain at least two tasks".to_owned());
+    }
+    tasks.swap(0, 1);
     Ok(())
 }
 
@@ -120,31 +123,42 @@ const STRUCTURAL_CASES: &[StructuralCase] = &[
     StructuralCase {
         description: "task added to the source",
         expected: "+ task 1.1.1 added",
+        forbidden: &[],
         apply: remove_first_task,
     },
     StructuralCase {
         description: "task removed from the source",
         expected: "- task 1.1.9 removed",
+        forbidden: &[],
         apply: append_vanished_task,
     },
     StructuralCase {
         description: "task order changed",
         expected: "~ step 1.1 tasks order:",
+        forbidden: &[
+            "task 1.1.1 added",
+            "task 1.1.1 removed",
+            "task 1.1.2 added",
+            "task 1.1.2 removed",
+        ],
         apply: reorder_tasks,
     },
     StructuralCase {
         description: "task entry removed from the source",
         expected: "- task 1.1.1 entry 2 removed",
+        forbidden: &[],
         apply: append_vanished_task_entry,
     },
     StructuralCase {
         description: "sub-task removed from the source",
         expected: "- sub-task 1.1.1.9 removed",
+        forbidden: &[],
         apply: append_vanished_sub_task,
     },
     StructuralCase {
         description: "phase removed from the source",
         expected: "- phase 2 removed",
+        forbidden: &[],
         apply: append_vanished_phase,
     },
 ];
@@ -204,6 +218,14 @@ proptest! {
                 case.description,
                 case.expected
             );
+            for fragment in case.forbidden {
+                prop_assert!(
+                    !message.contains(fragment),
+                    "{}: unexpected {:?} in drift report: {message}",
+                    case.description,
+                    fragment
+                );
+            }
         }
     }
 }

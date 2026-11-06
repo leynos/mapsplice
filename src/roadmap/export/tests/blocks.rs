@@ -159,49 +159,35 @@ fn list_item_entries_exports_supported_children_of_a_requires_bullet() {
     assert_eq!(at(&entries, 0).value, "retain this criterion.");
 }
 
-#[test]
-fn list_item_entries_rejects_unsupported_children_of_a_requires_bullet() {
-    let source = "- Requires 1.1.1.\n\n  - [ ] nested checkbox\n";
-
-    let error = list_item_entries(&list_item(source))
-        .expect_err("a checkbox beneath a dependency bullet cannot be represented");
-
+/// Each unsupported child is reported where it appears, whatever the parent.
+#[rstest]
+#[case::checkbox_beneath_dependency_bullet(
+    "- Requires 1.1.1.\n\n  - [ ] nested checkbox\n",
+    "checkbox detail cannot be nested beneath a non-checkbox entry"
+)]
+#[case::ordered_list_beneath_plain_entry(
+    "- Outer.\n\n  1. ordered\n",
+    "ordered lists are not supported in task entries"
+)]
+#[case::checkbox_beneath_plain_entry(
+    "- Outer.\n\n  - [ ] nested checkbox\n",
+    "checkbox detail cannot be nested beneath a non-checkbox entry"
+)]
+fn list_item_entries_rejects_unsupported_children(
+    #[case] source: &str,
+    #[case] expected_message: &str,
+) {
+    let error =
+        list_item_entries(&list_item(source)).expect_err("unsupported children must be rejected");
     let diagnostic = error.to_string();
+
     assert!(
-        diagnostic.contains("checkbox detail cannot be nested beneath a non-checkbox entry"),
+        diagnostic.contains(expected_message),
         "unexpected error: {diagnostic}"
     );
     assert!(
         diagnostic.contains("line 3, column 3"),
-        "the rejection should carry the nested item's location: {diagnostic}"
-    );
-}
-
-#[test]
-fn list_item_entries_rejects_ordered_nested_lists() {
-    let source = "- Outer.\n\n  1. ordered\n";
-
-    let error = list_item_entries(&list_item(source)).expect_err("ordered nested lists fail");
-
-    assert!(
-        error
-            .to_string()
-            .contains("ordered lists are not supported in task entries"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn list_item_entries_rejects_nested_checkbox_items() {
-    let source = "- Outer.\n\n  - [ ] nested checkbox\n";
-
-    let error = list_item_entries(&list_item(source)).expect_err("nested checkboxes fail");
-
-    assert!(
-        error
-            .to_string()
-            .contains("checkbox detail cannot be nested beneath a non-checkbox entry"),
-        "unexpected error: {error}"
+        "the rejection should carry the child's location: {diagnostic}"
     );
 }
 
