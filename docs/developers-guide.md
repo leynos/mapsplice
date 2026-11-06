@@ -59,7 +59,13 @@ boundary, and roadmap domain modules:
 - `src/roadmap/export` adapts the existing model to the pure, ordered JSON
   schema. It shares dependency recognition with the rewriter and contains the
   semantic drift comparison; `src/export_command/mod.rs` executes the read-only
-  export, reading the source and committed export files without writing.
+  export, reading the source and committed export files without writing. The
+  reader is injected as a private `ReadUtf8Fn`, so the orchestration is
+  testable without a temporary filesystem. `run_export` is the instrumented
+  command boundary: it records one export attempt and exactly one outcome in
+  the process-local counters. Its `export_request` query performs the work
+  without touching counters or tracing, so a caller that only needs the
+  rendered result cannot alter observable process state.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.
@@ -87,10 +93,18 @@ The library API is intentionally small:
 - `parse_anchor` validates canonical positive anchors such as `8`, `8.2`,
   `8.2.3`, and `8.2.3.1`.
 - `metrics_snapshot` returns bounded process-local counters for failures,
-  in-place rewrites, dependency rewrites, and source-preservation outcomes.
+  in-place rewrites, dependency rewrites, source-preservation outcomes, and
+  export attempts, emissions, matches, drifts, and failures.
 
 Public APIs must return typed `MapspliceError` variants. Opaque reports belong
 only at external process boundaries.
+
+`MapspliceError` is the crate-level command error. Domain modules under
+`src/roadmap` construct only roadmap variants such as `InvalidRoadmap`,
+`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, and `DanglingDependency`;
+`ExportError` variants are constructed only in `src/export_command`, and `Io`
+variants only in `src/fs`. One public enum keeps command callers on a single
+error type while each boundary still owns the errors it can raise.
 
 ## 4. Roadmap export schema changes
 

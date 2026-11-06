@@ -11,9 +11,9 @@ use super::{
         list_item_entries,
         list_items,
     },
-    requires::{from_checkbox, from_sub_task, is_requires_clause},
+    requires::{from_checkbox, from_sub_task, paragraph_entry_or_clause},
     schema::{ExportDetail, ExportEntry, ExportState},
-    text::{paragraph_entry, render_text},
+    text::render_text,
 };
 use crate::{
     error::Result,
@@ -217,10 +217,10 @@ fn detail_blocks(
     let mut content = TaskContentBuilder::nested(known_anchors);
     for node in nodes {
         match node {
-            Node::Paragraph(paragraph) if is_requires_clause(&paragraph.children)? => {}
             Node::Paragraph(paragraph) => {
-                let (key, value) = paragraph_entry(paragraph)?;
-                content.entries.push(empty_entry(key, value));
+                if let Some((key, value)) = paragraph_entry_or_clause(paragraph)? {
+                    content.entries.push(empty_entry(key, value));
+                }
             }
             Node::List(list) => append_task_list(list, &mut content)?,
             Node::ThematicBreak(_) => {}

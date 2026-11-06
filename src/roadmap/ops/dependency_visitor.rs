@@ -11,7 +11,7 @@ use super::{
     },
     dependency_text::{dependency_candidates, rewrite_text_value},
 };
-use crate::{error::SourceLocation, roadmap::source_location::source_location};
+use crate::error::SourceLocation;
 
 /// A dependency candidate and the Markdown source position of its text node.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -199,7 +199,7 @@ impl TextGroupVisitor<'_, '_, '_> {
         let Some(Node::Text(text)) = self.nodes.get_mut(segment_index) else {
             return;
         };
-        let location = text.position.as_ref().map(source_location);
+        let location = source_location_at(text, local_range.start);
         match self.mode {
             DependencyVisitMode::Rewrite { .. } => {
                 self.record_rewrite(
@@ -273,6 +273,28 @@ fn apply_text_replacements(text: &mut Text, replacements: &mut Vec<(Range<usize>
     }
 }
 
+/// Map a byte offset inside a text node to its source coordinates.
+///
+/// Markdown reports a text node's position at its first character, so a
+/// dependency token later in a wrapped paragraph would otherwise be reported
+/// at the start of the node. Counting newlines and characters in the prefix
+/// keeps the diagnostic on the token itself.
+fn source_location_at(text: &Text, local_offset: usize) -> Option<SourceLocation> {
+    let start = &text.position.as_ref()?.start;
+    let prefix = text.value.get(..local_offset)?;
+    let (line, column) =
+        prefix
+            .chars()
+            .fold((start.line, start.column), |(line, column), character| {
+                if character == '\n' {
+                    (line + 1, 1)
+                } else {
+                    (line, column + 1)
+                }
+            });
+    Some(SourceLocation { line, column })
+}
+
 /// Visit one non-text Markdown node, descending into containers as needed.
 fn visit_dependency_node(node: &mut Node, mode: &mut DependencyVisitMode<'_>) {
     visit_container_node(node, mode);
@@ -289,21 +311,24 @@ fn visit_single_text(text: &mut Text, mode: &mut DependencyVisitMode<'_>) {
             unresolved_location,
         } => {
             let report = rewrite_text_value(&text.value, *source, plan);
-            if !report.unresolved.is_empty() && unresolved_location.is_none() {
-                **unresolved_location = text.position.as_ref().map(source_location);
+            // A recorded range exists exactly when the report found an
+            // unresolved anchor, so it alone decides whether to report one.
+            if unresolved_location.is_none()
+                && let Some(range) = report.first_unresolved_range
+            {
+                **unresolved_location = source_location_at(text, range.start);
             }
             unresolved.extend(report.unresolved);
             text.value = report.value;
             **rewrite_count += report.rewrite_count;
         }
         DependencyVisitMode::Collect { references, .. } => {
-            let location = text.position.as_ref().map(source_location);
             references.extend(
                 dependency_candidates(&text.value)
                     .into_iter()
                     .map(|candidate| CollectedDependency {
                         anchor: candidate.anchor,
-                        location,
+                        location: source_location_at(text, candidate.range.start),
                     }),
             );
         }

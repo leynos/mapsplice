@@ -2,9 +2,9 @@
 
 use std::collections::HashSet;
 
-use markdown::mdast::{ListItem, Node};
+use markdown::mdast::{ListItem, Node, Paragraph};
 
-use super::text::render_text;
+use super::text::{entry_from_rendered, paragraph_entry, render_text};
 use crate::{
     error::{MapspliceError, Result, SourceLocation},
     roadmap::{
@@ -13,11 +13,60 @@ use crate::{
     },
 };
 
-/// Return whether paragraph content begins a dependency clause.
-pub(super) fn is_requires_clause(nodes: &[Node]) -> Result<bool> {
+/// How a paragraph relates to a `Requires` dependency clause.
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum RequiresParagraph {
+    /// The paragraph is ordinary content.
+    Content,
+    /// The paragraph contains only a dependency clause.
+    ClauseOnly,
+    /// The paragraph contains a dependency clause followed by prose.
+    ClauseWithProse(String),
+}
+
+/// Classify a paragraph's dependency clause and any prose that follows it.
+///
+/// The clause ends at its last recognized anchor, so prose after that point is
+/// ordinary content. Without this split, a paragraph such as
+/// `Requires 1.1.1. Success: keep this.` would silently lose its `Success`
+/// entry. Text between the keyword and the final anchor remains part of the
+/// clause, matching the shared rewriter's scanner.
+pub(super) fn classify_paragraph(nodes: &[Node]) -> Result<RequiresParagraph> {
     let rendered = render_text(nodes)?;
     let trimmed = rendered.trim_start();
-    Ok(trimmed.starts_with("**Requires**") || begins_keyword(trimmed, "Requires"))
+    if trimmed.starts_with("**Requires**") {
+        // `dependencies` rejects this form; classification only keeps the
+        // paragraph from being exported as content on the way to that error.
+        return Ok(RequiresParagraph::ClauseOnly);
+    }
+    if !begins_keyword(trimmed, "Requires") {
+        return Ok(RequiresParagraph::Content);
+    }
+    let clause_end = super::super::ops::dependency_candidates(trimmed)
+        .last()
+        .map_or("Requires".len(), |candidate| candidate.range.end);
+    let prose = trimmed
+        .get(clause_end..)
+        .unwrap_or_default()
+        .trim_start_matches(|character: char| {
+            character.is_whitespace() || matches!(character, '.' | ',' | ';' | ':')
+        });
+    Ok(if prose.is_empty() {
+        RequiresParagraph::ClauseOnly
+    } else {
+        RequiresParagraph::ClauseWithProse(prose.to_owned())
+    })
+}
+
+/// Return the entry a paragraph contributes, or `None` for a dependency clause.
+pub(super) fn paragraph_entry_or_clause(
+    paragraph: &Paragraph,
+) -> Result<Option<(Option<String>, String)>> {
+    match classify_paragraph(&paragraph.children)? {
+        RequiresParagraph::Content => paragraph_entry(paragraph).map(Some),
+        RequiresParagraph::ClauseOnly => Ok(None),
+        RequiresParagraph::ClauseWithProse(prose) => Ok(Some(entry_from_rendered(&prose))),
+    }
 }
 
 /// Collect and validate dependencies for phase or step content.

@@ -4,9 +4,8 @@ use markdown::mdast::{List, ListItem, Node};
 
 use super::{
     details::{self, NumberedDetails},
-    requires::is_requires_clause,
+    requires::paragraph_entry_or_clause,
     schema::{ExportDetail, ExportEntry},
-    text::paragraph_entry,
 };
 use crate::{
     error::{MapspliceError, Result},
@@ -20,15 +19,29 @@ use crate::{
 pub(super) fn entries(nodes: &MarkdownNodes) -> Result<Vec<ExportEntry>> {
     let mut entries = Vec::new();
     let mut question = None;
-    append_region_entries(nodes.nodes(), &mut entries, false, &mut question)?;
+    append_region_entries(
+        nodes.nodes(),
+        &mut RegionEntries {
+            entries: &mut entries,
+            allow_question: false,
+            question: &mut question,
+        },
+    )?;
     Ok(entries)
 }
 
 /// Convert step body content into its first question and remaining entries.
 pub(super) fn step_content(nodes: &MarkdownNodes) -> Result<(Option<String>, Vec<ExportEntry>)> {
-    let mut question = None;
     let mut entries = Vec::new();
-    append_region_entries(nodes.nodes(), &mut entries, true, &mut question)?;
+    let mut question = None;
+    append_region_entries(
+        nodes.nodes(),
+        &mut RegionEntries {
+            entries: &mut entries,
+            allow_question: true,
+            question: &mut question,
+        },
+    )?;
     Ok((question, entries))
 }
 
@@ -98,25 +111,37 @@ impl<'a> TaskContentBuilder<'a> {
     }
 }
 
-/// Append phase or step prose, attaching lists to an immediately preceding empty label.
-fn append_region_entries(
-    nodes: &[Node],
-    output: &mut Vec<ExportEntry>,
+/// Accumulate phase or step entries and the first unlabelled question.
+struct RegionEntries<'a> {
+    /// Ordered entries mapped from the region's blocks.
+    entries: &'a mut Vec<ExportEntry>,
+    /// Whether the first unlabelled paragraph becomes the step question.
     allow_question: bool,
-    question: &mut Option<String>,
-) -> Result<()> {
+    /// Question captured from that paragraph.
+    question: &'a mut Option<String>,
+}
+
+impl RegionEntries<'_> {
+    /// Record a paragraph as the step question or an ordinary entry.
+    fn push(&mut self, key: Option<String>, value: String) {
+        if is_question_candidate(self.allow_question, self.question.is_some(), key.is_some()) {
+            *self.question = Some(value);
+        } else {
+            self.entries.push(empty_entry(key, value));
+        }
+    }
+}
+
+/// Append phase or step prose, attaching lists to an immediately preceding empty label.
+fn append_region_entries(nodes: &[Node], region: &mut RegionEntries<'_>) -> Result<()> {
     for node in nodes {
         match node {
-            Node::Paragraph(paragraph) if is_requires_clause(&paragraph.children)? => {}
             Node::Paragraph(paragraph) => {
-                let (key, value) = paragraph_entry(paragraph)?;
-                if is_question_candidate(allow_question, question.is_some(), key.is_some()) {
-                    *question = Some(value);
-                } else {
-                    output.push(empty_entry(key, value));
+                if let Some((key, value)) = paragraph_entry_or_clause(paragraph)? {
+                    region.push(key, value);
                 }
             }
-            Node::List(list) => append_labelled_list(list, output)?,
+            Node::List(list) => append_labelled_list(list, region.entries.as_mut_slice())?,
             Node::ThematicBreak(_) => {}
             other => {
                 return Err(invalid_node(
@@ -138,10 +163,10 @@ const fn is_question_candidate(allow_question: bool, has_question: bool, has_lab
 fn append_task_blocks(nodes: &[Node], content: &mut TaskContentBuilder<'_>) -> Result<()> {
     for node in nodes {
         match node {
-            Node::Paragraph(paragraph) if is_requires_clause(&paragraph.children)? => {}
             Node::Paragraph(paragraph) => {
-                let (key, value) = paragraph_entry(paragraph)?;
-                content.entries.push(empty_entry(key, value));
+                if let Some((key, value)) = paragraph_entry_or_clause(paragraph)? {
+                    content.entries.push(empty_entry(key, value));
+                }
             }
             Node::List(list) => details::append_task_list(list, content)?,
             Node::ThematicBreak(_) => {}
@@ -179,6 +204,8 @@ fn append_labelled_list(list: &List, output: &mut [ExportEntry]) -> Result<()> {
 /// A dependency bullet contributes no entry of its own, but its children are
 /// still inspected: supported blocks become entries and unsupported nesting is
 /// rejected with its source location, so no content is silently discarded.
+/// Prose after the clause is ordinary content and becomes an entry, so
+/// `Requires 1.1.1. Success: keep this.` retains its `Success` entry.
 pub(super) fn list_item_entries(item: &ListItem) -> Result<Vec<ExportEntry>> {
     let Some(Node::Paragraph(first)) = item.children.first() else {
         return Err(invalid_node(
@@ -187,25 +214,28 @@ pub(super) fn list_item_entries(item: &ListItem) -> Result<Vec<ExportEntry>> {
         ));
     };
     let rest = item.children.get(1..).unwrap_or_default();
-    if is_requires_clause(&first.children)? {
-        let mut entries = Vec::new();
-        append_entry_children(rest, &mut entries)?;
-        return Ok(entries);
+    match paragraph_entry_or_clause(first)? {
+        None => {
+            let mut entries = Vec::new();
+            append_entry_children(rest, &mut entries)?;
+            Ok(entries)
+        }
+        Some((key, value)) => {
+            let mut entry = empty_entry(key, value);
+            append_entry_children(rest, &mut entry.entries)?;
+            Ok(vec![entry])
+        }
     }
-    let (key, value) = paragraph_entry(first)?;
-    let mut entry = empty_entry(key, value);
-    append_entry_children(rest, &mut entry.entries)?;
-    Ok(vec![entry])
 }
 
 /// Map nested blocks beneath an entry, rejecting checkboxes that cannot be represented there.
 pub(super) fn append_entry_children(nodes: &[Node], entries: &mut Vec<ExportEntry>) -> Result<()> {
     for node in nodes {
         match node {
-            Node::Paragraph(paragraph) if is_requires_clause(&paragraph.children)? => {}
             Node::Paragraph(paragraph) => {
-                let (key, value) = paragraph_entry(paragraph)?;
-                entries.push(empty_entry(key, value));
+                if let Some((key, value)) = paragraph_entry_or_clause(paragraph)? {
+                    entries.push(empty_entry(key, value));
+                }
             }
             Node::List(list) => {
                 if list.ordered {

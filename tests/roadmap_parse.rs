@@ -195,9 +195,13 @@ fn parse_rejects_numbered_details_beneath_other_details() {
         &error,
         "numbered checkbox details are not valid beneath a checkbox detail",
     );
-    assert!(
-        location.line > 1,
+    assert_eq!(
+        location.line, 7,
         "the rejection should point at the nested item, got {location}"
+    );
+    assert_eq!(
+        location.column, 5,
+        "the rejection should point at the item marker, got {location}"
     );
 }
 
@@ -215,7 +219,18 @@ fn parse_rejects_sub_task_body_list_with_a_later_numbered_checkbox() {
     let error =
         parse_roadmap_text(roadmap).expect_err("a nested numbered checkbox must be refused");
 
-    assert_located_invalid_roadmap_error(&error, "sub-tasks cannot contain nested roadmap lists");
+    let location = assert_located_invalid_roadmap_error(
+        &error,
+        "sub-tasks cannot contain nested roadmap lists",
+    );
+    assert_eq!(
+        location.line, 7,
+        "the rejection should point at the list that contains the nested item, got {location}"
+    );
+    assert_eq!(
+        location.column, 5,
+        "the rejection should point at the list marker, got {location}"
+    );
 }
 
 #[rstest]

@@ -11,10 +11,11 @@ use rstest::rstest;
 
 use super::{anchors, at, list_item, markdown_nodes, paragraph, task};
 use crate::roadmap::export::requires::{
+    RequiresParagraph,
+    classify_paragraph,
     from_checkbox,
     from_markdown,
     from_task,
-    is_requires_clause,
     node_children,
 };
 
@@ -48,13 +49,21 @@ fn first_inline(source: &str) -> Node {
 }
 
 #[rstest]
-#[case::plain("Requires 1.1.1.", true)]
-#[case::strong("**Requires** 1.1.1.", true)]
-#[case::keyword_only("Requires", true)]
-#[case::longer_word("Required 1.1.1.", false)]
-#[case::unrelated("Notes.", false)]
-fn is_requires_clause_recognizes_only_whole_keywords(#[case] source: &str, #[case] expected: bool) {
-    let result = is_requires_clause(&paragraph(source).children).expect("text should render");
+#[case::plain("Requires 1.1.1.", RequiresParagraph::ClauseOnly)]
+#[case::strong("**Requires** 1.1.1.", RequiresParagraph::ClauseOnly)]
+#[case::keyword_only("Requires", RequiresParagraph::ClauseOnly)]
+#[case::longer_word("Required 1.1.1.", RequiresParagraph::Content)]
+#[case::unrelated("Notes.", RequiresParagraph::Content)]
+#[case::connector("Requires 1.1.1 and 1.1.2.", RequiresParagraph::ClauseOnly)]
+#[case::trailing_prose(
+    "Requires 1.1.1. Success: keep this.",
+    RequiresParagraph::ClauseWithProse("Success: keep this.".to_owned())
+)]
+fn classify_paragraph_separates_clauses_from_content(
+    #[case] source: &str,
+    #[case] expected: RequiresParagraph,
+) {
+    let result = classify_paragraph(&paragraph(source).children).expect("text should render");
 
     assert_eq!(result, expected);
 }

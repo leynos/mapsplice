@@ -23,6 +23,11 @@ use crate::{
 pub(crate) type ReadUtf8Fn<'reader> = &'reader dyn Fn(&Utf8Path) -> Result<String>;
 
 /// Execute the read-only JSON export and optional committed-file comparison.
+///
+/// This is the instrumented command boundary: each call records one attempt
+/// and exactly one outcome. The underlying [`export_request`] query performs
+/// the actual work and touches no process-global state, so it can be exercised
+/// directly without perturbing the counters.
 pub(crate) fn run_export(
     target: &Utf8Path,
     format: ExportFormat,
@@ -56,6 +61,10 @@ const fn decision_for(result: &Result<RunOutcome>, has_check: bool) -> ExportOut
 }
 
 /// Render the export and, when requested, compare it with the committed file.
+///
+/// This query is deliberately free of logging and counter updates. Every
+/// side effect belongs to the [`run_export`] boundary so callers that only
+/// need the rendered result cannot alter observable process state.
 fn export_request(
     target: &Utf8Path,
     format: ExportFormat,
@@ -82,10 +91,7 @@ struct RenderedExport<'schema> {
 }
 
 /// Return the freshly rendered export.
-fn emitted_export(fresh_json: String) -> RunOutcome {
-    tracing::debug!(decision = "emitted", "export completed");
-    RunOutcome::stdout(fresh_json)
-}
+const fn emitted_export(fresh_json: String) -> RunOutcome { RunOutcome::stdout(fresh_json) }
 
 /// Parse the roadmap and adapt it to the export schema without writing output.
 fn export_schema(
@@ -134,10 +140,7 @@ fn read_committed_export(export_path: &Utf8PathBuf, read: ReadUtf8Fn<'_>) -> Res
 }
 
 /// Return the successful outcome for a committed export that matches exactly.
-fn matched_export() -> RunOutcome {
-    tracing::debug!(decision = "match", "export check completed");
-    RunOutcome::silent_success()
-}
+const fn matched_export() -> RunOutcome { RunOutcome::silent_success() }
 
 /// Build the drift error describing every semantic difference.
 fn export_drift(
@@ -150,11 +153,6 @@ fn export_drift(
     if differences.is_empty() {
         differences.push("formatting-only drift: semantic JSON values are equal".to_owned());
     }
-    tracing::debug!(
-        decision = "drift",
-        differences = differences.len(),
-        "export check completed"
-    );
     ExportError::Drift {
         export: export_path.to_owned(),
         roadmap: target.to_owned(),
@@ -163,18 +161,52 @@ fn export_drift(
     }
 }
 
-/// Decode a committed export, attributing malformed JSON to the committed file.
+/// Minimal committed document prefix used to reject an unsupported version.
+#[derive(serde::Deserialize)]
+struct CommittedFormatVersion {
+    /// Contract version declared by the committed export.
+    format_version: u32,
+}
+
+/// Decode a committed export, attributing malformed or unsupported input to it.
+///
+/// A document that still matches the current shape is decoded so that a
+/// differing version is reported as drift, which names the actual change. Only
+/// when the decode fails does the version prefix take precedence: a future
+/// contract version may change the shape, and its missing-field error would
+/// hide the real cause.
 fn parse_committed_export(
     export_path: &Utf8PathBuf,
     committed_json: &str,
 ) -> Result<roadmap::export::RoadmapExport> {
-    serde_json::from_str(committed_json).map_err(|error| {
-        ExportError::InvalidCommitted {
-            path: export_path.to_owned(),
-            message: error.to_string(),
-        }
-        .into()
+    serde_json::from_str(committed_json).map_err(|decode_error| {
+        unsupported_version(export_path, committed_json)
+            .unwrap_or_else(|| invalid_committed(export_path, decode_error.to_string()))
     })
+}
+
+/// Report a readable, differing contract version from the committed document.
+fn unsupported_version(export_path: &Utf8PathBuf, committed_json: &str) -> Option<MapspliceError> {
+    let committed: CommittedFormatVersion = serde_json::from_str(committed_json).ok()?;
+    (committed.format_version != roadmap::export::FORMAT_VERSION).then(|| {
+        invalid_committed(
+            export_path,
+            format!(
+                "unsupported format_version {}; this build exports format_version {}",
+                committed.format_version,
+                roadmap::export::FORMAT_VERSION
+            ),
+        )
+    })
+}
+
+/// Build the invalid-committed export error for a decode failure.
+fn invalid_committed(export_path: &Utf8PathBuf, message: String) -> MapspliceError {
+    ExportError::InvalidCommitted {
+        path: export_path.to_owned(),
+        message,
+    }
+    .into()
 }
 
 #[cfg(test)]

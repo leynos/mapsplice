@@ -163,7 +163,7 @@ fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>)
     let Some(reported) = location else {
         return Err("the dangling reference should carry its source location".into());
     };
-    assert_equal(&reported.to_string(), &"line 7, column 7".to_owned());
+    assert_equal(&reported.to_string(), &"line 7, column 35".to_owned());
     Ok(())
 }
 

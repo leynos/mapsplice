@@ -18,6 +18,26 @@ pub(super) fn paragraph_entry(paragraph: &Paragraph) -> Result<(Option<String>, 
     Ok((None, render_text(&paragraph.children)?))
 }
 
+/// Split already-rendered paragraph text into its optional label and body.
+///
+/// This mirrors [`paragraph_entry`] for text that arrives as a rendered
+/// string rather than as inline nodes, such as prose recovered after a
+/// dependency clause. For example, `Success: keep this.` becomes
+/// `(Some("Success"), "keep this.")`.
+pub(super) fn entry_from_rendered(rendered: &str) -> (Option<String>, String) {
+    let Some((label, remainder)) = rendered.split_once(':') else {
+        return (None, rendered.to_owned());
+    };
+    let normalized = collapse_whitespace(label);
+    if !is_label(&normalized) {
+        return (None, rendered.to_owned());
+    }
+    (
+        Some(normalized.trim().to_owned()),
+        collapse_whitespace(remainder),
+    )
+}
+
 /// Split a leading plain or strong label from inline nodes.
 fn split_label(nodes: &[Node]) -> Result<Option<(String, Vec<Node>)>> {
     let Some(first) = nodes.first() else {

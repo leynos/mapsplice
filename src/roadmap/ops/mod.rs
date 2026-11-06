@@ -6,6 +6,7 @@ mod remap_kernel;
 mod rewrite;
 mod sub_task;
 
+pub(crate) use dependency_text::dependency_candidates;
 pub(crate) use dependency_visitor::collect_dependencies;
 pub(crate) use remap_kernel::select_resolution;
 use rewrite::{renumber_document, rewrite_dependencies};
