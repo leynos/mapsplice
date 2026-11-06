@@ -4,12 +4,9 @@ use markdown::mdast::Node;
 use rstest::rstest;
 
 use super::{anchors, at, list, list_item, markdown, markdown_nodes, task};
-use crate::roadmap::export::blocks::{
-    entries,
-    list_item_entries,
-    list_items,
-    step_content,
-    task_content,
+use crate::roadmap::export::{
+    blocks::{entries, list_item_entries, list_items, step_content, task_content},
+    schema::ExportDetail,
 };
 
 #[test]
@@ -28,7 +25,7 @@ fn entries_skip_requires_clauses_and_thematic_breaks() {
     assert_eq!(exported.len(), 2);
     assert_eq!(at(&exported, 0).value, "Intro paragraph.");
     assert_eq!(at(&exported, 1).key.as_deref(), Some("Label"));
-    assert!(at(&exported, 1).value.is_empty());
+    assert_eq!(at(&exported, 1).value, "");
     assert_eq!(at(&exported, 1).entries.len(), 2);
     assert_eq!(at(&at(&exported, 1).entries, 1).value, "second");
 }
@@ -207,7 +204,7 @@ fn task_content_maps_body_paragraphs_and_thematic_breaks() {
 
     assert_eq!(exported.len(), 1);
     assert_eq!(at(&exported, 0).value, "Body paragraph.");
-    assert!(details.is_empty());
+    assert_eq!(details, Vec::<ExportDetail>::new());
 }
 
 #[test]
