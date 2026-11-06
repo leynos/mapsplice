@@ -412,7 +412,7 @@ def test_release_filters_development_flags_and_selects_llvm(tmp_path: Path) -> N
 
 
 def test_whitaker_filters_development_flags_and_selects_llvm(tmp_path: Path) -> None:
-    """Whitaker keeps policy flags while enforcing its installer-owned route."""
+    """Whitaker drops inherited encoded flags and enforces its installer-owned route."""
     assert_whitaker_route(
         route_for(execute_make_route(tmp_path, "lint-whitaker"), ("--all",))
     )

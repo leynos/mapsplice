@@ -161,8 +161,9 @@ fn assert_no_retired_clause(
     let live_anchors = case
         .expectation
         .anchors()
-        .map(|anchors| anchors.values().cloned().collect::<BTreeSet<_>>())
-        .unwrap_or_default();
+        .into_iter()
+        .flat_map(|anchors| anchors.values().cloned())
+        .collect::<BTreeSet<_>>();
 
     for anchor in retired {
         if live_anchors.contains(anchor) {

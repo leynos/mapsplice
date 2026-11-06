@@ -84,3 +84,17 @@ Reconsider Cranelift under
 review. The
 [investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
 records the unwind failure.
+
+## Addendum (2026-11-06)
+
+The build policy changed with the move to the rolling nightly named by
+`rust-toolchain.toml`; this addendum records the changes and leaves the pin
+itself to that file. Development builds now set `embed-metadata = false` under
+`[unstable]` in `.cargo/config.toml`, joining `debug = 0` in the development
+profile as the build footprint settings. The Make gate recipes compose their
+development flags through the statically readable `GATE_RUSTFLAGS_*` variables
+rather than a function call. The Whitaker recipe now unsets
+`CARGO_ENCODED_RUSTFLAGS` and assigns the literal `RUSTFLAGS="-D warnings"`, so
+it neither inherits the development frontend or linker flags nor filters them:
+it receives none. The other routes still filter development-owned arguments
+from inherited encoded flags. The Cranelift exclusion above is unchanged.

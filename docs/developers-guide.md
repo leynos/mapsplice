@@ -257,7 +257,7 @@ flowchart TD
     }
     Start[Build or test command] --> Route{Selected route?}
     Route -->|Bare Cargo| Config[Cargo config defaults]
-    Route -->|Make development gates| Compose[Compose policy flags with gate_rust_flags]
+    Route -->|Make development gates| Compose[Compose policy flags with the GATE_RUSTFLAGS_* variables]
     Route -->|Coverage| Coverage[LLVM profiles and coverage-specific flags]
     Route -->|Release| Release[LLVM release profile and warning flags]
     Route -->|Whitaker| Whitaker[Installer-managed toolchain and LLVM profiles]
@@ -287,12 +287,16 @@ without the development frontend or `mold` flags. Release uses the pinned
 nightly Cargo, while Whitaker uses its installer-managed toolchain.*
 
 Make also filters development-owned arguments from inherited
-`CARGO_ENCODED_RUSTFLAGS` before composing each route, preserving other caller
-policy flags. Encoded flags take precedence over `RUSTFLAGS`, so both flag
-sources must follow the selected route.
+`CARGO_ENCODED_RUSTFLAGS` before composing each route other than Whitaker,
+preserving other caller policy flags. Whitaker is the exception: its recipe
+unsets `CARGO_ENCODED_RUSTFLAGS` outright rather than filtering it. Encoded
+flags take precedence over `RUSTFLAGS`, so both flag sources must follow the
+selected route.
 
 Whitaker receives explicit LLVM development and test profile overrides without
-the repository's development frontend or linker flags. Keep
+the repository's development frontend or linker flags. Its recipe unsets
+`CARGO_ENCODED_RUSTFLAGS` and assigns the literal `RUSTFLAGS="-D warnings"`, so
+the isolation is statically readable. Keep
 `CARGO_UNSTABLE_CODEGEN_BACKEND=true` on this route: Dylint may build a driver
 from a temporary Cargo project outside the repository, where Cargo cannot
 discover the root `.cargo/config.toml` that enables the unstable profile
@@ -304,10 +308,13 @@ Dylint tool archive must come from published assets.
 
 ### Cranelift exception
 
-Cranelift is excluded from the development default. On the pinned
-`nightly-2026-03-26`, the `catch_unwind` probe failed and a spawned-thread
-panic aborted the test process; the explicit LLVM route passed the full suite
-(293/293). See the
+Cranelift is excluded from the development default. On `nightly-2026-03-26`, the
+`catch_unwind` probe failed and a spawned-thread panic aborted the test
+process; the explicit LLVM route passed the full suite (293/293). Re-measured on
+`nightly-2026-11-05` on 2026-11-06 with
+`CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift make test`: the same two tests
+still fail (`catch_unwind_catches_a_development_panic` fails, and
+`spawned_thread_panic_does_not_abort_the_process` aborts with SIGABRT). See the
 [investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
 Review this exception under
 [issue #115](https://github.com/leynos/mapsplice/issues/115) on 2027-04-01.
@@ -420,6 +427,13 @@ committing Markdown changes.
 
 Development, test, lint, and typecheck builds use the parallel `rustc` frontend
 (`-Zthreads=8`) and, on Linux, the `mold` linker (`-Clink-arg=-fuse-ld=mold`).
+The `[unstable]` table in `.cargo/config.toml` also sets
+`embed-metadata = false`, so development builds link rlibs without embedded
+metadata and keep only the separate metadata file. This belongs to the build
+footprint settings alongside `debug = 0` in the development profile, and it
+needs the nightly toolchain that `rust-toolchain.toml` pins; read the pin from
+that file rather than from this guide.
+
 These are defaults in `.cargo/config.toml`, which Cargo discovers on its own,
 so a bare `cargo build` gets them. `mold` ships for Linux only, so the linker
 flag lives in a Linux-only table and macOS and Windows keep their platform

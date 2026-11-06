@@ -264,7 +264,7 @@ fn task_source(shape: TaskSourceShape, spec: &TaskSourceSpec<'_>) -> String {
     if spec.has_sub_task {
         let sub_task_indent = " ".repeat(shape.marker_indent + 2);
         let sub_task_body_indent = " ".repeat(shape.marker_indent + 4);
-        source.push_str(&format!(
+        let sub_task = format!(
             concat!(
                 "{sub_task_indent}- [ ] {number}.1. Nested task.{line_ending}",
                 "{sub_task_body_indent}Nested continuation.{line_ending}",
@@ -273,7 +273,8 @@ fn task_source(shape: TaskSourceShape, spec: &TaskSourceSpec<'_>) -> String {
             number = spec.number,
             line_ending = line_ending,
             sub_task_body_indent = sub_task_body_indent,
-        ));
+        );
+        source.push_str(&sub_task);
     }
     source.push_str(spec.separator);
     source
