@@ -40,6 +40,20 @@ fn unrecognized_label_keeps_the_original_text(#[case] source: &str) {
     assert_eq!(value, source, "the original text should be preserved");
 }
 
+/// Labels export identically however their internal whitespace is written.
+#[rstest]
+#[case::single_space("Proof first: demonstrate the invariant.")]
+#[case::repeated_spaces("Proof   first: demonstrate the invariant.")]
+#[case::soft_wrap("Proof\nfirst: demonstrate the invariant.")]
+#[case::hard_break("Proof  \nfirst: demonstrate the invariant.")]
+#[case::tab("Proof\tfirst: demonstrate the invariant.")]
+fn label_whitespace_is_normalized_before_recognition(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("text should render");
+
+    assert_eq!(key.as_deref(), Some("Proof first"));
+    assert_eq!(value, "demonstrate the invariant.");
+}
+
 #[test]
 fn strong_label_splits_and_is_removed_from_the_value() {
     let (key, value) =

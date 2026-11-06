@@ -50,10 +50,13 @@ removed. Formatting and whitespace changes in the Markdown therefore do not
 create semantic export drift.
 
 A leading label is a short phrase of ASCII letters, spaces or hyphens ending in
-`:`, or a leading strong-emphasis node containing such a phrase and colon. The
-label becomes `key`; the remaining paragraph text becomes `value`. A following
-bullet list belongs to an empty labelled entry, for example `See:`. The
-document preamble and source file path are intentionally excluded.
+`:`, or a leading strong-emphasis node containing such a phrase and colon.
+Label whitespace is normalized before the label is recognized and stored, so a
+label split across a soft or hard line break, or padded with repeated spaces or
+tabs, exports identically to its single-line form. The label becomes `key`; the
+remaining paragraph text becomes `value`. A following bullet list belongs to an
+empty labelled entry, for example `See:`. The document preamble and source file
+path are intentionally excluded.
 
 ## Dependencies
 
@@ -71,7 +74,9 @@ HTML, link destinations and section references beginning with `§`, and keeps
 semicolon and non-numeric period clause boundaries. A malformed anchor-like
 token or unresolved roadmap reference is an error with a source line and
 column. Nested `Requires` bullets are handled by the same traversal as other
-task-body content.
+task-body content. A dependency bullet contributes no entry of its own, but its
+supported child blocks are exported as entries and unsupported nesting is
+rejected with a source location, so no content is silently discarded.
 
 ## Strictness
 

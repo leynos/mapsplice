@@ -24,16 +24,7 @@ fn split_label(nodes: &[Node]) -> Result<Option<(String, Vec<Node>)>> {
         return Ok(None);
     };
     match first {
-        Node::Text(text) => {
-            let Some((label, suffix)) = split_label_text(&text.value) else {
-                return Ok(None);
-            };
-            let mut remainder = nodes.to_vec();
-            if let Some(Node::Text(first_text)) = remainder.first_mut() {
-                first_text.value = suffix;
-            }
-            Ok(Some((label, remainder)))
-        }
+        Node::Text(_) | Node::Break(_) => Ok(split_plain_label(nodes)),
         Node::Strong(strong) => {
             let rendered_label = render_text(&strong.children)?;
             let Some(label) = rendered_label.strip_suffix(':') else {
@@ -51,10 +42,68 @@ fn split_label(nodes: &[Node]) -> Result<Option<(String, Vec<Node>)>> {
     }
 }
 
-/// Split a text prefix at a colon when its label uses the accepted alphabet.
-fn split_label_text(value: &str) -> Option<(String, String)> {
-    let (label, remainder) = value.split_once(':')?;
-    is_label(label).then(|| (label.trim().to_owned(), remainder.to_owned()))
+/// Split a plain label that may span a soft or hard line break.
+///
+/// Markdown keeps a soft line ending inside one text node but represents a
+/// hard break as a separate node, so the label is read from the leading run of
+/// text and break nodes rather than from the first node alone. Whitespace is
+/// normalized before the label is validated, which makes a wrapped or
+/// space-padded label export identically to its single-line form.
+fn split_plain_label(nodes: &[Node]) -> Option<(String, Vec<Node>)> {
+    let run_end = nodes
+        .iter()
+        .position(|node| !matches!(node, Node::Text(_) | Node::Break(_)))
+        .unwrap_or(nodes.len());
+    let run = nodes.get(..run_end)?;
+    let flattened = flatten_text_run(run)?;
+    let (label, _) = flattened.split_once(':')?;
+    let normalized = collapse_whitespace(label);
+    if !is_label(&normalized) {
+        return None;
+    }
+    let (colon_index, local_offset) = locate_colon(run, label.len())?;
+    let mut remainder = Vec::new();
+    if let Some(Node::Text(node)) = run.get(colon_index) {
+        let mut remainder_text = node.clone();
+        node.value
+            .get(local_offset + 1..)
+            .unwrap_or_default()
+            .clone_into(&mut remainder_text.value);
+        remainder.push(Node::Text(remainder_text));
+    }
+    remainder.extend_from_slice(run.get(colon_index + 1..).unwrap_or_default());
+    remainder.extend_from_slice(nodes.get(run_end..).unwrap_or_default());
+    Some((normalized, remainder))
+}
+
+/// Flatten a run of text and break nodes, rendering each break as a space.
+fn flatten_text_run(nodes: &[Node]) -> Option<String> {
+    let mut flattened = String::new();
+    for node in nodes {
+        match node {
+            Node::Text(text) => flattened.push_str(&text.value),
+            Node::Break(_) => flattened.push(' '),
+            _ => return None,
+        }
+    }
+    Some(flattened)
+}
+
+/// Find the node and local byte offset that hold the colon.
+fn locate_colon(nodes: &[Node], colon_offset: usize) -> Option<(usize, usize)> {
+    let mut consumed = 0;
+    for (index, node) in nodes.iter().enumerate() {
+        let length = match node {
+            Node::Text(text) => text.value.len(),
+            Node::Break(_) => 1,
+            _ => return None,
+        };
+        if colon_offset < consumed + length {
+            return Some((index, colon_offset - consumed));
+        }
+        consumed += length;
+    }
+    None
 }
 
 /// Return whether a phrase is a supported short label.

@@ -166,29 +166,33 @@ fn append_labelled_list(list: &List, output: &mut [ExportEntry]) -> Result<()> {
                 "checkbox details are only valid in task bodies",
             ));
         }
-        if let Some(entry) = list_item_entry(item)? {
-            parent.entries.push(entry);
-        }
+        parent.entries.extend(list_item_entries(item)?);
     }
     Ok(())
 }
 
 /// Convert one non-checkbox list item and its nested non-checkbox bullets.
-pub(super) fn list_item_entry(item: &ListItem) -> Result<Option<ExportEntry>> {
+///
+/// A dependency bullet contributes no entry of its own, but its children are
+/// still inspected: supported blocks become entries and unsupported nesting is
+/// rejected with its source location, so no content is silently discarded.
+pub(super) fn list_item_entries(item: &ListItem) -> Result<Vec<ExportEntry>> {
     let Some(Node::Paragraph(first)) = item.children.first() else {
         return Err(invalid_node(
             &Node::ListItem(item.clone()),
             "list items must begin with a paragraph",
         ));
     };
+    let rest = item.children.get(1..).unwrap_or_default();
     if is_requires_clause(&first.children)? {
-        return Ok(None);
+        let mut entries = Vec::new();
+        append_entry_children(rest, &mut entries)?;
+        return Ok(entries);
     }
     let (key, value) = paragraph_entry(first)?;
     let mut entry = empty_entry(key, value);
-    let rest = item.children.get(1..).unwrap_or_default();
     append_entry_children(rest, &mut entry.entries)?;
-    Ok(Some(entry))
+    Ok(vec![entry])
 }
 
 /// Map nested blocks beneath an entry, rejecting checkboxes that cannot be represented there.
@@ -226,9 +230,7 @@ fn append_non_checkbox_entry(item: &ListItem, entries: &mut Vec<ExportEntry>) ->
             "checkbox detail cannot be nested beneath a non-checkbox entry",
         ));
     }
-    if let Some(entry) = list_item_entry(item)? {
-        entries.push(entry);
-    }
+    entries.extend(list_item_entries(item)?);
     Ok(())
 }
 

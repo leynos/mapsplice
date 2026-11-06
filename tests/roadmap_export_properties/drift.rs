@@ -1,5 +1,6 @@
 //! Property test for drift reporting at every nesting level.
 
+use camino::Utf8PathBuf;
 use proptest::prelude::*;
 use serde_json::{Value, json};
 
@@ -174,7 +175,7 @@ const DRIFT_CASES: &[DriftCase] = &[
 ];
 
 /// A roadmap with content at every export nesting level.
-const NESTED_ROADMAP: &str = concat!(
+pub(super) const NESTED_ROADMAP: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
     "Phase note: phase value.\n\n",
@@ -190,12 +191,22 @@ const NESTED_ROADMAP: &str = concat!(
     "Step close: step trailing value.\n",
 );
 
+/// Write `encoded` as the committed export beside the roadmap target.
+pub(super) fn write_committed_export(
+    workspace: &crate::export_workspace::Workspace,
+    encoded: &str,
+) -> std::io::Result<Utf8PathBuf> {
+    workspace.dir.write("roadmap.json", encoded)?;
+    Ok(workspace.target.with_file_name("roadmap.json"))
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: 8,
         .. ProptestConfig::default()
     })]
 
+    /// Each field mutation is reported at the nesting level that owns the field.
     #[test]
     fn drift_reports_mutations_at_every_nesting_level(replacement in "[a-z]{4,10}") {
         let workspace = create_workspace().expect("workspace fixture should initialize");
@@ -203,7 +214,6 @@ proptest! {
             .write_target(NESTED_ROADMAP)
             .expect("fixture roadmap should be written");
         let committed = export_source(NESTED_ROADMAP).expect("fixture export should succeed");
-        let export_path = workspace.target.with_file_name("roadmap.json");
 
         for case in DRIFT_CASES {
             let mut mutated: Value =
@@ -216,10 +226,8 @@ proptest! {
             );
             let encoded =
                 serde_json::to_string(&mutated).expect("mutated export should encode as JSON");
-            workspace
-                .dir
-                .write("roadmap.json", &encoded)
-                .expect("mutated export should be written");
+            let export_path = write_committed_export(&workspace, &encoded)
+                .expect("committed export should be written");
 
             let error = check_export(&workspace, &export_path)
                 .expect_err("a mutated committed export should drift");
