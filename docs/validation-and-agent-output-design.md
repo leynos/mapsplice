@@ -3,9 +3,10 @@
 ## Status and scope
 
 - **Status:** design for roadmap phase 6.
-- **Scope:** `mapsplice validate`, miette-style human diagnostics, JSON output
-  mode for every command, compact agent context, and a roadmap-maintenance
-  agent skill.
+- **Scope:** `mapsplice validate`, including filename sequence-number
+  uniqueness across a documentation set; miette-style human diagnostics; JSON
+  output mode for every command; compact agent context; and a
+  roadmap-maintenance agent skill.
 - **Audience:** contributors implementing validation and JSON contracts,
   maintainers reviewing CLI compatibility, and agents consuming structured
   roadmap evidence.
@@ -33,9 +34,18 @@ Phase 6 therefore adds two related contracts:
 Human diagnostics stay rich and localizable. Machine diagnostics stay stable
 and non-localized.
 
+Validation also reaches documentation sets that have no test suite of their
+own. On 2026-10-13 two Architecture Decision Records both numbered `006`
+coexisted on `main` in `leynos/statelet`. Git merges by path, so the disjoint
+files never conflicted, and the hosted merge checks did not compare filenames.
+The syntax pass therefore generalizes its duplicate-anchor check to a
+sequence-number uniqueness check over a documentation set.
+
 ## Goals
 
 - Validate the supported roadmap grammar without attempting an edit.
+- Detect duplicate sequence numbers in documentation-set filenames without
+  editing the documents.
 - Report unresolved `Requires` references and malformed dependency tokens.
 - Check local Markdown links to files, headings, and fragments.
 - Render human diagnostics with source spans, labels, help text, and stable
@@ -50,6 +60,10 @@ and non-localized.
 
 - Fetch remote links during validation.
 - Accept arbitrary Markdown outside the roadmap grammar.
+- Check sequence-number contiguity, allocation order, or gaps.
+- Compare an RFC's preamble number with its filename.
+- Enforce task-number uniqueness across different roadmap documents.
+- Renumber documents or update their cross-references automatically.
 - Make JSON mode a stream for edit commands.
 - Replace human miette diagnostics with JSON-only errors.
 - Move domain execution into OrthoConfig.
@@ -62,28 +76,45 @@ The new command is:
 mapsplice validate [--json] <target>
 ```
 
+`<target>` names a roadmap file or a documentation directory. A file target
+runs the roadmap passes. A directory target discovers documentation sets
+recursively below it and runs the filename sequence-number check described in
+the validation model; it does not parse member documents as roadmap grammar.
+
 Validation is read-only. It must not call the renderer except when a fixture is
 explicitly testing render stability, and it must never emit rewritten Markdown.
 
 Exit classes:
 
-| Code | Class      | Meaning                                                         |
-| ---- | ---------- | --------------------------------------------------------------- |
-| 0    | success    | No validation findings at `error` severity.                     |
-| 1    | validation | Error-severity findings or unrecoverable invalid roadmap state. |
-| 2    | usage      | The command line or configuration is invalid.                   |
-| 3    | io         | A target, linked file, or config file is missing.               |
-| 4    | internal   | A model invariant or unexpected bug was hit.                    |
+| Code | Class      | Meaning                                                                    |
+| ---- | ---------- | -------------------------------------------------------------------------- |
+| 0    | success    | No validation findings at `error` severity.                                |
+| 1    | validation | Error-severity findings or unrecoverable invalid roadmap state.            |
+| 2    | usage      | The command line or configuration is invalid.                              |
+| 3    | io         | A target, linked file, directory, or config file is missing or unreadable. |
+| 4    | internal   | A model invariant or unexpected bug was hit.                               |
 
 This is a deliberate pre-1.0 exit-code break from the current binary, where
 non-clap failures collapse to exit code 1. The new taxonomy must be versioned
 with the JSON schema and documented in the users' guide before release.
+
+A duplicate anchor or duplicate sequence number is an error-severity finding
+and exits with class `validation`. A missing or unsupported target, or a
+directory that cannot be read, exits with class `io`; a partial or unreadable
+inventory must never be reported as a successful check. Documentation-set
+validation adds no exit class.
 
 Human mode writes diagnostics to stderr. Successful human validation may print
 a short summary to stdout:
 
 ```text
 docs/roadmap.md: ok
+```
+
+A directory target names the directory:
+
+```text
+docs: ok
 ```
 
 JSON mode writes exactly one success document to stdout and no stderr:
@@ -131,6 +162,26 @@ JSON failure writes no stdout and one diagnostic document to stderr:
   ]
 }
 ```
+
+A duplicate sequence number has no text range. Its primary `path` is the first
+colliding file in byte-wise sorted path order, and `related` lists the other
+claimants:
+
+```json
+{
+  "code": "mapsplice::validate::duplicate_sequence_number",
+  "severity": "error",
+  "message": "duplicate ADR sequence number 6 in docs",
+  "path": "docs/adr-006-first.md",
+  "help": "renumber one ADR and update its cross-references",
+  "related": [{ "path": "docs/adr-006-second.md" }]
+}
+```
+
+`related` is optional and is omitted when there are no related locations. Each
+related location has a `path` and may carry a `range` using the same shape as
+the primary location. Adding the field does not change `schema_version: "1"`
+because it lands before the first schema release.
 
 ## Output mode rules
 
@@ -193,7 +244,9 @@ Findings are collected in three passes.
 
 1. **Syntax pass:** parse the roadmap grammar and report unsupported heading
    structure, task-without-step, step-without-phase, malformed anchors, and
-   duplicate anchors.
+   duplicate anchors. For a documentation-set target the same pass checks
+   filename sequence numbers instead of parsing document bodies. Both checks
+   apply one uniqueness rule at different scopes.
 2. **Dependency pass:** inspect `Requires` clauses using the existing
    dependency-reference predicate. Valid unresolved anchors are errors.
    Version-like or invalid dependency tokens are warnings when they appear in a
@@ -204,6 +257,70 @@ Findings are collected in three passes.
    links must match generated heading slugs. Remote HTTP and HTTPS links are
    reported as unchecked notes, not fetched.
 
+### Uniqueness rule
+
+An identifier that the syntax pass treats as a set key must be unique within
+its declared scope. The rule has two scopes.
+
+- **Roadmap document scope.** Canonical anchors must be unique within one
+  roadmap document. Reusing an anchor in a different roadmap document is not a
+  finding because a companion roadmap is a separate namespace; this prevents
+  false positives where two documents both contain task `1.1.1`. A repeated
+  anchor inside one document is `mapsplice::validate::duplicate_anchor` at
+  `error` severity. The later occurrence is the primary location and the first
+  occurrence is a related location.
+- **Documentation-set directory scope.** Filename sequence numbers must be
+  unique within each directory set. ADR and RFC sets are separate namespaces,
+  so ADR 006 and RFC 0006 do not collide. Compare numbers as decimal values
+  after removing leading zeros, so `adr-6-x.md` and `adr-006-y.md` collide. A
+  collision is `mapsplice::validate::duplicate_sequence_number` at `error`
+  severity. Emit one finding per colliding number per set. The first colliding
+  file in byte-wise sorted path order is the primary location; every other
+  colliding file is a related location. Omit the range because the finding is
+  filename-only. The message names the set kind and number. An ADR finding's
+  help text asks the maintainer to renumber one record and update its
+  cross-references. Because the directory check does not read document bodies,
+  it cannot know which RFCs are published, so an RFC finding's help text points
+  to the RFC collision rule in `docs/documentation-style-guide.md` rather than
+  naming a repair.
+
+### Documentation-set discovery
+
+`<target>` may name a roadmap file or a documentation directory.
+
+A file target runs the roadmap passes above. A directory target discovers
+documentation sets recursively below that directory and runs only the filename
+check; it does not parse member documents as roadmap grammar. Validate a
+roadmap by naming the file.
+
+- An **ADR set** is the set of regular files directly contained in one
+  directory whose names match `adr-<digits>-<slug>.md`.
+- An **RFC set** is the set of regular files directly contained in a directory
+  named `rfcs` whose names match `<digits>-<slug>.md`. Each `rfcs` directory
+  forms its own set, so a nested `rfcs` directory is independent of
+  `docs/rfcs/` and does not share its numbers.
+
+`<digits>` is one or more ASCII decimal digits, and `<slug>` is the non-empty
+remainder of the name. Only direct children of the directory belong to its set,
+so a record in `docs/archive/` does not compete with one in `docs/`. This
+scoping is what keeps independent record series and companion roadmaps from
+producing false positives.
+
+Discovery stays inside the git repository root that contains the target, as the
+link pass does. It follows a symbolic link only when the link target resolves
+inside that root, and records the canonical path of each directory it enters so
+that a directory already visited is skipped. When no git root contains the
+target, the target directory itself is the boundary. Enumerate directories
+through the capability helpers in `src/fs.rs` and collect paths with the
+recursive sorted-walk pattern used by `src/roadmap/render_tests.rs`. Sort
+traversal results before emitting findings, so output does not depend on
+directory enumeration order. An unreadable directory aborts discovery with the
+io exit class rather than reporting a partial set as complete.
+
+A duplicate sequence number is recoverable. Discovery continues through the
+rest of the tree, and findings from other sets and other documents are still
+reported.
+
 Every finding carries:
 
 - a stable `code`;
@@ -211,7 +328,14 @@ Every finding carries:
 - a source path and optional source range;
 - a short message;
 - optional help text;
-- optional related locations.
+- optional related locations, each with a path and an optional source range.
+
+The uniqueness rule uses the stable codes
+`mapsplice::validate::duplicate_anchor` and
+`mapsplice::validate::duplicate_sequence_number`. Sort findings by path, range
+start, and code. A finding without a range sorts before ranged findings at the
+same path. Related locations keep the same deterministic order as the primary
+locations they accompany.
 
 ## Human diagnostics
 
@@ -294,7 +418,7 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 - inspect JSON diagnostics by `code` and `exit_class`;
 - run validation again after an edit;
 - stop for maintainer judgement when diagnostics report ambiguous links,
-  duplicate anchors, or failed postflight checks.
+  duplicate anchors, duplicate sequence numbers, or failed postflight checks.
 
 ## Testing strategy
 
@@ -302,6 +426,13 @@ context so it does not drift from the CLI. The skill must instruct agents to:
   target resolution.
 - Behavioural tests cover `validate` success, syntax failure, dependency
   failure, link failure, and mixed finding severities.
+- A documentation-set fixture with two `adr-006-*.md` files in one directory
+  produces exactly one `duplicate_sequence_number` finding in a JSON golden.
+- A primary and companion roadmap that both contain task `1.1.1` produce no
+  findings when each is validated as a file target.
+- RFC files `0001` and `0003` in `docs/rfcs/` produce no findings, proving that
+  gaps are allowed.
+- Two matching anchors in one roadmap produce a `duplicate_anchor` finding.
 - Snapshot tests pin miette human diagnostics with deterministic renderer
   settings.
 - JSON golden fixtures pin success and failure schemas for every subcommand.
@@ -331,3 +462,14 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 - [Agent-native CLI assistance design](https://github.com/leynos/ortho-config/blob/main/docs/agent-native-cli-design.md).
 - [miette `Diagnostic` documentation](https://docs.rs/miette/latest/miette/trait.Diagnostic.html).
 - [miette `GraphicalReportHandler` documentation](https://docs.rs/miette/latest/miette/struct.GraphicalReportHandler.html).
+- [mapsplice issue #150](https://github.com/leynos/mapsplice/issues/150)
+  proposes this extension and records the incidents and open scoping questions.
+- [statelet #134](https://github.com/leynos/statelet/issues/134) adds the
+  per-repository contract that detects duplicate ADR and RFC numbers where the
+  records are authored.
+- [statelet #133](https://github.com/leynos/statelet/issues/133) requires
+  branches to be current before merge, closing the stale-base window that let
+  both ADR 006 records land.
+- [statelet #135](https://github.com/leynos/statelet/issues/135) records the
+  companion-roadmap task-number ambiguity that fixes the per-document anchor
+  scope.

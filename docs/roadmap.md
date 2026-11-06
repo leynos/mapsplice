@@ -413,6 +413,9 @@ evidence rather than prose-only terminal text.
   - Extend the parser error channel for multi-finding validation with
     source ranges, then reuse the roadmap model to classify syntax,
     dependency, and link findings without mutating the target document.
+  - Parse canonical anchors so they are unique within one roadmap document;
+    a repeat is `mapsplice::validate::duplicate_anchor`. Reusing an anchor in
+    a different roadmap document is not a finding.
   - See docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs/roadmap.md` exits successfully for a
     valid roadmap, reports typed findings for invalid roadmaps, and never
@@ -455,6 +458,20 @@ evidence rather than prose-only terminal text.
   - Success: fixtures pin graphical diagnostics for syntax, dependency, and
     link findings, with colour and URL variance disabled for deterministic
     tests.
+
+- [ ] 6.1.6. Report duplicate sequence numbers in documentation sets.
+
+  - Requires 6.1.1.
+  - Accept a directory target in `validate`, discover ADR and RFC sets below
+    it, and report two files in one set that claim the same sequence number as
+    `mapsplice::validate::duplicate_sequence_number`.
+  - See the uniqueness rule and documentation-set discovery sections of
+    docs/validation-and-agent-output-design.md.
+  - Success: `mapsplice validate docs` exits `1` with that finding for a
+    fixture containing two `adr-006-*.md` files, and for a fixture containing
+    two RFC files in one `rfcs` directory that claim the same sequence number.
+    Validating the primary and companion roadmaps as separate file targets,
+    when both contain task `1.1.1`, exits `0` for each.
 
 ### 6.2. Align every command with agent-native output contracts
 
@@ -508,15 +525,15 @@ stdout payloads.
 
 - [ ] 6.2.5. Package an agent skill for roadmap maintenance.
 
-  - Requires 6.1.5 and 6.2.4.
+  - Requires 6.1.5, 6.1.6, and 6.2.4.
   - Author a skill that tells agents when to run validation, how to prefer
     JSON output, how to interpret miette diagnostics, and when to refuse
     unsafe roadmap edits.
   - Success: the skill is tested against the generated agent context, requires
     validate-before-edit and validate-after-edit, directs agents to inspect
     JSON diagnostics by `code` and `exit_class`, and stops for maintainer
-    judgement on ambiguous links, duplicate anchors, or failed postflight
-    checks.
+    judgement on ambiguous links, duplicate anchors, duplicate sequence
+    numbers, or failed postflight checks.
 
 ## 7. Renumber ExecPlans after roadmap updates
 
