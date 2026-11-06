@@ -43,7 +43,7 @@ native_linker_flag = $(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch6
 linker_flag_for = $(if $(call target_input_present,$(1)),$(if $(filter 1,$(words $(sort $(call requested_targets,$(1))))),$(if $(filter $(SUPPORTED_LINKER_TARGETS),$(call requested_targets,$(1))),-Clink-arg=-fuse-ld=mold)),$(native_linker_flag))
 # The gate recipes restate the development flags as variables rather than a
 # function call, so each assignment stays statically readable. Where a target
-# is requested, only the supported Linux triples keep the mold linker.
+# is requested, only the supported Linux triples keep the `mold` linker.
 GATE_RUSTFLAGS_BASE = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(empty)),$(call linker_flag_for,$(empty)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
 GATE_RUSTFLAGS_TEST = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(TEST_FLAGS)),$(call linker_flag_for,$(TEST_FLAGS)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))
 GATE_RUSTFLAGS_CARGO = $(RUST_FLAGS) -Zthreads=8 $(if $(call target_input_present,$(CARGO_FLAGS)),$(call linker_flag_for,$(CARGO_FLAGS)),$(if $(filter Linux,$(HOST_OS)),$(if $(filter x86_64 aarch64,$(HOST_ARCH)),-Clink-arg=-fuse-ld=mold)))

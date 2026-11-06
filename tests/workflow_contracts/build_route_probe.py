@@ -22,12 +22,23 @@ INHERITED_FLAGS = [
 COMPATIBLE_FLAGS = ["--cfg", "caller_policy"]
 
 
+# One record per invocation: eight fields split by 0x1d, records ended by 0x1e.
+PROBE_SCRIPT = (
+    "#!/bin/sh\nprintf '%s\\035%s\\035%s\\035%s\\035%s\\035%s\\035%s\\035%s\\036' "
+    '"$*" "${CARGO_ENCODED_RUSTFLAGS-}" "${CARGO_ENCODED_RUSTFLAGS+set}" '
+    '"${RUSTFLAGS-}" "${RUSTDOCFLAGS-}" "${CARGO_PROFILE_RELEASE_CODEGEN_BACKEND-}" '
+    '"${CARGO_PROFILE_DEV_CODEGEN_BACKEND-}" '
+    '"${CARGO_PROFILE_TEST_CODEGEN_BACKEND-}" >> "$ROUTE_PROBE"\n'
+)
+
+
 @dataclass(frozen=True)
 class RouteInvocation:
     """One executable invocation and the compiler environment Make selected."""
 
     arguments: tuple[str, ...]
     encoded_flags: tuple[str, ...]
+    encoded_present: bool
     rust_flags: tuple[str, ...]
     rustdoc_flags: tuple[str, ...]
     release_backend: str
@@ -46,14 +57,7 @@ def execute_make_route(
     commands = tmp_path / "commands"
     commands.mkdir()
     probe = commands / "probe"
-    probe.write_text(
-        "#!/bin/sh\nprintf '%s\\035%s\\035%s\\035%s\\035%s\\035%s\\035%s\\036' "
-        '"$*" "${CARGO_ENCODED_RUSTFLAGS-}" "${RUSTFLAGS-}" '
-        '"${RUSTDOCFLAGS-}" "${CARGO_PROFILE_RELEASE_CODEGEN_BACKEND-}" '
-        '"${CARGO_PROFILE_DEV_CODEGEN_BACKEND-}" '
-        '"${CARGO_PROFILE_TEST_CODEGEN_BACKEND-}" >> "$ROUTE_PROBE"\n',
-        encoding="utf-8",
-    )
+    probe.write_text(PROBE_SCRIPT, encoding="utf-8")
     probe.chmod(0o755)
     # The configured Make wrapper uses env bash, so only bypass preflight.
     shell = commands / "bash"
@@ -102,16 +106,17 @@ def parse_invocations(recording: str) -> list[RouteInvocation]:
         if not record:
             continue
         fields = record.split("\x1d")
-        assert len(fields) == 7, f"malformed route probe record: {record!r}"
+        assert len(fields) == 8, f"malformed route probe record: {record!r}"
         invocations.append(
             RouteInvocation(
                 arguments=tuple(fields[0].split()),
                 encoded_flags=tuple(flag for flag in fields[1].split("\x1f") if flag),
-                rust_flags=tuple(fields[2].split()),
-                rustdoc_flags=tuple(fields[3].split()),
-                release_backend=fields[4],
-                dev_backend=fields[5],
-                test_backend=fields[6],
+                encoded_present=fields[2] == "set",
+                rust_flags=tuple(fields[3].split()),
+                rustdoc_flags=tuple(fields[4].split()),
+                release_backend=fields[5],
+                dev_backend=fields[6],
+                test_backend=fields[7],
             )
         )
     assert invocations, "Make did not execute a route probe"
@@ -174,6 +179,9 @@ def assert_whitaker_route(invocation: RouteInvocation) -> None:
     assert invocation.arguments == expected_arguments, (
         f"Whitaker arguments were {invocation.arguments!r}, "
         f"expected {expected_arguments!r}"
+    )
+    assert not invocation.encoded_present, (
+        "Whitaker must run with CARGO_ENCODED_RUSTFLAGS unset, not merely empty"
     )
     assert invocation.encoded_flags == (), (
         f"Whitaker encoded flags were {invocation.encoded_flags!r}, expected none"

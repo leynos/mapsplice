@@ -73,12 +73,12 @@ because the pinned backend fails panic-unwinding probes; see
 Provision the core local tooling with:
 
 ```bash
-rustup toolchain install nightly-2026-03-26 \
-  --component rustfmt \
-  --component clippy \
-  --component rust-analyzer \
-  --component llvm-tools
+rustup toolchain install
 ```
+
+Run it from the repository root. Rustup reads the channel and components from
+`rust-toolchain.toml`, so the command needs no toolchain date and cannot go
+stale when the pin changes.
 
 The checked-in `rust-toolchain.toml` selects this toolchain for commands run in
 the repository.

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from build_route_probe import (
+    PROBE_SCRIPT,
     RouteInvocation,
     execute_make_route,
     parse_invocations,
@@ -57,7 +58,9 @@ def assert_rustdoc_route(
         ),
         pytest.param(
             RustdocRouteCase(
-                "test", ("test", "--doc"), ("test", "--doc", "--workspace", "--all-features")
+                "test",
+                ("test", "--doc"),
+                ("test", "--doc", "--workspace", "--all-features"),
             ),
             id="workspace-doctests",
         ),
@@ -67,9 +70,15 @@ def assert_rustdoc_route(
     ("caller_flags", "extra_flags"),
     [
         (None, ()),
-        ("--cfg caller_docs -Z unstable-options", (
-            "--cfg", "caller_docs", "-Z", "unstable-options",
-        )),
+        (
+            "--cfg caller_docs -Z unstable-options",
+            (
+                "--cfg",
+                "caller_docs",
+                "-Z",
+                "unstable-options",
+            ),
+        ),
     ],
 )
 def test_rustdoc_routes_apply_required_flags_before_caller_flags(
@@ -101,12 +110,7 @@ def makefile_route(
     commands.mkdir()
     probe = commands / "probe"
     probe.write_text(
-        "#!/bin/sh\n"
-        "printf '%s\\035%s\\035%s\\035%s\\035%s\\035%s\\035%s\\036' "
-        '"$*" "${CARGO_ENCODED_RUSTFLAGS-}" "${RUSTFLAGS-}" '
-        '"${RUSTDOCFLAGS-}" "${CARGO_PROFILE_RELEASE_CODEGEN_BACKEND-}" '
-        '"${CARGO_PROFILE_DEV_CODEGEN_BACKEND-}" '
-        '"${CARGO_PROFILE_TEST_CODEGEN_BACKEND-}" >> "$ROUTE_PROBE"\n'
+        PROBE_SCRIPT
         + ("if [ \"$1\" = 'doc' ]; then exit 23; fi\n" if fail_documentation else ""),
         encoding="utf-8",
     )
@@ -115,7 +119,7 @@ def makefile_route(
     shell.write_text(
         "#!/bin/sh\n"
         "if [ \"$1\" = 'scripts/check-build-tools.sh' ]; then exit 0; fi\n"
-        "exec /bin/bash \"$@\"\n",
+        'exec /bin/bash "$@"\n',
         encoding="utf-8",
     )
     shell.chmod(0o755)
@@ -136,8 +140,14 @@ def makefile_route(
         environment.pop(make_flags, None)
     result = subprocess.run(
         [
-            "make", "--no-print-directory", "--always-make", "-f", str(makefile),
-            "lint-clippy", f"CARGO={probe}", "DOC_TEST_TARGETS=false",
+            "make",
+            "--no-print-directory",
+            "--always-make",
+            "-f",
+            str(makefile),
+            "lint-clippy",
+            f"CARGO={probe}",
+            "DOC_TEST_TARGETS=false",
         ],
         cwd=ROOT,
         env=environment,
@@ -151,7 +161,9 @@ def makefile_route(
 def test_rustdoc_command_failure_propagates_through_make(tmp_path: Path) -> None:
     """A failing Cargo documentation command stops the lint-clippy gate."""
     makefile = tmp_path / "Makefile"
-    makefile.write_text((ROOT / "Makefile").read_text(encoding="utf-8"), encoding="utf-8")
+    makefile.write_text(
+        (ROOT / "Makefile").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     result, invocations = makefile_route(tmp_path, makefile, fail_documentation=True)
     assert result.returncode != 0, (
         f"Make must fail when rustdoc exits 23; observed exit {result.returncode}, "
@@ -161,7 +173,9 @@ def test_rustdoc_command_failure_propagates_through_make(tmp_path: Path) -> None
         f"Make stderr must report rustdoc's exit 23; observed {result.stderr!r}"
     )
     assert route_for(invocations, ("doc",)).arguments == (
-        "doc", "--workspace", "--no-deps",
+        "doc",
+        "--workspace",
+        "--no-deps",
     ), f"failed route must invoke workspace rustdoc; observed {invocations!r}"
     assert not any(invocation.arguments[0] == "clippy" for invocation in invocations), (
         f"Make must stop before clippy after rustdoc failure; observed {invocations!r}"
@@ -187,7 +201,9 @@ def test_rustdoc_contract_rejects_required_policy_mutations(
         mutated = source.replace("--cfg docsrs -D warnings", "-D warnings", 1)
     else:
         mutated = source.replace(
-            "$(CARGO) doc --workspace --no-deps", "$(CARGO) doc --no-deps", 1,
+            "$(CARGO) doc --workspace --no-deps",
+            "$(CARGO) doc --no-deps",
+            1,
         )
     assert mutated != source, f"{mutation} mutation did not alter Makefile"
     makefile.write_text(mutated, encoding="utf-8")
