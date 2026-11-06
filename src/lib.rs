@@ -157,7 +157,7 @@ fn should_record_failure(error: &MapspliceError) -> bool {
 /// addressed anchor, or when in-place rewriting fails.
 pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     if let CommandKind::Export { format, check } = &request.command {
-        return export_command::run_export(&request.target, *format, check.as_ref());
+        return export_command::run_export(&request.target, *format, check.as_ref(), &read_utf8);
     }
     let edit = edit_command(&request.command).ok_or_else(|| MapspliceError::Configuration {
         message: "edit command conversion failed before mutation".to_owned(),

@@ -60,6 +60,14 @@ pub struct MetricsSnapshot {
     pub canonical_fallbacks_unstable_list_marker: u64,
     /// Canonical fallbacks caused by unstable code fences.
     pub canonical_fallbacks_unstable_code_fence: u64,
+    /// Export invocations started by the current process.
+    pub export_attempts: u64,
+    /// Exports rendered to standard output without a committed comparison.
+    pub export_emitted: u64,
+    /// Committed exports that matched the freshly rendered document.
+    pub export_matches: u64,
+    /// Committed exports that differed from the freshly rendered document.
+    pub export_drifts: u64,
 }
 
 /// Process-local count of failed commands, excluding help and version output.
@@ -84,6 +92,14 @@ static INVALIDATIONS_CHILD_MUTATION: AtomicU64 = AtomicU64::new(0);
 static CANONICAL_FALLBACKS_UNSTABLE_LIST_MARKER: AtomicU64 = AtomicU64::new(0);
 /// Canonical fallbacks caused by an unstable code fence.
 static CANONICAL_FALLBACKS_UNSTABLE_CODE_FENCE: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of export invocations.
+static EXPORT_ATTEMPTS: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of exports rendered to standard output.
+static EXPORT_EMITTED: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of committed exports that matched.
+static EXPORT_MATCHES: AtomicU64 = AtomicU64::new(0);
+/// Process-local count of committed exports that drifted.
+static EXPORT_DRIFTS: AtomicU64 = AtomicU64::new(0);
 
 /// Record one failed command.
 ///
@@ -113,6 +129,45 @@ pub fn record_dependency_rewrites(count: u64) {
     }
     let total = DEPENDENCY_REWRITES.fetch_add(count, Ordering::Relaxed) + count;
     tracing::debug!(count, total, "recorded dependency rewrites");
+}
+
+/// Record the start of one export invocation.
+pub(crate) fn record_export_attempt() {
+    let total = EXPORT_ATTEMPTS.fetch_add(1, Ordering::Relaxed) + 1;
+    tracing::debug!(total, "recorded export attempt");
+}
+
+/// Record one export outcome without attaching path labels.
+pub(crate) fn record_export_outcome(outcome: ExportOutcome) {
+    let counter = match outcome {
+        ExportOutcome::Emitted => &EXPORT_EMITTED,
+        ExportOutcome::Matched => &EXPORT_MATCHES,
+        ExportOutcome::Drifted => &EXPORT_DRIFTS,
+    };
+    let total = counter.fetch_add(1, Ordering::Relaxed) + 1;
+    tracing::debug!(outcome = outcome.as_str(), total, "recorded export outcome");
+}
+
+/// Closed set of export outcomes recorded by the current process.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ExportOutcome {
+    /// The export was rendered to standard output.
+    Emitted,
+    /// The committed export matched the freshly rendered document.
+    Matched,
+    /// The committed export differed from the freshly rendered document.
+    Drifted,
+}
+
+impl ExportOutcome {
+    /// Return the stable lowercase label used in logs.
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Emitted => "emitted",
+            Self::Matched => "matched",
+            Self::Drifted => "drifted",
+        }
+    }
 }
 
 /// Record successful command-local source-preservation outcomes.
@@ -257,6 +312,10 @@ pub fn metrics_snapshot() -> MetricsSnapshot {
             .load(Ordering::Relaxed),
         canonical_fallbacks_unstable_code_fence: CANONICAL_FALLBACKS_UNSTABLE_CODE_FENCE
             .load(Ordering::Relaxed),
+        export_attempts: EXPORT_ATTEMPTS.load(Ordering::Relaxed),
+        export_emitted: EXPORT_EMITTED.load(Ordering::Relaxed),
+        export_matches: EXPORT_MATCHES.load(Ordering::Relaxed),
+        export_drifts: EXPORT_DRIFTS.load(Ordering::Relaxed),
     }
 }
 
