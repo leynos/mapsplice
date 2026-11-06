@@ -19,6 +19,7 @@ pub struct SourceLocation {
 }
 
 impl From<&Point> for SourceLocation {
+    /// Copy one-based coordinates out of a Markdown parser point.
     fn from(point: &Point) -> Self {
         Self {
             line: point.line,
@@ -28,6 +29,7 @@ impl From<&Point> for SourceLocation {
 }
 
 impl std::fmt::Display for SourceLocation {
+    /// Render the coordinates as `line N, column M` for diagnostics.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "line {}, column {}", self.line, self.column)
     }
