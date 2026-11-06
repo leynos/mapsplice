@@ -30,6 +30,7 @@ use crate::{
             TaskEntryParts,
         },
         source_preservation::original_position_source,
+        sub_task_numbering::{SubTaskOrderError, validate_sub_task_position},
     },
 };
 
@@ -149,19 +150,24 @@ fn validate_sub_task_number(
     expected_ordinal: u32,
     number: SubTaskNumber,
 ) -> Result<()> {
-    if number.task_number() != parent {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: format!("sub-task `{number}` does not belong to task `{parent}`"),
+    validate_sub_task_position(parent, expected_ordinal, number).map_err(|error| {
+        MapspliceError::InvalidRoadmap {
+            message: describe_sub_task_order_error(error),
             location: None,
-        });
+        }
+    })
+}
+
+/// Render a shared numbering violation for the parser's diagnostics.
+fn describe_sub_task_order_error(error: SubTaskOrderError) -> String {
+    match error {
+        SubTaskOrderError::WrongParent { parent, actual } => {
+            format!("sub-task `{actual}` does not belong to task `{parent}`")
+        }
+        SubTaskOrderError::OutOfOrder { actual, .. } => {
+            format!("sub-task `{actual}` is not in document order")
+        }
     }
-    if number.sub_task() != expected_ordinal {
-        return Err(MapspliceError::InvalidRoadmap {
-            message: format!("sub-task `{number}` is not in document order"),
-            location: None,
-        });
-    }
-    Ok(())
 }
 
 /// Detect whether a list starts with a numbered task item.
