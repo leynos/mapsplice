@@ -16,6 +16,7 @@ class CodeScenePolicyError(Exception):
     """
 
     def __init__(self, code: str, message: str) -> None:
+        """Store the domain code, with the message as the exception text."""
         super().__init__(message)
         self.code = code
 

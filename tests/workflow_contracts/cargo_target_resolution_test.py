@@ -271,6 +271,7 @@ def test_configuration_discovery_errors_fail_closed(
         *args: object,
         **kwargs: object,
     ) -> object:
+        """Raise the injected failure for the selected config, else delegate."""
         if path == selected:
             raise failure.error
         return original(path, *args, **kwargs)
@@ -332,6 +333,7 @@ def test_path_resolution_errors_fail_closed(
     original_resolve = Path.resolve
 
     def reject_selected_path(path: Path, *args: object, **kwargs: object) -> Path:
+        """Raise the injected error for the chosen path and delegate for others."""
         if path == failed_path:
             if failure_type is RuntimeError:
                 raise RuntimeError("injected path resolution failure")
@@ -357,6 +359,7 @@ def test_cli_converts_current_directory_failure_to_diagnostic(
 ) -> None:
     """A cwd lookup error exits cleanly without an unhandled traceback."""
     def reject_current_directory(cls: type[Path]) -> Path:
+        """Raise an injected missing-directory error in place of Path.cwd."""
         del cls
         raise OSError(errno.ENOENT, "injected missing current directory")
 

@@ -126,6 +126,7 @@ if args[:6] != expected or len(args) != 7:
 def _run_verifier(
     tmp_path: Path, mode: str
 ) -> tuple[subprocess.CompletedProcess[str], list[list[str]]]:
+    """Run the verifier with a fake gh in mode and return the result and calls."""
     bin_directory = tmp_path / "bin"
     bin_directory.mkdir()
     _fake_gh(bin_directory)
@@ -162,6 +163,7 @@ def _run_verifier(
 def test_cli_process_parses_responses_and_uses_only_api_gets(
     tmp_path: Path,
 ) -> None:
+    """A verified run succeeds using only the expected read-only API GET calls."""
     result, calls = _run_verifier(tmp_path, "verified")
     expected_endpoints = [
         ENVIRONMENT,
@@ -187,6 +189,7 @@ def test_cli_process_parses_responses_and_uses_only_api_gets(
 def test_cli_process_redacts_api_body_and_gh_stderr(
     tmp_path: Path,
 ) -> None:
+    """A 403 reports access-denied without echoing the API body or gh stderr."""
     result, calls = _run_verifier(tmp_path, "forbidden")
 
     assert result.returncode == 1, (

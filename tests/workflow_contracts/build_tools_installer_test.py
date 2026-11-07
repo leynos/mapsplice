@@ -24,6 +24,8 @@ DIGESTS = {
 
 @dataclass(frozen=True)
 class InstallerCase:
+    """One installer case: architecture, linker versions, checksum and status."""
+
     architecture: str
     companion_version: str
     checksum_matches: bool
@@ -33,6 +35,8 @@ class InstallerCase:
 
 @dataclass(frozen=True)
 class InstallerVersionCase:
+    """One installer case that reports a chosen version for one linker binary."""
+
     binary_name: str
     reported_version: str
     expected_status: int
@@ -41,6 +45,8 @@ class InstallerVersionCase:
 
 @dataclass(frozen=True)
 class InstallerRun:
+    """Installer result, expected archive name and configured artefact paths."""
+
     result: subprocess.CompletedProcess[str]
     archive: str
     marker: Path
@@ -52,12 +58,14 @@ class InstallerRun:
 
 
 def _write_command(directory: Path, name: str, contents: str) -> None:
+    """Write an executable test command with the given contents."""
     command = directory / name
     command.write_text(contents, encoding="utf-8")
     command.chmod(0o755)
 
 
 def _write_platform_tools(commands: Path, case: InstallerCase) -> None:
+    """Write fake rustup and uname commands for the case architecture."""
     _write_command(
         commands,
         "rustup",
@@ -75,6 +83,7 @@ def _write_platform_tools(commands: Path, case: InstallerCase) -> None:
 
 
 def _write_download_tool(commands: Path) -> None:
+    """Write a fake curl that logs its URL and copies the archive fixture."""
     _write_command(
         commands,
         "curl",
@@ -91,6 +100,7 @@ def _write_download_tool(commands: Path) -> None:
 
 
 def _write_checksum_tool(commands: Path) -> None:
+    """Write a fake sha256sum that checks the pinned digest and archive name."""
     real_sha256sum = shutil.which("sha256sum")
     assert real_sha256sum is not None, "test host must provide sha256sum"
     # Map the pinned release digest to this fixture's real hash only on valid cases.
@@ -115,6 +125,7 @@ def _write_checksum_tool(commands: Path) -> None:
 
 
 def _write_archive_tool(commands: Path) -> None:
+    """Write a fake tar that records its call before running the real tar."""
     real_tar = shutil.which("tar")
     assert real_tar is not None, "test host must provide tar"
     _write_command(
@@ -126,6 +137,7 @@ def _write_archive_tool(commands: Path) -> None:
 
 
 def _write_archive_fixture(path: Path, case: InstallerCase) -> None:
+    """Write a gzip tar holding `mold` and `ld.mold` stubs that print case versions."""
     directory = f"mold-{VERSION}-{case.architecture}-linux/bin"
     binaries = {
         f"{directory}/mold": (
@@ -147,6 +159,7 @@ def _write_archive_fixture(path: Path, case: InstallerCase) -> None:
 
 
 def _installer_commands(tmp_path: Path, case: InstallerCase) -> Path:
+    """Build a PATH directory of real base tools and fake installer commands."""
     commands = tmp_path / "commands"
     commands.mkdir()
     for name in ("awk", "cp", "gzip", "install", "mkdir", "mktemp", "rm", "touch"):
@@ -161,6 +174,10 @@ def _installer_commands(tmp_path: Path, case: InstallerCase) -> Path:
 
 
 def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
+    """Run the installer with fake tools and return its result and artefact paths.
+
+    The configured artefact paths are constructed by the helper.
+    """
     commands = _installer_commands(tmp_path, case)
     prefix = tmp_path / "installed-tools"
     scratch = tmp_path / "scratch"

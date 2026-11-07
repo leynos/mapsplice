@@ -119,6 +119,7 @@ def _repository_identifier(
 def _repository_metadata_matches(
     metadata: object, identifier: object, expected_name: str
 ) -> bool:
+    """Return whether the metadata has a positive int id and expected full name."""
     return (
         isinstance(metadata, dict)
         and type(identifier) is int
@@ -133,6 +134,7 @@ def _verify_environment_unchanged(
     fetch: Fetch,
     audit: AuditSession | None = None,
 ) -> None:
+    """Re-read the environment, requiring its policy and no drift from expected."""
     current = environment(
         _observed_fetch(fetch, endpoint, "environment_readback", audit)
     )
