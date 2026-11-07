@@ -430,7 +430,11 @@ def _validate_publisher_secret_routes(
     token: Mapping[str, object],
     upload: Mapping[str, object],
 ) -> None:
-    """Assert only the token check and uploader refer to CS_ACCESS_TOKEN."""
+    """Assert no other step or the workflow metadata refers to CS_ACCESS_TOKEN.
+
+    Only the token check and uploader steps are exempt; job-level fields
+    outside the steps are not inspected.
+    """
     for step in steps:
         if step is not token and step is not upload:
             assert "CS_ACCESS_TOKEN" not in _serialized(step), (
@@ -445,7 +449,12 @@ def _validate_publisher_secret_routes(
 def _validate_only_main_writer(
     workflows: Mapping[str, dict[object, object]], reachable: set[str]
 ) -> None:
-    """Assert coverage-main.yml is the only baseline writer and uploader."""
+    """Assert coverage-main.yml is the only ratcheting writer and uploader.
+
+    Writers are workflows that are not PR-reachable and have a coverage step
+    with ratcheting enabled; uploaders are steps using the CodeScene upload
+    action.
+    """
     writers = [
         path
         for path, workflow in workflows.items()
