@@ -98,6 +98,8 @@ jobs:
         with:
           python-version: '3.13'
           enable-cache: false
+      - name: Enforce Python docstring coverage
+        run: make interrogate
       - name: Spelling
         run: make spelling
       - name: Workflow contract tests
