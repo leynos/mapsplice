@@ -280,7 +280,7 @@ def test_transport_failure_has_bounded_kind_and_operation(
     """Timeout and launch failures retain their exact bounded human diagnostic."""
 
     def fail_run(*args: object, **kwargs: object) -> None:
-        """Raise the parametrised timeout or process launch failure."""
+        """Raise the parametrized timeout or process launch failure."""
         raise failure
 
     monkeypatch.setattr(verifier.subprocess, "run", fail_run)
