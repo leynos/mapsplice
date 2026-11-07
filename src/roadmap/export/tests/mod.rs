@@ -7,7 +7,7 @@ mod requires;
 mod schema;
 mod text;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use markdown::{
     ParseOptions,
@@ -39,7 +39,8 @@ fn markdown(source: &str) -> Vec<Node> {
 
 /// Wrap parsed Markdown in the roadmap-owned node collection.
 fn markdown_nodes(source: &str) -> MarkdownNodes {
-    MarkdownNodes::from_nodes_in(markdown(source), source)
+    let shared: Arc<str> = Arc::from(source);
+    MarkdownNodes::from_nodes_in(markdown(source), &shared)
 }
 
 /// Parse a roadmap fixture, failing the test when it is not valid.

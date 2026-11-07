@@ -245,7 +245,7 @@ impl MarkdownNodes {
     }
 
     /// Push one parsed Markdown node while preserving its original source.
-    pub(crate) fn push_preserved(&mut self, node: Node, source: &str) {
+    pub(crate) fn push_preserved(&mut self, node: Node, source: &Arc<str>) {
         let original = original_block(&node, source);
         self.nodes.push(node);
         self.original_blocks.push(original);
@@ -255,13 +255,15 @@ impl MarkdownNodes {
     /// Construct Markdown nodes that remember the document they came from.
     ///
     /// Retaining the document is what lets a later diagnostic place a token on
-    /// a wrapped line; rendering is unaffected.
+    /// a wrapped line; rendering is unaffected. The handle is shared with every
+    /// other collection from the same document, so this costs a pointer bump
+    /// rather than another copy of the source.
     #[must_use]
-    pub(crate) fn from_nodes_in(nodes: Vec<Node>, source: &str) -> Self {
+    pub(crate) fn from_nodes_in(nodes: Vec<Node>, source: &Arc<str>) -> Self {
         Self {
             original_blocks: vec![None; nodes.len()],
             nodes,
-            source: Some(Arc::from(source)),
+            source: Some(Arc::clone(source)),
         }
     }
 
@@ -272,10 +274,10 @@ impl MarkdownNodes {
     #[must_use]
     pub(crate) fn source(&self) -> Option<Arc<str>> { self.source.clone() }
 
-    /// Record the owning document once, without reallocating per node.
-    fn remember_source(&mut self, source: &str) {
+    /// Record the owning document handle the first time a node arrives.
+    fn remember_source(&mut self, source: &Arc<str>) {
         if self.source.is_none() {
-            self.source = Some(Arc::from(source));
+            self.source = Some(Arc::clone(source));
         }
     }
 

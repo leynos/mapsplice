@@ -1,5 +1,7 @@
 //! Markdown-to-roadmap parsing and validation.
 
+use std::sync::Arc;
+
 mod checklist;
 mod document;
 mod fragment;
@@ -62,13 +64,21 @@ pub(super) fn locate(error: MapspliceError, position: Option<&Position>) -> Maps
     }
 }
 
+/// Shared handle to the document a parse pass is reading.
+///
+/// The parser builds one [`super::model::MarkdownNodes`] per title, summary and
+/// body. Handing each of them a clone of this handle keeps a single allocation
+/// per document, so retaining the source for diagnostics costs a pointer bump
+/// rather than another copy of the whole file.
+pub(super) type SourceText = Arc<str>;
+
 /// Source identity and text needed while parsing one roadmap item.
 #[derive(Clone, Copy)]
 pub(super) struct ParseContext<'source> {
     /// Distinguish target content from inserted fragment content.
     source: SourceId,
     /// Retain the original Markdown for source-preserving nodes.
-    source_text: &'source str,
+    source_text: &'source SourceText,
 }
 
 /// Parse a target roadmap document.
@@ -92,14 +102,15 @@ pub(super) struct ParseContext<'source> {
 /// Returns an error when Markdown parsing or roadmap grammar validation fails.
 #[tracing::instrument(skip_all, fields(bytes = markdown.len()))]
 pub fn parse_roadmap(markdown: &str) -> Result<RoadmapDocument> {
-    document::parse_document_root(parse_root(markdown)?, SourceId::Target, markdown)
+    let source_text: SourceText = Arc::from(markdown);
+    document::parse_document_root(parse_root(markdown)?, SourceId::Target, &source_text)
 }
 
 /// Parse the checklist items in a task list, preserving target source spans.
 pub(super) fn parse_task_list(
     list: &List,
     source: SourceId,
-    source_text: &str,
+    source_text: &SourceText,
 ) -> Result<Vec<TaskEntry>> {
     let context = ParseContext {
         source,

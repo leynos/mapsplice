@@ -68,6 +68,15 @@ boundary, and roadmap domain modules:
   that only needs the rendered result cannot alter the recorded metrics. The
   spans owned by its callees, `parse_roadmap` and the injected reader, are
   unchanged.
+
+  The outcome is derived from the returned result, so every return path records
+  exactly one. `export_emitted` counts a render without `--check`;
+  `export_matches` counts a `--check` run whose bytes equal the committed file;
+  `export_drifts` counts a `--check` run rejected with `ExportError::Drift`,
+  which covers formatting-only byte drift and semantic drift alike because both
+  share that variant; `export_failures` counts every other error, including a
+  source or committed-file read failure, an unsupported `format_version`, and a
+  roadmap grammar error. Drift is therefore never counted as a failure.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.

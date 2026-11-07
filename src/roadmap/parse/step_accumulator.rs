@@ -2,7 +2,7 @@
 
 use markdown::mdast::{List, Node};
 
-use super::{locate, parse_task_list, validate_tasks_belong_to_step};
+use super::{SourceText, locate, parse_task_list, validate_tasks_belong_to_step};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
@@ -18,13 +18,13 @@ pub(super) struct StepAccumulator<'source> {
     current: Option<StepSection>,
     /// Distinguish target content from inserted fragment content.
     source: SourceId,
-    /// Original Markdown used to preserve step content.
-    source_text: &'source str,
+    /// Document used to preserve step content, shared with every node.
+    source_text: &'source SourceText,
 }
 
 impl<'source> StepAccumulator<'source> {
     /// Create an empty accumulator for one source document or fragment.
-    pub(super) const fn new(source: SourceId, source_text: &'source str) -> Self {
+    pub(super) const fn new(source: SourceId, source_text: &'source SourceText) -> Self {
         Self {
             current: None,
             source,

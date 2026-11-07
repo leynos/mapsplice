@@ -3,6 +3,7 @@
 use markdown::mdast::{Heading, List, Node, Root};
 
 use super::{
+    SourceText,
     is_phase_heading,
     is_step_heading,
     locate,
@@ -25,7 +26,7 @@ use crate::{
 pub(crate) fn parse_document_root(
     root: Root,
     source: SourceId,
-    source_text: &str,
+    source_text: &SourceText,
 ) -> Result<RoadmapDocument> {
     let mut parser = DocumentParser::new(source, source_text);
     for node in root.children {
@@ -44,13 +45,13 @@ struct DocumentParser<'source> {
     steps: StepAccumulator<'source>,
     /// Distinguish target content from inserted fragment content.
     source: SourceId,
-    /// Original Markdown used to preserve source spans.
-    source_text: &'source str,
+    /// Document used to preserve source spans, shared with every node.
+    source_text: &'source SourceText,
 }
 
 impl<'source> DocumentParser<'source> {
     /// Create a parser for one source document.
-    const fn new(source: SourceId, source_text: &'source str) -> Self {
+    const fn new(source: SourceId, source_text: &'source SourceText) -> Self {
         Self {
             document: RoadmapDocument::new(),
             current_phase: None,

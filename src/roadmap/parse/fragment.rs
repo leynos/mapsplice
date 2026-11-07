@@ -3,6 +3,7 @@
 use markdown::mdast::{List, Node, Root};
 
 use super::{
+    SourceText,
     document::parse_document_root,
     is_phase_heading,
     is_step_heading,
@@ -52,6 +53,7 @@ use crate::{
 #[tracing::instrument(skip_all, fields(bytes = markdown.len()))]
 pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
     let root = parse_root(markdown)?;
+    let source_text: SourceText = std::sync::Arc::from(markdown);
     let first = root
         .children
         .first()
@@ -61,19 +63,19 @@ pub fn parse_fragment(markdown: &str) -> Result<RoadmapFragment> {
         })?;
 
     if is_phase_fragment_start(first) {
-        return parse_phase_fragment(root, markdown);
+        return parse_phase_fragment(root, &source_text);
     }
 
     if is_step_fragment_start(first) {
-        return parse_step_fragment_root(root, markdown);
+        return parse_step_fragment_root(root, &source_text);
     }
 
     if is_task_fragment_start(first) {
-        return parse_task_fragment_root(root, markdown);
+        return parse_task_fragment_root(root, &source_text);
     }
 
     if is_sub_task_fragment_start(first) {
-        return parse_sub_task_fragment_root(root, markdown);
+        return parse_sub_task_fragment_root(root, &source_text);
     }
 
     Err(MapspliceError::InvalidRoadmap {
@@ -107,7 +109,7 @@ fn is_sub_task_fragment_start(node: &Node) -> bool {
 }
 
 /// Parse one or more sibling phases from a fragment root.
-fn parse_phase_fragment(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+fn parse_phase_fragment(root: Root, source_text: &SourceText) -> Result<RoadmapFragment> {
     let document = parse_document_root(root, SourceId::Fragment, source_text)?;
     if !document.preamble.is_empty() {
         return Err(MapspliceError::InvalidRoadmap {
@@ -119,7 +121,7 @@ fn parse_phase_fragment(root: Root, source_text: &str) -> Result<RoadmapFragment
 }
 
 /// Parse one or more sibling steps directly from a fragment root.
-fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+fn parse_step_fragment_root(root: Root, source_text: &SourceText) -> Result<RoadmapFragment> {
     let mut steps = Vec::new();
     let mut accumulator = StepAccumulator::new(SourceId::Fragment, source_text);
 
@@ -156,7 +158,7 @@ fn parse_step_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
 }
 
 /// Parse a single top-level checklist as a task fragment.
-fn parse_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+fn parse_task_fragment_root(root: Root, source_text: &SourceText) -> Result<RoadmapFragment> {
     parse_single_list_fragment(
         root,
         source_text,
@@ -173,7 +175,7 @@ fn parse_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFrag
 }
 
 /// Parse a single top-level checklist as an addendum sub-task fragment.
-fn parse_sub_task_fragment_root(root: Root, source_text: &str) -> Result<RoadmapFragment> {
+fn parse_sub_task_fragment_root(root: Root, source_text: &SourceText) -> Result<RoadmapFragment> {
     parse_single_list_fragment(
         root,
         source_text,
@@ -190,7 +192,7 @@ fn parse_sub_task_fragment_root(root: Root, source_text: &str) -> Result<Roadmap
 }
 
 /// Parse task items as fragment content without target source preservation.
-fn parse_task_fragment_list(list: &List, source_text: &str) -> Result<Vec<TaskEntry>> {
+fn parse_task_fragment_list(list: &List, source_text: &SourceText) -> Result<Vec<TaskEntry>> {
     parse_task_list(list, SourceId::Fragment, source_text)
 }
 
@@ -199,7 +201,7 @@ struct SingleListFragmentParser<T> {
     /// Errors for invalid list count or empty contents.
     messages: SingleListFragmentMessages,
     /// Convert the Markdown list into typed roadmap items.
-    parse_list: fn(&List, &str) -> Result<Vec<T>>,
+    parse_list: fn(&List, &SourceText) -> Result<Vec<T>>,
     /// Check that parsed items are valid siblings.
     validate: fn(&[T]) -> Result<()>,
     /// Wrap validated items in their fragment variant.
@@ -217,7 +219,7 @@ struct SingleListFragmentMessages {
 /// Parse one top-level list with fragment-level validation and wrapping.
 fn parse_single_list_fragment<T>(
     root: Root,
-    source_text: &str,
+    source_text: &SourceText,
     parser: SingleListFragmentParser<T>,
 ) -> Result<RoadmapFragment> {
     let SingleListFragmentParser {

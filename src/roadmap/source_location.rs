@@ -87,3 +87,66 @@ fn fold_from_start(start: &Point, value: &str, offset: usize) -> Option<SourceLo
             });
     Some(SourceLocation { line, column })
 }
+
+#[cfg(test)]
+mod tests {
+    //! Generated checks that a wrapped token reports its source coordinates.
+
+    use markdown::{
+        ParseOptions,
+        mdast::{Node, Text},
+        to_mdast,
+    };
+    use proptest::prelude::*;
+
+    use super::source_location_at;
+
+    /// Return the single text node of the document's wrapped paragraph.
+    fn wrapped_text(source: &str) -> Text {
+        let Node::Root(root) =
+            to_mdast(source, &ParseOptions::gfm()).expect("fixture should parse")
+        else {
+            panic!("fixture should parse to a root");
+        };
+        let Some(Node::Paragraph(paragraph)) = root.children.get(1) else {
+            panic!("the second block should be the wrapped paragraph");
+        };
+        let Some(Node::Text(text)) = paragraph.children.first() else {
+            panic!("the wrapped paragraph should start with text");
+        };
+        text.clone()
+    }
+
+    /// Return the offset of the second occurrence of `token`, when present.
+    fn second_occurrence(value: &str, token: &str) -> Option<usize> {
+        let first = value.find(token)?;
+        let rest = first + token.len();
+        value.get(rest..)?.find(token).map(|offset| rest + offset)
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 32,
+            .. ProptestConfig::default()
+        })]
+
+        /// The continuation line's indentation is stripped from the text value,
+        /// so the value alone would place the token too early. The reported
+        /// column must come from the source line instead.
+        #[test]
+        fn wrapped_token_reports_its_source_column(
+            indent in 0usize..4,
+            token in prop_oneof![Just("1.1.1"), Just("12.3.4"), Just("2.0.7")],
+        ) {
+            let padding = " ".repeat(indent);
+            let source = format!("Intro.\n\nRequires {token}\n{padding}and {token}.\n");
+            let text = wrapped_text(&source);
+            let start = second_occurrence(&text.value, token)
+                .expect("the generated clause should repeat its token");
+            let location = source_location_at(&text, Some(&source), start..start + token.len())
+                .expect("a token inside the node's span should have a location");
+            prop_assert_eq!(location.line, 4);
+            prop_assert_eq!(location.column, indent + 5);
+        }
+    }
+}

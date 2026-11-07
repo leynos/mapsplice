@@ -2,14 +2,17 @@
 
 use markdown::mdast::Node;
 
-use super::locate;
+use super::{SourceText, locate};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{model::MarkdownNodes, numbered_detail::contains_numbered_checkbox},
 };
 
 /// Parse sub-task body blocks while rejecting deeper roadmap numbering.
-pub(super) fn parse_sub_task_body(children: &[Node], source_text: &str) -> Result<MarkdownNodes> {
+pub(super) fn parse_sub_task_body(
+    children: &[Node],
+    source_text: &SourceText,
+) -> Result<MarkdownNodes> {
     let mut body = MarkdownNodes::new();
     for child in children {
         if is_nested_roadmap_list(child) {

@@ -2,6 +2,7 @@
 
 use markdown::mdast::Node;
 
+use super::SourceText;
 use crate::{
     error::{MapspliceError, Result},
     roadmap::model::{MarkdownNodes, SubTaskEntry, TaskChild},
@@ -28,7 +29,7 @@ impl TaskChildren {
     }
 
     /// Preserve a non-structural node in the pending body span.
-    pub(super) fn push_body_node(&mut self, node: Node, source_text: &str) {
+    pub(super) fn push_body_node(&mut self, node: Node, source_text: &SourceText) {
         self.body.push_preserved(node, source_text);
     }
 

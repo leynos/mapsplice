@@ -8,6 +8,7 @@ use markdown::{
 use super::{
     ParseContext,
     RoadmapItemLevel,
+    SourceText,
     TaskNumber,
     locate,
     task_children::TaskChildren,
@@ -62,7 +63,7 @@ pub(super) fn parse_sub_task_list(
 fn push_body_list_run(
     list: &List,
     items: &mut Vec<ListItem>,
-    source_text: &str,
+    source_text: &SourceText,
     task_children: &mut TaskChildren,
 ) -> Result<()> {
     if items.is_empty() {

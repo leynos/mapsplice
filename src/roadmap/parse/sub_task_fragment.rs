@@ -2,7 +2,7 @@
 
 use markdown::mdast::{List, Node};
 
-use super::{ParseContext, parse_sub_task_item_unchecked};
+use super::{ParseContext, SourceText, parse_sub_task_item_unchecked};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{SubTaskEntry, model::SourceId},
@@ -11,7 +11,7 @@ use crate::{
 /// Parse unordered sub-task fragment items without parent-order validation.
 pub(super) fn parse_sub_task_fragment_list(
     list: &List,
-    source_text: &str,
+    source_text: &SourceText,
 ) -> Result<Vec<SubTaskEntry>> {
     let context = ParseContext {
         source: SourceId::Fragment,
