@@ -114,14 +114,21 @@ def _linux_suite(
 
 
 def _is_linker_install(step: dict[str, object]) -> bool:
-    """Return whether the step is the pinned setup-rust step that installs `mold`."""
+    """Return whether the step uses pinned setup-rust with `install-mold`.
+
+    The step must set `install-mold` to `true`. Whether it runs is not checked.
+    """
     if step.get("uses") != SETUP_RUST:
         return False
     return step.get("with", {}).get("install-mold") == "true"
 
 
 def _is_binding_clang_install(step: dict[str, object]) -> bool:
-    """Return whether the step is a binding apt-get install of clang on Linux."""
+    """Match a step whose run text contains `apt-get install` and `clang`.
+
+    The condition must be absent or Linux-only, and `continue-on-error` must
+    not be `True`. The command itself is not parsed.
+    """
     run = str(step.get("run", ""))
     if "apt-get install" not in run or "clang" not in run:
         return False
@@ -133,7 +140,10 @@ def _is_binding_clang_install(step: dict[str, object]) -> bool:
 def _validate_linux_suite(
     name: str, steps: list[dict[str, object]], suite_indices: list[int]
 ) -> None:
-    """Assert the job's pinned `mold` and clang installs bind before its suite."""
+    """Assert that a pinned setup-rust step requesting `mold` precedes the suite.
+
+    A matching clang step must also precede it. The clang version is not pinned.
+    """
     installs = [index for index, step in enumerate(steps) if _is_linker_install(step)]
     assert len(installs) == 1, f"{name} needs one pinned linker install"
     install_index = installs[0]

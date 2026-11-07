@@ -85,7 +85,11 @@ def _response_headers(lines: list[str]) -> dict[str, str]:
 
 
 def _response_body(raw: str) -> object:
-    """Decode the body as JSON, rejecting duplicate keys and non-finite numbers."""
+    """Decode JSON, rejecting duplicate keys and the JSON constants.
+
+    The constants `NaN`, `Infinity` and `-Infinity` are rejected. A value such
+    as `1e400` still decodes to infinity.
+    """
     try:
         return json.loads(
             raw,
@@ -109,7 +113,10 @@ def parse_http_response(raw: str, returncode: int) -> ApiResponse:
 
 
 def _validate_response_headers(response: ApiResponse) -> None:
-    """Require headers to be a mapping with unique string names and values."""
+    """Require a header mapping with string values and unique string names.
+
+    Names must be unique case-insensitively. Values need not be unique.
+    """
     headers = response.headers
     if not isinstance(headers, Mapping):
         raise VerificationError("api-response", "GitHub API headers are malformed")

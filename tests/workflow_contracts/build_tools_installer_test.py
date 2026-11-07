@@ -45,7 +45,7 @@ class InstallerVersionCase:
 
 @dataclass(frozen=True)
 class InstallerRun:
-    """Completed installer process with the paths it recorded."""
+    """Installer result, expected archive name and configured artefact paths."""
 
     result: subprocess.CompletedProcess[str]
     archive: str
@@ -174,7 +174,10 @@ def _installer_commands(tmp_path: Path, case: InstallerCase) -> Path:
 
 
 def _run_installer(tmp_path: Path, case: InstallerCase) -> InstallerRun:
-    """Run the installer with fake tools and return its result and recorded paths."""
+    """Run the installer with fake tools and return its result and artefact paths.
+
+    The configured artefact paths are constructed by the helper.
+    """
     commands = _installer_commands(tmp_path, case)
     prefix = tmp_path / "installed-tools"
     scratch = tmp_path / "scratch"
