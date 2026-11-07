@@ -137,7 +137,7 @@ def _write_archive_tool(commands: Path) -> None:
 
 
 def _write_archive_fixture(path: Path, case: InstallerCase) -> None:
-    """Write a gzip tar holding mold and ld.mold stubs that print case versions."""
+    """Write a gzip tar holding `mold` and `ld.mold` stubs that print case versions."""
     directory = f"mold-{VERSION}-{case.architecture}-linux/bin"
     binaries = {
         f"{directory}/mold": (
