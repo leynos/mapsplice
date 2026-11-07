@@ -73,7 +73,7 @@ def read_workflows(root: Path = WORKFLOW_ROOT) -> dict[str, dict[object, object]
 
 
 def _triggers(workflow: Mapping[object, object]) -> dict[str, object]:
-    """Return a workflow's triggers as a mapping, normalising list and string forms."""
+    """Return a workflow's triggers as a mapping, normalizing list and string forms."""
     raw = workflow.get("on", workflow.get(True))
     if isinstance(raw, str):
         return {raw: None}
