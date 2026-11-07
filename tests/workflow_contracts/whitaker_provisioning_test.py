@@ -84,7 +84,11 @@ def _whitaker_make_targets() -> set[str]:
 
 
 def _has_lint_command(step: dict) -> bool:
-    """Return whether a step runs Whitaker directly or via a lint Make target."""
+    """Return whether the step's `run` text matches a recognized lint pattern.
+
+    The pattern is either a direct Whitaker gate or a Make target that reaches
+    `lint-whitaker`.
+    """
     run = str(step.get("run", ""))
     targets = _whitaker_make_targets()
     return bool(DIRECT_GATE.search(run)) or any(
@@ -93,7 +97,10 @@ def _has_lint_command(step: dict) -> bool:
 
 
 def _suite_jobs(workflows: dict[str, dict]) -> list[tuple[str, str, dict]]:
-    """Return the (file, name, job) triples of every job that runs Whitaker lint."""
+    """Return jobs with steps that match recognized Whitaker lint patterns.
+
+    Unresolved `mapsplice`-named workflow calls are rejected.
+    """
     jobs = []
     for filename, document in workflows.items():
         for name, job in _workflow_jobs(filename, document):
@@ -117,7 +124,10 @@ def _workflow_jobs(
 
 
 def _contains_whitaker_lint(filename: str, name: str, job: dict) -> bool:
-    """Return whether a job runs Whitaker lint, failing on an unresolved call."""
+    """Return whether the job has a recognized lint step.
+
+    Otherwise, reject `mapsplice`-named workflow calls.
+    """
     steps = job.get("steps", [])
     if _contains_lint_step(steps):
         return True
@@ -127,7 +137,10 @@ def _contains_whitaker_lint(filename: str, name: str, job: dict) -> bool:
 
 
 def _contains_lint_step(steps: object) -> bool:
-    """Return whether any mapping step in a steps value runs Whitaker lint."""
+    """Return whether any step's `run` text matches a recognized lint pattern.
+
+    Only mapping entries are checked; other entries are ignored.
+    """
     if not isinstance(steps, list):
         return False
     return any(
@@ -160,7 +173,11 @@ def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
 def _validate_lint_steps(
     filename: str, name: str, steps: list[dict], install_index: int
 ) -> None:
-    """Assert lint runs after the installer and fails closed without masking."""
+    """Check that recognized lint steps follow the installer.
+
+    They must not use `if` or `continue-on-error: true`, and must omit the
+    specified masking patterns.
+    """
     lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
     assert all(install_index < index for index in lint_indices), (
         f"{filename}/{name}: Whitaker is installed after lint"
@@ -178,7 +195,12 @@ def _validate_lint_steps(
 
 
 def _validate_no_ad_hoc_installation(filename: str, name: str, job: dict) -> None:
-    """Assert a job has no ad hoc Whitaker install or obsolete installer override."""
+    """Reject ad hoc Whitaker installs, the obsolete override and a wrong pin.
+
+    Ad hoc installs are `cargo install` or `cargo binstall` runs naming Whitaker,
+    or `whitaker-installer`. The obsolete override is
+    `WHITAKER_INSTALLER_VERSION`.
+    """
     for step in job["steps"]:
         run = str(step.get("run", ""))
         assert not re.search(

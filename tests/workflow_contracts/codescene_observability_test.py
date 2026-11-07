@@ -39,7 +39,7 @@ def _response(body: object, status: int = 200) -> verifier.ApiResponse:
 
 
 def _environment(custom: bool = True) -> verifier.ApiResponse:
-    """Return an environment response with the custom branch policies flag set."""
+    """Return an environment reply whose `custom_branch_policies` flag is `custom`."""
     return _response(
         {
             "name": "codescene",
@@ -100,7 +100,10 @@ def _run(replies: list[verifier.ApiResponse]) -> int:
 
 
 def _assert_safe(events: list[dict[str, object]]) -> None:
-    """Assert that events hold no secrets and only the permitted fields."""
+    """Assert that events omit the listed forbidden strings.
+
+    They must also have the expected fields and elapsed-time bounds.
+    """
     text = json.dumps(events)
     for forbidden in (SECRET, REPO, "authorization", "api.github.com", "sensitive"):
         assert forbidden not in text

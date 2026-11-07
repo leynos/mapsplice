@@ -69,7 +69,10 @@ def _step_index(steps: list[dict[str, object]], name: str) -> int:
 
 
 def _check_contract(document: str) -> None:
-    """Assert that build-test installs the Markdown tools before they are used."""
+    """Check that the `mdtablefix` installer precedes Format and coverage.
+
+    The Markdown lint action and golden-test installer must precede coverage.
+    """
     steps = _steps(document)
     install_index, installer = _action_step(steps, MDTABLEFIX_ACTION)
     installer_config = installer.get("with")

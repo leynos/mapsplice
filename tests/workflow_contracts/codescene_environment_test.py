@@ -138,7 +138,7 @@ def test_valid_protection_reads_environment_and_policies_back() -> None:
     [{"id": 999, "full_name": "other/repo"}, {"id": True, "full_name": REPOSITORY}],
 )
 def test_repository_metadata_must_prove_identity(repository: dict[str, object]) -> None:
-    """Repository metadata that does not match the target id and name is rejected."""
+    """Reject repository metadata with a mismatched full name or a Boolean ID."""
     fetch = _valid_fetch()
     fetch.replies[REPOSITORY_ENDPOINT] = [_response(repository)]
     _assert_code(fetch, "repository-identity")
@@ -197,7 +197,7 @@ def test_environment_access_failures_remain_distinct(status: int, code: str) -> 
 def test_only_one_main_branch_policy_is_accepted(
     count: object, items: list[object], code: str
 ) -> None:
-    """Reject a first page that does not hold exactly one main branch policy."""
+    """Reject invalid policy counts, page lengths, identities and shapes."""
     fetch = _valid_fetch(first_page=_page(items, count))
     _assert_code(fetch, code)
 
@@ -249,7 +249,10 @@ def test_pagination_reads_101_entries_and_an_empty_sentinel() -> None:
     ids=["no-link", "loop", "fragment", "last", "malformed", "unrelated-repository"],
 )
 def test_invalid_pagination_links_fail_closed(link: str | None, code: str) -> None:
-    """Missing, looping, malformed or foreign page links fail closed and stay hidden."""
+    """Reject the supplied invalid pagination links.
+
+    The private marker must stay out of the error.
+    """
     url = f"https://api.github.com/{POLICIES}?per_page=100"
     headers = {} if link is None else {"Link": link.format(url=url)}
     fetch = _valid_fetch(
@@ -299,7 +302,7 @@ def test_first_page_change_between_reads_is_reported() -> None:
 
 
 def test_environment_detail_change_between_reads_is_reported() -> None:
-    """An environment that changes between its two reads is a shape change."""
+    """Report a changed environment name on readback as `environment-shape`."""
     fetch = _valid_fetch(
         environment_reads=[_response(_environment()), _response(_environment("other"))]
     )
@@ -371,7 +374,10 @@ def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
 
 
 def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
-    """A duplicate JSON key is an api-response error that echoes no values."""
+    """Report duplicate JSON keys as `api-response` without exposing values.
+
+    The secret second value must not appear in the error.
+    """
     secret = "ghp_private_json_marker"
     raw = (
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
@@ -401,7 +407,10 @@ def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
 def test_injected_malformed_api_response_cannot_leak_values(
     response: verifier.ApiResponse,
 ) -> None:
-    """A malformed API response is an api-response error that leaks no values."""
+    """Report the supplied malformed responses as `api-response`.
+
+    The secret status marker must not appear in the error.
+    """
     fetch = ScriptedFetch({ENVIRONMENT: [response]})
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)
