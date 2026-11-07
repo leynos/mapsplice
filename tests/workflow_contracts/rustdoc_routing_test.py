@@ -25,6 +25,8 @@ REQUIRED_RUSTDOC_FLAGS = ("--cfg", "docsrs", "-D", "warnings")
 
 @dataclass(frozen=True)
 class RustdocRouteCase:
+    """Describe one rustdoc Make goal and its expected command and arguments."""
+
     goal: str
     expected_command: tuple[str, ...]
     expected_arguments: tuple[str, ...]

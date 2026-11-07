@@ -16,6 +16,7 @@ MARKDOWNLINT_ACTION = "DavidAnson/markdownlint-cli2-action"
 
 
 def _steps(document: str) -> list[dict[str, object]]:
+    """Return the build-test job's steps, failing if the workflow shape is wrong."""
     workflow = yaml.safe_load(document)
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict) and jobs, f"CI must have jobs; observed {jobs!r}"
@@ -38,6 +39,7 @@ def _steps(document: str) -> list[dict[str, object]]:
 
 
 def _action_step(steps: list[dict[str, object]], action: str) -> tuple[int, dict]:
+    """Return the index and step of one fully pinned, unconditional action use."""
     matches = [
         (index, step)
         for index, step in enumerate(steps)
@@ -60,12 +62,14 @@ def _action_step(steps: list[dict[str, object]], action: str) -> tuple[int, dict
 
 
 def _step_index(steps: list[dict[str, object]], name: str) -> int:
+    """Return the index of the single step with the given name."""
     matches = [index for index, step in enumerate(steps) if step.get("name") == name]
     assert len(matches) == 1, f"expected one {name!r} step, found {len(matches)}"
     return matches[0]
 
 
 def _check_contract(document: str) -> None:
+    """Assert that build-test installs the Markdown tools before they are used."""
     steps = _steps(document)
     install_index, installer = _action_step(steps, MDTABLEFIX_ACTION)
     installer_config = installer.get("with")
