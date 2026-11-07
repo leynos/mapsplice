@@ -48,8 +48,8 @@ pub(crate) fn source_location_at(
     range: Range<usize>,
 ) -> Option<SourceLocation> {
     let position = text.position.as_ref()?;
-    if let Some(source) = source
-        && let Some(location) = locate_in_source(text, source, &range)
+    if let Some(document) = source
+        && let Some(location) = locate_in_source(text, document, &range)
     {
         return Some(location);
     }
