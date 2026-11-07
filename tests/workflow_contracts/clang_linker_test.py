@@ -11,6 +11,7 @@ from build_standard_test import ROOT
 
 
 def _executable(path: Path, body: str) -> None:
+    """Write a POSIX shell script with body to path and make it executable."""
     path.write_text(f"#!/bin/sh\n{body}", encoding="utf-8")
     path.chmod(0o755)
 

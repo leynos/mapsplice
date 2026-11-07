@@ -101,6 +101,7 @@ def validate_suite_provisioning(document: dict[str, object]) -> None:
 def _linux_suite(
     job: dict[str, object],
 ) -> tuple[list[dict[str, object]], list[int]] | None:
+    """Return a local Linux suite job's steps and suite indices, else None."""
     if "uses" in job:
         return None  # Reusable callers have a separate setup-commands contract.
     steps = job.get("steps")
@@ -113,12 +114,14 @@ def _linux_suite(
 
 
 def _is_linker_install(step: dict[str, object]) -> bool:
+    """Return whether the step is the pinned setup-rust step that installs mold."""
     if step.get("uses") != SETUP_RUST:
         return False
     return step.get("with", {}).get("install-mold") == "true"
 
 
 def _is_binding_clang_install(step: dict[str, object]) -> bool:
+    """Return whether the step is a binding apt-get install of clang on Linux."""
     run = str(step.get("run", ""))
     if "apt-get install" not in run or "clang" not in run:
         return False
@@ -130,6 +133,7 @@ def _is_binding_clang_install(step: dict[str, object]) -> bool:
 def _validate_linux_suite(
     name: str, steps: list[dict[str, object]], suite_indices: list[int]
 ) -> None:
+    """Assert the job's pinned mold and clang installs bind before its suite."""
     installs = [index for index, step in enumerate(steps) if _is_linker_install(step)]
     assert len(installs) == 1, f"{name} needs one pinned linker install"
     install_index = installs[0]

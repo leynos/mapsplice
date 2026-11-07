@@ -46,6 +46,7 @@ def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
 
 
 def _reject_json_constant(_: str) -> object:
+    """Reject the JSON constants NaN, Infinity and -Infinity."""
     raise ValueError("non-finite JSON number")
 
 
@@ -58,6 +59,7 @@ def _response_parts(raw: str) -> tuple[list[str], str]:
 
 
 def _response_status(lines: list[str], returncode: int) -> int:
+    """Return the HTTP status, requiring gh's exit code to match 2xx success."""
     status_line = lines[0] if lines else ""
     match = STATUS_LINE.fullmatch(status_line)
     if match is None:
@@ -69,6 +71,7 @@ def _response_status(lines: list[str], returncode: int) -> int:
 
 
 def _response_headers(lines: list[str]) -> dict[str, str]:
+    """Parse the header lines after the status line, keyed by lower-case name."""
     headers: dict[str, str] = {}
     for line in lines[1:]:
         key, separator, value = line.partition(":")
@@ -82,6 +85,7 @@ def _response_headers(lines: list[str]) -> dict[str, str]:
 
 
 def _response_body(raw: str) -> object:
+    """Decode the body as JSON, rejecting duplicate keys and non-finite numbers."""
     try:
         return json.loads(
             raw,
@@ -105,6 +109,7 @@ def parse_http_response(raw: str, returncode: int) -> ApiResponse:
 
 
 def _validate_response_headers(response: ApiResponse) -> None:
+    """Require headers to be a mapping with unique string names and values."""
     headers = response.headers
     if not isinstance(headers, Mapping):
         raise VerificationError("api-response", "GitHub API headers are malformed")
@@ -114,6 +119,7 @@ def _validate_response_headers(response: ApiResponse) -> None:
 
 
 def _validated_header_names(headers: Mapping[object, object]) -> list[str]:
+    """Return lower-case header names, requiring each name to be a string."""
     names = []
     for key in headers:
         if not isinstance(key, str):
@@ -123,22 +129,26 @@ def _validated_header_names(headers: Mapping[object, object]) -> list[str]:
 
 
 def _validate_header_values(headers: Mapping[object, object]) -> None:
+    """Require every header value to be a string."""
     for value in headers.values():
         if not isinstance(value, str):
             raise VerificationError("api-response", "GitHub API headers are malformed")
 
 
 def _validate_unique_header_names(names: list[str]) -> None:
+    """Require the lower-cased header names to be unique."""
     if len(set(names)) != len(names):
         raise VerificationError("api-response", "GitHub API repeats a header")
 
 
 def _validate_response_status(response: ApiResponse) -> None:
+    """Require the status to be an int from 100 to 599."""
     if type(response.status) is not int or not 100 <= response.status <= 599:
         raise VerificationError("api-response", "GitHub API status is malformed")
 
 
 def _validate_resource_status(response: ApiResponse, resource: str) -> None:
+    """Raise a VerificationError unless the status is 200, naming the resource."""
     if response.status == 403:
         raise VerificationError("access-denied", f"{resource} access denied (HTTP 403)")
     if response.status == 404:
@@ -181,6 +191,7 @@ def environment(response: ApiResponse) -> EnvironmentProtection:
 
 
 def _branch_policy(item: object) -> BranchPolicy:
+    """Decode a branch policy, requiring an int id and string name and type."""
     if not isinstance(item, dict):
         raise VerificationError(
             "policy-shape", "deployment branch policy entry is malformed"
@@ -231,12 +242,14 @@ def deployment_policy_page(
 
 
 def _is_non_negative_integer(value: object) -> bool:
+    """Return whether value is a non-negative int, excluding bool."""
     if type(value) is not int:
         return False
     return value >= 0
 
 
 def _link_relation(part: str) -> tuple[str, str]:
+    """Return a Link part's relation and URL, rejecting unknown relations."""
     match = LINK_PART.fullmatch(part.strip())
     if match is None:
         raise VerificationError(
@@ -251,6 +264,7 @@ def _link_relation(part: str) -> tuple[str, str]:
 
 
 def _validated_link_query(url_text: str, endpoint: str) -> str:
+    """Return the query of a Link URL that targets the expected API endpoint."""
     try:
         url = urlsplit(url_text)
     except ValueError:
@@ -265,30 +279,36 @@ def _validated_link_query(url_text: str, endpoint: str) -> str:
 
 
 def _is_github_api_url(url: SplitResult) -> bool:
+    """Return whether the URL is https on the api.github.com host."""
     return url.scheme == "https" and url.netloc == "api.github.com"
 
 
 def _is_expected_api_endpoint(url: SplitResult, endpoint: str) -> bool:
+    """Return whether the URL path is the endpoint and it has no fragment."""
     return url.path == f"/{endpoint}" and not url.fragment
 
 
 def _raise_link_outside_api_route() -> None:
+    """Raise a pagination-link error for a Link outside the API route."""
     raise VerificationError(
         "pagination-link", "deployment branch policy Link leaves the API route"
     )
 
 
 def _link_target_page(url_text: str, endpoint: str) -> int:
+    """Return the page number that a Link URL targets on the endpoint."""
     return _page_number(_validated_link_query(url_text, endpoint))
 
 
 def _invalid_page_query() -> VerificationError:
+    """Return the pagination-link error for an invalid paging query."""
     return VerificationError(
         "pagination-link", "deployment branch policy Link has invalid paging"
     )
 
 
 def _page_number(query_text: str) -> int:
+    """Return the positive page number from a validated paging query."""
     try:
         # Empty values must remain visible to cardinality and exact-key checks.
         query = parse_qs(query_text, strict_parsing=True, keep_blank_values=True)
@@ -299,6 +319,7 @@ def _page_number(query_text: str) -> int:
 
 
 def _validated_page_values(query: dict[str, list[str]]) -> list[str]:
+    """Return the page values, requiring per_page=PAGE_SIZE and one page."""
     if set(query) != {"per_page", "page"}:
         raise _invalid_page_query()
     if query["per_page"] != [str(PAGE_SIZE)]:
@@ -310,6 +331,7 @@ def _validated_page_values(query: dict[str, list[str]]) -> list[str]:
 
 
 def _positive_page_number(value: str) -> int:
+    """Return the page value as an int, requiring it to be at least 1."""
     try:
         page_number = int(value)
     except ValueError as error:
@@ -348,6 +370,7 @@ def deployment_policies(
     def read_page(
         number: int, operation: AuditOperation = "policy_page"
     ) -> DeploymentPolicyPage:
+        """Fetch and decode one policy page, through audit when one is given."""
         page_endpoint = f"{endpoint}?per_page={PAGE_SIZE}&page={number}"
         response = (
             audit.request(fetch, page_endpoint, operation, number)

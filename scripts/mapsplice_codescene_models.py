@@ -23,6 +23,7 @@ class VerificationError(Exception):
     def __init__(
         self, code: str, message: str, *, failure_kind: FailureKind | None = None
     ) -> None:
+        """Store the failure code, message and optional failure kind."""
         super().__init__(message)
         self.code = code
         self.failure_kind = failure_kind
