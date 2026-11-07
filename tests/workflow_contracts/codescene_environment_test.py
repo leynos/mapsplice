@@ -27,6 +27,7 @@ REPOSITORY_METADATA = {"id": 1208786150, "full_name": REPOSITORY}
 
 
 def _environment(name: str = "codescene") -> dict[str, object]:
+    """Return an environment payload that allows only custom branch policies."""
     return {
         "name": name,
         "deployment_branch_policy": {
@@ -42,6 +43,7 @@ def _response(
     status: int = 200,
     headers: Mapping[str, str] | None = None,
 ) -> verifier.ApiResponse:
+    """Wrap a body in an ApiResponse with the given status and headers."""
     return verifier.ApiResponse(status, headers or {}, body)
 
 
@@ -51,12 +53,14 @@ def _page(
     *,
     headers: Mapping[str, str] | None = None,
 ) -> verifier.ApiResponse:
+    """Build a policy page response holding the items and the total count."""
     return _response({"total_count": count, "branch_policies": items}, headers=headers)
 
 
 def _policy(
     identifier: int, name: str = "main", kind: str = "branch"
 ) -> dict[str, object]:
+    """Return a deployment branch policy with the given id, name and type."""
     return {"id": identifier, "name": name, "type": kind}
 
 
@@ -64,18 +68,21 @@ class ScriptedFetch:
     """Return exact queued API replies and record every requested endpoint."""
 
     def __init__(self, replies: dict[str, list[verifier.ApiResponse]]) -> None:
+        """Copy the queued replies per endpoint and start an empty call log."""
         self.replies = {
             endpoint: list(responses) for endpoint, responses in replies.items()
         }
         self.calls: list[str] = []
 
     def __call__(self, endpoint: str) -> verifier.ApiResponse:
+        """Record the endpoint and return its next queued reply."""
         self.calls.append(endpoint)
         queued = self.replies.get(endpoint)
         assert queued, f"unexpected or repeated API read: {endpoint}"
         return queued.pop(0)
 
     def assert_consumed(self) -> None:
+        """Assert that every queued reply has been read."""
         leftovers = [endpoint for endpoint, queued in self.replies.items() if queued]
         assert not leftovers, f"unconsumed API replies: {leftovers!r}"
 
@@ -87,6 +94,7 @@ def _valid_fetch(
     sentinel: verifier.ApiResponse | None = None,
     environment_reads: list[verifier.ApiResponse] | None = None,
 ) -> ScriptedFetch:
+    """Return a ScriptedFetch serving a valid protection read by default."""
     first = first_page or _page([MAIN_POLICY])
     repeated = repeated_page or first
     count = first.body.get("total_count", 1) if isinstance(first.body, dict) else 1
@@ -102,6 +110,7 @@ def _valid_fetch(
 
 
 def _assert_code(fetch: ScriptedFetch, code: str) -> None:
+    """Assert that verification fails with the given verification code."""
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)
     assert caught.value.code == code, (
@@ -129,6 +138,7 @@ def test_valid_protection_reads_environment_and_policies_back() -> None:
     [{"id": 999, "full_name": "other/repo"}, {"id": True, "full_name": REPOSITORY}],
 )
 def test_repository_metadata_must_prove_identity(repository: dict[str, object]) -> None:
+    """Reject repository metadata with a mismatched full name or a Boolean ID."""
     fetch = _valid_fetch()
     fetch.replies[REPOSITORY_ENDPOINT] = [_response(repository)]
     _assert_code(fetch, "repository-identity")
@@ -152,6 +162,7 @@ def test_canonical_numeric_sentinel_links_are_accepted() -> None:
     ids=["forbidden", "absent"],
 )
 def test_environment_access_failures_remain_distinct(status: int, code: str) -> None:
+    """A 403 or 404 environment read gives its own code and stops the check."""
     fetch = ScriptedFetch(
         {ENVIRONMENT: [_response({"token": "private"}, status=status)]}
     )
@@ -186,6 +197,7 @@ def test_environment_access_failures_remain_distinct(status: int, code: str) -> 
 def test_only_one_main_branch_policy_is_accepted(
     count: object, items: list[object], code: str
 ) -> None:
+    """Reject invalid policy counts, page lengths, identities and shapes."""
     fetch = _valid_fetch(first_page=_page(items, count))
     _assert_code(fetch, code)
 
@@ -237,6 +249,10 @@ def test_pagination_reads_101_entries_and_an_empty_sentinel() -> None:
     ids=["no-link", "loop", "fragment", "last", "malformed", "unrelated-repository"],
 )
 def test_invalid_pagination_links_fail_closed(link: str | None, code: str) -> None:
+    """Reject the supplied invalid pagination links.
+
+    The private marker must stay out of the error.
+    """
     url = f"https://api.github.com/{POLICIES}?per_page=100"
     headers = {} if link is None else {"Link": link.format(url=url)}
     fetch = _valid_fetch(
@@ -254,6 +270,7 @@ def test_invalid_pagination_links_fail_closed(link: str | None, code: str) -> No
 
 
 def test_count_change_between_pages_is_reported() -> None:
+    """A total count that changes between pages is reported as policy drift."""
     first_items = [_policy(i, f"branch-{i}") for i in range(1, 101)]
     next_url = f"https://api.github.com/{POLICIES}?per_page=100&page=2"
     first = _page(
@@ -267,21 +284,25 @@ def test_count_change_between_pages_is_reported() -> None:
 
 
 def test_duplicate_policy_ids_are_rejected() -> None:
+    """Duplicate policy ids on one page are reported as a pagination cycle."""
     fetch = _valid_fetch(first_page=_page([MAIN_POLICY, _policy(1, "release")], 2))
     _assert_code(fetch, "pagination-cycle")
 
 
 def test_nonempty_sentinel_page_is_rejected() -> None:
+    """A sentinel page that still holds a policy is rejected as a count error."""
     fetch = _valid_fetch(sentinel=_page([_policy(2, "release")], 1))
     _assert_code(fetch, "policy-count")
 
 
 def test_first_page_change_between_reads_is_reported() -> None:
+    """A first page that changes between the two reads is reported as drift."""
     fetch = _valid_fetch(repeated_page=_page([_policy(2)]))
     _assert_code(fetch, "policy-drift")
 
 
 def test_environment_detail_change_between_reads_is_reported() -> None:
+    """Report a changed environment name on readback as `environment-shape`."""
     fetch = _valid_fetch(
         environment_reads=[_response(_environment()), _response(_environment("other"))]
     )
@@ -292,6 +313,7 @@ def test_environment_detail_change_between_reads_is_reported() -> None:
 
 
 def test_policy_count_above_the_audit_cap_stops_before_pagination() -> None:
+    """A total count above the audit cap is rejected before the second page."""
     fetch = _valid_fetch(first_page=_page([], MAX_PAGES * 100 + 1))
     _assert_code(fetch, "policy-cap")
     assert fetch.calls == [ENVIRONMENT, REPOSITORY_ENDPOINT, PAGE_ONE], (
@@ -307,6 +329,7 @@ def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
     invocation: dict[str, object] = {}
 
     def fake_run(arguments: list[str], **kwargs: object) -> SimpleNamespace:
+        """Record the gh arguments and options and return a simulated HTTP 403."""
         invocation["arguments"] = arguments
         invocation["kwargs"] = kwargs
         return SimpleNamespace(
@@ -351,6 +374,10 @@ def test_cli_uses_only_github_gets_and_never_echoes_api_secrets(
 
 
 def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
+    """Report duplicate JSON keys as `api-response` without exposing values.
+
+    The secret second value must not appear in the error.
+    """
     secret = "ghp_private_json_marker"
     raw = (
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
@@ -380,6 +407,10 @@ def test_duplicate_json_keys_are_rejected_without_echoing_values() -> None:
 def test_injected_malformed_api_response_cannot_leak_values(
     response: verifier.ApiResponse,
 ) -> None:
+    """Report the supplied malformed responses as `api-response`.
+
+    The secret status marker must not appear in the error.
+    """
     fetch = ScriptedFetch({ENVIRONMENT: [response]})
     with pytest.raises(verifier.VerificationError) as caught:
         verifier.verify_environment(REPOSITORY, fetch)

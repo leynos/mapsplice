@@ -13,6 +13,8 @@ from whitaker_provisioning_test import ACTION, _has_lint_command, _validate, _wo
 
 @dataclass
 class MutationContext:
+    """Hold the CI workflow and the located steps that a mutation alters."""
+
     ci: dict
     steps: list[dict]
     install_index: int
@@ -21,6 +23,7 @@ class MutationContext:
 
 
 def _mutation_context(workflows: dict[str, dict]) -> MutationContext:
+    """Locate the Whitaker install and lint steps in the CI build-test job."""
     ci = workflows["ci.yml"]
     steps = ci["jobs"]["build-test"]["steps"]
     install_index = next(i for i, step in enumerate(steps) if step.get("uses") == ACTION)

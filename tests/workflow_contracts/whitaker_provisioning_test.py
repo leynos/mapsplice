@@ -35,6 +35,7 @@ class UniqueKeyLoader(yaml.SafeLoader):
 
 
 def _unique_mapping(loader: UniqueKeyLoader, node: yaml.MappingNode) -> dict:
+    """Build a mapping from a YAML node, failing if it repeats a key."""
     pairs = loader.construct_pairs(node, deep=True)
     keys = [key for key, _ in pairs]
     assert len(keys) == len(set(keys)), "workflow has duplicate mapping keys"
@@ -83,6 +84,11 @@ def _whitaker_make_targets() -> set[str]:
 
 
 def _has_lint_command(step: dict) -> bool:
+    """Return whether the step's `run` text matches a recognized lint pattern.
+
+    The pattern is either a direct Whitaker gate or a Make target that reaches
+    `lint-whitaker`.
+    """
     run = str(step.get("run", ""))
     targets = _whitaker_make_targets()
     return bool(DIRECT_GATE.search(run)) or any(
@@ -91,6 +97,10 @@ def _has_lint_command(step: dict) -> bool:
 
 
 def _suite_jobs(workflows: dict[str, dict]) -> list[tuple[str, str, dict]]:
+    """Return jobs with steps that match recognized Whitaker lint patterns.
+
+    Unresolved `mapsplice`-named workflow calls are rejected.
+    """
     jobs = []
     for filename, document in workflows.items():
         for name, job in _workflow_jobs(filename, document):
@@ -103,6 +113,7 @@ def _suite_jobs(workflows: dict[str, dict]) -> list[tuple[str, str, dict]]:
 def _workflow_jobs(
     filename: str, document: dict
 ) -> list[tuple[str, dict]]:
+    """Return the (name, job) pairs of a workflow, failing on a bad jobs map."""
     declared_jobs = document.get("jobs")
     assert isinstance(declared_jobs, dict) and declared_jobs, f"{filename}: no jobs"
     jobs = []
@@ -113,6 +124,10 @@ def _workflow_jobs(
 
 
 def _contains_whitaker_lint(filename: str, name: str, job: dict) -> bool:
+    """Return whether the job has a recognized lint step.
+
+    Otherwise, reject `mapsplice`-named workflow calls.
+    """
     steps = job.get("steps", [])
     if _contains_lint_step(steps):
         return True
@@ -122,6 +137,10 @@ def _contains_whitaker_lint(filename: str, name: str, job: dict) -> bool:
 
 
 def _contains_lint_step(steps: object) -> bool:
+    """Return whether any step's `run` text matches a recognized lint pattern.
+
+    Only mapping entries are checked; other entries are ignored.
+    """
     if not isinstance(steps, list):
         return False
     return any(
@@ -130,11 +149,13 @@ def _contains_lint_step(steps: object) -> bool:
 
 
 def _is_local_mapsplice_call(job: dict) -> bool:
+    """Return whether a job's uses value is a string that names mapsplice."""
     target = job.get("uses")
     return isinstance(target, str) and "mapsplice" in target
 
 
 def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
+    """Return the index of the one unconditional, unconfigured installer step."""
     installers = [index for index, step in enumerate(steps) if step.get("uses") == ACTION]
     assert len(installers) == 1, f"{filename}/{name}: require one pinned action"
     index = installers[0]
@@ -152,6 +173,11 @@ def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
 def _validate_lint_steps(
     filename: str, name: str, steps: list[dict], install_index: int
 ) -> None:
+    """Check that recognized lint steps follow the installer.
+
+    They must not use `if` or `continue-on-error: true`, and must omit the
+    specified masking patterns.
+    """
     lint_indices = [index for index, step in enumerate(steps) if _has_lint_command(step)]
     assert all(install_index < index for index in lint_indices), (
         f"{filename}/{name}: Whitaker is installed after lint"
@@ -169,6 +195,12 @@ def _validate_lint_steps(
 
 
 def _validate_no_ad_hoc_installation(filename: str, name: str, job: dict) -> None:
+    """Reject ad hoc Whitaker installs, the obsolete override and a wrong pin.
+
+    Ad hoc installs are `cargo install` or `cargo binstall` runs naming Whitaker,
+    or `whitaker-installer`. The obsolete override is
+    `WHITAKER_INSTALLER_VERSION`.
+    """
     for step in job["steps"]:
         run = str(step.get("run", ""))
         assert not re.search(
@@ -183,6 +215,7 @@ def _validate_no_ad_hoc_installation(filename: str, name: str, job: dict) -> Non
 
 
 def _validate_suite_job(filename: str, name: str, job: dict) -> None:
+    """Assert a Whitaker suite job meets the pinned provisioning contract."""
     steps = job["steps"]
     assert all(isinstance(step, dict) for step in steps), f"{filename}/{name}: bad step"
     install_index = _installer_index(filename, name, steps)

@@ -24,18 +24,22 @@ class Clock:
     """Advance an exact eighth of a second per observation."""
 
     def __init__(self) -> None:
+        """Start the fake clock at zero seconds."""
         self.value = 0.0
 
     def __call__(self) -> float:
+        """Advance the clock by an eighth of a second and return the new time."""
         self.value += 0.125
         return self.value
 
 
 def _response(body: object, status: int = 200) -> verifier.ApiResponse:
+    """Wrap a body in an ApiResponse that carries the secret authorization header."""
     return verifier.ApiResponse(status, {"authorization": SECRET}, body)
 
 
 def _environment(custom: bool = True) -> verifier.ApiResponse:
+    """Return an environment reply whose `custom_branch_policies` flag is `custom`."""
     return _response(
         {
             "name": "codescene",
@@ -49,6 +53,7 @@ def _environment(custom: bool = True) -> verifier.ApiResponse:
 
 
 def _page(*, total: int = 1, empty: bool = False, identifier: int = 1):
+    """Return a policy page holding one main branch policy, or none if empty."""
     return _response(
         {
             "total_count": total,
@@ -68,6 +73,7 @@ def _page(*, total: int = 1, empty: bool = False, identifier: int = 1):
 
 
 def _replies() -> list[verifier.ApiResponse]:
+    """Return the six replies that make up a complete successful audit."""
     return [
         _environment(),
         _response({"id": 123, "full_name": REPO, "sensitive": SECRET}),
@@ -88,11 +94,16 @@ def observed(monkeypatch):
 
 
 def _run(replies: list[verifier.ApiResponse]) -> int:
+    """Run the CLI against the scripted replies and return its exit status."""
     queued = iter(replies)
     return verifier.main(["--repo", REPO], lambda _: next(queued))
 
 
 def _assert_safe(events: list[dict[str, object]]) -> None:
+    """Assert that events omit the listed forbidden strings.
+
+    They must also have the expected fields and elapsed-time bounds.
+    """
     text = json.dumps(events)
     for forbidden in (SECRET, REPO, "authorization", "api.github.com", "sensitive"):
         assert forbidden not in text
@@ -205,6 +216,7 @@ def test_gh_transport_and_parser_failure_are_observed(
     """Raw subprocess output and timeout attributes never enter JSON or diagnostics."""
 
     def run(*args, **kwargs):
+        """Raise a gh timeout, or return malformed JSON output, per the scenario."""
         if failure == "timeout":
             raise subprocess.TimeoutExpired([SECRET], 30, output=SECRET, stderr=SECRET)
         return SimpleNamespace(stdout=f"HTTP/2.0 200 OK\n\n{SECRET}", returncode=0)
@@ -271,6 +283,7 @@ def test_transport_failure_has_bounded_kind_and_operation(
     """Timeout and launch failures retain their exact bounded human diagnostic."""
 
     def fail_run(*args: object, **kwargs: object) -> None:
+        """Raise the parametrized timeout or process launch failure."""
         raise failure
 
     monkeypatch.setattr(verifier.subprocess, "run", fail_run)
@@ -317,6 +330,7 @@ def test_invalid_repository_has_bounded_repository_context(
     calls = []
 
     def fetch(endpoint: str):
+        """Record the endpoint, then fail because no API request may be made."""
         calls.append(endpoint)
         pytest.fail("invalid repository must not make an API request")
 
