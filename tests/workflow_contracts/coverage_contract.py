@@ -41,6 +41,7 @@ class StrictLoader(yaml.SafeLoader):
 
 
 def _mapping(loader: StrictLoader, node: yaml.MappingNode) -> dict[object, object]:
+    """Construct a YAML mapping, raising ValueError on duplicate keys."""
     loader.flatten_mapping(node)
     result: dict[object, object] = {}
     for key_node, value_node in node.value:
@@ -72,6 +73,7 @@ def read_workflows(root: Path = WORKFLOW_ROOT) -> dict[str, dict[object, object]
 
 
 def _triggers(workflow: Mapping[object, object]) -> dict[str, object]:
+    """Return a workflow's triggers as a mapping, normalising list and string forms."""
     raw = workflow.get("on", workflow.get(True))
     if isinstance(raw, str):
         return {raw: None}
@@ -86,6 +88,7 @@ def _triggers(workflow: Mapping[object, object]) -> dict[str, object]:
 
 
 def _jobs(workflow: Mapping[object, object]) -> dict[str, dict[str, object]]:
+    """Return a workflow's jobs, asserting that each job is a mapping."""
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict) and jobs, "workflow jobs are missing"
     assert all(isinstance(job, dict) for job in jobs.values()), "invalid job"
@@ -93,6 +96,7 @@ def _jobs(workflow: Mapping[object, object]) -> dict[str, dict[str, object]]:
 
 
 def _steps(job: Mapping[str, object]) -> list[dict[str, object]]:
+    """Return a job's steps, asserting that they are a list of mappings."""
     steps = job.get("steps")
     assert isinstance(steps, list) and all(isinstance(step, dict) for step in steps), (
         "job steps are missing or malformed"
@@ -101,6 +105,7 @@ def _steps(job: Mapping[str, object]) -> list[dict[str, object]]:
 
 
 def _serialized(value: object) -> str:
+    """Flatten a parsed YAML value into one space-separated searchable string."""
     if isinstance(value, Mapping):
         return " ".join(f"{key} {_serialized(item)}" for key, item in value.items())
     if isinstance(value, list):
@@ -111,6 +116,7 @@ def _serialized(value: object) -> str:
 def _validate_external_workflow_call(
     job: Mapping[str, object], called: str
 ) -> None:
+    """Assert an external call is the pinned Dependabot workflow, with no secrets."""
     assert not called.startswith("leynos/mapsplice/"), (
         "qualified self-call cannot be proved local"
     )
@@ -126,6 +132,7 @@ def _validate_external_workflow_call(
 def _local_workflow_calls(
     workflows: Mapping[str, dict[object, object]], path: str
 ) -> set[str]:
+    """Return the local workflows called by a workflow, checking external calls."""
     targets = set()
     for job in _jobs(workflows[path]).values():
         called = job.get("uses")
@@ -146,6 +153,7 @@ def _workflow_run_sources(
     names: Mapping[object, str],
     active_names: set[object],
 ) -> set[str]:
+    """Return workflows whose workflow_run trigger names an active workflow."""
     targets = set()
     for path, workflow in workflows.items():
         triggers = _triggers(workflow)
@@ -186,6 +194,7 @@ def pr_reachable(workflows: Mapping[str, dict[object, object]]) -> set[str]:
 
 
 def _coverage_steps(workflow: Mapping[object, object]) -> list[dict[str, object]]:
+    """Return the steps in a workflow that use the coverage generation action."""
     return [
         step
         for job in _jobs(workflow).values()
@@ -198,6 +207,7 @@ def _coverage_steps(workflow: Mapping[object, object]) -> list[dict[str, object]
 def _validate_pr_reachable_workflows(
     workflows: Mapping[str, dict[object, object]], reachable: set[str]
 ) -> None:
+    """Assert PR-reachable workflows carry no CodeScene, secret or baseline route."""
     for path in reachable:
         content = _serialized(workflows[path]).lower()
         assert not any(
@@ -219,6 +229,7 @@ def _validate_pr_reachable_workflows(
 def _pr_coverage_step(
     workflows: Mapping[str, dict[object, object]],
 ) -> tuple[dict[str, object], dict[str, object]]:
+    """Return the pinned PR coverage step and inputs, checking read-only settings."""
     coverage_steps = _coverage_steps(workflows["ci.yml"])
     assert len(coverage_steps) == 1, "PR lane needs exactly one coverage run"
     coverage = coverage_steps[0]
@@ -242,6 +253,7 @@ def _pr_coverage_step(
 def _publisher_job(
     main: Mapping[object, object]
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
+    """Return the publisher job and its steps, checking its trust boundary."""
     assert _triggers(main) == {"push": {"branches": ["main"]}}, (
         "publisher must run only on main pushes"
     )
@@ -273,6 +285,7 @@ def _publisher_job(
 def _validate_exclusive_environment(
     workflows: Mapping[str, dict[object, object]],
 ) -> None:
+    """Assert only the coverage publisher job uses the codescene environment."""
     for path, workflow in workflows.items():
         for name, job in _jobs(workflow).items():
             if path != "coverage-main.yml" or name != "coverage-publisher":
@@ -287,6 +300,7 @@ def _publisher_coverage_step(
     pr_coverage: Mapping[str, object],
     pr_inputs: Mapping[str, object],
 ) -> dict[str, object]:
+    """Return the publisher coverage step, checking it matches the PR step."""
     coverage_steps = _coverage_steps(main)
     assert len(coverage_steps) == 1 and coverage_steps[0].get("uses") == GENERATE, (
         "main publisher must have exactly one pinned coverage-generation action; "
@@ -307,6 +321,7 @@ def _publisher_coverage_step(
 def _validate_build_tool_order(
     main_steps: list[dict[str, object]], coverage: Mapping[str, object]
 ) -> None:
+    """Assert setup and build-tool preflight precede coverage generation."""
     setup = [step for step in main_steps if "setup-rust@" in str(step.get("uses", ""))]
     assert len(setup) == 1 and setup[0].get("uses") == (
         f"leynos/shared-actions/.github/actions/setup-rust@{SETUP_RUST_PIN}"
@@ -336,6 +351,7 @@ def _validate_build_tool_order(
 def _named_step(
     steps: list[dict[str, object]], name: str, error: str
 ) -> dict[str, object]:
+    """Return the only step with the given name, asserting that it is unique."""
     selected = [step for step in steps if step.get("name") == name]
     assert len(selected) == 1, error
     return selected[0]
@@ -344,6 +360,7 @@ def _named_step(
 def _publisher_token_steps(
     steps: list[dict[str, object]],
 ) -> tuple[dict[str, object], dict[str, object]]:
+    """Return the token check and skipped-upload warning, checking their shape."""
     token = _named_step(steps, "Check CodeScene token", "Check CodeScene token step must be unique")
     assert token.get("id") == "codescene-token" and token.get("run") == TOKEN_CHECK, (
         "token check must use the fixed id and availability probe; "
@@ -370,6 +387,7 @@ def _publisher_upload_step(
     token: Mapping[str, object],
     warning: Mapping[str, object],
 ) -> dict[str, object]:
+    """Return the CodeScene upload step after checking its order and inputs."""
     uploads = [
         step
         for step in steps
@@ -412,6 +430,7 @@ def _validate_publisher_secret_routes(
     token: Mapping[str, object],
     upload: Mapping[str, object],
 ) -> None:
+    """Assert only the token check and uploader refer to CS_ACCESS_TOKEN."""
     for step in steps:
         if step is not token and step is not upload:
             assert "CS_ACCESS_TOKEN" not in _serialized(step), (
@@ -426,6 +445,7 @@ def _validate_publisher_secret_routes(
 def _validate_only_main_writer(
     workflows: Mapping[str, dict[object, object]], reachable: set[str]
 ) -> None:
+    """Assert coverage-main.yml is the only baseline writer and uploader."""
     writers = [
         path
         for path, workflow in workflows.items()
