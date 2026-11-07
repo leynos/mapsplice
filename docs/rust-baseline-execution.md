@@ -260,7 +260,7 @@ The repair adds a read-only verifier with pure policy validation and an
 injectable API client, offline API-response tests, an explicit workflow-shape
 fixture name, and a diagnostic naming the affected publisher and owner
 prerequisite. The trusted process is documented in
-[the developer's guide](developers-guide.md#9-coverage-administration-and-readiness).
+[the developer's guide](developers-guide.md#10-coverage-administration-and-readiness).
 Validation ran sequentially on the uncommitted repair above that exact head.
 At 12:30 UTC, the final Python candidate had these SHA-256 identities:
 

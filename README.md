@@ -106,6 +106,9 @@ ______________________________________________________________________
   phase belongs.
 - Renumber downstream phases, steps, and tasks after every structural edit.
 - Rewrite matching dependency references in supported `Requires` clauses.
+- Export a deterministic, versioned JSON roadmap and detect drift against a
+  committed export; see the [users' guide](docs/users-guide.md#export) and the
+  [roadmap export format](docs/roadmap-export-format.md).
 
 ______________________________________________________________________
 

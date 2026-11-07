@@ -78,20 +78,15 @@ renumbering — exactly the corruption the tool exists to prevent.
     body bullet, pinned by a regression fixture that fails on the current
     behaviour, and this roadmap's own clauses survive a dogfooded insert.
 
-- [ ] 1.2.2. Join task continuation lines before dependency-clause scanning.
+- [x] 1.2.2. Join task continuation lines before dependency-clause scanning.
 
   - Requires 1.2.1.
-  - Out of scope for the nested-bullet fix. A newline between `Requires` and
-    its anchors, or between anchors in one clause, is still not recognized;
-    `docs/mapsplice-design.md` section 7 records that exclusion explicitly.
-  - Normalize each item's body text (unwrap hard-wrapped continuation lines)
-    before applying the dependency-reference predicate, so a newline between
-    `Requires` and an anchor, or between anchors in one clause, no longer
-    hides references from the rewriter.
-  - Success: a fixture with `Requires` on one line and its anchors on the
-    next, and a fixture with an anchor list split across lines, both rewrite
-    correctly during a renumbering edit, and incidental numbers in wrapped
-    prose remain preserved.
+  - Addressed: the shared dependency visitor treats Markdown `Break` nodes and
+    line-ending whitespace as separators, so rewriting and JSON export
+    recognize the same wrapped anchors.
+  - Success: fixtures with `Requires` and its anchors on separate lines, and
+    with an anchor list split across lines, rewrite correctly during a
+    renumbering edit; incidental numbers in wrapped prose remain preserved.
 
 - [ ] 1.2.3. Diagnose `Requires` keywords with no recognizable anchors.
 

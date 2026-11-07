@@ -68,6 +68,7 @@ pub(super) fn parse_checklist_item_head(
 fn invalid_roadmap(message: &str) -> MapspliceError {
     MapspliceError::InvalidRoadmap {
         message: message.to_owned(),
+        location: None,
     }
 }
 
@@ -107,9 +108,10 @@ mod tests {
         assert_eq!(invalid_roadmap_message(&error), expected);
     }
 
+    /// Extract the diagnostic text so cases can assert on the reason only.
     fn invalid_roadmap_message(error: &MapspliceError) -> &str {
         match error {
-            MapspliceError::InvalidRoadmap { message } => message,
+            MapspliceError::InvalidRoadmap { message, .. } => message,
             other => panic!("expected InvalidRoadmap error, got {other:?}"),
         }
     }

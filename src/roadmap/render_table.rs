@@ -14,6 +14,7 @@ pub(super) fn render_table(table: &Table, indent: usize) -> Result<String> {
         .collect::<Result<Vec<_>>>()?;
     let header = rows.first().ok_or_else(|| MapspliceError::InvalidRoadmap {
         message: "tables must contain at least one row".to_owned(),
+        location: None,
     })?;
     validate_table_widths(&rows, header.len())?;
     let mut lines = vec![
@@ -30,6 +31,7 @@ fn validate_table_widths(rows: &[Vec<String>], width: usize) -> Result<()> {
         if row.len() != width {
             return Err(MapspliceError::InvalidRoadmap {
                 message: "table rows must have the same width as the header".to_owned(),
+                location: None,
             });
         }
     }
@@ -41,6 +43,7 @@ fn render_table_row(node: &Node) -> Result<Vec<String>> {
     let Node::TableRow(row) = node else {
         return Err(MapspliceError::InvalidRoadmap {
             message: "tables must contain only table rows".to_owned(),
+            location: None,
         });
     };
     row.children
@@ -54,6 +57,7 @@ fn render_table_cell(node: &Node) -> Result<String> {
     let Node::TableCell(cell) = node else {
         return Err(MapspliceError::InvalidRoadmap {
             message: "table rows must contain only table cells".to_owned(),
+            location: None,
         });
     };
     render_inline(&cell.children)
