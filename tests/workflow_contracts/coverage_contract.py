@@ -207,7 +207,11 @@ def _coverage_steps(workflow: Mapping[object, object]) -> list[dict[str, object]
 def _validate_pr_reachable_workflows(
     workflows: Mapping[str, dict[object, object]], reachable: set[str]
 ) -> None:
-    """Assert PR-reachable workflows carry no CodeScene, secret or baseline route."""
+    """Assert PR-reachable workflows carry no CodeScene or secret route.
+
+    They must also not set ``publish-baseline: always`` on a recognized
+    coverage-generation step.
+    """
     for path in reachable:
         content = _serialized(workflows[path]).lower()
         assert not any(
