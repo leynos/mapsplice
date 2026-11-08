@@ -1,6 +1,6 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt, sync::Arc};
 
 use markdown::mdast::Node;
 
@@ -162,12 +162,39 @@ pub struct SubTaskEntry {
 }
 
 /// Roadmap-owned Markdown nodes kept behind the parse/render boundary.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default)]
 pub struct MarkdownNodes {
     /// Parsed Markdown nodes retained for rendering.
     nodes: Vec<Node>,
     /// Original source block for each aligned node, when available.
     original_blocks: Vec<Option<String>>,
+    /// Document these nodes were parsed from, when known.
+    ///
+    /// Diagnostics that map an offset inside a text node back to the source
+    /// need this: the parser normalizes soft line endings and strips their
+    /// indentation, so the node's value alone cannot locate a token on a
+    /// wrapped line.
+    source: Option<Arc<str>>,
+}
+
+impl PartialEq for MarkdownNodes {
+    /// Retained source text is provenance for diagnostics, not document identity.
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes && self.original_blocks == other.original_blocks
+    }
+}
+
+impl Eq for MarkdownNodes {}
+
+impl fmt::Debug for MarkdownNodes {
+    /// Elide the retained document so failure output stays readable.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MarkdownNodes")
+            .field("nodes", &self.nodes)
+            .field("original_blocks", &self.original_blocks)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Where a parsed item came from.
@@ -213,22 +240,44 @@ impl MarkdownNodes {
         Self {
             nodes: Vec::new(),
             original_blocks: Vec::new(),
+            source: None,
         }
     }
 
     /// Push one parsed Markdown node while preserving its original source.
-    pub(crate) fn push_preserved(&mut self, node: Node, source: &str) {
+    pub(crate) fn push_preserved(&mut self, node: Node, source: &Arc<str>) {
         let original = original_block(&node, source);
         self.nodes.push(node);
         self.original_blocks.push(original);
+        self.remember_source(source);
     }
 
-    /// Construct Markdown nodes from parser-owned mdast nodes.
+    /// Construct Markdown nodes that remember the document they came from.
+    ///
+    /// Retaining the document is what lets a later diagnostic place a token on
+    /// a wrapped line; rendering is unaffected. The handle is shared with every
+    /// other collection from the same document, so this costs a pointer bump
+    /// rather than another copy of the source.
     #[must_use]
-    pub(crate) fn from_nodes(nodes: Vec<Node>) -> Self {
+    pub(crate) fn from_nodes_in(nodes: Vec<Node>, source: &Arc<str>) -> Self {
         Self {
             original_blocks: vec![None; nodes.len()],
             nodes,
+            source: Some(Arc::clone(source)),
+        }
+    }
+
+    /// Return the document these nodes were parsed from, when known.
+    ///
+    /// The handle is cloned rather than borrowed so a caller can hold it while
+    /// mutating the nodes it came from.
+    #[must_use]
+    pub(crate) fn source(&self) -> Option<Arc<str>> { self.source.clone() }
+
+    /// Record the owning document handle the first time a node arrives.
+    fn remember_source(&mut self, source: &Arc<str>) {
+        if self.source.is_none() {
+            self.source = Some(Arc::clone(source));
         }
     }
 

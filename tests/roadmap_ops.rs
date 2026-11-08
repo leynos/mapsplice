@@ -2,6 +2,8 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
+#[path = "roadmap_ops/dependency_locations.rs"]
+mod dependency_locations;
 #[path = "roadmap_ops/nested_requires.rs"]
 mod nested_requires;
 #[path = "roadmap_ops/assertions.rs"]
@@ -156,10 +158,14 @@ fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>)
     ])
     .expect_err("unresolved valid dependency references must fail");
 
-    let MapspliceError::DanglingDependency { anchor } = error else {
+    let MapspliceError::DanglingDependency { anchor, location } = error else {
         return Err(format!("expected dangling dependency error, got {error:?}").into());
     };
     assert_equal(&anchor.to_string(), &"99.1.1".to_owned());
+    let Some(reported) = location else {
+        return Err("the dangling reference should carry its source location".into());
+    };
+    assert_equal(&reported.to_string(), &"line 7, column 35".to_owned());
     Ok(())
 }
 
@@ -238,6 +244,33 @@ fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
     let stdout = outcome.stdout.unwrap_or_default();
 
     assert_contains(&stdout, "Requires 1.0.0, 1.1.1, and 1.1.1.");
+    Ok(())
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn hard_wrapped_requires_clause_rewrites_its_anchor(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(concat!(
+            "# Example\n\n",
+            "## 1. Phase one\n\n",
+            "### 1.1. Step one\n\n",
+            "- [ ] 1.1.1. First task.\n\n",
+            "## 2. Phase two\n\n",
+            "### 2.1. Step two\n\n",
+            "- [ ] 2.1.1. Second task. Requires:\\\n",
+            "  2.1.1.\n",
+        ))
+        .expect("target should be written");
+
+    let outcome = run_from_args(["mapsplice", "delete", test_workspace.target.as_str(), "1"])
+        .expect("delete command should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_contains(&stdout, "Requires:\\\n  1.1.1.");
     Ok(())
 }
 

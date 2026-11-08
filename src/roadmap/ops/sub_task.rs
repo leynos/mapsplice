@@ -130,6 +130,7 @@ fn sub_task_identity(task: &TaskEntry, sub_task_index: usize) -> Result<ItemIden
         .map(|sub_task| sub_task.identity)
         .ok_or_else(|| MapspliceError::InvalidRoadmap {
             message: format!("sub-task `{}` is missing from parent task", task.number),
+            location: None,
         })
 }
 
@@ -148,6 +149,7 @@ fn find_sub_task_splice(
                 "sub-task `{}` is missing from task child order",
                 task.number
             ),
+            location: None,
         })?;
     Ok(SubTaskSplice {
         sub_task_index,

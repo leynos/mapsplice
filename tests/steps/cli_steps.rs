@@ -23,16 +23,17 @@ pub(crate) type CliFixture = TestResult<CliState>;
 
 #[derive(Debug)]
 pub(crate) struct CliState {
-    workspace: Workspace,
+    pub(crate) workspace: Workspace,
     binary: Utf8PathBuf,
-    original_target: String,
-    stdout: String,
-    stderr: String,
-    success: bool,
+    pub(crate) original_target: String,
+    pub(crate) original_export: String,
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
+    pub(crate) success: bool,
 }
 
 impl CliState {
-    fn write_target(&mut self, contents: &str) -> TestResult {
+    pub(crate) fn write_target(&mut self, contents: &str) -> TestResult {
         self.workspace.write_target(contents)?;
         contents.clone_into(&mut self.original_target);
         Ok(())
@@ -48,7 +49,7 @@ impl CliState {
 
     const fn fragment_path(&self) -> &Utf8PathBuf { &self.workspace.fragment }
 
-    fn run<I, S>(&mut self, args: I) -> TestResult
+    pub(crate) fn run<I, S>(&mut self, args: I) -> TestResult
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -71,13 +72,14 @@ pub(crate) fn cli_state() -> CliFixture {
         workspace,
         binary,
         original_target: String::new(),
+        original_export: String::new(),
         stdout: String::new(),
         stderr: String::new(),
         success: false,
     })
 }
 
-fn state_mut(cli_state: &mut CliFixture) -> TestResult<&mut CliState> {
+pub(crate) fn state_mut(cli_state: &mut CliFixture) -> TestResult<&mut CliState> {
     match cli_state {
         Ok(state) => Ok(state),
         Err(error) => Err(error.to_string().into()),

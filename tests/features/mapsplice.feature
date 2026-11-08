@@ -83,3 +83,42 @@ Feature: Mapsplice roadmap editing
     And stdout is empty
     And stderr mentions that anchor 99 was not found
     And the target file remains unchanged
+
+  Scenario: Export writes versioned JSON and preserves the roadmap
+    Given the target roadmap for export
+    When I export the roadmap as JSON
+    Then the command succeeds
+    And stdout contains the exported format version
+    And the target file remains unchanged
+
+  Scenario: Export check succeeds silently without modifying either file
+    Given the target roadmap for export
+    And a committed JSON export for the target
+    When I check the committed JSON export
+    Then the command succeeds
+    And stdout is empty
+    And the roadmap and export files remain unchanged by the command
+
+  Scenario: Export check reports a changed task title
+    Given the target roadmap for export
+    And a committed JSON export for the target
+    When I change a task title and check the export
+    Then the command fails
+    And stderr names the changed task
+    And the roadmap and export files remain unchanged by the command
+
+  Scenario: Export check reports a changed dependency
+    Given the target roadmap for export
+    And a committed JSON export for the target
+    When I change a dependency and check the export
+    Then the command fails
+    And stderr names the changed dependency
+    And the roadmap and export files remain unchanged by the command
+
+  Scenario: Export check reports a changed checkbox
+    Given the target roadmap for export
+    And a committed JSON export for the target
+    When I change a checkbox and check the export
+    Then the command fails
+    And stderr names the changed checkbox state
+    And the roadmap and export files remain unchanged by the command

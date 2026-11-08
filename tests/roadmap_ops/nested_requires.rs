@@ -32,7 +32,7 @@ const NESTED_BULLET_CONSUMER: &str = concat!(
 
 /// Assert a dangling-dependency error names the expected prerequisite.
 fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
-    let MapspliceError::DanglingDependency { anchor } = error else {
+    let MapspliceError::DanglingDependency { anchor, .. } = error else {
         panic!("expected dangling dependency error, got {error:?}");
     };
     assert_eq!(

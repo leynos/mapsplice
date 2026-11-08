@@ -48,7 +48,10 @@ pub fn assert_generated_edit(case: &Case, mode: Mode) -> TestCaseResult {
     let workspace = prepare_workspace(case)?;
 
     match (&case.expectation, run_case(&workspace, case, mode)) {
-        (Expectation::Reject { stalled }, Err(MapspliceError::DanglingDependency { anchor })) => {
+        (
+            Expectation::Reject { stalled },
+            Err(MapspliceError::DanglingDependency { anchor, .. }),
+        ) => {
             prop_assert!(
                 stalled.contains(&anchor.to_string()),
                 "rejection must name a stranded anchor; named `{anchor}`, stranded {stalled:?}",

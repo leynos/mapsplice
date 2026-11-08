@@ -184,7 +184,7 @@ fn replace_sub_task_required_by_a_surviving_consumer_is_rejected(
     ])
     .expect_err("a surviving consumer of the retired identity must fail the replace");
 
-    let MapspliceError::DanglingDependency { anchor } = error else {
+    let MapspliceError::DanglingDependency { anchor, .. } = error else {
         return Err(format!("expected a dangling-dependency rejection, got `{error}`").into());
     };
     if anchor.to_string() != "1.1.1.2" {

@@ -4,10 +4,10 @@
 mod shared_workspace;
 
 use rstest::fixture;
-pub use shared_workspace::{TestResult, Workspace};
+pub use shared_workspace::{TestResult, Workspace, create_workspace};
 
 #[fixture]
 pub fn workspace() -> TestResult<Workspace> {
-    let workspace = shared_workspace::create_workspace()?;
+    let workspace = create_workspace()?;
     Ok(workspace)
 }

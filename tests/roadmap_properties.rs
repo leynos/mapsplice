@@ -137,7 +137,7 @@ proptest! {
         let error = run_from_args(["mapsplice", "delete", workspace.target.as_str(), "1"])
             .expect_err("dangling dependency reference should fail");
 
-        let MapspliceError::DanglingDependency { anchor } = error else {
+        let MapspliceError::DanglingDependency { anchor, .. } = error else {
             return Err(TestCaseError::fail(format!(
                 "expected dangling dependency error for {raw_anchor}, got {error:?}"
             )));

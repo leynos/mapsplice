@@ -14,6 +14,7 @@ TARGET ?= mapsplice
 CARGO ?= cargo
 WHITAKER ?= whitaker
 WHITAKER_PACKAGES ?= mapsplice
+WHITAKER_LIBRARY ?= whitaker_suite
 WHITAKER_ENV = RUSTFLAGS="-D warnings" CARGO_UNSTABLE_CODEGEN_BACKEND=true \
 	CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm CARGO_PROFILE_TEST_CODEGEN_BACKEND=llvm
 BUILD_TOOLS_PREFIX ?= $(HOME)/.local
@@ -148,8 +149,17 @@ lint-clippy: check-build-tools ## Check Rust documentation and run Clippy
 # Whitaker uses its installer-managed toolchain. A warnings-only RUSTFLAGS
 # assignment keeps its route separate from the parallel development frontend
 # and linker; explicit profile overrides also reject inherited backend input.
+#
+# Select the suite library by name rather than with `--all`. The suite already
+# registers every lint it publishes, while `--all` loads whatever else the
+# installer staged beside it. Whitaker installer v0.2.11 prunes staged
+# libraries by a compiled-in crate list that predates newer lints, so a rolling
+# bundle can leave a standalone copy of a lint the suite also registers;
+# loading both trips rustc's duplicate-lint assertion before any workspace
+# crate compiles. leynos/whitaker#565 tracks the installer fix, after which
+# this selector can return to `--all`.
 lint-whitaker: ## Run the rolling Whitaker suite over every workspace package
-	unset CARGO_ENCODED_RUSTFLAGS; $(WHITAKER_ENV) $(WHITAKER) --all $(foreach package,$(WHITAKER_PACKAGES),--package $(package)) -- $(CARGO_FLAGS)
+	unset CARGO_ENCODED_RUSTFLAGS; $(WHITAKER_ENV) $(WHITAKER) --lib $(WHITAKER_LIBRARY) $(foreach package,$(WHITAKER_PACKAGES),--package $(package)) -- $(CARGO_FLAGS)
 
 typecheck: check-build-tools ## Type-check without building
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_CARGO))" RUSTFLAGS="$(GATE_RUSTFLAGS_CARGO)" $(CARGO) check $(CARGO_FLAGS)

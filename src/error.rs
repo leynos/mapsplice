@@ -8,6 +8,22 @@ use crate::roadmap::{RoadmapAnchor, RoadmapItemLevel};
 /// Convenient result alias for `mapsplice`.
 pub type Result<T> = std::result::Result<T, MapspliceError>;
 
+/// One-based source coordinates captured from a Markdown parser point.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourceLocation {
+    /// One-based source line.
+    pub line: usize,
+    /// One-based source column.
+    pub column: usize,
+}
+
+impl std::fmt::Display for SourceLocation {
+    /// Render the coordinates as `line N, column M` for diagnostics.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "line {}, column {}", self.line, self.column)
+    }
+}
+
 /// Errors raised while parsing or rewriting roadmap documents.
 #[derive(Debug, Error)]
 pub enum MapspliceError {
@@ -19,10 +35,12 @@ pub enum MapspliceError {
     },
 
     /// The document structure is not a supported roadmap.
-    #[error("{message}")]
+    #[error("{prefix}{message}", prefix = location.map_or_else(String::new, |source_location| format!("{source_location}: ")))]
     InvalidRoadmap {
         /// Human-readable validation error.
         message: String,
+        /// Source position of the rejected Markdown node, when known.
+        location: Option<SourceLocation>,
     },
 
     /// The fragment level does not match the target anchor level.
@@ -67,11 +85,17 @@ pub enum MapspliceError {
     },
 
     /// A dependency clause references an anchor that no longer exists.
-    #[error("dependency anchor `{anchor}` was not found in the target roadmap")]
+    #[error("{prefix}dependency anchor `{anchor}` was not found in the target roadmap", prefix = location.map_or_else(String::new, |source_location| format!("{source_location}: ")))]
     DanglingDependency {
         /// Missing dependency anchor.
         anchor: RoadmapAnchor,
+        /// Source position of the unresolved reference, when known.
+        location: Option<SourceLocation>,
     },
+
+    /// Exporting a roadmap, or checking a committed export, failed.
+    #[error(transparent)]
+    Export(#[from] ExportError),
 
     /// Markdown parsing failed.
     #[error("failed to parse markdown: {message}")]
@@ -117,10 +141,65 @@ impl MapspliceError {
             Self::UnexpectedFragment { .. } => "unexpected_fragment",
             Self::AnchorNotFound { .. } => "anchor_not_found",
             Self::DanglingDependency { .. } => "dangling_dependency",
+            Self::Export(error) => error.class(),
             Self::Markdown { .. } => "markdown",
             Self::Clap(_) => "cli",
             Self::Configuration { .. } => "configuration",
             Self::Io { .. } => "io",
+        }
+    }
+}
+
+/// Errors raised while exporting a roadmap or checking a committed export.
+///
+/// These variants describe the export contract rather than roadmap grammar, so
+/// they live beside, not inside, the roadmap-domain variants of
+/// [`MapspliceError`]. Filesystem failures stay as [`MapspliceError::Io`]
+/// because they belong to the infrastructure boundary and are reported by the
+/// reader the caller supplies.
+#[derive(Debug, Error)]
+pub enum ExportError {
+    /// The committed JSON export differs from the Markdown source.
+    #[error(
+        "export `{export}` differs from roadmap `{roadmap}`:\n{differences}\nregenerate with \
+         `{regenerate}`"
+    )]
+    Drift {
+        /// Committed JSON export path.
+        export: Utf8PathBuf,
+        /// Canonical Markdown roadmap path.
+        roadmap: Utf8PathBuf,
+        /// Human-readable semantic or formatting differences.
+        differences: String,
+        /// Command that regenerates the committed export.
+        regenerate: String,
+    },
+
+    /// A committed JSON export could not be read or does not match the schema.
+    #[error("invalid export `{path}`: {message}")]
+    InvalidCommitted {
+        /// Committed JSON export path.
+        path: Utf8PathBuf,
+        /// Read or schema diagnostic, including JSON line and column when available.
+        message: String,
+    },
+
+    /// The in-memory roadmap could not be serialized to JSON.
+    #[error("failed to serialize roadmap export: {message}")]
+    Serialization {
+        /// Underlying serialization diagnostic.
+        message: String,
+    },
+}
+
+impl ExportError {
+    /// Return a stable diagnostic class for logs and metrics.
+    #[must_use]
+    pub const fn class(&self) -> &'static str {
+        match self {
+            Self::Drift { .. } => "export_drift",
+            Self::InvalidCommitted { .. } => "invalid_export",
+            Self::Serialization { .. } => "json_serialization",
         }
     }
 }

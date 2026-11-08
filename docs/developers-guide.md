@@ -56,7 +56,27 @@ boundary, and roadmap domain modules:
   mixed-list regressions in
   [`tests/roadmap_sub_tasks.rs`](../tests/roadmap_sub_tasks.rs) and
   [`mixed_body.rs`](../tests/roadmap_sub_task_invariants/mixed_body.rs).
+- `src/roadmap/export` adapts the existing model to the pure, ordered JSON
+  schema. It shares dependency recognition with the rewriter and contains the
+  semantic drift comparison; `src/export_command/mod.rs` executes the read-only
+  export, reading the source and committed export files without writing. The
+  reader is injected as a private `ReadUtf8Fn`, so the orchestration is
+  testable without a temporary filesystem. `run_export` is the instrumented
+  command boundary: it records one export attempt and exactly one outcome in
+  the process-local counters. Its `export_request` query performs the work
+  without touching counters and without opening a span of its own, so a caller
+  that only needs the rendered result cannot alter the recorded metrics. The
+  spans owned by its callees, `parse_roadmap` and the injected reader, are
+  unchanged.
 
+  The outcome is derived from the returned result, so every return path records
+  exactly one. `export_emitted` counts a render without `--check`;
+  `export_matches` counts a `--check` run whose bytes equal the committed file;
+  `export_drifts` counts a `--check` run rejected with `ExportError::Drift`,
+  which covers formatting-only byte drift and semantic drift alike because both
+  share that variant; `export_failures` counts every other error, including a
+  source or committed-file read failure, an unsupported `format_version`, and a
+  roadmap grammar error. Drift is therefore never counted as a failure.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
   and reports unsupported nodes as roadmap errors.
@@ -72,6 +92,19 @@ The roadmap model stores Markdown content in `MarkdownNodes`, a value object
 that keeps parser nodes behind the parse/render boundary. New roadmap fields
 should prefer typed domain values over raw parser or adapter types.
 
+`MarkdownNodes` also retains the document it was parsed from, as a shared
+`Arc<str>` handle, so a diagnostic can map a token inside a parser text node
+back to its line and column in the original Markdown. `parse_roadmap` and
+`parse_fragment` allocate that handle once per document and thread it through
+every `MarkdownNodes` they build, so cloning it is a reference-count bump
+rather than a copy of the document. `MarkdownNodes::source` returns the handle,
+and adapters pass it to the dependency scanner for the nodes they own; the
+export adapter therefore forwards the task body's handle into checkbox details
+instead of dropping it, which is what lets a wrapped clause inside a detail
+report the token's own coordinates. When a handle is genuinely unavailable,
+diagnostics fall back to folding from the text node's start, which is exact for
+a single-line node and approximate for a wrapped one.
+
 ## 3. Public library APIs
 
 The library API is intentionally small:
@@ -84,12 +117,30 @@ The library API is intentionally small:
 - `parse_anchor` validates canonical positive anchors such as `8`, `8.2`,
   `8.2.3`, and `8.2.3.1`.
 - `metrics_snapshot` returns bounded process-local counters for failures,
-  in-place rewrites, dependency rewrites, and source-preservation outcomes.
+  in-place rewrites, dependency rewrites, source-preservation outcomes, and
+  export attempts, emissions, matches, drifts, and failures.
 
 Public APIs must return typed `MapspliceError` variants. Opaque reports belong
 only at external process boundaries.
 
-## 4. Configuration behaviour
+`MapspliceError` is the crate-level command error. Domain modules under
+`src/roadmap` construct only roadmap variants such as `InvalidRoadmap`,
+`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, and `DanglingDependency`;
+`ExportError` variants are constructed only in `src/export_command`, and `Io`
+variants only in `src/fs`. One public enum keeps command callers on a single
+error type while each boundary still owns the errors it can raise.
+
+## 4. Roadmap export schema changes
+
+`docs/roadmap-export-format.md` is the downstream contract for
+`mapsplice export`. Treat both field shape and field meaning as versioned API.
+For any incompatible or semantic change, increment `FORMAT_VERSION`, update the
+format document and example, add or update byte-exact fixtures, and verify
+semantic drift reports against the prior shape. Deserialization rejects unknown
+fields so consumers do not silently accept a schema they cannot interpret. The
+pre-commit quality gates must pass before the change is reviewed.
+
+## 5. Configuration behaviour
 
 Configuration behaviour has two current owners:
 
@@ -112,7 +163,7 @@ changes that take effect only inside `run`; `Workspace::enter_root` selects the
 workspace directory through `enter_dir`. `run` holds a shared lock while the
 closure executes, then restores the environment and working directory.
 
-## 5. Observability
+## 6. Observability
 
 Tracing spans exist at the process, filesystem, parse, splice, render, and
 rewrite boundaries. Stable fields include operation, anchor, path, byte count,
@@ -140,7 +191,7 @@ at task or sub-task mutation points in `src/roadmap/model_task_entry.rs` and
 recorded at the source-preservation rendering decision in
 `src/roadmap/render_preservation.rs`.
 
-## 6. Verification layers
+## 7. Verification layers
 
 The test suite has four layers:
 
@@ -206,7 +257,7 @@ nested body Markdown. A clause is reachable through a task's body blocks rather
 than through its summary. `docs/verification.md` records the proof obligations
 and the boundary of what is proven — the clause recognizer is not verified.
 
-## 7. Local tooling
+## 8. Local tooling
 
 Local builds use the pinned nightly toolchain in
 [`../rust-toolchain.toml`](../rust-toolchain.toml) and build settings in
@@ -338,7 +389,7 @@ make nixie
 make spelling
 ```
 
-### 7.1 Verus proofs
+### 8.1 Verus proofs
 
 `make verus` verifies the production-used kernels, and `make verus-selftest`
 runs a deliberately false proof that must be rejected. Both are required in CI:
@@ -366,7 +417,7 @@ unproved are recorded in [verification.md](verification.md); the Markdown
 clause recognizer is outside every proof, which is why the CLI regressions and
 golden fixtures carry that part of the contract.
 
-### 7.2 The domain-purity gate
+### 8.2 The domain-purity gate
 
 `make lint` also depends on `check-domain-purity`, which runs
 `scripts/check-domain-purity.sh`. The roadmap domain owns the Markdown model,
@@ -511,7 +562,7 @@ because instrumentation needs it, and release builds use the release profile,
 which Cranelift does not affect. Before enabling Cranelift again, re-measure
 the full suite and reconsider the exception based on the results.
 
-## 8. Workflow pins and Dependabot
+## 9. Workflow pins and Dependabot
 
 Dependabot owns the upgrade of GitHub Actions and reusable workflows, including
 calls into `leynos/shared-actions`. Contract tests that assert a caller's exact
@@ -547,7 +598,7 @@ If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
 as a test assertion on the SHA string.
 
-## 9. Coverage administration and readiness
+## 10. Coverage administration and readiness
 
 CV-005 has separate static and administrative prerequisites. The offline
 `make test-workflow-contracts` gate validates the actual workflow files. Its

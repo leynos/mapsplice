@@ -108,9 +108,11 @@ fn the_fixture_is_a_copy_of_the_real_ledger() -> TestResult {
     let on_disk = read_repo_file("docs/verification.md")?;
     require(
         fixture == on_disk,
-        "tests/data/verification_ledger/real.md must be a copy of docs/verification.md; re-copy \
-         it after editing the ledger"
-            .to_owned(),
+        concat!(
+            "tests/data/verification_ledger/real.md must be a copy of docs/verification.md; ",
+            "re-copy it after editing the ledger",
+        )
+        .to_owned(),
     )
 }
 
