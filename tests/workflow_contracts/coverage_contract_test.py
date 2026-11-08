@@ -21,10 +21,12 @@ def _workflow_shape_fixture() -> dict[str, dict[object, object]]:
 
 
 def _main_steps(workflows: dict[str, dict[object, object]]) -> list[dict[str, object]]:
+    """Return the steps of the coverage publisher job."""
     return workflows["coverage-main.yml"]["jobs"]["coverage-publisher"]["steps"]
 
 
 def _pr_steps(workflows: dict[str, dict[object, object]]) -> list[dict[str, object]]:
+    """Return the steps of the PR build-test job."""
     return workflows["ci.yml"]["jobs"]["build-test"]["steps"]
 
 
@@ -33,6 +35,7 @@ Mutation = Callable[[WorkflowSet], None]
 
 
 def _add_local_reusable_call(workflows: WorkflowSet) -> None:
+    """Add a PR-reachable local reusable call to a workflow naming CodeScene."""
     workflows["ci.yml"]["jobs"]["called"] = {
         "uses": "./.github/workflows/hidden.yml"
     }
@@ -44,6 +47,7 @@ def _add_local_reusable_call(workflows: WorkflowSet) -> None:
 
 
 def _change_skip_warning(workflows: WorkflowSet) -> None:
+    """Make the skipped-upload warning echo the CodeScene secret."""
     next(
         step
         for step in _main_steps(workflows)
@@ -52,6 +56,7 @@ def _change_skip_warning(workflows: WorkflowSet) -> None:
 
 
 def _reorder_token_check(workflows: WorkflowSet) -> None:
+    """Swap the token check and the skipped-upload warning steps."""
     steps = _main_steps(workflows)
     token_index = next(
         index for index, step in enumerate(steps) if step.get("id") == "codescene-token"
@@ -65,6 +70,7 @@ def _reorder_token_check(workflows: WorkflowSet) -> None:
 
 
 def _change_coverage_format(workflows: WorkflowSet) -> None:
+    """Change the publisher's coverage format to cobertura."""
     coverage = next(
         step
         for step in _main_steps(workflows)
@@ -74,6 +80,7 @@ def _change_coverage_format(workflows: WorkflowSet) -> None:
 
 
 def _move_preflight_after_suite(workflows: WorkflowSet) -> None:
+    """Move the build-tool preflight to run after coverage generation."""
     steps = _main_steps(workflows)
     check = next(step for step in steps if step.get("run") == "make check-build-tools")
     steps.remove(check)
@@ -86,6 +93,7 @@ def _move_preflight_after_suite(workflows: WorkflowSet) -> None:
 
 
 def _add_duplicate_writer(workflows: WorkflowSet) -> None:
+    """Add a second main-branch workflow that enables baseline ratcheting."""
     workflows["second.yml"] = parse_workflow(
         "name: Second\non:\n  push:\n    branches: [main]\n"
         "jobs:\n  write:\n    runs-on: ubuntu-latest\n"
@@ -96,6 +104,7 @@ def _add_duplicate_writer(workflows: WorkflowSet) -> None:
 
 
 def _move_publisher_environment(workflows: WorkflowSet) -> None:
+    """Move the codescene environment from the publisher job to build-test."""
     workflows["coverage-main.yml"]["jobs"]["coverage-publisher"]["environment"] = (
         "other"
     )
@@ -192,6 +201,7 @@ def test_live_coverage_contract() -> None:
     ],
 )
 def test_strict_yaml_rejects_ambiguous_or_empty_input(source: str, reason: str) -> None:
+    """Strict YAML parsing rejects duplicate, ambiguous and non-mapping input."""
     with pytest.raises((AssertionError, ValueError), match=reason):
         parse_workflow(source)
 
@@ -230,6 +240,7 @@ def test_strict_yaml_rejects_ambiguous_or_empty_input(source: str, reason: str) 
     ],
 )
 def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
+    """Each mutation of the intended workflows fails validation with its reason."""
     workflows = _workflow_shape_fixture()
     MUTATIONS[mutation](workflows)
     with pytest.raises((AssertionError, ValueError)) as caught:
@@ -240,6 +251,7 @@ def test_contract_rejects_mutations(mutation: str, reason: str) -> None:
 
 
 def test_pr_closure_follows_workflow_run_chain() -> None:
+    """A workflow_run chain from a PR workflow is reachable and checked for secrets."""
     workflows = _workflow_shape_fixture()
     workflows["after-pr.yml"] = parse_workflow(
         "name: After PR\non:\n  workflow_run:\n"

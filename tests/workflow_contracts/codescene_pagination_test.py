@@ -41,10 +41,12 @@ FAULT_CODES = {
 
 
 def _page_url(page: int) -> str:
+    """Return the policy endpoint URL for a page number."""
     return f"https://api.github.com/{POLICIES}?per_page={PAGE_SIZE}&page={page}"
 
 
 def _link(*relations: tuple[int, str]) -> str:
+    """Build a GitHub Link header from (page, relation) pairs."""
     return ", ".join(
         f'<{_page_url(page)}>; rel="{relation}"' for page, relation in relations
     )
@@ -55,6 +57,7 @@ def _response(
     total: int,
     links: str = "",
 ) -> adapter.ApiResponse:
+    """Build a 200 policy-page response with an optional Link header."""
     headers: Mapping[str, str] = {"Link": links} if links else {}
     return adapter.ApiResponse(
         200,
@@ -64,10 +67,12 @@ def _response(
 
 
 def _page_count(total: int) -> int:
+    """Return the number of pages for total policies, at least one."""
     return max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
 
 def _page_relations(page: int, pages: int) -> list[tuple[int, str]]:
+    """Return the (page, relation) Link pairs advertised by page of pages."""
     if page > pages:
         return [(1, "first"), (pages, "prev"), (pages, "last")]
     relations = []
@@ -81,17 +86,20 @@ def _page_relations(page: int, pages: int) -> list[tuple[int, str]]:
 
 
 def _policy(identifier: int) -> dict[str, object]:
+    """Return a raw branch policy mapping, where identifier one is main."""
     name = "main" if identifier == 1 else f"release-{identifier}"
     return {"id": identifier, "name": name, "type": "branch"}
 
 
 def _page_items(total: int, page: int) -> list[object]:
+    """Return the raw policy mappings that belong on page."""
     start = (page - 1) * PAGE_SIZE
     stop = min(page * PAGE_SIZE, total)
     return [_policy(identifier) for identifier in range(start + 1, stop + 1)]
 
 
 def _complete_history(total: int) -> dict[int, adapter.ApiResponse]:
+    """Return well-formed responses for every page and an empty sentinel."""
     pages = _page_count(total)
     responses = {
         page: _response(
@@ -110,11 +118,13 @@ def _complete_history(total: int) -> dict[int, adapter.ApiResponse]:
 def _paged_fetch(
     responses: dict[int, adapter.ApiResponse],
 ) -> tuple[adapter.Fetch, list[int]]:
+    """Return a fetch double serving queued pages and a request log."""
     queued = {page: [response] for page, response in responses.items()}
     queued[1].append(responses[1])
     calls: list[int] = []
 
     def fetch(endpoint: str) -> adapter.ApiResponse:
+        """Serve the next queued response for the page named in endpoint."""
         parsed = urlsplit(endpoint)
         assert parsed.path == POLICIES, f"unexpected policy endpoint: {endpoint}"
         query = parse_qs(parsed.query, strict_parsing=True)
@@ -129,6 +139,8 @@ def _paged_fetch(
 
 @dataclass(frozen=True)
 class MalformedHistory:
+    """Describe one generated malformed pagination history."""
+
     total: int
     fault: str
     fault_page: int
@@ -138,6 +150,8 @@ class MalformedHistory:
 
 @dataclass
 class PageState:
+    """Hold the mutable contents of one generated page before faults apply."""
+
     count: int
     items: list[object]
     relations: list[tuple[int, str]]
@@ -146,10 +160,12 @@ class PageState:
 
 
 def _malformed_history_strategy() -> SearchStrategy[MalformedHistory]:
+    """Return a Hypothesis strategy for malformed pagination histories."""
     @st.composite
     def histories(
         draw: st.DrawFn,
     ) -> MalformedHistory:
+        """Draw a total, a fault kind and the page where the fault applies."""
         total = draw(
             st.integers(min_value=PAGE_SIZE + 1, max_value=MAX_GENERATED_POLICIES)
         )
@@ -177,18 +193,22 @@ def _malformed_history_strategy() -> SearchStrategy[MalformedHistory]:
 
 
 def _short_page(state: PageState, _: MalformedHistory) -> None:
+    """Drop the last item from the page."""
     state.items.pop()
 
 
 def _missing_next(state: PageState, _: MalformedHistory) -> None:
+    """Remove the next relation from the page's Link header."""
     state.links = _link(*(pair for pair in state.relations if pair[1] != "next"))
 
 
 def _malformed_link(state: PageState, _: MalformedHistory) -> None:
+    """Replace the Link header with a value that is not a GitHub Link header."""
     state.links = "not a GitHub Link header"
 
 
 def _wrong_link(state: PageState, case: MalformedHistory) -> None:
+    """Shift the target of the case's faulted relation by one page."""
     state.links = _link(
         *(
             (target + 1, name) if name == case.fault_relation else (target, name)
@@ -198,14 +218,17 @@ def _wrong_link(state: PageState, case: MalformedHistory) -> None:
 
 
 def _count_drift(state: PageState, case: MalformedHistory) -> None:
+    """Adjust the reported total count by the case's count delta."""
     state.count += case.count_delta
 
 
 def _cross_page_duplicate(state: PageState, _: MalformedHistory) -> None:
+    """Replace the first item with the last policy of the previous page."""
     state.items[0] = _policy((state.page_number - 1) * PAGE_SIZE)
 
 
 def _malformed_entry(state: PageState, _: MalformedHistory) -> None:
+    """Replace the first item with a mapping whose identifier is not an integer."""
     state.items[0] = {"id": "not-an-integer", "name": "branch"}
 
 
@@ -221,6 +244,7 @@ PAGE_FAULTS: dict[str, Callable[[PageState, MalformedHistory], None]] = {
 
 
 def _apply_page_fault(state: PageState, case: MalformedHistory, page: int) -> None:
+    """Apply the case's fault to the page state when page is the faulted page."""
     if page != case.fault_page:
         return
     mutation = PAGE_FAULTS.get(case.fault)
@@ -231,6 +255,7 @@ def _apply_page_fault(state: PageState, case: MalformedHistory, page: int) -> No
 def _apply_sentinel_fault(
     state: PageState, case: MalformedHistory, sentinel: int
 ) -> None:
+    """Apply the case's fault to the sentinel page when it is the faulted page."""
     if case.fault_page != sentinel:
         return
     if case.fault == "sentinel-next":
@@ -244,6 +269,7 @@ def _apply_sentinel_fault(
 
 
 def _malformed_history(case: MalformedHistory) -> dict[int, adapter.ApiResponse]:
+    """Build the page responses for a history with the case's fault applied."""
     pages = _page_count(case.total)
     responses: dict[int, adapter.ApiResponse] = {}
     for page in range(1, pages + 1):

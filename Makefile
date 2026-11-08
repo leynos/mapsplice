@@ -1,6 +1,6 @@
 .PHONY: help all clean test build release lint lint-clippy lint-whitaker fmt check-fmt markdownfmt \
 	markdownlint markdownlint-paths nixie typecheck test-workflow-contracts \
-	spelling install-build-tools check-build-tools check-ripgrep \
+	spelling interrogate install-build-tools check-build-tools check-ripgrep \
 	check-markdown-tools check-verification-ledger check-domain-purity \
 	check-prover-tools \
 	verus-install verus verus-selftest
@@ -180,6 +180,30 @@ markdownlint: ## Lint Markdown files
 
 spelling: ## Enforce en-GB-oxendict spelling
 	$(TYPOS_CONFIG_BUILDER) gate --repository . --scope all
+
+# Interrogate scans each target recursively, subject to its default exclusions
+# (check a new file against the verbose report). Add a new Python directory to
+# the targets.
+INTERROGATE_VERSION ?= 1.7.0
+INTERROGATE_TARGETS ?= scripts tests
+# Level 2 prints a MISSED row per undocumented definition, which the
+# `interrogate` target fails on: the rounded percentage alone passes a lone gap.
+INTERROGATE_FLAGS ?= -vv --no-color --ext pyi --fail-under 100
+INTERROGATE = $(UV_ENV) $(UV) tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' interrogate
+
+# CI runs this target after its uv setup step, since the Rust lint job has no
+# uv. `grep` reads the whole report, so an early exit cannot break the pipe.
+interrogate: ## Enforce complete Python docstring coverage
+	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_TARGETS))"; \
+	  status=$$?; \
+	  printf '%s\n' "$$report"; \
+	  test "$$status" -eq 0 || exit "$$status"; \
+	  found=0; \
+	  printf '%s\n' "$$report" | grep '| *MISSED *|' >/dev/null || found=$$?; \
+	  if test "$$found" -ne 1; then \
+	    printf '%s\n' 'interrogate: undocumented definitions remain (or the MISSED check failed); see above' >&2; \
+	    exit 1; \
+	  fi
 
 markdownlint-paths: ## Lint Markdown files listed in MARKDOWN_PATHS
 	$(call require_markdown_paths)
