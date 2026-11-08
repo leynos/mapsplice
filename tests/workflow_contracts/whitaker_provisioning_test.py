@@ -27,7 +27,7 @@ ACTION = (
     "@5a99aed78ce68dcebd3052b75c31e6f173162b1e"
 )
 MAKE_CALL = re.compile(r"(?<![\w-])make\s+(?:--[\w-]+\s+)*([a-z][\w-]*)")
-DIRECT_GATE = re.compile(r"(?<![\w-])whitaker\s+--all\b")
+DIRECT_GATE = re.compile(r"(?<![\w-])whitaker\s+(?:--all|--lib)\b")
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -333,10 +333,10 @@ def test_make_lint_order_and_whitaker_flags(tmp_path: Path) -> None:
     commands = result.stdout.splitlines()
     clippy_index = next(i for i, line in enumerate(commands) if " clippy " in line)
     whitaker_index = next(
-        i for i, line in enumerate(commands) if "whitaker-probe --all" in line
+        i for i, line in enumerate(commands) if "whitaker-probe --lib" in line
     )
     assert clippy_index < whitaker_index
-    assert_whitaker_route(route_for(execute_make_route(tmp_path, "lint"), ("--all",)))
+    assert_whitaker_route(route_for(execute_make_route(tmp_path, "lint"), ("--lib",)))
 
 
 def test_make_whitaker_invocation_carries_cargo_opt_in(tmp_path: Path) -> None:
@@ -373,7 +373,7 @@ def test_make_whitaker_command_mutations_are_detected(
     tmp_path: Path, attribute: str, replacement: str | tuple[str, ...],
 ) -> None:
     """A changed evaluated Whitaker environment must fail the route contract."""
-    route = route_for(execute_make_route(tmp_path, "lint-whitaker"), ("--all",))
+    route = route_for(execute_make_route(tmp_path, "lint-whitaker"), ("--lib",))
     mutated = replace(route, **{attribute: replacement})
     assert mutated != route
     with pytest.raises(AssertionError):

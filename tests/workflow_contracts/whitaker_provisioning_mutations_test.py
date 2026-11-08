@@ -68,7 +68,7 @@ MUTATIONS: dict[str, MutationApplier] = {
         "extra", {"runs-on": "ubuntu-latest", "steps": [{"run": "make lint"}]}
     ),
     "new_direct_job": lambda context: context.ci["jobs"].__setitem__(
-        "extra", {"runs-on": "windows-latest", "steps": [{"run": "whitaker --all"}]}
+        "extra", {"runs-on": "windows-latest", "steps": [{"run": "whitaker --lib whitaker_suite"}]}
     ),
     "empty_jobs": lambda context: context.ci.__setitem__("jobs", {}),
 }

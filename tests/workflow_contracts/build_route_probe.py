@@ -168,7 +168,8 @@ def assert_development_route(
 def assert_whitaker_route(invocation: RouteInvocation) -> None:
     """Require the installer-managed verification route to remain LLVM-only."""
     expected_arguments = (
-        "--all",
+        "--lib",
+        "whitaker_suite",
         "--package",
         "mapsplice",
         "--",
