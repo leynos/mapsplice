@@ -47,9 +47,11 @@ fn workflow_runs_both_the_proof_and_the_non_vacuity_target() -> TestResult {
     )?;
     require(
         has_value(&lines, "run", "make verus-selftest"),
-        "the workflow must also run the smoke proof, so a run whose verifier never started cannot \
-         pass as a successful verification"
-            .to_owned(),
+        concat!(
+            "the workflow must also run the smoke proof, so a run whose verifier never started ",
+            "cannot pass as a successful verification",
+        )
+        .to_owned(),
     )
 }
 

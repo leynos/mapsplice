@@ -249,8 +249,10 @@ fn a_domain_source_reading_a_file_at_build_time_is_rejected() -> TestResult {
 fn a_domain_source_that_reaches_nothing_is_accepted() -> TestResult {
     assert_accepted(
         "render.rs",
-        "use std::fmt;\n\npub fn render(text: &str) -> Result<String, fmt::Error> {\n    let mut \
-         out = String::new();\n    out.push_str(text);\n    Ok(out)\n}\n",
+        concat!(
+            "use std::fmt;\n\npub fn render(text: &str) -> Result<String, fmt::Error> {\n",
+            "    let mut out = String::new();\n    out.push_str(text);\n    Ok(out)\n}\n",
+        ),
     )
 }
 
