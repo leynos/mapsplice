@@ -137,9 +137,25 @@ mod tests {
         fn wrapped_token_reports_its_source_column(
             indent in 0usize..4,
             token in prop_oneof![Just("1.1.1"), Just("12.3.4"), Just("2.0.7")],
+            prefix in "[a-z]{1,12}",
+            line_ending in prop_oneof![Just("\n"), Just("\r\n")],
         ) {
             let padding = " ".repeat(indent);
-            let source = format!("Intro.\n\nRequires {token}\n{padding}and {token}.\n");
+            // The clause carries text before its first token so a mapping that
+            // assumed the token opened the line cannot pass, and the line
+            // ending varies because CRLF shifts nothing but the trailing byte
+            // of each line the locator walks.
+            let source = format!(
+                concat!(
+                    "Intro.{line_ending}{line_ending}",
+                    "Requires {prefix} {token}{line_ending}",
+                    "{padding}and {token}.{line_ending}",
+                ),
+                prefix = prefix.as_str(),
+                token = token,
+                padding = padding,
+                line_ending = line_ending,
+            );
             let text = wrapped_text(&source);
             let start = second_occurrence(&text.value, token)
                 .expect("the generated clause should repeat its token");
