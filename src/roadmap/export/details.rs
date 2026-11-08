@@ -106,7 +106,12 @@ pub(super) fn append_task_list(list: &List, content: &mut TaskContentBuilder<'_>
     }
     for item in list_items(list)? {
         if item.checked.is_some() {
-            let detail = checkbox_detail(item, content.known_anchors, &mut content.numbering)?;
+            let detail = checkbox_detail(
+                item,
+                content.known_anchors,
+                content.source.as_ref(),
+                &mut content.numbering,
+            )?;
             content.details.push(detail);
         } else {
             content.entries.extend(list_item_entries(item)?);
@@ -142,6 +147,7 @@ pub(super) fn structural_detail(
 fn checkbox_detail(
     item: &ListItem,
     known_anchors: &std::collections::HashSet<String>,
+    source: Option<&std::sync::Arc<str>>,
     numbering: &mut NumberedDetails,
 ) -> Result<ExportDetail> {
     let Some(Node::Paragraph(title_paragraph)) = item.children.first() else {
@@ -152,14 +158,17 @@ fn checkbox_detail(
     };
     let (number, title_nodes) = numbered_title(title_paragraph, numbering)?;
     let title = render_text(&title_nodes)?;
-    let (entries, details) =
-        detail_blocks(item.children.get(1..).unwrap_or_default(), known_anchors)?;
+    let (entries, details) = detail_blocks(
+        item.children.get(1..).unwrap_or_default(),
+        known_anchors,
+        source,
+    )?;
     let state = checkbox_state(item.checked, "detail", &title, item.position.as_ref())?;
     Ok(ExportDetail {
         number,
         title,
         state,
-        requires: from_checkbox(item, known_anchors)?,
+        requires: from_checkbox(item, source.map(std::convert::AsRef::as_ref), known_anchors)?,
         entries,
         details,
     })
@@ -206,15 +215,17 @@ fn detail_body(
     body: &MarkdownNodes,
     known_anchors: &std::collections::HashSet<String>,
 ) -> Result<(Vec<ExportEntry>, Vec<ExportDetail>)> {
-    detail_blocks(body.nodes(), known_anchors)
+    let source = body.source();
+    detail_blocks(body.nodes(), known_anchors, source.as_ref())
 }
 
 /// Convert detail content while retaining nested checkbox source order.
 fn detail_blocks(
     nodes: &[Node],
     known_anchors: &std::collections::HashSet<String>,
+    source: Option<&std::sync::Arc<str>>,
 ) -> Result<(Vec<ExportEntry>, Vec<ExportDetail>)> {
-    let mut content = TaskContentBuilder::nested(known_anchors);
+    let mut content = TaskContentBuilder::nested(known_anchors, source.cloned());
     for node in nodes {
         match node {
             Node::Paragraph(paragraph) => {

@@ -108,7 +108,8 @@ fn from_checkbox_deduplicates_repeated_dependencies() {
     ));
     let item = list_item("- [ ] Detail. Requires 1.1.1. Requires 1.1.1.\n");
 
-    let dependencies = from_checkbox(&item, &anchors).expect("checkbox dependencies should scan");
+    let dependencies =
+        from_checkbox(&item, None, &anchors).expect("checkbox dependencies should scan");
 
     assert_eq!(dependencies, vec!["1.1.1".to_owned()]);
 }

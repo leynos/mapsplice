@@ -68,7 +68,7 @@ fn mixed_numbered_checkbox_details_are_mapped_in_source_order() {
 #[test]
 fn mixed_numbered_details_must_be_in_source_order() {
     let anchors = HashSet::new();
-    let mut content = TaskContentBuilder::for_task(task_number("1.1.1"), &anchors);
+    let mut content = TaskContentBuilder::for_task(task_number("1.1.1"), &anchors, None);
     let list = list(concat!(
         "- A plain bullet.\n",
         "- [ ] 1.1.1.2. Out of order.\n",
@@ -87,7 +87,7 @@ fn mixed_numbered_details_must_be_in_source_order() {
 #[test]
 fn mixed_numbered_details_must_belong_to_their_task() {
     let anchors = HashSet::new();
-    let mut content = TaskContentBuilder::for_task(task_number("1.1.1"), &anchors);
+    let mut content = TaskContentBuilder::for_task(task_number("1.1.1"), &anchors, None);
     let list = list(concat!(
         "- A plain bullet.\n",
         "- [ ] 1.1.2.1. Foreign detail.\n",
@@ -107,7 +107,7 @@ fn mixed_numbered_details_must_belong_to_their_task() {
 #[test]
 fn numbered_details_are_rejected_beneath_a_checkbox_detail_builder() {
     let anchors = HashSet::new();
-    let mut content = TaskContentBuilder::nested(&anchors);
+    let mut content = TaskContentBuilder::nested(&anchors, None);
     let list = list("- [ ] 1.1.1.1. Nested numbered.\n");
 
     let error = append_task_list(&list, &mut content)

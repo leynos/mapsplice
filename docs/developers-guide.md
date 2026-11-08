@@ -92,6 +92,19 @@ The roadmap model stores Markdown content in `MarkdownNodes`, a value object
 that keeps parser nodes behind the parse/render boundary. New roadmap fields
 should prefer typed domain values over raw parser or adapter types.
 
+`MarkdownNodes` also retains the document it was parsed from, as a shared
+`Arc<str>` handle, so a diagnostic can map a token inside a parser text node
+back to its line and column in the original Markdown. `parse_roadmap` and
+`parse_fragment` allocate that handle once per document and thread it through
+every `MarkdownNodes` they build, so cloning it is a reference-count bump
+rather than a copy of the document. `MarkdownNodes::source` returns the handle,
+and adapters pass it to the dependency scanner for the nodes they own; the
+export adapter therefore forwards the task body's handle into checkbox details
+instead of dropping it, which is what lets a wrapped clause inside a detail
+report the token's own coordinates. When a handle is genuinely unavailable,
+diagnostics fall back to folding from the text node's start, which is exact for
+a single-line node and approximate for a wrapped one.
+
 ## 3. Public library APIs
 
 The library API is intentionally small:

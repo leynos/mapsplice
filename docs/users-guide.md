@@ -123,6 +123,25 @@ caller-supplied reader rather than the export contract. Library callers supply
 the roadmap path in the request; the export orchestration reads it through the
 same UTF-8 reader as the edit commands.
 
+Roadmap diagnostics now carry source coordinates.
+`MapspliceError::InvalidRoadmap` and `MapspliceError::DanglingDependency`
+expose an `Option<SourceLocation>`, and their `Display` output starts with
+`line N, column M:` when the parser knows the position. The reported position
+names the offending token in the original Markdown, even when a `Requires`
+clause wraps onto a continuation line or an item is indented, because the
+diagnostic resolves against the parsed document rather than the normalized
+text. Code that matches either variant exhaustively must account for the new
+field.
+
+Export activity is summed in the process-local `MetricsSnapshot` returned by
+`metrics_snapshot()`. `export_attempts` counts export invocations;
+`export_emitted` counts a render without `--check`; `export_matches` counts a
+`--check` run whose bytes equal the committed file; `export_drifts` counts a
+`--check` run rejected with `ExportError::Drift`, including formatting-only
+byte drift; and `export_failures` counts every other error. Drift is never
+counted as a failure. The counters describe the current process only, so a
+restart resets them.
+
 ## Worked example
 
 Start with a target roadmap:

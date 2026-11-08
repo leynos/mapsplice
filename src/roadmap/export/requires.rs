@@ -109,14 +109,18 @@ pub(super) fn from_sub_task(
 }
 
 /// Collect dependencies owned by an unnumbered checkbox item.
+///
+/// A bare list item carries no document handle of its own, so the caller
+/// supplies the document the item was parsed from. Without it, a diagnostic on
+/// a wrapped clause would report the normalized text position instead of the
+/// token's source column.
 pub(super) fn from_checkbox(
     item: &ListItem,
+    source_text: Option<&str>,
     known_anchors: &HashSet<String>,
 ) -> Result<Vec<String>> {
     let nodes = item.children.clone();
-    // A bare list item carries no document handle, so its diagnostics fall
-    // back to the text node's start.
-    dependencies(&nodes, None, known_anchors, true)
+    dependencies(&nodes, source_text, known_anchors, true)
 }
 
 /// Return the first document text available among the given collections.

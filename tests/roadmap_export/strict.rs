@@ -141,6 +141,24 @@ fn prose_after_a_requires_clause_is_exported(workspace: TestResult<Workspace>) -
     "invalid dependency anchor token",
     "line 8, column 7"
 )]
+#[case::wrapped_malformed_checkbox_detail(
+    concat!(
+        "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n",
+        "  - [ ] Detail.\n\n",
+        "    Requires 1.1.1\n    and 1.0.1.\n",
+    ),
+    "invalid dependency anchor token",
+    "line 9, column 9"
+)]
+#[case::wrapped_malformed_checkbox_detail_crlf(
+    concat!(
+        "## 1. Phase\r\n\r\n### 1.1. Step\r\n\r\n- [ ] 1.1.1. Task.\r\n",
+        "  - [ ] Detail.\r\n\r\n",
+        "      Requires 1.1.1\r\n      and 1.0.1.\r\n",
+    ),
+    "invalid dependency anchor token",
+    "line 9, column 11"
+)]
 #[case::malformed_numbered_checkbox(
     "## 1. Phase\n\n### 1.1. Step\n\n- [ ] 1.1.1. Task.\n  - [ ] 1.1.1.0. Malformed detail.\n",
     "malformed numbered checkbox detail prefix",

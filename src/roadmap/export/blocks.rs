@@ -1,5 +1,7 @@
 //! Strict mapping from roadmap Markdown blocks to ordered JSON entries.
 
+use std::sync::Arc;
+
 use markdown::mdast::{List, ListItem, Node};
 
 use super::{
@@ -50,7 +52,11 @@ pub(super) fn task_content(
     task: &TaskEntry,
     known_anchors: &std::collections::HashSet<String>,
 ) -> Result<(Vec<ExportEntry>, Vec<ExportDetail>)> {
-    let mut content = TaskContentBuilder::for_task(task.number(), known_anchors);
+    let source = task.children().iter().find_map(|child| match child {
+        TaskChild::Body(body) => body.source(),
+        TaskChild::SubTask(_) => None,
+    });
+    let mut content = TaskContentBuilder::for_task(task.number(), known_anchors, source);
     for child in task.children() {
         match child {
             TaskChild::Body(nodes) => append_task_blocks(nodes.nodes(), &mut content)?,
@@ -84,29 +90,37 @@ pub(super) struct TaskContentBuilder<'a> {
     pub(super) known_anchors: &'a std::collections::HashSet<String>,
     /// Numbering state shared by structural and mixed-list details.
     pub(super) numbering: NumberedDetails,
+    /// Source document shared by the nodes this builder maps.
+    pub(super) source: Option<Arc<str>>,
 }
 
 impl<'a> TaskContentBuilder<'a> {
-    /// Start a task-level content builder.
+    /// Start a task-level content builder over the task body's document.
     pub(super) const fn for_task(
         task_number: crate::roadmap::TaskNumber,
         known_anchors: &'a std::collections::HashSet<String>,
+        source: Option<Arc<str>>,
     ) -> Self {
         Self {
             entries: Vec::new(),
             details: Vec::new(),
             known_anchors,
             numbering: NumberedDetails::for_task(task_number),
+            source,
         }
     }
 
     /// Start a nested-detail builder that cannot accept numbered sub-tasks.
-    pub(super) const fn nested(known_anchors: &'a std::collections::HashSet<String>) -> Self {
+    pub(super) const fn nested(
+        known_anchors: &'a std::collections::HashSet<String>,
+        source: Option<Arc<str>>,
+    ) -> Self {
         Self {
             entries: Vec::new(),
             details: Vec::new(),
             known_anchors,
             numbering: NumberedDetails::nested(),
+            source,
         }
     }
 }
