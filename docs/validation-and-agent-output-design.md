@@ -479,6 +479,11 @@ context so it does not drift from the CLI. The skill must instruct agents to:
   containment, and JSON state transitions. Rust implementation work should use
   `proptest`; non-Rust ports should use the nearest equivalent such as
   Hypothesis or fast-check.
+- Property tests cover documentation-set sequence-number uniqueness. For
+  generated ADR and RFC filename sets, each number that is equal after leading
+  zeros are removed and occurs in more than one file in one directory yields
+  exactly one finding, with the byte-wise first path primary and the remaining
+  colliding paths related.
 - Any explicit lemma or proof obligation introduced by the implementation must
   have an exhaustive proof, bounded model check, or documented finite-state
   argument before the relevant validator or JSON contract is accepted.

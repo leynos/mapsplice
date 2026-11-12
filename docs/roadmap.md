@@ -475,7 +475,8 @@ evidence rather than prose-only terminal text.
     directory produces the same finding whichever path discovery reaches
     first, reported on the canonical path. ADR 006 and RFC 0006 in sibling
     sets, and validating the primary and companion roadmaps as separate file
-    targets when both contain task `1.1.1`, exit `0`.
+    targets when both contain task `1.1.1`, exit `0`. A property test shows one
+    finding per colliding number with that primary and related ordering.
 
 ### 6.2. Align every command with agent-native output contracts
 
