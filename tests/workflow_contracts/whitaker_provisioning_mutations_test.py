@@ -8,7 +8,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from whitaker_provisioning_test import ACTION, _has_lint_command, _validate, _workflows
+from whitaker_provisioning_test import (
+    ACTION_NAME,
+    ACTION_PIN,
+    _has_lint_command,
+    _validate,
+    _workflows,
+)
 
 
 @dataclass
@@ -26,7 +32,9 @@ def _mutation_context(workflows: dict[str, dict]) -> MutationContext:
     """Locate the Whitaker install and lint steps in the CI build-test job."""
     ci = workflows["ci.yml"]
     steps = ci["jobs"]["build-test"]["steps"]
-    install_index = next(i for i, step in enumerate(steps) if step.get("uses") == ACTION)
+    install_index = next(
+        i for i, step in enumerate(steps) if ACTION_PIN.fullmatch(str(step.get("uses", "")))
+    )
     lint_index = next(i for i, step in enumerate(steps) if _has_lint_command(step))
     return MutationContext(ci, steps, install_index, lint_index, steps[install_index])
 
@@ -35,7 +43,7 @@ MutationApplier = Callable[[MutationContext], object]
 MUTATIONS: dict[str, MutationApplier] = {
     "remove_action": lambda context: context.steps.pop(context.install_index),
     "wrong_pin": lambda context: context.install.__setitem__(
-        "uses", ACTION.replace("5a99aed7", "00000000")
+        "uses", f"{ACTION_NAME}@00000000"
     ),
     "suite_pin": lambda context: context.install.setdefault("with", {}).__setitem__(
         "suite-version", "v1"

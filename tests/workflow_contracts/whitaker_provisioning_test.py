@@ -22,10 +22,9 @@ from build_route_probe import (
 from build_standard_test import ROOT
 
 WORKFLOWS = ROOT / ".github" / "workflows"
-ACTION = (
-    "leynos/shared-actions/.github/actions/install-whitaker"
-    "@5a99aed78ce68dcebd3052b75c31e6f173162b1e"
-)
+ACTION_NAME = "leynos/shared-actions/.github/actions/install-whitaker"
+#: The action at any full commit SHA; the revision advances with the release.
+ACTION_PIN = re.compile(re.escape(ACTION_NAME) + r"@[0-9a-f]{40}")
 MAKE_CALL = re.compile(r"(?<![\w-])make\s+(?:--[\w-]+\s+)*([a-z][\w-]*)")
 DIRECT_GATE = re.compile(r"(?<![\w-])whitaker\s+(?:--all|--lib)\b")
 
@@ -156,7 +155,11 @@ def _is_local_mapsplice_call(job: dict) -> bool:
 
 def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
     """Return the index of the one unconditional, unconfigured installer step."""
-    installers = [index for index, step in enumerate(steps) if step.get("uses") == ACTION]
+    installers = [
+        index
+        for index, step in enumerate(steps)
+        if ACTION_PIN.fullmatch(str(step.get("uses", "")))
+    ]
     assert len(installers) == 1, f"{filename}/{name}: require one pinned action"
     index = installers[0]
     install = steps[index]
@@ -208,7 +211,9 @@ def _validate_no_ad_hoc_installation(filename: str, name: str, job: dict) -> Non
         ), f"{filename}/{name}: ad hoc Whitaker installation remains"
         uses = str(step.get("uses", ""))
         if "install-whitaker@" in uses:
-            assert uses == ACTION, f"{filename}/{name}: wrong Whitaker action pin"
+            assert ACTION_PIN.fullmatch(uses), (
+                f"{filename}/{name}: wrong Whitaker action pin"
+            )
     assert "WHITAKER_INSTALLER_VERSION" not in str(job), (
         f"{filename}/{name}: obsolete installer override remains"
     )
