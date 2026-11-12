@@ -316,20 +316,19 @@ link pass does. It follows a symbolic link only when the link target resolves
 inside that root. When no git root contains the target, the target directory
 itself is the boundary.
 
-Each directory is identified by its canonical path, and the walk processes a
-canonical directory once even when several paths reach it. Set kind is decided
-from the canonical directory, not from the path that reached it: an RFC set
+Each directory is identified by its canonical path, and the walk traverses and
+reports canonical directories only. It processes a canonical directory once
+even when several paths reach it, so reaching an alias first cannot hide or
+duplicate a set. Set kind is decided from the canonical directory: an RFC set
 requires the canonical directory name `rfcs`, and an ADR set matches member
-filenames regardless of the alias. A symbolic link named `alias` that resolves
-to `rfcs` is therefore an RFC set, and reaching the alias first cannot hide the
-set or its collisions.
+filenames regardless of any alias. A symbolic link to an ancestor resolves to a
+canonical directory that is already known, so the walk skips it instead of
+looping.
 
-Each canonical directory has one representative path, so diagnostics do not
-depend on traversal order. The representative is the encountered path that
-resolves to itself when the walk saw it, otherwise the byte-wise smallest
-encountered path. Member paths and findings use the representative, never an
-alias. A symbolic link to an ancestor resolves to a canonical directory that is
-already known, so the walk skips it instead of looping.
+Findings and member paths use canonical paths, never the alias that reached a
+directory. When a git root contains the target, paths are relative to that
+root; otherwise they are relative to the parent of the target directory. Both
+forms use `/` separators and do not depend on traversal order.
 
 Enumerate directories through the capability helpers in `src/fs.rs` and collect
 paths with the recursive sorted-walk pattern used by
@@ -460,8 +459,12 @@ context so it does not drift from the CLI. The skill must instruct agents to:
 - Three ADR files claiming one number produce one finding whose primary path is
   the byte-wise first path and whose related locations hold both others.
 - A symbolic link that resolves to an RFC directory produces the same finding
-  whichever path the walk reaches first, and diagnostics use the representative
-  path rather than the alias.
+  whichever path the walk reaches first, and diagnostics use the canonical path
+  rather than the alias.
+- An alias whose target lies outside the target directory but inside the git
+  root reports findings on the canonical path, and an alias to a parent
+  directory containing `rfcs` terminates with the same findings as a direct
+  walk.
 - A symbolic link cycle terminates, and an unreadable directory exits with the
   io class without reporting a partial set as complete.
 - Two matching anchors in one roadmap produce a `duplicate_anchor` finding.

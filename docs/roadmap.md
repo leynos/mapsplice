@@ -473,9 +473,9 @@ evidence rather than prose-only terminal text.
     locations match byte-wise path order, and for two RFC files in one `rfcs`
     directory that claim the same sequence number. A symlink alias to an RFC
     directory produces the same finding whichever path discovery reaches
-    first. ADR 006 and RFC 0006 in sibling sets, and validating the primary
-    and companion roadmaps as separate file targets when both contain task
-    `1.1.1`, exit `0`.
+    first, reported on the canonical path. ADR 006 and RFC 0006 in sibling
+    sets, and validating the primary and companion roadmaps as separate file
+    targets when both contain task `1.1.1`, exit `0`.
 
 ### 6.2. Align every command with agent-native output contracts
 
