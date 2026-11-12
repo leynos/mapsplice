@@ -63,6 +63,11 @@ sequence-number uniqueness check over a documentation set.
 - Check sequence-number contiguity, allocation order, or gaps.
 - Compare an RFC's preamble number with its filename.
 - Enforce task-number uniqueness across different roadmap documents.
+- Detect a collision between records of one series split across directories.
+  Each directory is an independent set, so this needs an explicit
+  multi-directory set declaration, which this design does not define. A
+  manifest-based set proposal must be reconciled with this rule before either
+  is implemented.
 - Renumber documents or update their cross-references automatically.
 - Make JSON mode a stream for edit commands.
 - Replace human miette diagnostics with JSON-only errors.
@@ -308,14 +313,30 @@ producing false positives.
 
 Discovery stays inside the git repository root that contains the target, as the
 link pass does. It follows a symbolic link only when the link target resolves
-inside that root, and records the canonical path of each directory it enters so
-that a directory already visited is skipped. When no git root contains the
-target, the target directory itself is the boundary. Enumerate directories
-through the capability helpers in `src/fs.rs` and collect paths with the
-recursive sorted-walk pattern used by `src/roadmap/render_tests.rs`. Sort
-traversal results before emitting findings, so output does not depend on
-directory enumeration order. An unreadable directory aborts discovery with the
-io exit class rather than reporting a partial set as complete.
+inside that root. When no git root contains the target, the target directory
+itself is the boundary.
+
+Each directory is identified by its canonical path, and the walk processes a
+canonical directory once even when several paths reach it. Set kind is decided
+from the canonical directory, not from the path that reached it: an RFC set
+requires the canonical directory name `rfcs`, and an ADR set matches member
+filenames regardless of the alias. A symbolic link named `alias` that resolves
+to `rfcs` is therefore an RFC set, and reaching the alias first cannot hide the
+set or its collisions.
+
+Each canonical directory has one representative path, so diagnostics do not
+depend on traversal order. The representative is the encountered path that
+resolves to itself when the walk saw it, otherwise the byte-wise smallest
+encountered path. Member paths and findings use the representative, never an
+alias. A symbolic link to an ancestor resolves to a canonical directory that is
+already known, so the walk skips it instead of looping.
+
+Enumerate directories through the capability helpers in `src/fs.rs` and collect
+paths with the recursive sorted-walk pattern used by
+`src/roadmap/render_tests.rs`. Sort traversal results before emitting findings,
+so output does not depend on directory enumeration order. An unreadable
+directory aborts discovery with the io exit class rather than reporting a
+partial set as complete.
 
 A duplicate sequence number is recoverable. Discovery continues through the
 rest of the tree, and findings from other sets and other documents are still
@@ -432,6 +453,17 @@ context so it does not drift from the CLI. The skill must instruct agents to:
   findings when each is validated as a file target.
 - RFC files `0001` and `0003` in `docs/rfcs/` produce no findings, proving that
   gaps are allowed.
+- `adr-6-x.md` and `adr-006-y.md` in one directory produce one finding, proving
+  that leading zeros do not evade uniqueness.
+- ADR 006 and RFC 0006 in sibling sets produce no findings, proving that set
+  kinds are independent.
+- Three ADR files claiming one number produce one finding whose primary path is
+  the byte-wise first path and whose related locations hold both others.
+- A symbolic link that resolves to an RFC directory produces the same finding
+  whichever path the walk reaches first, and diagnostics use the representative
+  path rather than the alias.
+- A symbolic link cycle terminates, and an unreadable directory exits with the
+  io class without reporting a partial set as complete.
 - Two matching anchors in one roadmap produce a `duplicate_anchor` finding.
 - Snapshot tests pin miette human diagnostics with deterministic renderer
   settings.

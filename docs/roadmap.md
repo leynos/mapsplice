@@ -468,10 +468,14 @@ evidence rather than prose-only terminal text.
   - See the uniqueness rule and documentation-set discovery sections of
     docs/validation-and-agent-output-design.md.
   - Success: `mapsplice validate docs` exits `1` with that finding for a
-    fixture containing two `adr-006-*.md` files, and for a fixture containing
-    two RFC files in one `rfcs` directory that claim the same sequence number.
-    Validating the primary and companion roadmaps as separate file targets,
-    when both contain task `1.1.1`, exits `0` for each.
+    fixture containing two `adr-006-*.md` files, for `adr-6-*.md` paired with
+    `adr-006-*.md`, for three colliding files whose primary and related
+    locations match byte-wise path order, and for two RFC files in one `rfcs`
+    directory that claim the same sequence number. A symlink alias to an RFC
+    directory produces the same finding whichever path discovery reaches
+    first. ADR 006 and RFC 0006 in sibling sets, and validating the primary
+    and companion roadmaps as separate file targets when both contain task
+    `1.1.1`, exit `0`.
 
 ### 6.2. Align every command with agent-native output contracts
 
