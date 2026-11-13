@@ -468,7 +468,7 @@ supported Linux hosts, `mold` and `ld.mold` 2.41.0. macOS keeps its platform
 linker because the pinned linker is installed only on Linux. LLVM is the
 development codegen default; Cranelift is currently excluded after an
 unwind-test failure on the pinned toolchain. See
-[ADR 001](adr-001-rust-build-standard.md).
+[ADR 001](adrs/adr-0001-rust-build-standard.md).
 
 Pass additional Rust policy flags to Make through `RUST_FLAGS`. Make assigns
 each recipe's `RUSTFLAGS` from that variable and the selected route flags; it
