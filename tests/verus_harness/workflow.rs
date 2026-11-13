@@ -13,7 +13,7 @@
 
 use crate::{
     prover_harness::{TestResult, read_repo_file},
-    workflow_scan::{Line, has_value, parse, sequence, step_values, values},
+    workflow_scan::{Line, has_value, parse, sequence, step_inputs, values},
 };
 
 const WORKFLOW: &str = include_str!("../../.github/workflows/verus.yml");
@@ -71,9 +71,9 @@ fn workflow_installs_verus_only_through_the_shared_action() -> TestResult {
     )
 }
 
-/// The `tools:` values of the step that uses the shared installer.
+/// The `with.tools` values of the step that uses the shared installer.
 fn installer_tools(lines: &[Line]) -> Vec<&str> {
-    step_values(lines, |used| used.starts_with(INSTALL_ACTION), "tools")
+    step_inputs(lines, |used| used.starts_with(INSTALL_ACTION), "tools")
 }
 
 #[test]
@@ -87,6 +87,20 @@ fn tools_verus_on_another_step_does_not_satisfy_the_installer_check() -> TestRes
     require(
         has_value(&lines, "tools", "verus") && !installer_tools(&lines).contains(&"verus"),
         "a `tools: verus` outside the installer step must not count".to_owned(),
+    )
+}
+
+#[test]
+fn tools_verus_under_env_does_not_satisfy_the_installer_check() -> TestResult {
+    let yaml = format!(
+        "steps:\n  - name: Install\n    uses: {INSTALL_ACTION}{sha}\n    env:\n      tools: \
+         verus\n    with:\n      tools: kani\n",
+        sha = "a".repeat(40),
+    );
+    let lines = parse(&yaml)?;
+    require(
+        has_value(&lines, "tools", "verus") && !installer_tools(&lines).contains(&"verus"),
+        "a `tools: verus` under `env` must not count as the installer's input".to_owned(),
     )
 }
 

@@ -36,6 +36,8 @@
 pub struct Line {
     /// The key text for a mapping entry, or the item text for a sequence entry.
     text: String,
+    /// The number of leading spaces on the source line.
+    indent: usize,
 }
 
 impl Line {
@@ -152,6 +154,7 @@ pub fn parse(yaml: &str) -> Result<Vec<Line>, String> {
         }
         lines.push(Line {
             text: content.to_owned(),
+            indent: indentation.len(),
         });
     }
     Ok(lines)
@@ -185,16 +188,16 @@ pub fn has_value(lines: &[Line], key: &str, value: &str) -> bool {
     values(lines, key).contains(&value)
 }
 
-/// Return the values of `key` within the sequence items that contain a `uses`
-/// value for which `is_target` holds.
+/// Return the values of `key` under the `with:` mapping of every sequence item
+/// that contains a `uses` value for which `is_target` holds.
 ///
-/// A sequence item runs from its `- ` line to the next one. Depth is not
-/// tracked, so this suits a flat list of steps whose own entries hold no
-/// nested block sequences, which is true of the workflow under test. It lets a
-/// test say that `tools: verus` belongs to the installer step rather than to
-/// some other step.
+/// A sequence item runs from its `- ` line to the next one, and the `with:`
+/// mapping is the run of lines indented deeper than the `with:` line itself.
+/// A `key` set elsewhere in the step, such as under `env:`, is therefore not
+/// returned. This lets a test say that `tools: verus` is an input of the
+/// installer step rather than a value that merely appears near it.
 #[must_use]
-pub fn step_values<'a>(
+pub fn step_inputs<'a>(
     lines: &'a [Line],
     is_target: impl Fn(&str) -> bool,
     key: &str,
@@ -210,11 +213,27 @@ pub fn step_values<'a>(
             .map_or(lines.len(), |(index, _)| index);
         let item = lines.get(start..end).unwrap_or_default();
         if values(item, "uses").into_iter().any(&is_target) {
-            found.extend(values(item, key));
+            found.extend(with_values(item, key));
         }
         start = end;
     }
     found
+}
+
+/// Return the values of `key` within the first `with:` mapping of `item`.
+fn with_values<'a>(item: &'a [Line], key: &str) -> Vec<&'a str> {
+    let Some(position) = item.iter().position(|line| line.key() == Some("with")) else {
+        return Vec::new();
+    };
+    let Some(with) = item.get(position) else {
+        return Vec::new();
+    };
+    item.iter()
+        .skip(position + 1)
+        .take_while(|line| line.indent > with.indent)
+        .filter(|line| line.key() == Some(key))
+        .filter_map(Line::value)
+        .collect()
 }
 
 /// Return the elements of the first flow sequence valued under `key`.
