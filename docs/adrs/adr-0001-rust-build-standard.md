@@ -82,7 +82,7 @@ retained. They filter development-owned flags from inherited
 Reconsider Cranelift under
 [issue #115](https://github.com/leynos/mapsplice/issues/115) at its 2027-04-01
 review. The
-[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
+[investigation](../debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
 records the unwind failure.
 
 ## Addendum (2026-11-06)
