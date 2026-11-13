@@ -13,16 +13,13 @@
 
 use crate::{
     prover_harness::{TestResult, read_repo_file},
-    workflow_scan::{Line, has_value, parse, sequence, values},
+    workflow_scan::{Line, has_value, parse, sequence, step_inputs, values},
 };
 
 const WORKFLOW: &str = include_str!("../../.github/workflows/verus.yml");
-const VERSION_FILE: &str = include_str!("../../tools/verus/VERSION");
 
-/// The pinned `actions/checkout` used across this repository's workflows.
-const CHECKOUT: &str = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
-/// The pinned `actions/cache` used across this repository's workflows.
-const CACHE: &str = "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
+/// The shared action that installs the provers, which the workflow must use.
+const INSTALL_ACTION: &str = "leynos/shared-actions/.github/actions/install-prover-tools@";
 
 /// Parse the workflow, mapping a reader failure into the test result type.
 fn workflow() -> TestResult<Vec<Line>> {
@@ -56,51 +53,62 @@ fn workflow_runs_both_the_proof_and_the_non_vacuity_target() -> TestResult {
 }
 
 #[test]
-fn workflow_verus_version_matches_the_pinned_release() -> TestResult {
-    let lines = workflow()?;
-    let declared = values(&lines, "VERUS_VERSION");
-    require(
-        declared == vec![VERSION_FILE.trim()],
-        format!(
-            "the workflow's VERUS_VERSION must equal tools/verus/VERSION; the cache key derives \
-             from it, so a mismatch restores the wrong verifier. Declared {declared:?}, pinned \
-             {:?}",
-            VERSION_FILE.trim()
-        ),
-    )
-}
-
-#[test]
-fn workflow_caches_the_version_scoped_verus_installation() -> TestResult {
-    let lines = workflow()?;
-    require(
-        has_value(&lines, "path", ".verus/${{ env.VERUS_VERSION }}"),
-        "the cache must target the version-scoped install directory".to_owned(),
-    )?;
-    require(
-        has_value(
-            &lines,
-            "key",
-            "verus-${{ runner.os }}-${{ runner.arch }}-${{ env.VERUS_VERSION }}",
-        ),
-        "the cache key must be platform- and version-scoped".to_owned(),
-    )
-}
-
-#[test]
-fn workflow_uses_pinned_repository_actions() -> TestResult {
+fn workflow_installs_verus_only_through_the_shared_action() -> TestResult {
     let lines = workflow()?;
     let uses = values(&lines, "uses");
     require(
-        uses.contains(&CHECKOUT),
-        format!("checkout must use the revision pinned across this repository; found {uses:?}"),
+        uses.iter()
+            .any(|used| used.starts_with(INSTALL_ACTION) && is_full_sha(used)),
+        format!("Verus must be installed by the shared action, pinned by SHA; found {uses:?}"),
     )?;
     require(
-        uses.contains(&CACHE),
-        format!(
-            "the cache step must use the revision pinned across this repository; found {uses:?}"
-        ),
+        installer_tools(&lines).contains(&"verus"),
+        "the installer step itself must be asked for Verus".to_owned(),
+    )?;
+    require(
+        !uses.iter().any(|used| used.starts_with("actions/cache@")),
+        format!("the action owns the cache; the workflow must keep none; found {uses:?}"),
     )
+}
+
+/// The `with.tools` values of the step that uses the shared installer.
+fn installer_tools(lines: &[Line]) -> Vec<&str> {
+    step_inputs(lines, |used| used.starts_with(INSTALL_ACTION), "tools")
+}
+
+#[test]
+fn tools_verus_on_another_step_does_not_satisfy_the_installer_check() -> TestResult {
+    let yaml = format!(
+        "steps:\n  - name: Install\n    uses: {INSTALL_ACTION}{sha}\n    with:\n      tools: \
+         kani\n  - name: Other\n    uses: actions/x@y\n    with:\n      tools: verus\n",
+        sha = "a".repeat(40),
+    );
+    let lines = parse(&yaml)?;
+    require(
+        has_value(&lines, "tools", "verus") && !installer_tools(&lines).contains(&"verus"),
+        "a `tools: verus` outside the installer step must not count".to_owned(),
+    )
+}
+
+#[test]
+fn tools_verus_under_env_does_not_satisfy_the_installer_check() -> TestResult {
+    let yaml = format!(
+        "steps:\n  - name: Install\n    uses: {INSTALL_ACTION}{sha}\n    env:\n      tools: \
+         verus\n    with:\n      tools: kani\n",
+        sha = "a".repeat(40),
+    );
+    let lines = parse(&yaml)?;
+    require(
+        has_value(&lines, "tools", "verus") && !installer_tools(&lines).contains(&"verus"),
+        "a `tools: verus` under `env` must not count as the installer's input".to_owned(),
+    )
+}
+
+/// True when `used` ends in a 40-digit hexadecimal revision.
+fn is_full_sha(used: &str) -> bool {
+    used.rsplit_once('@').is_some_and(|(_, revision)| {
+        revision.len() == 40 && revision.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
 }
 
 #[test]
