@@ -416,7 +416,8 @@ The pinned inputs are `tools/verus/VERSION` (the release),
 `tools/rust-prover-tools/REF` (the commit of the runner that resolves and
 invokes it). CI installs Verus, and the Z3 solver it uses, through the shared
 `install-prover-tools` action, which reads those pins and caches the verified
-archives. The `verus` and `verus-selftest` targets install nothing; run
+archives. The `verus` and `verus-selftest` targets install no prover
+(`verus run` still ensures the Rust toolchain through `rustup`); run
 `make verus-install` once on a development machine to put Verus and Z3 under
 `.verus/`. `scripts/check-verification-ledger.sh` requires every symbol named
 in the ledger's claim table to exist as a declaration below `src/`, so a

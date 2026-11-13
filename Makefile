@@ -105,8 +105,9 @@ PROVER_TOOLS ?= uvx --from git+https://github.com/leynos/rust-prover-tools@$(she
 #
 # The pinned Verus release uses the solver at `VERUS_Z3_PATH`, which is where
 # `install-prover-tools` in CI and `make verus-install` locally both put it.
-# `verus` and `verus-selftest` install nothing: CI installs through the shared
-# action, and a developer runs `make verus-install` once.
+# `verus` and `verus-selftest` install no prover: CI installs through the shared
+# action, and a developer runs `make verus-install` once. `verus run` still
+# ensures the Rust toolchain Verus builds with, through `rustup`.
 VERUS_Z3_PATH ?= $(CURDIR)/.verus/z3/z3
 VERUS_RUN ?= env -u RUSTUP_TOOLCHAIN VERUS_Z3_PATH="$(VERUS_Z3_PATH)" $(PROVER_TOOLS) verus run --repo-root . --no-install-missing
 
