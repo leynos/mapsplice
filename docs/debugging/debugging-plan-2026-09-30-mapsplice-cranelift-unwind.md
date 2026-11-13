@@ -2,8 +2,10 @@
 
 - **Generated:** 2026-09-30 00:15 Europe/Berlin
 - **Issue ID:** `build_standard_panic` regression probe
-- **Disposition:** Resolved by an approved LLVM development default; Cranelift
-  remains excluded pending review
+- **Disposition:** Superseded on 2026-11-13. The `build_standard_panic` probes
+  this plan investigated were removed because they checked the toolchain, not
+  the product; the Cranelift exception now rests on the genuine unwinding test
+  recorded in the developers' guide. Kept as history.
 - **Falsification sub-agent:** `alchemist`
 **Planning agent boundary**: This document was prepared by the planning agent.
 Falsification must be executed by the named sub-agent, not by the planning
