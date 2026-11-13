@@ -50,10 +50,18 @@ fn assert_ran_without_installing(log: &str, target: &str) -> TestResult {
         !log.lines().any(|line| line.contains(" install")),
         format!("{target} must not install a prover; log was {log:?}"),
     )?;
-    let expected = format!("verus run --repo-root . --proof-file {proof_file}");
+    // The Makefile's own runner configuration is under test, so the log must
+    // show it asks for no install and names the solver it was configured with.
+    let expected =
+        format!("verus run --repo-root . --no-install-missing --proof-file {proof_file}");
     require(
         log.lines().any(|line| line == expected),
         format!("{target} must run the proof through the pinned runner; log was {log:?}"),
+    )?;
+    require(
+        log.lines()
+            .any(|line| line.starts_with("VERUS_Z3_PATH=") && line.ends_with("/.verus/z3/z3")),
+        format!("{target} must point Verus at the installed Z3; log was {log:?}"),
     )
 }
 

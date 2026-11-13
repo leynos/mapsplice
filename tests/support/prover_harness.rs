@@ -122,10 +122,6 @@ impl FakeProverTools {
             .arg(target)
             .current_dir(manifest_dir())
             .env("PROVER_TOOLS", &self.path)
-            .env(
-                "VERUS_RUN",
-                format!("{} verus run --repo-root .", self.path),
-            )
             .env("FAKE_PROVER_TOOLS_LOG", &self.log_path)
             .env("FAKE_PROVER_TOOLS_SMOKE_MODE", self.smoke_mode);
         command
@@ -154,7 +150,8 @@ pub fn fake_prover_tools(smoke_mode: &'static str) -> TestResult<FakeProverTools
     let script = r#"#!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "${FAKE_PROVER_TOOLS_LOG:?}"
-if [[ "$*" == "verus run --repo-root . --proof-file verus/smoke.rs" ]]; then
+printf 'VERUS_Z3_PATH=%s\n' "${VERUS_Z3_PATH:-}" >> "${FAKE_PROVER_TOOLS_LOG:?}"
+if [[ "$*" == "verus run --repo-root . --no-install-missing --proof-file verus/smoke.rs" ]]; then
     case "${FAKE_PROVER_TOOLS_SMOKE_MODE:?}" in
         rejected)
             echo "Verus proofs failed (exit 1)."

@@ -48,6 +48,10 @@ impl Line {
     #[must_use]
     fn entry(&self) -> &str { self.text.strip_prefix("- ").unwrap_or(&self.text) }
 
+    /// Return whether this line opens a block sequence item, such as a step.
+    #[must_use]
+    fn opens_item(&self) -> bool { self.text.starts_with("- ") }
+
     /// Return the value of a `key: value` entry.
     ///
     /// `None` covers both a plain sequence scalar and a key with no inline
@@ -179,6 +183,38 @@ pub fn values<'a>(lines: &'a [Line], key: &str) -> Vec<&'a str> {
 #[must_use]
 pub fn has_value(lines: &[Line], key: &str, value: &str) -> bool {
     values(lines, key).contains(&value)
+}
+
+/// Return the values of `key` within the sequence items that contain a `uses`
+/// value for which `is_target` holds.
+///
+/// A sequence item runs from its `- ` line to the next one. Depth is not
+/// tracked, so this suits a flat list of steps whose own entries hold no
+/// nested block sequences, which is true of the workflow under test. It lets a
+/// test say that `tools: verus` belongs to the installer step rather than to
+/// some other step.
+#[must_use]
+pub fn step_values<'a>(
+    lines: &'a [Line],
+    is_target: impl Fn(&str) -> bool,
+    key: &str,
+) -> Vec<&'a str> {
+    let mut found = Vec::new();
+    let mut start = 0;
+    while start < lines.len() {
+        let end = lines
+            .iter()
+            .enumerate()
+            .skip(start + 1)
+            .find(|(_, line)| line.opens_item())
+            .map_or(lines.len(), |(index, _)| index);
+        let item = lines.get(start..end).unwrap_or_default();
+        if values(item, "uses").into_iter().any(&is_target) {
+            found.extend(values(item, key));
+        }
+        start = end;
+    }
+    found
 }
 
 /// Return the elements of the first flow sequence valued under `key`.
