@@ -102,7 +102,13 @@ PROVER_TOOLS ?= uvx --from git+https://github.com/leynos/rust-prover-tools@$(she
 # override, and this repository pins `nightly-2026-03-26` in
 # `rust-toolchain.toml`. The override is cleared for the proof run only; cargo
 # builds keep the repository toolchain.
-VERUS_RUN ?= env -u RUSTUP_TOOLCHAIN $(PROVER_TOOLS) verus run --repo-root .
+#
+# The pinned Verus release uses the solver at `VERUS_Z3_PATH`, which is where
+# `install-prover-tools` in CI and `make verus-install` locally both put it.
+# `verus` and `verus-selftest` install nothing: CI installs through the shared
+# action, and a developer runs `make verus-install` once.
+VERUS_Z3_PATH ?= $(CURDIR)/.verus/z3/z3
+VERUS_RUN ?= env -u RUSTUP_TOOLCHAIN VERUS_Z3_PATH="$(VERUS_Z3_PATH)" $(PROVER_TOOLS) verus run --repo-root . --no-install-missing
 
 define require_markdown_paths
 $(if $(strip $(MARKDOWN_PATHS)),,$(error set MARKDOWN_PATHS='docs/users-guide.md [more.md...]'))
@@ -243,13 +249,14 @@ check-prover-tools: ## Verify the configured prover-tools runner is available
 		exit 1; \
 	}
 
-verus-install: check-prover-tools ## Install the pinned Verus release
+verus-install: check-prover-tools ## Install the pinned Verus release and Z3 solver for local runs
 	$(PROVER_TOOLS) verus install --repo-root .
+	$(PROVER_TOOLS) z3 install --repo-root . --install-dir .verus/z3 --cache-dir .verus/z3-archive
 
-verus: verus-install ## Verify the production-used Verus proof entry point
+verus: check-prover-tools ## Verify the production-used Verus proof entry point
 	$(VERUS_RUN) --proof-file verus/lib.rs
 
-verus-selftest: verus-install ## Confirm Verus rejects the deliberately false smoke proof
+verus-selftest: check-prover-tools ## Confirm Verus rejects the deliberately false smoke proof
 	@output="$$(mktemp)"; \
 	if $(VERUS_RUN) --proof-file verus/smoke.rs >"$$output" 2>&1; then \
 		cat "$$output"; \

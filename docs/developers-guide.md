@@ -402,14 +402,15 @@ domain-purity gate described below shares that same prerequisite target.
 The pinned inputs are `tools/verus/VERSION` (the release),
 `tools/verus/SHA256SUMS` (its archive digests), and
 `tools/rust-prover-tools/REF` (the commit of the runner that resolves and
-invokes it). `tests/verus_harness.rs` asserts the workflow's `VERUS_VERSION`
-matches `tools/verus/VERSION`, because the CI cache key derives from it and a
-mismatch would silently restore the wrong verifier.
-`scripts/check-verification-ledger.sh` requires every symbol named in the
-ledger's claim table to exist as a declaration below `src/`, so a renamed
-kernel cannot leave a claim behind as prose. A row whose executable-function
-cell reads `Pending` is exempt, because it declares work that has not landed
-rather than asserting a result.
+invokes it). CI installs Verus, and the Z3 solver it uses, through the shared
+`install-prover-tools` action, which reads those pins and caches the verified
+archives. The `verus` and `verus-selftest` targets install nothing; run
+`make verus-install` once on a development machine to put Verus and Z3 under
+`.verus/`. `scripts/check-verification-ledger.sh` requires every symbol named
+in the ledger's claim table to exist as a declaration below `src/`, so a
+renamed kernel cannot leave a claim behind as prose. A row whose
+executable-function cell reads `Pending` is exempt, because it declares work
+that has not landed rather than asserting a result.
 
 Proofs complement the property and end-to-end tests rather than replacing them.
 The kernel's trusted boundary and the obligations that were deliberately left

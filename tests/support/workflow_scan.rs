@@ -2,8 +2,8 @@
 //!
 //! The Verus workflow contract tests need to assert on a handful of values in
 //! `.github/workflows/verus.yml`: the job's `run:` commands, the `on:` event
-//! types, and the cache step's `path:` and `key:`. Those assertions must live
-//! inside `make test`, which rules out `actionlint` and `yamllint` — both are
+//! types, and the install step's `uses:` and `tools:`. Those assertions must
+//! live inside `make test`, which rules out `actionlint` and `yamllint` — both are
 //! separate binaries the Rust test step cannot assume.
 //!
 //! Adding a YAML parser to `[dev-dependencies]` would work, and would be the

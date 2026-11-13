@@ -24,6 +24,11 @@ so a run in which the verifier never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
 claim names a function that no longer exists in `src/`.
 
+The proofs run under Verus `0.2026.09.06.8dea4a2`, the release pinned in
+`tools/verus/VERSION`, and `make verus` reports four verified items with no
+errors. The same four verified under the previous release,
+`0.2025.04.19.1b16620`, so the bump changed no result.
+
 Deleted-target rejection is a further obligation that has no row here, because
 it has no theorem that can fail; the policy at the end of this document records
 why and where it is covered instead.

@@ -1,10 +1,13 @@
 //! Contract tests for the Makefile's Verus targets.
 //!
-//! `make verus` must install the pinned verifier before running, and
-//! `make verus-selftest` must fail loudly in the two ways that matter: when
-//! the smoke proof is accepted, and when the runner fails for a reason that is
-//! not the verifier's own rejection. A selftest that passes because the tool
-//! was missing is worse than no selftest, because it reads as evidence.
+//! `make verus` and `make verus-selftest` run on an installed verifier and
+//! must not install one: continuous integration installs through the shared
+//! action, and a second install would be a second, unaudited source.
+//! `make verus-selftest` must also fail loudly in the two ways that matter:
+//! when the smoke proof is accepted, and when the runner fails for a reason
+//! that is not the verifier's own rejection. A selftest that passes because
+//! the tool was missing is worse than no selftest, because it reads as
+//! evidence.
 //!
 //! Failures are reported as `Err` rather than by panicking, because
 //! `clippy::panic_in_result_fn` is denied across the workspace.
@@ -32,21 +35,20 @@ fn run_make(target: &str, smoke_mode: &'static str) -> TestResult<std::process::
         .output()
         .map_err(|error| format!("run make {target}: {error}"))?;
     let log = runner.log()?;
-    assert_installed_and_ran(&log, target)?;
+    assert_ran_without_installing(&log, target)?;
     Ok(output)
 }
 
-/// Assert the runner was asked to install, then to run the target's proof file.
-fn assert_installed_and_ran(log: &str, target: &str) -> TestResult {
+/// Assert the runner was asked to run the target's proof file, and never to install.
+fn assert_ran_without_installing(log: &str, target: &str) -> TestResult {
     let proof_file = match target {
         "verus" => "verus/lib.rs",
         "verus-selftest" => "verus/smoke.rs",
         other => return Err(format!("unexpected target {other}").into()),
     };
     require(
-        log.lines()
-            .any(|line| line == "verus install --repo-root ."),
-        format!("{target} must install the pinned verifier first; log was {log:?}"),
+        !log.lines().any(|line| line.contains(" install")),
+        format!("{target} must not install a prover; log was {log:?}"),
     )?;
     let expected = format!("verus run --repo-root . --proof-file {proof_file}");
     require(
@@ -56,7 +58,7 @@ fn assert_installed_and_ran(log: &str, target: &str) -> TestResult {
 }
 
 #[test]
-fn make_verus_installs_and_runs_the_library_proof() -> TestResult {
+fn make_verus_runs_the_library_proof_without_installing() -> TestResult {
     let output = run_make("verus", "rejected")?;
     require(
         output.status.success(),
@@ -94,19 +96,6 @@ fn make_verus_selftest_accepts_only_a_rejected_smoke_proof(
         )?;
     }
     Ok(())
-}
-
-#[test]
-fn make_verus_targets_require_the_pinned_runner() -> TestResult {
-    // The prover-tools binary is resolved from a commit-pinned REF file, so CI
-    // and a developer's shell install the same verifier. A floating reference
-    // would make the proofs reproducible only by luck.
-    let makefile = read_repo_file("Makefile")?;
-    require(
-        makefile.contains("git+https://github.com/leynos/rust-prover-tools@")
-            && makefile.contains("$(shell cat tools/rust-prover-tools/REF)"),
-        "the prover-tools runner must be pinned to the REF file".to_owned(),
-    )
 }
 
 #[test]
