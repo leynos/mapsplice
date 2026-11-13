@@ -367,9 +367,10 @@ it. The compiler-only probes (`tests/build_standard_panic.rs`) were removed on
 `CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift` and
 `CARGO_PROFILE_TEST_CODEGEN_BACKEND=cranelift`, running
 `cargo nextest run --workspace --all-targets --all-features --no-fail-fast`:
-707 of 709 tests passed and the doctests passed. The explicit LLVM route passed
-all 709. Of the two failures, one used `catch_unwind` only as an assertion
-helper and is now a `#[should_panic]` test. The remaining one is
+707 of 709 tests passed. The doctests, run separately with
+`cargo test --doc --workspace --all-features`, passed. The explicit LLVM route
+passed all 709. Of the two failures, one used `catch_unwind` only as an
+assertion helper and is now a `#[should_panic]` test. The remaining one is
 `support::cwd_restore_tests::process_state_recovers_after_panic_and_restores_state`
 in `tests/support/config.rs`: it checks that `ProcessState` restores the
 environment and working directory while a panic unwinds, so it genuinely needs
