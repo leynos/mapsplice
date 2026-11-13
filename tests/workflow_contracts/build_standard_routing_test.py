@@ -23,31 +23,30 @@ from build_standard_test import DEV_FLAGS, ROOT, make_plan
 RESOLVER = ROOT / "scripts" / "resolve-cargo-build-target.py"
 
 
-def assert_no_cranelift_cargo_default(
+def assert_cranelift_cargo_default(
     config: dict[str, object],
     toolchain: dict[str, object],
 ) -> None:
-    """Reject Cranelift selection in development profiles or toolchain components."""
+    """Require the dev profile to select Cranelift and the toolchain to ship it."""
     profiles = config.get("profile", {})
     assert isinstance(profiles, dict)
-    for name in ("dev", "test"):
-        profile = profiles.get(name, {})
-        assert isinstance(profile, dict)
-        assert profile.get("codegen-backend") != "cranelift"
+    dev = profiles.get("dev", {})
+    assert isinstance(dev, dict)
+    assert dev.get("codegen-backend") == "cranelift"
 
     toolchain_config = toolchain.get("toolchain", {})
     assert isinstance(toolchain_config, dict)
     components = toolchain_config.get("components", [])
     assert isinstance(components, list)
-    assert "rustc-codegen-cranelift-preview" not in components
+    assert "rustc-codegen-cranelift-preview" in components
 
 
-def test_cargo_defaults_keep_the_frontend_without_cranelift() -> None:
-    """Target flags retain the frontend while Cargo leaves development on LLVM."""
+def test_cargo_defaults_keep_the_frontend_with_cranelift() -> None:
+    """Target flags retain the frontend while the dev profile selects Cranelift."""
     config = tomllib.loads((ROOT / ".cargo" / "config.toml").read_text())
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())
     assert config["build"]["rustflags"] == ["-Zthreads=8"]
-    assert_no_cranelift_cargo_default(config, toolchain)
+    assert_cranelift_cargo_default(config, toolchain)
     linux_target = config["target"]['cfg(target_os = "linux")']
     flags = " ".join(linux_target["rustflags"])
     assert "codegen-backend=cranelift" not in flags
@@ -60,22 +59,17 @@ def test_cargo_defaults_keep_the_frontend_without_cranelift() -> None:
         assert target["linker"] == expected_linker
 
 
-@pytest.mark.parametrize(
-    "mutation", ["dev_profile", "test_profile", "toolchain_component"]
-)
+@pytest.mark.parametrize("mutation", ["dev_profile", "toolchain_component"])
 def test_cranelift_cargo_default_mutations_are_detected(mutation: str) -> None:
-    """A Cranelift development profile or component must fail the contract."""
+    """Dropping the dev profile selection or the component must fail the contract."""
     config = tomllib.loads((ROOT / ".cargo" / "config.toml").read_text())
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())
-    if mutation in {"dev_profile", "test_profile"}:
-        profile_name = "dev" if mutation == "dev_profile" else "test"
-        config.setdefault("profile", {}).setdefault(profile_name, {})[
-            "codegen-backend"
-        ] = "cranelift"
+    if mutation == "dev_profile":
+        config["profile"]["dev"]["codegen-backend"] = "llvm"
     else:
-        toolchain["toolchain"]["components"].append("rustc-codegen-cranelift-preview")
+        toolchain["toolchain"]["components"].remove("rustc-codegen-cranelift-preview")
     with pytest.raises(AssertionError):
-        assert_no_cranelift_cargo_default(config, toolchain)
+        assert_cranelift_cargo_default(config, toolchain)
 
 
 @pytest.mark.parametrize("goal", ["test", "lint", "typecheck"])

@@ -167,7 +167,7 @@ def _installer_index(filename: str, name: str, steps: list[dict]) -> int:
     assert install.get("continue-on-error") is not True, (
         f"{filename}/{name}: installer may fail softly"
     )
-    assert install.get("with", {}) == {}, (
+    assert install.get("with", {}) == {"cranelift": True}, (
         f"{filename}/{name}: unsupported Whitaker inputs"
     )
     return index

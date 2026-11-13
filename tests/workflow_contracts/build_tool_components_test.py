@@ -1,4 +1,4 @@
-"""Contracts for local Rust toolchain provisioning without Cranelift."""
+"""Contracts for local Rust toolchain provisioning, Cranelift included."""
 
 from __future__ import annotations
 
@@ -10,7 +10,13 @@ import pytest
 
 from build_standard_test import ROOT
 
-REQUIRED_RUST_COMPONENTS = ("rustfmt", "clippy", "rust-analyzer", "llvm-tools")
+REQUIRED_RUST_COMPONENTS = (
+    "rustfmt",
+    "clippy",
+    "rust-analyzer",
+    "llvm-tools",
+    "rustc-codegen-cranelift",
+)
 
 
 def mocked_build_tool_environment(
@@ -42,7 +48,7 @@ def mocked_build_tool_environment(
 @pytest.mark.parametrize(
     ("installed", "missing"),
     [
-        pytest.param(REQUIRED_RUST_COMPONENTS, None, id="complete-without-cranelift"),
+        pytest.param(REQUIRED_RUST_COMPONENTS, None, id="complete"),
         *[
             pytest.param(
                 tuple(component for component in REQUIRED_RUST_COMPONENTS if component != missing),
@@ -56,7 +62,7 @@ def mocked_build_tool_environment(
 def test_build_tool_preflight_requires_each_component(
     tmp_path: Path, installed: tuple[str, ...], missing: str | None,
 ) -> None:
-    """The required toolchain passes without Cranelift; each missing tool fails."""
+    """The required toolchain passes; each missing tool fails."""
     result = subprocess.run(
         ["/bin/bash", "scripts/check-build-tools.sh"],
         cwd=ROOT,
@@ -90,5 +96,10 @@ def test_build_tool_installer_requests_required_components_without_cranelift(
         for index, argument in enumerate(arguments[:-1])
         if argument == "--component"
     ]
-    assert components == ["rustfmt", "clippy", "rust-analyzer", "llvm-tools"]
-    assert "rustc-codegen-cranelift-preview" not in components
+    assert components == [
+        "rustfmt",
+        "clippy",
+        "rust-analyzer",
+        "llvm-tools",
+        "rustc-codegen-cranelift-preview",
+    ]
