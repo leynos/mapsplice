@@ -118,8 +118,9 @@ project:
   development flags because their `RUSTFLAGS` assignments otherwise replace
   Cargo's defaults. Coverage, release, and Whitaker use explicit
   non-development routes. Cranelift remains excluded from development defaults
-  because the pinned backend fails panic-unwinding probes; track its review in
-  [issue #115](https://github.com/leynos/mapsplice/issues/115) for 2027-04-01.
+  because one test needs a panic to unwind, which the Cranelift component does
+  not do; track it in
+  [issue #115](https://github.com/leynos/mapsplice/issues/115).
   - `make check-fmt` executes:
 
     ```sh

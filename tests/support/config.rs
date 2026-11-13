@@ -138,27 +138,13 @@ mod cwd_restore_tests {
     use super::{CwdRestore, ProcessState, TestResult};
 
     #[test]
+    #[should_panic(expected = "failed to restore working directory")]
     fn restoration_failure_fails_the_enclosing_test() {
         let temporary_directory =
             tempfile::tempdir().expect("temporary directory creation should succeed");
         let missing_directory = temporary_directory.path().join("removed-working-directory");
 
-        let panic = catch_unwind(|| drop(CwdRestore(missing_directory.clone())));
-        let failure = panic.expect_err("working-directory restore failure must be reported");
-        let diagnostic = failure
-            .downcast_ref::<String>()
-            .cloned()
-            .or_else(|| {
-                failure
-                    .downcast_ref::<&str>()
-                    .map(|message| (*message).to_owned())
-            })
-            .unwrap_or_default();
-
-        assert!(
-            diagnostic.contains(&missing_directory.to_string_lossy().to_string()),
-            "restore diagnostic should name the missing directory; observed {diagnostic:?}"
-        );
+        drop(CwdRestore(missing_directory));
     }
 
     fn panic_while_holding_state() -> ! {

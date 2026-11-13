@@ -67,8 +67,8 @@ Local builds use the pinned nightly toolchain in
 [`.cargo/config.toml`](.cargo/config.toml). Development builds use LLVM with
 the configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold`
 on supported Linux targets. Cranelift is excluded from the development default
-because the pinned backend fails panic-unwinding probes; see
-[issue #115](https://github.com/leynos/mapsplice/issues/115).
+because one test needs a panic to unwind, which the Cranelift component does
+not do; see [issue #115](https://github.com/leynos/mapsplice/issues/115).
 
 Provision the core local tooling with:
 
