@@ -117,10 +117,9 @@ project:
   `make check-build-tools` before compiling. Make's Rust gates repeat the
   development flags because their `RUSTFLAGS` assignments otherwise replace
   Cargo's defaults. Coverage, release, and Whitaker use explicit
-  non-development routes. Cranelift remains excluded from development defaults
-  because one test needs a panic to unwind, which the Cranelift component does
-  not do; track it in
-  [issue #115](https://github.com/leynos/mapsplice/issues/115).
+  non-development routes. Cranelift is the development default and the others
+  select LLVM. The Cranelift component does not unwind, so a test must not rely
+  on a caught panic; assert on a returned error or use `#[should_panic]`.
   - `make check-fmt` executes:
 
     ```sh

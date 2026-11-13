@@ -1,11 +1,14 @@
 [build]
 rustflags = ["-Zthreads=8"]
 
-# Explicit LLVM profile overrides protect coverage and Whitaker from inherited
-# backend settings; enabling this Cargo feature does not select Cranelift.
+# Cranelift is the development default. Only the dev profile selects it, so
+# release builds keep LLVM; coverage and Whitaker override it explicitly.
 [unstable]
 embed-metadata = false
 codegen-backend = true
+
+[profile.dev]
+codegen-backend = "cranelift"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "scripts/clang-linker.sh"

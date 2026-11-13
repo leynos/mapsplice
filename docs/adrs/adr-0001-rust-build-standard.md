@@ -85,6 +85,14 @@ review. The
 [investigation](../debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)
 records the unwind failure.
 
+## Addendum (2026-11-13)
+
+Cranelift is the development default again. The `catch_unwind` probes were
+removed as compiler-only checks, the one remaining test that needed unwinding
+was deleted, and the suite passes under Cranelift. See "Cranelift" in the
+developers' guide. This supersedes the Cranelift exclusion in the earlier
+addenda.
+
 ## Addendum (2026-11-06)
 
 The build policy changed with the move to the rolling nightly named by
