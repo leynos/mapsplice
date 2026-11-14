@@ -152,10 +152,10 @@ fn export_request_rejects_an_unsupported_committed_format_version() {
     let export = Utf8PathBuf::from("roadmap.json");
     // A future version may also change the shape, so this document fails the
     // strict decode and must still name the version rather than a missing field.
-    let read = committed_read(
-        target,
-        "{\"format_version\": 2, \"phases\": [{\"number\": \"1\"}]}\n",
-    );
+    let future_version = crate::roadmap::export::FORMAT_VERSION + 1;
+    let committed_json =
+        format!("{{\"format_version\": {future_version}, \"phases\": [{{\"number\": \"1\"}}]}}\n");
+    let read = committed_read(target, &committed_json);
 
     let error = export_request(target, ExportFormat::Json, Some(&export), &read)
         .expect_err("an unsupported format version should fail");
@@ -164,7 +164,7 @@ fn export_request_rejects_an_unsupported_committed_format_version() {
         panic!("an unsupported version should be an invalid committed export: {error}");
     };
     assert!(
-        message.contains("format_version 2"),
+        message.contains(&format!("format_version {future_version}")),
         "the diagnostic should name the unsupported version: {message}"
     );
 }
@@ -173,7 +173,11 @@ fn export_request_rejects_an_unsupported_committed_format_version() {
 fn export_request_reports_a_format_version_change_as_drift() {
     let target = Utf8Path::new("target.md");
     let export = Utf8PathBuf::from("roadmap.json");
-    let bumped = export_for(ROADMAP).replace("\"format_version\": 1", "\"format_version\": 2");
+    let current = crate::roadmap::export::FORMAT_VERSION;
+    let bumped = export_for(ROADMAP).replace(
+        &format!("\"format_version\": {current}"),
+        &format!("\"format_version\": {}", current + 1),
+    );
     let read = committed_read(target, &bumped);
 
     let error = export_request(target, ExportFormat::Json, Some(&export), &read)

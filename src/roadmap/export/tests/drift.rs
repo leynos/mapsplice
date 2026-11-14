@@ -137,11 +137,17 @@ fn identical_documents_have_no_differences() {
 fn a_format_version_change_is_reported_first() {
     let committed = document(vec![phase("1")]);
     let mut fresh = committed.clone();
-    fresh.format_version = 2;
+    fresh.format_version = FORMAT_VERSION + 1;
 
     let reported = differences(&committed, &fresh);
 
-    assert_eq!(reported, vec!["~ format_version: 1 -> 2".to_owned()]);
+    assert_eq!(
+        reported,
+        vec![format!(
+            "~ format_version: {FORMAT_VERSION} -> {}",
+            FORMAT_VERSION + 1
+        )]
+    );
 }
 
 #[test]

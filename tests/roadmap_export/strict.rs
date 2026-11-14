@@ -11,7 +11,7 @@ fn invalid_committed_export_preserves_json_location(
     test_workspace.write_target(BASIC_ROADMAP)?;
     let export_path = write_committed_export(
         &test_workspace,
-        "{\n  \"format_version\": 1,\n  \"unknown\": true\n}\n",
+        "{\n  \"format_version\": 2,\n  \"unknown\": true\n}\n",
     )?;
 
     let error = run_from_args([

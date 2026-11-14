@@ -182,7 +182,7 @@ fn export_of_repository_roadmap_is_deterministic_and_well_formed(
         .map_err(|error| format!("the export should be valid JSON: {error}"))?;
     require_equal(
         &document.get("format_version"),
-        &Some(&serde_json::json!(1)),
+        &Some(&serde_json::json!(2)),
         "format version",
     )?;
 

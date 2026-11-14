@@ -7,11 +7,16 @@ checks that a committed view is current.
 
 ## Versioning
 
-The root `format_version` is `1`. Consumers should check this value before
+The root `format_version` is `2`. Consumers should check this value before
 reading other fields. Any change to the JSON shape or to the meaning of an
 existing field requires incrementing `FORMAT_VERSION` and updating this
 document. The exporter emits pretty JSON with two-space indentation, fixed
 field order, and one final newline.
+
+Version 2 emits plain text literally, so the backslash escapes that exist only
+to keep a rewritten roadmap reparsable no longer appear in exported values.
+Version 1 escaped them, so a value such as `Cost (estimate)` arrived as
+`Cost \(estimate\)`. No field was added, removed or renamed.
 
 ## Root and item fields
 
@@ -110,7 +115,7 @@ details, but contributes no JSON value.
 
 ```json
 {
-  "format_version": 1,
+  "format_version": 2,
   "phases": [
     {
       "number": "1",
