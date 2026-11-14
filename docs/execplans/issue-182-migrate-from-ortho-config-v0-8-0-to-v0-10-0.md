@@ -169,6 +169,10 @@ controlled environments; they must stay that way.
   guide as three focused commits, push over SSH as `leynos`, refresh the
   tracking ref, and open draft pull request
   <https://github.com/leynos/mapsplice/pull/230>.
+- [x] (2026-11-14) Rebase onto `origin/main` at `1a9644d`, which disables the
+  Cranelift development selection and makes LLVM the estate standard. The
+  rebase reported no conflicts, all four branch commits replayed unchanged under
+  `range-diff`, and the Rust and documentation gates re-ran green.
 - [ ] Complete a CodeRabbit `review --agent` pass and clear its concerns. The
   first attempt hit the service rate limit; the prescribed randomized wait is
   in progress before a retry.
@@ -241,6 +245,12 @@ controlled environments; they must stay that way.
   **Rationale:** `--in-place` and `--after` are `Option<bool>` with
   `ArgAction::SetTrue`; adopting `--flag=false` would be a new CLI capability,
   not a migration requirement, and the test records the actual contract.
+- **Decision:** Treat `origin/main`'s LLVM build-standard change as not
+  pertinent to this migration and make no branch documentation changes for it.
+  **Rationale:** the change concerns `.cargo/config.toml`, `AGENTS.md`, and the
+  build-backend sections of the developer guide. This branch touches the
+  configuration-source seam and its documentation; it makes no Cranelift or
+  LLVM claim. The rebase itself is recorded because it moved the branch base.
 
 ## Conformance basis
 
@@ -555,3 +565,8 @@ Revised on 2026-11-14 after implementation and validation: Progress items,
 Surprises, Decision log, expected focused count, and Outcomes were updated to
 match the delivered tree and gate evidence. The delivery item remains open
 until the draft pull request exists.
+
+Revised again on 2026-11-14 after rebasing onto `origin/main` at `1a9644d`. The
+rebase was conflict-free, every branch commit replayed unchanged, and the
+Progress and Decision log now record the new base and the assessment that the
+LLVM build-standard change is not pertinent to this migration.
