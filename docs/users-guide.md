@@ -466,8 +466,10 @@ Linux targets they use the repository's target-aware Clang wrappers with
 `make install-build-tools` to install the pinned Rust components and, on
 supported Linux hosts, `mold` and `ld.mold` 2.41.0. macOS keeps its platform
 linker because the pinned linker is installed only on Linux. LLVM is the
-codegen backend for every route. See
-[ADR 001](adrs/adr-0001-rust-build-standard.md).
+default codegen backend. The release and Whitaker routes pin LLVM explicitly.
+Development routes inherit `CARGO_PROFILE_DEV_CODEGEN_BACKEND` and
+`CARGO_PROFILE_TEST_CODEGEN_BACKEND` from the environment, so unset them to
+keep LLVM. See [ADR 001](adrs/adr-0001-rust-build-standard.md).
 
 Pass additional Rust policy flags to Make through `RUST_FLAGS`. Make assigns
 each recipe's `RUSTFLAGS` from that variable and the selected route flags; it

@@ -3,7 +3,7 @@ rustflags = ["-Zthreads=8"]
 
 # Development builds use LLVM, the estate standard. The Cranelift selection is
 # disabled (14 November 2026; review due 14 May 2027) and the unstable key stays
-# so an opt-in `--config profile.dev.codegen-backend="cranelift"` still works.
+# so an opt-in `--config 'profile.dev.codegen-backend="cranelift"'` still works.
 [unstable]
 embed-metadata = false
 codegen-backend = true
