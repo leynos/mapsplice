@@ -465,9 +465,9 @@ Linux targets they use the repository's target-aware Clang wrappers with
 `mold`. Install `clang` with your system package manager if needed, then run
 `make install-build-tools` to install the pinned Rust components and, on
 supported Linux hosts, `mold` and `ld.mold` 2.41.0. macOS keeps its platform
-linker because the pinned linker is installed only on Linux. LLVM is the
-development codegen default; Cranelift is currently excluded because one test
-needs a panic to unwind. See [ADR 001](adrs/adr-0001-rust-build-standard.md).
+linker because the pinned linker is installed only on Linux. Cranelift is the
+development codegen default; release, coverage and Whitaker use LLVM. See
+[ADR 001](adrs/adr-0001-rust-build-standard.md).
 
 Pass additional Rust policy flags to Make through `RUST_FLAGS`. Make assigns
 each recipe's `RUSTFLAGS` from that variable and the selected route flags; it

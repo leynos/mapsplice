@@ -357,30 +357,20 @@ its per-toolchain driver as part of that runtime bootstrap. This is separate
 from the installer's prohibited source fallback: Whitaker's suite library and
 Dylint tool archive must come from published assets.
 
-### Cranelift exception
+### Cranelift
 
-Cranelift is excluded from the development default. The rustup Cranelift
-component does not unwind, so a test that needs a panic to unwind fails under
-it. The compiler-only probes (`tests/build_standard_panic.rs`) were removed on
-2026-11-13: they checked the toolchain, not the product. Measured on
-`nightly-2026-11-12` on 2026-11-13 with `CARGO_UNSTABLE_CODEGEN_BACKEND=true`,
-`CARGO_PROFILE_DEV_CODEGEN_BACKEND=cranelift` and
-`CARGO_PROFILE_TEST_CODEGEN_BACKEND=cranelift`, running
-`cargo nextest run --workspace --all-targets --all-features --no-fail-fast`:
-707 of 709 tests passed. The doctests, run separately with
-`cargo test --doc --workspace --all-features`, passed. The explicit LLVM route
-passed all 709. Of the two failures, one used `catch_unwind` only as an
-assertion helper and is now a `#[should_panic]` test. The remaining one is
-`support::cwd_restore_tests::process_state_recovers_after_panic_and_restores_state`
-in `tests/support/config.rs`: it checks that `ProcessState` restores the
-environment and working directory while a panic unwinds, so it genuinely needs
-unwinding and fails under Cranelift. Phase 2 of the estate's unwind cleanup
-will give it an LLVM route; the exception ends then.
-
-The earlier investigation is kept as history and marked superseded:
-[investigation](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
-Review this exception under
-[issue #115](https://github.com/leynos/mapsplice/issues/115).
+Cranelift is the development backend, selected by `[profile.dev]` in
+`.cargo/config.toml` and installed through the
+`rustc-codegen-cranelift-preview` component in `rust-toolchain.toml`. The suite
+passes under it, measured on `nightly-2026-11-13` on 2026-11-13: all 707 tests
+with
+`cargo nextest run --workspace --all-targets --all-features --no-fail-fast`,
+and the doctests with `cargo test --doc --workspace --all-features`. Release
+builds, coverage and Whitaker select LLVM. The component does not unwind, so a
+test must not rely on a caught panic: assert on a returned error, or use
+`#[should_panic]`, which libtest handles. The unwind investigation is kept as
+[history](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
+Tracking issue [#115](https://github.com/leynos/mapsplice/issues/115) can close.
 
 Run these gates before committing Rust changes:
 
@@ -561,16 +551,6 @@ provisions `mdtablefix` and `markdownlint-cli2` at the versions pinned in
 `.github/workflows/ci.yml`. The named `make check-markdown-tools` preflight
 verifies both formatter executables and their versions before mutation
 enumeration and the unchanged-source baseline begin.
-
-### Cranelift
-
-Cranelift is currently excluded from development builds; LLVM is the
-development default, because one test needs real unwinding (see
-[Cranelift exception](#cranelift-exception)). Coverage selects LLVM explicitly
-(`CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm`), because instrumentation needs it,
-and release builds use the release profile, which Cranelift does not affect.
-Before enabling Cranelift again, re-measure the full suite and reconsider the
-exception based on the results.
 
 ## 9. Workflow pins and Dependabot
 

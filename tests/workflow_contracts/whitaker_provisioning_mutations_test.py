@@ -52,7 +52,7 @@ MUTATIONS: dict[str, MutationApplier] = {
         "installer-version", "0.2.8"
     ),
     "cranelift_input": lambda context: context.install.setdefault("with", {}).__setitem__(
-        "cranelift", "true"
+        "cranelift", False
     ),
     "after_suite": lambda context: context.steps.insert(
         context.lint_index + 1, context.steps.pop(context.install_index)

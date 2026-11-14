@@ -5,7 +5,8 @@ set -euo pipefail
 toolchain=$(awk -F '"' '/^[[:space:]]*channel[[:space:]]*=/ { print $2; exit }' rust-toolchain.toml)
 [[ -n $toolchain ]] || { echo 'rust-toolchain.toml has no channel' >&2; exit 1; }
 rustup toolchain install "$toolchain" --component rustfmt --component clippy \
-  --component rust-analyzer --component llvm-tools
+  --component rust-analyzer --component llvm-tools \
+  --component rustc-codegen-cranelift-preview
 
 if [[ $(uname -s) != Linux ]]; then
   exit 0

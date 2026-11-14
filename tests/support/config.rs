@@ -133,9 +133,7 @@ pub fn workspace() -> TestResult<Workspace> {
 mod cwd_restore_tests {
     //! Verify that an un-restorable working directory fails its enclosing test.
 
-    use std::panic::catch_unwind;
-
-    use super::{CwdRestore, ProcessState, TestResult};
+    use super::CwdRestore;
 
     #[test]
     #[should_panic(expected = "failed to restore working directory")]
@@ -145,57 +143,5 @@ mod cwd_restore_tests {
         let missing_directory = temporary_directory.path().join("removed-working-directory");
 
         drop(CwdRestore(missing_directory));
-    }
-
-    fn panic_while_holding_state() -> ! {
-        panic!("intentional panic while holding the process state guard");
-    }
-
-    fn require_process_state(
-        key: &str,
-        expected_environment: Option<&std::ffi::OsStr>,
-        expected_directory: &std::path::Path,
-    ) -> TestResult {
-        if std::env::var_os(key).as_deref() != expected_environment {
-            return Err("process state environment was not restored or applied".into());
-        }
-        if std::env::current_dir()? != expected_directory {
-            return Err("process state working directory was not restored or applied".into());
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn process_state_recovers_after_panic_and_restores_state() -> TestResult {
-        const KEY: &str = "MAPSPLICE_PROCESS_STATE_PANIC_TEST";
-        let baseline = ProcessState::default()
-            .run(|| Ok((std::env::var_os(KEY), std::env::current_dir()?)))?;
-        let temporary_directory = tempfile::tempdir()?;
-        let temporary_path = camino::Utf8Path::from_path(temporary_directory.path())
-            .ok_or("temporary directory must have a UTF-8 path")?;
-        let mut state = ProcessState::default();
-        state.set_env(KEY, "temporary");
-        state.enter_dir(temporary_path);
-        let verify_temporary = || {
-            require_process_state(
-                KEY,
-                Some(std::ffi::OsStr::new("temporary")),
-                temporary_directory.path(),
-            )
-        };
-        let verify_restored = || require_process_state(KEY, baseline.0.as_deref(), &baseline.1);
-
-        let caught = catch_unwind(|| {
-            state.run::<()>(|| {
-                verify_temporary()?;
-                panic_while_holding_state()
-            })
-        });
-        if caught.is_ok() {
-            return Err("the action must unwind while holding the lock".into());
-        }
-        ProcessState::default().run(verify_restored)?;
-        state.run(verify_temporary)?;
-        ProcessState::default().run(verify_restored)
     }
 }

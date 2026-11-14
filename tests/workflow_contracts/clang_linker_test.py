@@ -89,7 +89,8 @@ def test_linux_preflight_requires_linker_tools_and_pinned_companion(
     _executable(commands / "rustc", "exit 0\n")
     _executable(
         commands / "rustup",
-        "printf '%s\\n' rustfmt-test clippy-test rust-analyzer-test llvm-tools-test\n",
+        "printf '%s\\n' rustfmt-test clippy-test rust-analyzer-test llvm-tools-test"
+        " rustc-codegen-cranelift-test\n",
     )
     _executable(
         commands / "uname",

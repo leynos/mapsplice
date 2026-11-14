@@ -25,14 +25,11 @@ make check-build-tools
 ```
 
 The checked-in toolchain file selects the nightly, rustfmt, Clippy,
-rust-analyzer, and LLVM tools. Cranelift is excluded from the development
-default because one test needs a panic to unwind, which the Cranelift component
-does not do; see the developers' guide and
-[issue #115](https://github.com/leynos/mapsplice/issues/115). The install
-target verifies the published `mold` binary by SHA-256 on supported Linux
-architectures. Put `$HOME/.local/bin` on `PATH` to use it locally. The check
-target fails with an installation hint if a required component or tool is
-missing.
+rust-analyzer, and LLVM tools. The Cranelift component is the development
+backend; see the developers' guide. The install target verifies the published
+`mold` binary by SHA-256 on supported Linux architectures. Put
+`$HOME/.local/bin` on `PATH` to use it locally. The check target fails with an
+installation hint if a required component or tool is missing.
 
 Install `clang` when it is not already present:
 

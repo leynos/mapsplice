@@ -112,15 +112,14 @@ project:
 - Run `make check-fmt`, `make lint`, and `make test` before committing. These
   targets wrap the following commands, so contributors understand the exact
   behaviour and policy enforced: Bare development Cargo commands discover
-  `.cargo/config.toml`, which selects LLVM, `-Zthreads=8`, and `clang` with
-  pinned `mold` on supported Linux targets. Run `make install-build-tools` and
-  `make check-build-tools` before compiling. Make's Rust gates repeat the
+  `.cargo/config.toml`, which selects Cranelift, `-Zthreads=8`, and `clang`
+  with pinned `mold` on supported Linux targets. Run `make install-build-tools`
+  and `make check-build-tools` before compiling. Make's Rust gates repeat the
   development flags because their `RUSTFLAGS` assignments otherwise replace
   Cargo's defaults. Coverage, release, and Whitaker use explicit
-  non-development routes. Cranelift remains excluded from development defaults
-  because one test needs a panic to unwind, which the Cranelift component does
-  not do; track it in
-  [issue #115](https://github.com/leynos/mapsplice/issues/115).
+  non-development routes that select LLVM. The Cranelift component does not
+  unwind, so a test must not rely on a caught panic; assert on a returned error
+  or use `#[should_panic]`.
   - `make check-fmt` executes:
 
     ```sh
