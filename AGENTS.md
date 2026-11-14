@@ -113,7 +113,7 @@ project:
   targets wrap the following commands, so contributors understand the exact
   behaviour and policy enforced: Bare development Cargo commands discover
   `.cargo/config.toml`, which sets `-Zthreads=8` and `clang` with pinned `mold`
-  on supported Linux targets, and builds with LLVM. Run
+  on supported Linux targets, and defaults to LLVM. Run
   `make install-build-tools` and `make check-build-tools` before compiling.
   Make's Rust gates repeat the development flags because their `RUSTFLAGS`
   assignments otherwise replace Cargo's defaults.

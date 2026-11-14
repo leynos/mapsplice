@@ -64,9 +64,9 @@ ______________________________________________________________________
 
 Local builds use the pinned nightly toolchain in
 [`rust-toolchain.toml`](rust-toolchain.toml) and the build configuration in
-[`.cargo/config.toml`](.cargo/config.toml). Builds use LLVM with the configured
-Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold` on supported
-Linux targets.
+[`.cargo/config.toml`](.cargo/config.toml). Builds default to LLVM with the
+configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold` on
+supported Linux targets.
 
 Provision the core local tooling with:
 

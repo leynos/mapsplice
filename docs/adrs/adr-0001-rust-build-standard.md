@@ -88,9 +88,14 @@ records the unwind failure.
 ## Addendum (2026-11-14)
 
 The user abandoned Cranelift for now. The development profile selection in
-`.cargo/config.toml` is commented out, so LLVM is the backend for every route;
-the component and the opt-in route stay. The estate standard is LLVM, with
-review due 14 May 2027. This supersedes the 2026-11-13 addendum below.
+`.cargo/config.toml` is commented out, so LLVM is the default backend; the
+component and the opt-in route stay, and an opt-in or an inherited profile
+variable can still select Cranelift. Cranelift does not unwind (see the
+superseded
+[investigation](../debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md)),
+so a test that relies on a caught panic must not run under it. The estate
+standard is LLVM, with review due 14 May 2027. This supersedes the 2026-11-13
+addendum below.
 
 ## Addendum (2026-11-13)
 

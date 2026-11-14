@@ -360,7 +360,9 @@ Dylint tool archive must come from published assets.
 ### Cranelift
 
 The estate standard is LLVM; review due 14 May 2027. The Cranelift selection in
-`.cargo/config.toml` is commented out, and the component stays installable.
+`.cargo/config.toml` is commented out, and the component stays installable for
+an opt-in. Cranelift does not unwind, so no test may rely on a caught panic
+under it; see ADR 001.
 
 Run these gates before committing Rust changes:
 
