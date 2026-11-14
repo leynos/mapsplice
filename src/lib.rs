@@ -95,13 +95,19 @@ where
 /// ```rust
 /// use std::sync::Arc;
 ///
+/// use camino::Utf8PathBuf;
 /// use mapsplice::{ConfigSources, run_from_args_with_sources};
 /// use ortho_config::MapEnv;
 ///
-/// # fn main() -> mapsplice::Result<()> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let directory = tempfile::tempdir()?;
+/// let base = Utf8PathBuf::from_path_buf(directory.path().to_path_buf())
+///     .map_err(|path| format!("temporary path is not UTF-8: {}", path.display()))?;
 /// let environment = Arc::new(MapEnv::new());
-/// let sources = ConfigSources::new(".", environment.clone(), environment);
-/// let outcome = run_from_args_with_sources(["mapsplice", "delete", "roadmap.md", "2"], &sources);
+/// let sources = ConfigSources::new(base.clone(), environment.clone(), environment);
+/// let target = base.join("absent-roadmap.md");
+/// let outcome =
+///     run_from_args_with_sources(["mapsplice", "delete", target.as_str(), "2"], &sources);
 ///
 /// assert!(outcome.is_err());
 /// # Ok(())

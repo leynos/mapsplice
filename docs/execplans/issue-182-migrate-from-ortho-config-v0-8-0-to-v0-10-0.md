@@ -173,9 +173,11 @@ controlled environments; they must stay that way.
   Cranelift development selection and makes LLVM the estate standard. The
   rebase reported no conflicts, all four branch commits replayed unchanged under
   `range-diff`, and the Rust and documentation gates re-ran green.
-- [ ] Complete a CodeRabbit `review --agent` pass and clear its concerns. The
-  first attempt hit the service rate limit; the prescribed randomized wait is
-  in progress before a retry.
+- [x] (2026-11-14) Complete a CodeRabbit `review --agent` pass and clear its
+  concerns. The retry reviewed all 16 changed files and raised one minor
+  finding about the source-aware doctest using the crate root; both
+  source-aware doctests now use a `tempfile` base and an absolute target inside
+  it.
 
 ## Surprises & discoveries
 
@@ -206,6 +208,11 @@ controlled environments; they must stay that way.
   unset XDG variables, so `TestSources` names all three explicitly.
 - `cargo fmt --workspace` is rejected by the pinned toolchain; the Makefile
   already selects `cargo fmt --all`, so only the raw command needed adjusting.
+- CodeRabbit found that the `run_from_args_with_sources` doctest used the crate
+  root as its base and a relative `roadmap.md` target. It passed only because
+  no such file existed; a crate-root roadmap or `.mapsplice.toml` could have
+  changed the result or been rewritten. Both source-aware doctests now use a
+  `tempfile::tempdir()` base and an absolute target inside it.
 
 ## Decision log
 
@@ -550,10 +557,11 @@ Lessons:
   the Unix discovery order falls through to the host's `/etc/xdg` for any
   variable left unset.
 
-Remaining work is review only: draft pull request
-<https://github.com/leynos/mapsplice/pull/230> exists, and the CodeRabbit
-`review --agent` pass must complete and its concerns must be cleared. No
-release is published and nothing is merged from this plan.
+All planned work is complete. Draft pull request
+<https://github.com/leynos/mapsplice/pull/230> carries the rebased branch, the
+CodeRabbit `review --agent` pass completed with its one finding fixed, and the
+deterministic gates pass. No release is published and nothing is merged from
+this plan; the draft remains open for human review.
 
 ## Revision note
 
@@ -570,3 +578,7 @@ Revised again on 2026-11-14 after rebasing onto `origin/main` at `1a9644d`. The
 rebase was conflict-free, every branch commit replayed unchanged, and the
 Progress and Decision log now record the new base and the assessment that the
 LLVM build-standard change is not pertinent to this migration.
+
+Revised once more on 2026-11-14 after the CodeRabbit review: the isolated
+doctest fix and the cleared review finding are recorded in Progress and
+Surprises, and the Outcomes no longer describe review as outstanding.
