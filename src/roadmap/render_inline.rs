@@ -8,47 +8,64 @@ use crate::{
     roadmap::source_location::source_location,
 };
 
-/// Render inline Markdown nodes into a single string.
+/// Rendering context that decides how plain text and breaks are emitted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InlineMode {
+    /// Re-render canonical Markdown for a rewritten roadmap.
+    Markdown,
+    /// Emit literal content for the machine-readable export.
+    Export,
+}
+
+/// Render inline Markdown nodes into a single canonical Markdown string.
 pub(super) fn render_inline(nodes: &[Node]) -> Result<String> {
-    nodes
-        .iter()
-        .map(|node| render_inline_node(node, false))
-        .collect::<Result<Vec<_>>>()
-        .map(|parts| parts.concat())
+    render_inline_nodes(nodes, InlineMode::Markdown)
 }
 
 /// Render inline nodes for export, replacing hard breaks with whitespace.
+///
+/// Plain text is emitted literally. The export is machine-readable data, not
+/// Markdown source, so it must not carry the backslash escapes that
+/// [`render_inline`] needs to keep a rewritten roadmap reparsable.
 pub(crate) fn render_inline_export(nodes: &[Node]) -> Result<String> {
+    render_inline_nodes(nodes, InlineMode::Export)
+}
+
+/// Render a sequence of inline nodes in one mode.
+fn render_inline_nodes(nodes: &[Node], mode: InlineMode) -> Result<String> {
     nodes
         .iter()
-        .map(|node| render_inline_node(node, true))
+        .map(|node| render_inline_node(node, mode))
         .collect::<Result<Vec<_>>>()
         .map(|parts| parts.concat())
 }
 
 /// Render one supported inline Markdown node.
-fn render_inline_node(node: &Node, break_as_space: bool) -> Result<String> {
+fn render_inline_node(node: &Node, mode: InlineMode) -> Result<String> {
     match node {
-        Node::Text(text) => Ok(escape_markdown(&text.value)),
-        Node::Emphasis(emphasis) => render_wrapped("*", &emphasis.children, break_as_space),
-        Node::Strong(strong) => render_wrapped("**", &strong.children, break_as_space),
-        Node::Delete(delete) => render_wrapped("~~", &delete.children, break_as_space),
+        Node::Text(text) => Ok(match mode {
+            InlineMode::Markdown => escape_markdown(&text.value),
+            InlineMode::Export => text.value.clone(),
+        }),
+        Node::Emphasis(emphasis) => render_wrapped("*", &emphasis.children, mode),
+        Node::Strong(strong) => render_wrapped("**", &strong.children, mode),
+        Node::Delete(delete) => render_wrapped("~~", &delete.children, mode),
         Node::InlineCode(code) => Ok(format!("`{}`", code.value)),
-        Node::Break(_) if break_as_space => Ok(" ".to_owned()),
+        Node::Break(_) if mode == InlineMode::Export => Ok(" ".to_owned()),
         Node::Break(_) => Ok("\\\n".to_owned()),
-        Node::Link(link) => render_link(link, break_as_space),
+        Node::Link(link) => render_link(link, mode),
         other => Err(unsupported_inline_node(other)),
     }
 }
 
 /// Render children between matching delimiters, such as the `**` of strong emphasis.
-fn render_wrapped(marker: &str, children: &[Node], break_as_space: bool) -> Result<String> {
-    let inner = render_inline_children(children, break_as_space)?;
+fn render_wrapped(marker: &str, children: &[Node], mode: InlineMode) -> Result<String> {
+    let inner = render_inline_children(children, mode)?;
     Ok(format!("{marker}{inner}{marker}"))
 }
 
 /// Render an inline link with its optional quoted title.
-fn render_link(link: &Link, break_as_space: bool) -> Result<String> {
+fn render_link(link: &Link, mode: InlineMode) -> Result<String> {
     let Link {
         children,
         url,
@@ -58,7 +75,7 @@ fn render_link(link: &Link, break_as_space: bool) -> Result<String> {
     let suffix = title
         .as_ref()
         .map_or_else(String::new, |link_title| format!(" \"{link_title}\""));
-    let label = render_inline_children(children, break_as_space)?;
+    let label = render_inline_children(children, mode)?;
     Ok(format!("[{label}]({url}{suffix})"))
 }
 
@@ -73,13 +90,9 @@ fn unsupported_inline_node(node: &Node) -> MapspliceError {
     }
 }
 
-/// Render the children of a supported inline container with the same break policy.
-fn render_inline_children(nodes: &[Node], break_as_space: bool) -> Result<String> {
-    nodes
-        .iter()
-        .map(|node| render_inline_node(node, break_as_space))
-        .collect::<Result<Vec<_>>>()
-        .map(|parts| parts.concat())
+/// Render the children of a supported inline container in the same mode.
+fn render_inline_children(nodes: &[Node], mode: InlineMode) -> Result<String> {
+    render_inline_nodes(nodes, mode)
 }
 
 /// Return a stable mdast node name for renderer diagnostics.

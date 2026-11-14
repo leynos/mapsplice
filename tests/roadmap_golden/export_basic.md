@@ -2,7 +2,7 @@
 
 ## 1. Planning
 
-Idea: Keep Markdown canonical.
+Idea: Keep Markdown canonical (snake_case stays literal).
 
 See:
 
@@ -12,7 +12,7 @@ See:
 
 Can tools read this roadmap reliably?
 
-- [ ] 1.1.1. Emit **stable** JSON. Requires 1.1.2.
+- [ ] 1.1.1. Emit **stable** JSON (pretty). Requires 1.1.2.
   - [x] Compare the export without writing files.
     - Preserve nested detail order.
 - [x] 1.1.2. Verify the export drift.

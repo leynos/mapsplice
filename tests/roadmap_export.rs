@@ -320,6 +320,58 @@ fn export_normalizes_subtask_indentation(workspace: TestResult<Workspace>) -> Te
     Ok(())
 }
 
+/// Export values are data, so plain text keeps its own metacharacters instead
+/// of the backslash escapes the rewrite renderer adds for Markdown output.
+/// Supported formatting nodes still retain their Markdown delimiters.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn export_emits_literal_text_without_markdown_escapes(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "## 1. Planning (phase)\n\n",
+        "### 1.1. Export (json)\n\n",
+        "- [ ] 1.1.1. Emit **stable** JSON (pretty) with snake_case.\n",
+    ))?;
+
+    let rendered = export(&test_workspace)?;
+    require(
+        !rendered.contains('\\'),
+        format!("export should not escape Markdown metacharacters: {rendered}"),
+    )?;
+
+    let document: serde_json::Value = serde_json::from_str(&rendered)
+        .map_err(|error| format!("the export should be valid JSON: {error}"))?;
+    let phase = members(&document, "phases")
+        .first()
+        .ok_or("the export should contain a phase")?;
+    require_equal(
+        &phase.get("title"),
+        &Some(&serde_json::json!("Planning (phase)")),
+        "phase title",
+    )?;
+    let step = members(phase, "steps")
+        .first()
+        .ok_or("the export should contain a step")?;
+    require_equal(
+        &step.get("title"),
+        &Some(&serde_json::json!("Export (json)")),
+        "step title",
+    )?;
+    let task = members(step, "tasks")
+        .first()
+        .ok_or("the export should contain a task")?;
+    require_equal(
+        &task.get("title"),
+        &Some(&serde_json::json!(
+            "Emit **stable** JSON (pretty) with snake_case."
+        )),
+        "task title",
+    )?;
+    Ok(())
+}
+
 #[path = "roadmap_export/diagnostics.rs"]
 mod diagnostics;
 #[path = "roadmap_export/drift.rs"]

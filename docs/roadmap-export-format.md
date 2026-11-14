@@ -44,10 +44,14 @@ appear in `details` in source order.
 ## Text and labels
 
 Text is rendered from supported inline Markdown nodes, preserving code spans,
-emphasis and links. Whitespace runs, including CRLF line endings and Markdown
-hard breaks, collapse to one ASCII space; leading and trailing whitespace is
-removed. Formatting and whitespace changes in the Markdown therefore do not
-create semantic export drift.
+emphasis and links. Plain text is emitted literally: the backslash escapes
+needed to keep a rewritten roadmap reparsable do not appear in the JSON, so `(`,
+`_`, `#` and similar characters keep the meaning they have in the source.
+Supported formatting nodes still carry their Markdown delimiters, for example
+`**bold**` and `` `code` ``. Whitespace runs, including CRLF line endings and
+Markdown hard breaks, collapse to one ASCII space; leading and trailing
+whitespace is removed. Formatting and whitespace changes in the Markdown
+therefore do not create semantic export drift.
 
 A leading label is a short phrase of ASCII letters, spaces or hyphens ending in
 `:`, or a leading strong-emphasis node containing such a phrase and colon.

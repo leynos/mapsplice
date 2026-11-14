@@ -72,6 +72,31 @@ fn render_text_collapses_soft_wrapped_lines() {
     assert_eq!(rendered, "alpha beta");
 }
 
+/// Export text is data, not Markdown source, so it must not carry the escape
+/// backslashes that the rewrite renderer needs to keep Markdown reparsable.
+#[rstest]
+#[case::parentheses("Cost (estimate) stays literal.")]
+#[case::underscore("A snake_case name stays literal.")]
+#[case::brackets("A [bracketed] phrase stays literal.")]
+#[case::hash("Issue #144 stays literal.")]
+fn render_text_emits_literal_metacharacters(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("text should render");
+
+    assert_eq!(key, None, "unexpected label for {source:?}");
+    assert_eq!(value, source, "metacharacters should survive unescaped");
+}
+
+/// Supported formatting nodes still retain their Markdown delimiters; only
+/// plain text is emitted literally.
+#[test]
+fn render_text_preserves_supported_formatting_nodes() {
+    let (key, value) = paragraph_entry(&paragraph("Keep **bold** and `code` (literal)."))
+        .expect("formatted text should render");
+
+    assert_eq!(key, None);
+    assert_eq!(value, "Keep **bold** and `code` (literal).");
+}
+
 #[test]
 fn render_text_trims_and_collapses_explicit_whitespace() {
     let nodes = [Node::Text(Text {
