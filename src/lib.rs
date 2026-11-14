@@ -81,7 +81,43 @@ where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    parse_cli_request(args)
+    run_from_args_with_sources(args, &ConfigSources::process())
+}
+
+/// Run one command using explicit configuration sources.
+///
+/// This is the source-aware counterpart to [`run_from_args`]. Use it in tests
+/// or embeddings that must supply discovery and environment inputs directly
+/// rather than reading process-global state.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::sync::Arc;
+///
+/// use mapsplice::{ConfigSources, run_from_args_with_sources};
+/// use ortho_config::MapEnv;
+///
+/// # fn main() -> mapsplice::Result<()> {
+/// let environment = Arc::new(MapEnv::new());
+/// let sources = ConfigSources::new(".", environment.clone(), environment);
+/// let outcome = run_from_args_with_sources(["mapsplice", "delete", "roadmap.md", "2"], &sources);
+///
+/// assert!(outcome.is_err());
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns an error when argument parsing, configuration loading, file I/O,
+/// roadmap parsing, splice validation, or rendering fails.
+pub fn run_from_args_with_sources<I, T>(args: I, sources: &ConfigSources) -> Result<RunOutcome>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    parse_cli_request_with_sources(args, sources)
         .and_then(run_request)
         .inspect_err(|error| {
             if should_record_failure(error) {
@@ -290,7 +326,15 @@ impl RunOutcome {
     }
 }
 
-pub use cli::{CliRequest, CommandKind, ExportFormat, GlobalOptions, parse_cli_request};
+pub use cli::{
+    CliRequest,
+    CommandKind,
+    ConfigSources,
+    ExportFormat,
+    GlobalOptions,
+    parse_cli_request,
+    parse_cli_request_with_sources,
+};
 pub use observability::{
     MetricsSnapshot,
     metrics_snapshot,

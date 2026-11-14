@@ -4,6 +4,8 @@
 mod cli_export;
 #[path = "cli_config.rs"]
 mod config;
+#[path = "cli_request.rs"]
+mod request;
 
 use std::ffi::OsString;
 
@@ -18,11 +20,19 @@ use clap::{
     Subcommand,
     parser::ValueSource,
 };
-use ortho_config::{OrthoConfig, load_and_merge_subcommand_for};
+use ortho_config::{
+    OrthoConfig,
+    SubcommandFileContext,
+    load_and_merge_subcommand_for_with_sources_at,
+};
 use serde::{Deserialize, Serialize};
 
-pub use self::cli_export::ExportFormat;
 use self::{cli_export::ExportArgs, config::load_global_config};
+pub use self::{
+    cli_export::ExportFormat,
+    config::ConfigSources,
+    request::{CliRequest, CommandKind, GlobalOptions},
+};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::RoadmapAnchor,
@@ -37,115 +47,6 @@ pub struct GlobalCli {
     #[arg(short = 'i', long = "in-place", global = true, action = ArgAction::SetTrue)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub in_place: Option<bool>,
-}
-
-/// Resolved global options.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct GlobalOptions {
-    /// Rewrite the target file instead of printing to stdout.
-    pub in_place: bool,
-}
-
-/// Parsed CLI request.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CliRequest {
-    /// Resolved global options.
-    pub global: GlobalOptions,
-    /// Target roadmap file.
-    pub target: Utf8PathBuf,
-    /// Requested operation.
-    pub command: CommandKind,
-}
-
-/// Supported splice commands.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CommandKind {
-    /// Append one or more phases to the end of the roadmap.
-    Append {
-        /// Fragment file.
-        fragment: Utf8PathBuf,
-    },
-    /// Insert sibling items before or after the anchor.
-    Insert {
-        /// Anchor to insert around.
-        anchor: RoadmapAnchor,
-        /// Insert after the anchor when true.
-        after: bool,
-        /// Fragment file.
-        fragment: Utf8PathBuf,
-    },
-    /// Delete the addressed item.
-    Delete {
-        /// Anchor to delete.
-        anchor: RoadmapAnchor,
-    },
-    /// Replace the addressed item with fragment content.
-    Replace {
-        /// Anchor to replace.
-        anchor: RoadmapAnchor,
-        /// Fragment file.
-        fragment: Utf8PathBuf,
-    },
-    /// Export the roadmap as a stable machine-readable document.
-    Export {
-        /// Output format.
-        format: ExportFormat,
-        /// Compare the fresh export to a committed JSON file.
-        check: Option<Utf8PathBuf>,
-    },
-}
-
-impl CommandKind {
-    /// Return the fragment path used by the command, if any.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use camino::Utf8PathBuf;
-    /// use mapsplice::{CommandKind, parse_anchor};
-    ///
-    /// # fn main() -> mapsplice::Result<()> {
-    /// let fragment = Utf8PathBuf::from("fragment.md");
-    /// let anchor = parse_anchor("1")?;
-    /// let task_anchor = parse_anchor("1.1.1")?;
-    ///
-    /// assert_eq!(
-    ///     CommandKind::Append {
-    ///         fragment: fragment.clone()
-    ///     }
-    ///     .fragment_path(),
-    ///     Some(&fragment)
-    /// );
-    /// assert_eq!(
-    ///     CommandKind::Insert {
-    ///         anchor,
-    ///         after: true,
-    ///         fragment: fragment.clone()
-    ///     }
-    ///     .fragment_path(),
-    ///     Some(&fragment)
-    /// );
-    /// assert_eq!(
-    ///     CommandKind::Replace {
-    ///         anchor: task_anchor,
-    ///         fragment: fragment.clone()
-    ///     }
-    ///     .fragment_path(),
-    ///     Some(&fragment)
-    /// );
-    /// assert_eq!(CommandKind::Delete { anchor }.fragment_path(), None);
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[must_use]
-    pub const fn fragment_path(&self) -> Option<&Utf8PathBuf> {
-        match self {
-            Self::Append { fragment }
-            | Self::Insert { fragment, .. }
-            | Self::Replace { fragment, .. } => Some(fragment),
-            Self::Delete { .. } | Self::Export { .. } => None,
-        }
-    }
 }
 
 /// Parse a CLI request from command-line arguments.
@@ -174,11 +75,50 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    parse_cli_request_with_sources(args, &ConfigSources::process())
+}
+
+/// Parse a CLI request using explicit configuration sources.
+///
+/// Use this entry point when configuration discovery and merging must not read
+/// process-global state. [`ConfigSources::process`] supplies the production
+/// behaviour.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::sync::Arc;
+///
+/// use mapsplice::{ConfigSources, parse_cli_request_with_sources};
+/// use ortho_config::MapEnv;
+///
+/// # fn main() -> mapsplice::Result<()> {
+/// let environment = Arc::new(MapEnv::new());
+/// let sources = ConfigSources::new(".", environment.clone(), environment);
+/// let request = parse_cli_request_with_sources(
+///     ["mapsplice", "--in-place", "delete", "roadmap.md", "2"],
+///     &sources,
+/// )?;
+///
+/// assert!(request.global.in_place);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns an error when command-line parsing fails or when configured
+/// defaults cannot be merged.
+pub fn parse_cli_request_with_sources<I, T>(args: I, sources: &ConfigSources) -> Result<CliRequest>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let command = Cli::command();
     let matches = command.try_get_matches_from(args)?;
     let cli = Cli::from_arg_matches(&matches)?;
-    let global = load_global_config(&cli.global)?.resolve();
-    cli.command.into_request(global, &matches)
+    let global = load_global_config(&cli.global, sources)?.resolve();
+    cli.command.into_request(global, &matches, sources)
 }
 
 /// Top-level clap parser before configuration defaults are resolved.
@@ -216,10 +156,15 @@ enum Commands {
 
 impl Commands {
     /// Convert the selected subcommand into an executable CLI request.
-    fn into_request(self, global: GlobalOptions, matches: &ArgMatches) -> Result<CliRequest> {
+    fn into_request(
+        self,
+        global: GlobalOptions,
+        matches: &ArgMatches,
+        sources: &ConfigSources,
+    ) -> Result<CliRequest> {
         match self {
             Self::Append(args) => Ok(args.into_request(global)),
-            Self::Insert(args) => args.into_request(global, subcommand_matches(matches)?),
+            Self::Insert(args) => args.into_request(global, subcommand_matches(matches)?, sources),
             Self::Delete(args) => Ok(args.into_request(global)),
             Self::Replace(args) => Ok(args.into_request(global)),
             Self::Export(args) => Ok(args.into_request()),
@@ -319,9 +264,14 @@ impl AppendArgs {
 
 impl InsertArgs {
     /// Build an insert request after merging optional config defaults.
-    fn into_request(self, global: GlobalOptions, matches: &ArgMatches) -> Result<CliRequest> {
+    fn into_request(
+        self,
+        global: GlobalOptions,
+        matches: &ArgMatches,
+        sources: &ConfigSources,
+    ) -> Result<CliRequest> {
         let config = self.config.with_absent_flags_removed(matches);
-        let merged = load_merged_config(&config)?;
+        let merged = load_merged_config(&config, sources)?;
         Ok(CliRequest {
             global,
             target: self.target,
@@ -372,11 +322,13 @@ impl ReplaceArgs {
 }
 
 /// Merge CLI, environment, and configuration-file values for one config type.
-fn load_merged_config<C>(config: &C) -> Result<C>
+fn load_merged_config<C>(config: &C, sources: &ConfigSources) -> Result<C>
 where
     C: CommandFactory + Default + OrthoConfig + Serialize,
 {
-    load_and_merge_subcommand_for(config).map_err(|error| configuration_error(&error))
+    let files = SubcommandFileContext::new(sources.base().as_std_path(), sources.discovery());
+    load_and_merge_subcommand_for_with_sources_at(config, files, sources.merge())
+        .map_err(|error| configuration_error(&error))
 }
 
 /// Return the selected subcommand's matches for match-aware config merging.
