@@ -5,7 +5,7 @@ This ExecPlan is a living document. The sections `Constraints`, `Tolerances`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IN PROGRESS
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -177,7 +177,8 @@ controlled environments; they must stay that way.
   concerns. The retry reviewed all 16 changed files and raised one minor
   finding about the source-aware doctest using the crate root; both
   source-aware doctests now use a `tempfile` base and an absolute target inside
-  it.
+  it. A confirmation review then reported 0 findings across all 16 changed
+  files.
 
 ## Surprises & discoveries
 
@@ -559,9 +560,10 @@ Lessons:
 
 All planned work is complete. Draft pull request
 <https://github.com/leynos/mapsplice/pull/230> carries the rebased branch, the
-CodeRabbit `review --agent` pass completed with its one finding fixed, and the
-deterministic gates pass. No release is published and nothing is merged from
-this plan; the draft remains open for human review.
+CodeRabbit `review --agent` pass completed with its one finding fixed and a
+confirmation review reported no concerns, and the deterministic gates pass. No
+release is published and nothing is merged from this plan; the draft remains
+open for human review.
 
 ## Revision note
 
