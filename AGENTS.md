@@ -373,10 +373,11 @@ project:
   the environment via `Command::env`/`Command::env_clear`, because the mutation
   is confined to the child process. A test manipulating the environment
   in-process does not qualify, whatever layer it claims to occupy.
-- This repository has no `mockable` dependency, so its integration tests that
-  must set process environment variables use `temp_env::with_vars` (see
-  `tests/support/config.rs`) inside the `serial_test` group `cli_env`, as the
-  accepted local form.
+- Known deviation: this repository has no `mockable` dependency, so its
+  integration tests that must set process environment variables use
+  `temp_env::with_vars` (see `tests/support/config.rs`) inside the
+  `serial_test` group `cli_env`. This existing local form is not an exemption,
+  and the rules above still apply to new code.
 
 ### Dependency management
 
