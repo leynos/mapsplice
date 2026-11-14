@@ -27,12 +27,12 @@ def assert_cranelift_cargo_default(
     config: dict[str, object],
     toolchain: dict[str, object],
 ) -> None:
-    """Require the dev profile to select Cranelift and the toolchain to ship it."""
+    """Require the dev profile to leave Cranelift unselected and the toolchain to ship it."""
     profiles = config.get("profile", {})
     assert isinstance(profiles, dict)
     dev = profiles.get("dev", {})
     assert isinstance(dev, dict)
-    assert dev.get("codegen-backend") == "cranelift"
+    assert dev.get("codegen-backend") != "cranelift"
 
     toolchain_config = toolchain.get("toolchain", {})
     assert isinstance(toolchain_config, dict)
@@ -42,7 +42,7 @@ def assert_cranelift_cargo_default(
 
 
 def test_cargo_defaults_keep_the_frontend_with_cranelift() -> None:
-    """Target flags retain the frontend while the dev profile selects Cranelift."""
+    """Target flags retain the frontend while the dev profile leaves Cranelift unselected."""
     config = tomllib.loads((ROOT / ".cargo" / "config.toml").read_text())
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())
     assert config["build"]["rustflags"] == ["-Zthreads=8"]
@@ -61,11 +61,13 @@ def test_cargo_defaults_keep_the_frontend_with_cranelift() -> None:
 
 @pytest.mark.parametrize("mutation", ["dev_profile", "toolchain_component"])
 def test_cranelift_cargo_default_mutations_are_detected(mutation: str) -> None:
-    """Dropping the dev profile selection or the component must fail the contract."""
+    """Selecting Cranelift on the dev profile or dropping the component must fail."""
     config = tomllib.loads((ROOT / ".cargo" / "config.toml").read_text())
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())
     if mutation == "dev_profile":
-        config["profile"]["dev"]["codegen-backend"] = "llvm"
+        config.setdefault("profile", {}).setdefault("dev", {})["codegen-backend"] = (
+            "cranelift"
+        )
     else:
         toolchain["toolchain"]["components"].remove("rustc-codegen-cranelift-preview")
     with pytest.raises(AssertionError):
