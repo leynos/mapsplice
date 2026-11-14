@@ -221,6 +221,37 @@ fn invalid_input_has_only_a_stderr_diagnostic_and_fails() -> TestResult {
 }
 
 #[test]
+fn boolean_flags_reject_the_equals_false_spelling() -> TestResult {
+    let workspace = isolated_workspace()?;
+    write_valid_inputs(&workspace)?;
+
+    for arguments in [
+        &["--in-place=false", "delete", "target.md", "1"][..],
+        &[
+            "insert",
+            "--after=false",
+            "target.md",
+            "1.1.1",
+            "fragment.md",
+        ][..],
+    ] {
+        let output = run_cli(&workspace, arguments)?;
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        verify_exit_code(&output, 1, "boolean flag spelling")?;
+        verify(
+            output.stdout.is_empty(),
+            "boolean flag spelling wrote stdout",
+        )?;
+        verify(
+            stderr.starts_with("error:") && stderr.contains("false"),
+            format!("boolean flag diagnostic was {stderr:?}"),
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
 fn ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails() -> TestResult {
     let workspace = isolated_workspace()?;
     write_valid_inputs(&workspace)?;
