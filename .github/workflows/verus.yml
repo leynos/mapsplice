@@ -26,14 +26,14 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@82feb2b7aac45b7efff40c9c4bb632551b14521c
+        uses: leynos/shared-actions/.github/actions/setup-rust@b2ec32c03a926824d8c716451b4b290a9e102a65
       # The shared action installs the Verus release named in
       # `tools/verus/VERSION`, and the Z3 solver beside it, through the pinned
       # rust-prover-tools. It checks the digest in `tools/verus/SHA256SUMS` and
       # caches the verified archives. The Make targets below install no prover;
       # the runner still ensures the Rust toolchain Verus builds with.
       - name: Install Verus
-        uses: leynos/shared-actions/.github/actions/install-prover-tools@a0519a1476ab769ca7b8badfa794f3751213f1ea
+        uses: leynos/shared-actions/.github/actions/install-prover-tools@b2ec32c03a926824d8c716451b4b290a9e102a65
         with:
           tools: verus
           runner-image: ubuntu2404
