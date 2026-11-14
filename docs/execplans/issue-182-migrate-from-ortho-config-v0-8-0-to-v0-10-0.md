@@ -165,7 +165,13 @@ controlled environments; they must stay that way.
   `/tmp/gate-*.out`: `make check-fmt`, `make lint`, `make test`,
   `make typecheck`, `make markdownlint`, `make nixie`, `make spelling`,
   `make interrogate`, and `make test-workflow-contracts` all pass.
-- [ ] Commit, push over SSH, and open a draft pull request.
+- [x] (2026-11-14) Commit the documentation, implementation, and developer
+  guide as three focused commits, push over SSH as `leynos`, refresh the
+  tracking ref, and open draft pull request
+  <https://github.com/leynos/mapsplice/pull/230>.
+- [ ] Complete a CodeRabbit `review --agent` pass and clear its concerns. The
+  first attempt hit the service rate limit; the prescribed randomized wait is
+  in progress before a retry.
 
 ## Surprises & discoveries
 
@@ -230,7 +236,7 @@ controlled environments; they must stay that way.
   profile, generated-documentation, or localization surfaces those changes
   affect, and the task forbids adopting capabilities the repository context
   does not ask for.
-- **Decision:** Pin the hand-written boolean flag behaviour with a binary-level
+- **Decision:** Pin the handwritten boolean flag behaviour with a binary-level
   test instead of changing the flags to the v0.10.0 generated form.
   **Rationale:** `--in-place` and `--after` are `Option<bool>` with
   `ArgAction::SetTrue`; adopting `--flag=false` would be a new CLI capability,
@@ -273,7 +279,7 @@ for a repository starting at v0.8.0.
 | v0.10.0 §2 explicit CLI values win                 | Not applicable                | No OrthoConfig field restates a clap default; `after` and `in_place` are `Option<bool>` with no `default_value`. Existing CLI-over-environment test stays. |
 | v0.10.0 §3 Fluent identifiers and IR 2.0           | Not applicable                | Repository generates and consumes no Fluent catalogues or documentation IR.                                                                                |
 | v0.10.0 §4 `AgentContext` / `DocMetadata` literals | Not applicable                | Neither type is constructed or referenced.                                                                                                                 |
-| v0.10.0 §5 boolean flag spellings                  | Not applicable, with evidence | Flags are hand-written `ArgAction::SetTrue`; add a regression assertion that `--in-place=false` is rejected.                                               |
+| v0.10.0 §5 boolean flag spellings                  | Not applicable, with evidence | Flags are handwritten `ArgAction::SetTrue`; add a regression assertion that `--in-place=false` is rejected.                                                |
 | v0.10.0 §6 named profiles                          | Not adopted                   | No repository requirement; opting in would reserve new keys and flags.                                                                                     |
 | v0.10.0 §6 stacked scopes                          | Not adopted                   | Existing first-wins discovery is the documented behaviour.                                                                                                 |
 | v0.10.0 §6 injected environment sources            | Adopted for tests             | New `ConfigSources` seam and `_with_sources` entry points; configuration tests use `MapEnv` plus an explicit base.                                         |
@@ -444,7 +450,7 @@ Axioms:
   and `_with_sources_at` interfaces behave as documented. The repository does
   not verify their internals, but it does exercise the real interface through
   integration tests.
-- Clap's `ArgAction::SetTrue` rejects `=false` for hand-written flags. Verified
+- Clap's `ArgAction::SetTrue` rejects `=false` for handwritten flags. Verified
   by a binary-level test rather than assumed.
 
 Non-vacuity: each precedence test sets a distinguishable observable outcome
@@ -534,9 +540,10 @@ Lessons:
   the Unix discovery order falls through to the host's `/etc/xdg` for any
   variable left unset.
 
-Remaining work is delivery only: commit the milestones, push over SSH as
-`leynos`, and open a draft pull request. No release is published and nothing is
-merged from this plan.
+Remaining work is review only: draft pull request
+<https://github.com/leynos/mapsplice/pull/230> exists, and the CodeRabbit
+`review --agent` pass must complete and its concerns must be cleared. No
+release is published and nothing is merged from this plan.
 
 ## Revision note
 
