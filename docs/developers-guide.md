@@ -147,21 +147,31 @@ Configuration behaviour has two current owners:
 - `src/cli_config.rs` owns global `in_place` discovery and parsing. It reads
   `$XDG_CONFIG_HOME/mapsplice/config.toml` and local `./.mapsplice.toml`,
   applies `MAPSPLICE_IN_PLACE`, then lets `--in-place` / `-i` force `true`.
+  `ConfigSources` pairs the local file base with the named discovery lookups
+  and the enumerable merge source.
 - `src/cli.rs::InsertConfig` owns the insert command's `after` option. It
   removes Clap's implicit `false` value when `--after` is absent, then merges
-  defaults through `ortho_config::load_and_merge_subcommand_for`.
+  defaults through
+  `ortho_config::load_and_merge_subcommand_for_with_sources_at`.
 - Required values such as target paths, anchors, and fragment paths remain
   command-line arguments.
+
+Production code calls `ConfigSources::process`, which reads the live process
+environment and uses the current directory as the local base. Tests and
+embeddings call `ConfigSources::new` and the `_with_sources` entry points, so
+they supply every discovery and merge input explicitly.
 
 Future optional configuration settings must document which loader owns their
 discovery path. Add or update `tests/roadmap_config.rs` coverage for every
 source and precedence claim before changing the users' guide.
 
-Configuration tests use the shared `ProcessState` fixture in
-`tests/support/config.rs`. `set_env`, `remove_env`, and `enter_dir` configure
-changes that take effect only inside `run`; `Workspace::enter_root` selects the
-workspace directory through `enter_dir`. `run` holds a shared lock while the
-closure executes, then restores the environment and working directory.
+Configuration tests use the shared `TestSources` fixture in
+`tests/support/config.rs`. It owns a `MapEnv` and the workspace directory,
+starts with empty `HOME`, `XDG_CONFIG_HOME`, and `XDG_CONFIG_DIRS` locations,
+and builds `ConfigSources` for `run_from_args_with_sources` or
+`parse_cli_request_with_sources`. Tests therefore read no process-global state
+and run concurrently. Binary-level contracts still launch the compiled binary
+in an isolated child process with a cleared environment.
 
 ## 6. Observability
 
