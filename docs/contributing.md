@@ -25,9 +25,9 @@ make check-build-tools
 ```
 
 The checked-in toolchain file selects the nightly, rustfmt, Clippy,
-rust-analyzer, and LLVM tools. The Cranelift component is the development
-backend; see the developers' guide. The install target verifies the published
-`mold` binary by SHA-256 on supported Linux architectures. Put
+rust-analyzer, LLVM tools, and the optional Cranelift component; the estate
+standard is LLVM (see the developers' guide). The install target verifies the
+published `mold` binary by SHA-256 on supported Linux architectures. Put
 `$HOME/.local/bin` on `PATH` to use it locally. The check target fails with an
 installation hint if a required component or tool is missing.
 

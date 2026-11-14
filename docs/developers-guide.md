@@ -359,18 +359,10 @@ Dylint tool archive must come from published assets.
 
 ### Cranelift
 
-Cranelift is the development backend, selected by `[profile.dev]` in
-`.cargo/config.toml` and installed through the
-`rustc-codegen-cranelift-preview` component in `rust-toolchain.toml`. The suite
-passes under it, measured on `nightly-2026-11-13` on 2026-11-13: all 707 tests
-with
-`cargo nextest run --workspace --all-targets --all-features --no-fail-fast`,
-and the doctests with `cargo test --doc --workspace --all-features`. Release
-builds, coverage and Whitaker select LLVM. The component does not unwind, so a
-test must not rely on a caught panic: assert on a returned error, or use
-`#[should_panic]`, which libtest handles. The unwind investigation is kept as
-[history](debugging/debugging-plan-2026-09-30-mapsplice-cranelift-unwind.md).
-Tracking issue [#115](https://github.com/leynos/mapsplice/issues/115) can close.
+The estate standard is LLVM; review due 14 May 2027. The Cranelift selection in
+`.cargo/config.toml` is commented out, and the component stays installable for
+an opt-in. Cranelift does not unwind, so no test may rely on a caught panic
+under it; see ADR 001.
 
 Run these gates before committing Rust changes:
 

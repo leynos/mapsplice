@@ -64,11 +64,9 @@ ______________________________________________________________________
 
 Local builds use the pinned nightly toolchain in
 [`rust-toolchain.toml`](rust-toolchain.toml) and the build configuration in
-[`.cargo/config.toml`](.cargo/config.toml). Development builds use Cranelift
-with the configured Rust flags, including `-Zthreads=8` and
-`link-arg=-fuse-ld=mold` on supported Linux targets. Release, coverage and
-Whitaker builds use LLVM. The Cranelift component does not unwind, so a test
-must not rely on a caught panic.
+[`.cargo/config.toml`](.cargo/config.toml). Builds default to LLVM with the
+configured Rust flags, including `-Zthreads=8` and `link-arg=-fuse-ld=mold` on
+supported Linux targets.
 
 Provision the core local tooling with:
 
