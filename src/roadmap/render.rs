@@ -299,12 +299,7 @@ fn render_list(list: &List, indent: usize) -> Result<String> {
 
 /// Render one list item with the given marker state.
 fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32) -> Result<String> {
-    let prefix = if ordered {
-        format!("{ordinal}. ")
-    } else {
-        format!("- {}", checkbox_marker(item.checked))
-    };
-
+    let prefix = list_item_prefix(item, ordered, ordinal);
     let first = item
         .children
         .first()
@@ -312,21 +307,30 @@ fn render_list_item(item: &ListItem, indent: usize, ordered: bool, ordinal: u32)
             message: "list items must contain at least one child block".to_owned(),
             location: None,
         })?;
-    let mut lines = Vec::new();
-    match first {
-        Node::Paragraph(paragraph) => {
-            lines.push(format!("{prefix}{}", render_inline(&paragraph.children)?));
-        }
-        other => {
-            lines.push(format!("{prefix}{}", render_block(other, 0)?));
-        }
-    }
-
+    let mut lines = vec![render_first_item_block(first, &prefix)?];
     for child in item.children.iter().skip(1) {
         lines.push(indent_block(&render_block(child, 0)?, prefix.len()));
     }
 
     Ok(indent_block(&lines.join("\n\n"), indent))
+}
+
+/// Build a list item's marker: its ordinal when ordered, otherwise a bullet and any checkbox.
+fn list_item_prefix(item: &ListItem, ordered: bool, ordinal: u32) -> String {
+    if ordered {
+        format!("{ordinal}. ")
+    } else {
+        format!("- {}", checkbox_marker(item.checked))
+    }
+}
+
+/// Render a list item's first block after its marker, inlining a leading paragraph.
+fn render_first_item_block(first: &Node, prefix: &str) -> Result<String> {
+    let body = match first {
+        Node::Paragraph(paragraph) => render_inline(&paragraph.children)?,
+        other => render_block(other, 0)?,
+    };
+    Ok(format!("{prefix}{body}"))
 }
 
 /// Convert a zero-based list index into a renderable ordinal offset.

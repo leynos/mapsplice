@@ -1,8 +1,8 @@
 //! Markdown gate checks for rendered golden-fixture output.
 
-use std::process::Command;
+use std::{path::Path, process::Command};
 
-use camino::Utf8Path;
+use camino::{Utf8Path, Utf8PathBuf};
 use cap_std::{ambient_authority, fs_utf8::Dir};
 
 use super::TestResult;
@@ -19,21 +19,39 @@ const MDTABLEFIX_ARGS: &[&str] = &[
 /// Assert rendered Markdown is stable under the house formatter and linter.
 pub(crate) fn assert_gate_clean_rendered_output(name: &str, rendered: &str) -> TestResult {
     let tempdir = tempfile::tempdir()?;
-    let root = camino::Utf8PathBuf::from_path_buf(tempdir.path().to_path_buf())
-        .map_err(|path| format!("temporary directory is not valid UTF-8: {}", path.display()))?;
+    let root = utf8_root(tempdir.path())?;
     let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
     let rendered_path = root.join("rendered.md");
     dir.write("rendered.md", rendered)?;
-    let original = dir.read("rendered.md")?;
 
-    run_mdtablefix(&rendered_path)?;
-    run_markdownlint_fix(&rendered_path)?;
+    assert_formatters_leave_unchanged(name, &dir, &rendered_path)?;
+    run_markdownlint(&rendered_path)?;
+    Ok(())
+}
+
+/// Convert a temporary directory path to UTF-8, naming the path when it is not.
+fn utf8_root(path: &Path) -> Result<Utf8PathBuf, String> {
+    Utf8PathBuf::from_path_buf(path.to_path_buf()).map_err(|rejected| {
+        format!(
+            "temporary directory is not valid UTF-8: {}",
+            rejected.display()
+        )
+    })
+}
+
+/// Run the formatters over `rendered.md` and fail if they change what a fixture rendered.
+fn assert_formatters_leave_unchanged(
+    name: &str,
+    dir: &Dir,
+    rendered_path: &Utf8Path,
+) -> TestResult {
+    let original = dir.read("rendered.md")?;
+    run_mdtablefix(rendered_path)?;
+    run_markdownlint_fix(rendered_path)?;
     let formatted = dir.read("rendered.md")?;
     if formatted != original {
         return Err(format!("golden fixture `{name}` formatter changed rendered output").into());
     }
-
-    run_markdownlint(&rendered_path)?;
     Ok(())
 }
 

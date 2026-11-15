@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use markdown::mdast::{List, ListItem, Node};
+use markdown::mdast::{List, ListItem, Node, Paragraph};
 
 use super::{
     details::{self, NumberedDetails},
@@ -221,25 +221,38 @@ fn append_labelled_list(list: &List, output: &mut [ExportEntry]) -> Result<()> {
 /// Prose after the clause is ordinary content and becomes an entry, so
 /// `Requires 1.1.1. Success: keep this.` retains its `Success` entry.
 pub(super) fn list_item_entries(item: &ListItem) -> Result<Vec<ExportEntry>> {
-    let Some(Node::Paragraph(first)) = item.children.first() else {
-        return Err(invalid_node(
+    let first = leading_paragraph(item)?;
+    let rest = item.children.get(1..).unwrap_or_default();
+    entries_from_clause(paragraph_entry_or_clause(first)?, rest)
+}
+
+/// Return the paragraph a list item must begin with, or a located diagnostic.
+fn leading_paragraph(item: &ListItem) -> Result<&Paragraph> {
+    match item.children.first() {
+        Some(Node::Paragraph(first)) => Ok(first),
+        _ => Err(invalid_node(
             &Node::ListItem(item.clone()),
             "list items must begin with a paragraph",
-        ));
-    };
-    let rest = item.children.get(1..).unwrap_or_default();
-    match paragraph_entry_or_clause(first)? {
-        None => {
-            let mut entries = Vec::new();
-            append_entry_children(rest, &mut entries)?;
-            Ok(entries)
-        }
-        Some((key, value)) => {
-            let mut entry = empty_entry(key, value);
-            append_entry_children(rest, &mut entry.entries)?;
-            Ok(vec![entry])
-        }
+        )),
     }
+}
+
+/// Build the entries for a list item from its leading clause and its remaining blocks.
+///
+/// A bare dependency clause (`None`) contributes no entry of its own, so the nested
+/// blocks become siblings; otherwise they become children of the clause's entry.
+fn entries_from_clause(
+    clause: Option<(Option<String>, String)>,
+    rest: &[Node],
+) -> Result<Vec<ExportEntry>> {
+    let Some((key, value)) = clause else {
+        let mut entries = Vec::new();
+        append_entry_children(rest, &mut entries)?;
+        return Ok(entries);
+    };
+    let mut entry = empty_entry(key, value);
+    append_entry_children(rest, &mut entry.entries)?;
+    Ok(vec![entry])
 }
 
 /// Map nested blocks beneath an entry, rejecting checkboxes that cannot be represented there.

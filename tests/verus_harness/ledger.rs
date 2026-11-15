@@ -66,15 +66,19 @@ fn materialize(fixture: &LedgerFixture) -> TestResult<TempDir> {
     let directory = TempDir::new().map_err(|error| format!("create scratch: {error}"))?;
     let root = utf8(directory.path())?;
     let handle = open_dir(root)?;
-    handle
-        .create_dir("docs")
-        .map_err(|error| format!("create docs: {error}"))?;
-    handle
-        .create_dir("src")
-        .map_err(|error| format!("create src: {error}"))?;
+    create_dir(&handle, "docs")?;
+    create_dir(&handle, "src")?;
     write(&handle, "docs/verification.md", &fixture.0)?;
     write(&handle, "src/kernel.rs", &fixture.1)?;
     Ok(directory)
+}
+
+/// Create one directory inside the scratch tree, naming it in any error.
+fn create_dir(handle: &Dir, path: &str) -> TestResult {
+    handle
+        .create_dir(path)
+        .map_err(|error| format!("create {path}: {error}"))?;
+    Ok(())
 }
 
 fn write(handle: &Dir, path: &str, contents: &str) -> TestResult {
