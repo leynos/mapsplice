@@ -737,11 +737,15 @@ tables under `[workspace.lints.*]` and make every member inherit them with
 the build and verification routes also require their documented tools. Keep
 environment access at an explicit CLI configuration boundary and inject an
 environment reader into code that needs deterministic testing. The
-`disallowed_methods` lint level is enabled, but this repository has no
-forbidden-method list and therefore does not currently enforce the
-environment-access rule. The maintainer selected Netsuke as the reference for
-the seven environment and current-directory bans. Canonical publication and
-consumer adoption remain follow-up work in
+`disallowed_methods` lint level is enabled, and `clippy.toml` forbids seven
+process-wide mutations in tests: `std::env::set_var`, `std::env::remove_var`,
+`std::env::set_current_dir`, and `temp_env`'s `with_var`, `with_var_unset`,
+`with_vars` and `with_vars_unset`. A site that cannot yet migrate carries a
+narrowly scoped `#[expect(clippy::disallowed_methods, reason = ...)]`. These
+mutation bans do not cover environment reads, so the environment-access rule
+above is still enforced by review. The maintainer selected Netsuke as the
+reference for the seven environment and current-directory bans. Canonical
+publication and consumer adoption remain follow-up work in
 [Concordat issue #157](https://github.com/leynos/concordat/issues/157).
 
 The binding `make lint` documentation check runs

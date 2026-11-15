@@ -99,7 +99,12 @@ impl CwdGuard {
     pub fn enter(path: &Utf8Path) -> TestResult<Self> {
         let lock = ENV_LOCK.lock()?;
         let previous = env::current_dir()?;
-        env::set_current_dir(path.as_std_path())?;
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "serialized by ENV_LOCK; the CLI under test reads the process working directory"
+        )]
+        let entered = env::set_current_dir(path.as_std_path());
+        entered?;
         Ok(Self {
             _lock: lock,
             previous,
@@ -108,7 +113,14 @@ impl CwdGuard {
 }
 
 impl Drop for CwdGuard {
-    fn drop(&mut self) { if let Err(_error) = env::set_current_dir(&self.previous) {} }
+    fn drop(&mut self) {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "restores the working directory entered under ENV_LOCK"
+        )]
+        let restored = env::set_current_dir(&self.previous);
+        if let Err(_error) = restored {}
+    }
 }
 
 #[fixture]
