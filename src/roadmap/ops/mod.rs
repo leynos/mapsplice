@@ -2,12 +2,21 @@
 
 mod dependency_text;
 mod dependency_visitor;
+mod level_edit;
 mod remap_kernel;
 mod rewrite;
 mod sub_task;
 
 pub(crate) use dependency_text::dependency_candidates;
 pub(crate) use dependency_visitor::collect_dependencies;
+use level_edit::{
+    delete_phase,
+    delete_step,
+    delete_task,
+    replace_phase,
+    replace_step,
+    replace_task,
+};
 pub(crate) use remap_kernel::select_resolution;
 use rewrite::{renumber_document, rewrite_dependencies};
 use sub_task::{SubTaskInsertion, delete_sub_task, insert_sub_tasks, replace_sub_task};
@@ -256,24 +265,11 @@ fn delete_anchor(
     report: &mut PreservationReport,
 ) -> Result<()> {
     match anchor {
-        RoadmapAnchor::Phase(target) => {
-            let index = find_phase_index(roadmap, target)?;
-            roadmap.phases.remove(index);
-        }
-        RoadmapAnchor::Step(target) => {
-            let (phase, step_index) = find_step_parent_mut(roadmap, target)?;
-            phase.steps.remove(step_index);
-        }
-        RoadmapAnchor::Task(target) => {
-            let (step, task_index) = find_task_parent_mut(roadmap, target)?;
-            step.clear_task_list_source();
-            step.tasks.remove(task_index);
-        }
-        RoadmapAnchor::SubTask(target) => {
-            delete_sub_task(roadmap, target, report)?;
-        }
+        RoadmapAnchor::Phase(target) => delete_phase(roadmap, target),
+        RoadmapAnchor::Step(target) => delete_step(roadmap, target),
+        RoadmapAnchor::Task(target) => delete_task(roadmap, target),
+        RoadmapAnchor::SubTask(target) => delete_sub_task(roadmap, target, report),
     }
-    Ok(())
 }
 
 /// Replace one addressed item and report a preserved parent source invalidation.
@@ -293,20 +289,13 @@ fn replace_anchor(
 
     match (anchor, fragment_document) {
         (RoadmapAnchor::Phase(target), RoadmapFragment::Phase(phases)) => {
-            let index = find_phase_index(roadmap, target)?;
-            roadmap.phases.splice(index..=index, phases);
-            Ok(())
+            replace_phase(roadmap, target, phases)
         }
         (RoadmapAnchor::Step(target), RoadmapFragment::Step(steps)) => {
-            let (phase, step_index) = find_step_parent_mut(roadmap, target)?;
-            phase.steps.splice(step_index..=step_index, steps);
-            Ok(())
+            replace_step(roadmap, target, steps)
         }
         (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
-            let (step, task_index) = find_task_parent_mut(roadmap, target)?;
-            step.clear_task_list_source();
-            step.tasks.splice(task_index..=task_index, tasks);
-            Ok(())
+            replace_task(roadmap, target, tasks)
         }
         (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
             replace_sub_task(roadmap, target, sub_tasks, report)

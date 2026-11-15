@@ -30,42 +30,46 @@ pub(crate) fn render_inline_export(nodes: &[Node]) -> Result<String> {
 fn render_inline_node(node: &Node, break_as_space: bool) -> Result<String> {
     match node {
         Node::Text(text) => Ok(escape_markdown(&text.value)),
-        Node::Emphasis(emphasis) => Ok(format!(
-            "*{}*",
-            render_inline_children(&emphasis.children, break_as_space)?
-        )),
-        Node::Strong(strong) => Ok(format!(
-            "**{}**",
-            render_inline_children(&strong.children, break_as_space)?
-        )),
-        Node::Delete(delete) => Ok(format!(
-            "~~{}~~",
-            render_inline_children(&delete.children, break_as_space)?
-        )),
+        Node::Emphasis(emphasis) => render_wrapped("*", &emphasis.children, break_as_space),
+        Node::Strong(strong) => render_wrapped("**", &strong.children, break_as_space),
+        Node::Delete(delete) => render_wrapped("~~", &delete.children, break_as_space),
         Node::InlineCode(code) => Ok(format!("`{}`", code.value)),
         Node::Break(_) if break_as_space => Ok(" ".to_owned()),
         Node::Break(_) => Ok("\\\n".to_owned()),
-        Node::Link(Link {
-            children,
-            url,
-            title,
-            ..
-        }) => {
-            let suffix = title
-                .as_ref()
-                .map_or_else(String::new, |link_title| format!(" \"{link_title}\""));
-            Ok(format!(
-                "[{}]({url}{suffix})",
-                render_inline_children(children, break_as_space)?
-            ))
-        }
-        other => Err(MapspliceError::InvalidRoadmap {
-            message: format!(
-                "unsupported inline node `{}` in rendered roadmap",
-                node_name(other)
-            ),
-            location: node.position().map(source_location),
-        }),
+        Node::Link(link) => render_link(link, break_as_space),
+        other => Err(unsupported_inline_node(other)),
+    }
+}
+
+/// Render children between matching delimiters, such as the `**` of strong emphasis.
+fn render_wrapped(marker: &str, children: &[Node], break_as_space: bool) -> Result<String> {
+    let inner = render_inline_children(children, break_as_space)?;
+    Ok(format!("{marker}{inner}{marker}"))
+}
+
+/// Render an inline link with its optional quoted title.
+fn render_link(link: &Link, break_as_space: bool) -> Result<String> {
+    let Link {
+        children,
+        url,
+        title,
+        ..
+    } = link;
+    let suffix = title
+        .as_ref()
+        .map_or_else(String::new, |link_title| format!(" \"{link_title}\""));
+    let label = render_inline_children(children, break_as_space)?;
+    Ok(format!("[{label}]({url}{suffix})"))
+}
+
+/// Build the located diagnostic for an inline node the renderer does not support.
+fn unsupported_inline_node(node: &Node) -> MapspliceError {
+    MapspliceError::InvalidRoadmap {
+        message: format!(
+            "unsupported inline node `{}` in rendered roadmap",
+            node_name(node)
+        ),
+        location: node.position().map(source_location),
     }
 }
 

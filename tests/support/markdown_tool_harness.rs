@@ -35,22 +35,9 @@ impl FakeMarkdownTools {
         mdtablefix_output: &str,
         markdownlint_version: &str,
     ) -> Result<Self, Box<dyn Error>> {
-        let directory = TempDir::new()?;
-        let path = Utf8PathBuf::from_path_buf(directory.path().to_path_buf())
-            .map_err(|path| format!("temporary directory is not UTF-8: {}", path.display()))?;
+        let (directory, path) = utf8_temp_dir()?;
         let handle = Dir::open_ambient_dir(&path, ambient_authority())?;
-        handle.write(
-            "package.json",
-            format!("{{\"name\":\"markdownlint-cli2\",\"version\":\"{markdownlint_version}\"}}"),
-        )?;
-        for (name, output) in [
-            ("mdtablefix", mdtablefix_output),
-            ("markdownlint-cli2", "markdownlint-cli2 stub"),
-        ] {
-            handle.write(format!("{name}.version"), output)?;
-            handle.write(name, "#!/bin/sh\ncat \"$0.version\"\n")?;
-            handle.set_permissions(name, Permissions::from_mode(0o755))?;
-        }
+        write_fake_tools(&handle, mdtablefix_output, markdownlint_version)?;
         Ok(Self {
             _directory: directory,
             path,
@@ -84,4 +71,34 @@ impl FakeMarkdownTools {
             .env("MARKDOWNLINT_CLI2_REQUIRED_VERSION", markdownlint_version)
             .output()?)
     }
+}
+
+/// Write an executable stub that prints the version text stored beside it.
+fn write_fake_tool(handle: &Dir, name: &str, version_output: &str) -> Result<(), Box<dyn Error>> {
+    handle.write(format!("{name}.version"), version_output)?;
+    handle.write(name, "#!/bin/sh\ncat \"$0.version\"\n")?;
+    handle.set_permissions(name, Permissions::from_mode(0o755))?;
+    Ok(())
+}
+
+/// Create a temporary directory together with its UTF-8 path.
+fn utf8_temp_dir() -> Result<(TempDir, Utf8PathBuf), Box<dyn Error>> {
+    let directory = TempDir::new()?;
+    let path = Utf8PathBuf::from_path_buf(directory.path().to_path_buf())
+        .map_err(|path| format!("temporary directory is not UTF-8: {}", path.display()))?;
+    Ok((directory, path))
+}
+
+/// Write both fake formatters and the npm manifest that reports the linter's version.
+fn write_fake_tools(
+    handle: &Dir,
+    mdtablefix_output: &str,
+    markdownlint_version: &str,
+) -> Result<(), Box<dyn Error>> {
+    handle.write(
+        "package.json",
+        format!("{{\"name\":\"markdownlint-cli2\",\"version\":\"{markdownlint_version}\"}}"),
+    )?;
+    write_fake_tool(handle, "mdtablefix", mdtablefix_output)?;
+    write_fake_tool(handle, "markdownlint-cli2", "markdownlint-cli2 stub")
 }

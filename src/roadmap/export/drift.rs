@@ -201,55 +201,97 @@ fn compare_details(
     let old_order = detail_order(old);
     let new_order = detail_order(new);
     report.order(&format!("{owner} details"), &old_order, &new_order);
+    let new_unnumbered = compare_new_details(owner, old, new, report);
+    for (ordinal, detail) in removed_details(old, new, new_unnumbered) {
+        let name = detail_label(detail, ordinal, owner);
+        report.lines.push(format!("- {name} removed"));
+    }
+}
+
+/// Name a detail for the report: by number, or by its source ordinal under `owner`.
+fn detail_label(detail: &ExportDetail, ordinal: usize, owner: &str) -> String {
+    detail.number.as_ref().map_or_else(
+        || format!("detail {ordinal} of {owner}"),
+        |number| format!("sub-task {number}"),
+    )
+}
+
+/// Find the old detail matching a new one, advancing `ordinal` for an unnumbered detail.
+fn match_old_detail<'a>(
+    detail: &ExportDetail,
+    old: &'a [ExportDetail],
+    old_unnumbered: &[&'a ExportDetail],
+    ordinal: &mut usize,
+) -> Option<&'a ExportDetail> {
+    detail.number.as_ref().map_or_else(
+        || {
+            let result = old_unnumbered.get(*ordinal).copied();
+            *ordinal += 1;
+            result
+        },
+        |number| {
+            old.iter()
+                .find(|candidate| candidate.number.as_ref() == Some(number))
+        },
+    )
+}
+
+/// Report added details and compare matched ones; return how many new details are unnumbered.
+fn compare_new_details(
+    owner: &str,
+    old: &[ExportDetail],
+    new: &[ExportDetail],
+    report: &mut DriftReport<'_>,
+) -> usize {
     let old_unnumbered = old
         .iter()
         .filter(|detail| detail.number.is_none())
         .collect::<Vec<_>>();
-    let mut new_unnumbered_ordinal = 0;
-
+    let mut ordinal = 0;
     for detail in new {
-        let matched = detail.number.as_ref().map_or_else(
-            || {
-                let result = old_unnumbered.get(new_unnumbered_ordinal).copied();
-                new_unnumbered_ordinal += 1;
-                result
-            },
-            |number| {
-                old.iter()
-                    .find(|candidate| candidate.number.as_ref() == Some(number))
-            },
-        );
-        let name = detail.number.as_ref().map_or_else(
-            || format!("detail {new_unnumbered_ordinal} of {owner}"),
-            |number| format!("sub-task {number}"),
-        );
+        let matched = match_old_detail(detail, old, &old_unnumbered, &mut ordinal);
+        let name = detail_label(detail, ordinal, owner);
         let Some(previous) = matched else {
             report.lines.push(format!("+ {name} added"));
             continue;
         };
         compare_detail(&name, previous, detail, report);
     }
+    ordinal
+}
 
-    let mut old_unnumbered_ordinal = 0;
-    for detail in old {
-        let removed = detail.number.as_ref().map_or_else(
-            || {
-                old_unnumbered_ordinal += 1;
-                new_unnumbered_ordinal < old_unnumbered_ordinal
-            },
-            |number| {
-                !new.iter()
-                    .any(|candidate| candidate.number.as_ref() == Some(number))
-            },
-        );
-        if removed {
-            let name = detail.number.as_ref().map_or_else(
-                || format!("detail {old_unnumbered_ordinal} of {owner}"),
-                |number| format!("sub-task {number}"),
-            );
-            report.lines.push(format!("- {name} removed"));
-        }
-    }
+/// Return whether an old detail has no counterpart, advancing `ordinal` for an unnumbered one.
+fn is_detail_removed(
+    detail: &ExportDetail,
+    new: &[ExportDetail],
+    new_unnumbered: usize,
+    ordinal: &mut usize,
+) -> bool {
+    detail.number.as_ref().map_or_else(
+        || {
+            *ordinal += 1;
+            new_unnumbered < *ordinal
+        },
+        |number| {
+            !new.iter()
+                .any(|candidate| candidate.number.as_ref() == Some(number))
+        },
+    )
+}
+
+/// List each old detail that the new list no longer carries, with its unnumbered ordinal.
+fn removed_details<'a>(
+    old: &'a [ExportDetail],
+    new: &[ExportDetail],
+    new_unnumbered: usize,
+) -> Vec<(usize, &'a ExportDetail)> {
+    let mut ordinal = 0;
+    old.iter()
+        .filter_map(|detail| {
+            is_detail_removed(detail, new, new_unnumbered, &mut ordinal)
+                .then_some((ordinal, detail))
+        })
+        .collect()
 }
 
 /// Collect identifiers from an ordered collection.

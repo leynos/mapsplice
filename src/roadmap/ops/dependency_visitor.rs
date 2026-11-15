@@ -141,6 +141,19 @@ fn visit_text_group(nodes: &mut [Node], mode: &mut DependencyVisitMode<'_>) {
         return;
     }
 
+    let (flattened, segments) = flatten_text_group(nodes);
+    let node_count = nodes.len();
+    let mut visitor = TextGroupVisitor {
+        nodes,
+        replacements: vec![Vec::new(); node_count],
+        mode,
+    };
+    record_group_candidates(&mut visitor, &flattened, &segments);
+    visitor.apply_replacements();
+}
+
+/// Join a group's text and hard breaks into one string, noting where each text node sits.
+fn flatten_text_group(nodes: &[Node]) -> (String, Vec<TextSegment>) {
     let mut flattened = String::new();
     let mut segments = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
@@ -157,22 +170,22 @@ fn visit_text_group(nodes: &mut [Node], mode: &mut DependencyVisitMode<'_>) {
             _ => {}
         }
     }
+    (flattened, segments)
+}
 
-    let node_count = nodes.len();
-    let mut visitor = TextGroupVisitor {
-        nodes,
-        replacements: vec![Vec::new(); node_count],
-        mode,
-    };
-    for candidate in dependency_candidates(&flattened) {
-        let Some((segment_index, local_range)) =
-            candidate_text_segment(&candidate.range, &segments)
+/// Record each dependency token that lies wholly inside one text node.
+fn record_group_candidates(
+    visitor: &mut TextGroupVisitor<'_, '_, '_>,
+    flattened: &str,
+    segments: &[TextSegment],
+) {
+    for candidate in dependency_candidates(flattened) {
+        let Some((segment_index, local_range)) = candidate_text_segment(&candidate.range, segments)
         else {
             continue;
         };
         visitor.record_candidate(&candidate, segment_index, local_range);
     }
-    visitor.apply_replacements();
 }
 
 /// Find the text node containing a whole dependency token and its local span.

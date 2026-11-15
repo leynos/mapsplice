@@ -46,38 +46,55 @@ use super::{
 /// Assert that one generated edit matches its independently computed outcome.
 pub fn assert_generated_edit(case: &Case, mode: Mode) -> TestCaseResult {
     let workspace = prepare_workspace(case)?;
+    let outcome = run_case(&workspace, case, mode);
 
-    match (&case.expectation, run_case(&workspace, case, mode)) {
-        (
-            Expectation::Reject { stalled },
-            Err(MapspliceError::DanglingDependency { anchor, .. }),
-        ) => {
+    match &case.expectation {
+        Expectation::Reject { stalled } => assert_rejected(stalled, outcome, &workspace, case),
+        Expectation::Accept { .. } => assert_accepted_outcome(outcome, case),
+    }
+}
+
+/// Assert an edit that must be refused names a stranded anchor and leaves the target untouched.
+fn assert_rejected(
+    stalled: &BTreeSet<String>,
+    outcome: Result<String, MapspliceError>,
+    workspace: &Workspace,
+    case: &Case,
+) -> TestCaseResult {
+    match outcome {
+        Err(MapspliceError::DanglingDependency { anchor, .. }) => {
             prop_assert!(
                 stalled.contains(&anchor.to_string()),
                 "rejection must name a stranded anchor; named `{anchor}`, stranded {stalled:?}",
             );
-            assert_target_unchanged(&workspace, &case.generated.target)?;
+            assert_target_unchanged(workspace, &case.generated.target)
         }
-        (Expectation::Reject { stalled }, Err(other)) => {
+        Err(other) => {
             prop_assert!(
                 false,
                 "expected a dangling-dependency rejection naming one of {stalled:?}, got `{other}`",
             );
+            Ok(())
         }
-        (Expectation::Reject { stalled }, Ok(_)) => {
+        Ok(_) => {
             prop_assert!(
                 false,
                 "edit must be rejected: surviving consumers still require {stalled:?}",
             );
-        }
-        (Expectation::Accept { .. }, Err(error)) => {
-            prop_assert!(false, "edit must succeed, but failed with `{error}`");
-        }
-        (Expectation::Accept { .. }, Ok(rendered)) => {
-            assert_accepted(&rendered, case)?;
+            Ok(())
         }
     }
-    Ok(())
+}
+
+/// Assert an edit that must succeed did, and rendered what the oracle predicts.
+fn assert_accepted_outcome(outcome: Result<String, MapspliceError>, case: &Case) -> TestCaseResult {
+    match outcome {
+        Err(error) => {
+            prop_assert!(false, "edit must succeed, but failed with `{error}`");
+            Ok(())
+        }
+        Ok(rendered) => assert_accepted(&rendered, case),
+    }
 }
 
 /// Assert a successful edit renders exactly the anchors the oracle predicts.
