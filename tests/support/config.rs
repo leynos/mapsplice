@@ -90,15 +90,16 @@ impl ProcessState {
         let _lock = ENV_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let scoped = || {
+            let _cwd = self.cwd.as_deref().map(CwdRestore::enter).transpose()?;
+            action()
+        };
         #[expect(
             clippy::disallowed_methods,
             reason = "serialized by ENV_LOCK; moves to an injected environment when the config \
                       loaders take one"
         )]
-        let result = temp_env::with_vars(&self.env_vars, || {
-            let _cwd = self.cwd.as_deref().map(CwdRestore::enter).transpose()?;
-            action()
-        });
+        let result = temp_env::with_vars(&self.env_vars, scoped);
         result
     }
 }
