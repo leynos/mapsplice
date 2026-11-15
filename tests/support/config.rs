@@ -90,10 +90,16 @@ impl ProcessState {
         let _lock = ENV_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        temp_env::with_vars(&self.env_vars, || {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "serialized by ENV_LOCK; moves to an injected environment when the config \
+                      loaders take one"
+        )]
+        let result = temp_env::with_vars(&self.env_vars, || {
             let _cwd = self.cwd.as_deref().map(CwdRestore::enter).transpose()?;
             action()
-        })
+        });
+        result
     }
 }
 
@@ -102,14 +108,25 @@ struct CwdRestore(PathBuf);
 impl CwdRestore {
     fn enter(path: &Utf8Path) -> TestResult<Self> {
         let previous = env::current_dir()?;
-        env::set_current_dir(path.as_std_path())?;
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "serialized by ENV_LOCK; the CLI under test reads the process working \
+                      directory"
+        )]
+        let entered = env::set_current_dir(path.as_std_path());
+        entered?;
         Ok(Self(previous))
     }
 }
 
 impl Drop for CwdRestore {
     fn drop(&mut self) {
-        if let Err(error) = env::set_current_dir(&self.0) {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "restores the working directory entered under ENV_LOCK"
+        )]
+        let restored = env::set_current_dir(&self.0);
+        if let Err(error) = restored {
             let diagnostic = format!(
                 "failed to restore working directory {}: {error}",
                 self.0.display()
