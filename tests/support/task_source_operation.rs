@@ -93,20 +93,30 @@ fn assert_insert_result(result: &OperationResult<'_>) -> TestCaseResult {
         if index < insertion_index && index != 1 {
             assert_source_occurs_once(result.output, snapshot)?;
         } else {
-            assert_source_absent(result.output, snapshot)?;
-            let number = index + 1 + usize::from(index >= insertion_index);
-            let dependency_target = 3 + usize::from(2 >= insertion_index);
-            assert_text_occurs_once(
-                result.output,
-                &canonical_original_task(snapshot, label, number, dependency_target),
-                snapshot.identity,
-            )?;
+            assert_insert_rewritten_task(result, index, insertion_index, (snapshot, label))?;
         }
     }
     assert_text_occurs_once(
         result.output,
         &canonical_task(&format!("1.1.{}", insertion_index + 1), "Inserted", None),
         "inserted task",
+    )
+}
+
+/// Assert an original task was rewritten, renumbered and retargeted by an insertion.
+fn assert_insert_rewritten_task(
+    result: &OperationResult<'_>,
+    index: usize,
+    insertion_index: usize,
+    (snapshot, label): (&TaskSnapshot, &str),
+) -> TestCaseResult {
+    assert_source_absent(result.output, snapshot)?;
+    let number = index + 1 + usize::from(index >= insertion_index);
+    let dependency_target = 3 + usize::from(2 >= insertion_index);
+    assert_text_occurs_once(
+        result.output,
+        &canonical_original_task(snapshot, label, number, dependency_target),
+        snapshot.identity,
     )
 }
 

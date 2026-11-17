@@ -266,21 +266,27 @@ fn non_broken_pipe_write_failures_are_reported_and_fail() -> TestResult {
     ];
 
     for case in cases {
-        let workspace = isolated_workspace()?;
-        if case.needs_inputs {
-            write_valid_inputs(&workspace)?;
-        }
-        let output = run_with_full_device(&workspace, case.arguments, case.stream)?;
-        verify_exit_code(&output, 1, case.label)?;
-        if matches!(case.stream, OutputStream::Stdout) {
-            verify(
-                !output.stderr.is_empty(),
-                format!(
-                    "{} write failure should report a stderr diagnostic",
-                    case.label
-                ),
-            )?;
-        }
+        verify_full_device_case(&case)?;
+    }
+    Ok(())
+}
+
+/// Run one full-device case and verify the exit code and any required stderr diagnostic.
+fn verify_full_device_case(case: &FullDeviceCase) -> TestResult {
+    let workspace = isolated_workspace()?;
+    if case.needs_inputs {
+        write_valid_inputs(&workspace)?;
+    }
+    let output = run_with_full_device(&workspace, case.arguments, case.stream)?;
+    verify_exit_code(&output, 1, case.label)?;
+    if matches!(case.stream, OutputStream::Stdout) {
+        verify(
+            !output.stderr.is_empty(),
+            format!(
+                "{} write failure should report a stderr diagnostic",
+                case.label
+            ),
+        )?;
     }
     Ok(())
 }
