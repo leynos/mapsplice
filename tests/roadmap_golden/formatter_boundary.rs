@@ -117,10 +117,7 @@ fn scan_markdown_fixture(
     let mut indented_code = IndentedTaskCodeState::default();
     for (index, line) in lines.iter().enumerate() {
         if let Some(fence) = open_fence {
-            if closes_fence(line, fence) {
-                open_fence = None;
-            }
-            indented_code.previous_line_was_blank = line.trim().is_empty();
+            open_fence = advance_inside_fence(line, fence, &mut indented_code);
             continue;
         }
         if is_indented_task_code_block_line(line, &mut indented_code) {
@@ -130,13 +127,23 @@ fn scan_markdown_fixture(
             if has_noncanonical_fence(line) {
                 report(fixture_path, index, "non-canonical code fence", findings);
             }
-            open_fence = Some(fence);
             indented_code.previous_line_was_blank = line.trim().is_empty();
+            open_fence = Some(fence);
             continue;
         }
         scan_formatter_boundary_line(&lines, index, fixture_path, findings);
     }
     Ok(())
+}
+
+/// Consume one line inside an open fence, returning the fence if it is still open.
+fn advance_inside_fence(
+    line: &str,
+    fence: Fence,
+    indented_code: &mut IndentedTaskCodeState,
+) -> Option<Fence> {
+    indented_code.previous_line_was_blank = line.trim().is_empty();
+    (!closes_fence(line, fence)).then_some(fence)
 }
 
 /// Record boundary findings for one non-fenced Markdown fixture line.
