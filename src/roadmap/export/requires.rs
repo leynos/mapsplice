@@ -167,20 +167,24 @@ fn dependencies(
 /// Find a bold `Requires` token that the plain-text scanner cannot reach.
 fn formatted_requires(nodes: &[Node]) -> Result<FormattedRequires> {
     for node in nodes {
-        if let Node::Strong(strong) = node
-            && render_text(&strong.children)?.trim() == "Requires"
-        {
-            return Ok(FormattedRequires::Found(
-                node.position().map(source_location),
-            ));
-        }
-        if let Some(children) = node_children(node)
-            && let found @ FormattedRequires::Found(_) = formatted_requires(children)?
-        {
+        let found = formatted_requires_in_node(node)?;
+        if matches!(found, FormattedRequires::Found(_)) {
             return Ok(found);
         }
     }
     Ok(FormattedRequires::NotFound)
+}
+
+/// Check one node, then its descendants, for a bold `Requires` token.
+fn formatted_requires_in_node(node: &Node) -> Result<FormattedRequires> {
+    if let Node::Strong(strong) = node
+        && render_text(&strong.children)?.trim() == "Requires"
+    {
+        return Ok(FormattedRequires::Found(
+            node.position().map(source_location),
+        ));
+    }
+    node_children(node).map_or_else(|| Ok(FormattedRequires::NotFound), formatted_requires)
 }
 
 /// Distinguish no bold keyword from a keyword whose AST position is absent.
