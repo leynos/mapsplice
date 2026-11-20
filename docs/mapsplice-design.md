@@ -420,8 +420,9 @@ levels. An already-checked item returns the original text, so C5 holds and a
 configured suffix can never be applied twice.
 
 Done-marker placement keeps the repository Markdown formatter stable when the
-title already meets the 80-column gate: the marker is appended to the title's
-final line, and only its own words wrap, at 80 columns, onto continuation lines
-indented to the title's content column. The decision to patch source spans
-instead of rendering canonically, and to keep the marker optional, is recorded
-in [ADR 0002](adrs/adr-0002-in-place-checkbox-completion.md).
+title's existing wrapping already satisfies `make check-fmt`: the marker is
+appended to the title's final line, and only its own words wrap, at 80 columns,
+onto continuation lines indented to the title's content column. The decision to
+patch source spans instead of rendering canonically, and to keep the marker
+optional, is recorded in
+[ADR 0002](adrs/adr-0002-in-place-checkbox-completion.md).
