@@ -55,12 +55,15 @@ needed to keep a rewritten roadmap reparsable do not appear in the JSON, so `(`,
 Supported formatting nodes still carry their Markdown delimiters, for example
 `**bold**` and `` `code` ``. Whitespace runs, including CRLF line endings and
 Markdown hard breaks, collapse to one ASCII space; leading and trailing
-whitespace is removed. Whitespace changes in the Markdown therefore do not
-create semantic export drift. Formatting changes do only when they change the
-exported value: removing the emphasis from `**bold**` exports `bold` and the
-check reports drift. Source formatting that renders identically is invisible to
-the check, so `**bold**` and escaped literal `\*\*bold\*\*` both export as
-`**bold**`.
+whitespace is removed. A whitespace change therefore creates no semantic export
+drift when it normalizes to the same value, such as reflowing a line or adding
+a second space between words. Inserting or removing whitespace between words
+changes the exported value, so `AlphaBeta` and `Alpha Beta` are different
+exports and the check reports drift. Formatting changes likewise report drift
+only when they change the exported value: removing the emphasis from `**bold**`
+exports `bold` and the check reports drift. Source formatting that renders
+identically is invisible to the check, so `**bold**` and escaped literal
+`\*\*bold\*\*` both export as `**bold**`.
 
 A leading label is a short phrase of ASCII letters, spaces or hyphens ending in
 `:`, or a leading strong-emphasis node containing such a phrase and colon.
