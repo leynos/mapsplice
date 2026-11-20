@@ -45,10 +45,15 @@ change.
 After this change, a replacement consisting of exactly one item at the same
 level, whose fragment-local number equals the addressed number, is an in-place
 edit of the same item. The command succeeds, only the replaced item's line
-changes, and every `Requires` clause stays byte-identical. Descendants of the
-replaced item (steps under a phase, tasks and sub-tasks under a step, sub-tasks
-under a task) keep their identities too, but only where a unique same-numbered
-descendant exists on both the retired and replacement sides.
+changes, and every `Requires` clause naming the addressed item stays
+byte-identical: its number did not move. Descendants of the replaced item
+(steps under a phase, tasks and sub-tasks under a step, sub-tasks under a task)
+keep their identities too, but only where a unique same-numbered descendant
+exists on both the retired and replacement sides. A retained descendant can
+still move to a different number within the replacement — replacing step `1.1`
+with a step holding only task `1.1.2` renumbers it to `1.1.1` — so references
+to that descendant are rewritten deterministically rather than preserved
+byte-for-byte.
 
 The mechanism is an **operation-granted continuity alias**: the renumber plan
 temporarily remembers that a retired identity continues at the new anchor of
