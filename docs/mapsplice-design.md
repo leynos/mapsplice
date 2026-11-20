@@ -409,8 +409,10 @@ inserted at the end of the title paragraph before its terminal punctuation,
 keeping any closing inline markers after the inserted words. Every other byte —
 title wrapping, continuation lines, nested bullets, `Requires` references, and
 all numbering — is retained, which satisfies F1 and F2 without invoking the
-renderer at all. Section 5's *gate-clean* caveat does not apply, because no
-unstable syntax is normalized.
+renderer at all. Section 5's *gate-clean* caveat does not arise from syntax,
+because no unstable syntax is normalized. It still bounds line width: an input
+paragraph that is already wider than 80 columns stays that wide, because
+completion never reflows existing title text.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must
@@ -422,9 +424,9 @@ with the parsed model, or a failed post-condition fails closed with
 levels. An already-checked item returns the original text, so C5 holds and a
 configured suffix can never be applied twice.
 
-Done-marker placement keeps the repository Markdown formatter stable: the
-marker is appended to the title's final line, and only its own words wrap, at
-80 columns, onto continuation lines indented to the title's content column. The
-decision to patch source spans instead of rendering canonically, and to keep
-the marker optional, is recorded in
-[ADR 0002](adrs/adr-0002-in-place-checkbox-completion.md).
+Done-marker placement keeps the repository Markdown formatter stable when the
+title already meets the 80-column gate: the marker is appended to the title's
+final line, and only its own words wrap, at 80 columns, onto continuation lines
+indented to the title's content column. The decision to patch source spans
+instead of rendering canonically, and to keep the marker optional, is recorded
+in [ADR 0002](adrs/adr-0002-in-place-checkbox-completion.md).

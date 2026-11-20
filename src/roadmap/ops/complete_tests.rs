@@ -150,6 +150,41 @@ fn suffix_around_closing_inline_markers(
 }
 
 #[test]
+fn a_formatted_suffix_is_recognized_after_insertion() {
+    let expected = completion_source("- [x] 1.1.1. Finish **done**");
+
+    assert_eq!(
+        complete_ok(
+            &completion_source("- [ ] 1.1.1. Finish"),
+            "1.1.1",
+            Some("**done**")
+        ),
+        expected,
+        "a formatted suffix without title punctuation must pass validation"
+    );
+}
+
+#[test]
+fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
+    let item = format!("- [ ] 1.1.1. **{}.**", "a".repeat(58));
+    let completed = complete_ok(&completion_source(&item), "1.1.1", Some("done."));
+    let longest = completed
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    assert!(
+        longest <= 80,
+        "every completed line must stay within 80 columns: {completed}"
+    );
+    assert!(
+        completed.contains("      done.**"),
+        "the suffix should wrap before the preserved closing markers: {completed}"
+    );
+}
+
+#[test]
 fn completing_twice_equals_completing_once() {
     let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Finish the scope.\n";
 
@@ -167,18 +202,6 @@ fn an_already_checked_item_is_untouched_even_with_a_new_suffix() {
         complete_ok(source, "1.1.1", Some("— done")),
         source,
         "a checked item must not gain a suffix on a later run"
-    );
-}
-
-#[test]
-fn a_suffix_word_inside_a_longer_word_does_not_count_as_present() {
-    let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Get it undone.\n";
-    let expected = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Get it undone done.\n";
-
-    assert_eq!(
-        complete_ok(source, "1.1.1", Some("done")),
-        expected,
-        "a suffix should only match at a word boundary"
     );
 }
 

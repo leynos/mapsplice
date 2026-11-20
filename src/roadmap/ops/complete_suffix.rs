@@ -40,19 +40,29 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 /// The comparison collapses the title's source wrapping back into single
 /// spaces. A suffix without its own terminal punctuation is matched against
 /// the title with that punctuation removed, because an earlier run placed the
-/// suffix before it. A suffix beginning with a word character must also start
-/// at a word boundary; otherwise `done` would treat a title ending in `undone`
-/// as already complete.
+/// suffix before it. The complete title is checked before closing inline
+/// markers are stripped, so a formatted suffix such as `**done**` still
+/// matches. A suffix beginning with a word character must also start at a word
+/// boundary; otherwise `done` would treat a title ending in `undone` as
+/// already complete.
 pub(super) fn title_has_suffix(source: &str, span: ItemSourceSpan, suffix: &str) -> bool {
     let Some(raw) = source.get(span.title_start..span.paragraph_end) else {
         return false;
     };
     let normalized = normalize_title(raw);
+    if suffix_matches(&normalized, suffix) {
+        return true;
+    }
     let content = normalized.trim_end_matches(INLINE_CLOSERS).trim_end();
+    suffix_matches(content, suffix)
+}
+
+/// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
+fn suffix_matches(text: &str, suffix: &str) -> bool {
     if suffix_supplies_punctuation(suffix) {
-        ends_at_word_boundary(content, suffix)
+        ends_at_word_boundary(text, suffix)
     } else {
-        let without_terminal = content.trim_end_matches(is_terminal_punctuation).trim_end();
+        let without_terminal = text.trim_end_matches(is_terminal_punctuation).trim_end();
         ends_at_word_boundary(without_terminal, suffix)
     }
 }
@@ -134,7 +144,9 @@ fn suffix_slot<'source>(
         let replaced = (punctuation_start < content_end).then_some(punctuation_start..content_end);
         return Some(SuffixSlot {
             insert_at: punctuation_start,
-            terminal: "",
+            // Any closing inline markers survive the punctuation removal and
+            // still count toward the last line's width.
+            terminal: source.get(content_end..span.paragraph_end)?,
             replaced,
         });
     }
