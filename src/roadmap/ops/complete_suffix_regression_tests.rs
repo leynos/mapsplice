@@ -3,7 +3,9 @@
 //! Each test pins a defect found in review. Block-shaped suffixes were read as
 //! block syntax and skipped, an entity-encoded prefix separator defeated the
 //! numbered prefix boundary, and a wrapped insertion let a literal trailing
-//! backslash escape the inserted line break.
+//! backslash escape the inserted line break. Encoded terminal punctuation was
+//! left ahead of the suffix, and inline HTML that renders nothing was treated
+//! as a word boundary.
 
 use rstest::rstest;
 
@@ -79,5 +81,60 @@ fn a_wrapped_suffix_preserves_a_literal_trailing_backslash() {
     assert!(
         title_has_suffix(&task.summary, "Task\\ — done"),
         "the parsed title must keep the literal backslash: {completed}"
+    );
+}
+
+#[rstest]
+#[case::an_encoded_full_stop_stays_last(
+    "- [ ] 1.1.1. Finish the scope&#46;",
+    "— done",
+    "- [x] 1.1.1. Finish the scope — done&#46;"
+)]
+#[case::an_encoded_ellipsis_stays_last(
+    "- [ ] 1.1.1. Finish the scope&hellip;",
+    "— done",
+    "- [x] 1.1.1. Finish the scope — done&hellip;"
+)]
+#[case::a_punctuated_suffix_replaces_an_encoded_full_stop(
+    "- [ ] 1.1.1. Finish the scope&#46;",
+    "— done.",
+    "- [x] 1.1.1. Finish the scope — done."
+)]
+#[case::an_escaped_reference_is_literal_text(
+    "- [ ] 1.1.1. Finish the scope\\&#46;",
+    "— done",
+    "- [x] 1.1.1. Finish the scope\\&#46; — done"
+)]
+fn character_references_count_as_their_rendered_punctuation(
+    #[case] item: &str,
+    #[case] suffix: &str,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some(suffix))
+            .expect("fixture completion should succeed"),
+        completion_source(expected_item),
+        "encoded terminal punctuation must keep its place after the suffix"
+    );
+}
+
+#[rstest]
+#[case::an_empty_span_joins_the_surrounding_word(
+    "- [ ] 1.1.1. Get it un<span></span>done.",
+    "- [x] 1.1.1. Get it un<span></span>done done."
+)]
+#[case::a_break_tag_separates_the_surrounding_words(
+    "- [ ] 1.1.1. Get it un<br>done.",
+    "- [x] 1.1.1. Get it un<br>done."
+)]
+fn inline_html_is_a_boundary_only_when_it_renders_a_break(
+    #[case] item: &str,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some("done"))
+            .expect("fixture completion should succeed"),
+        completion_source(expected_item),
+        "only inline HTML that renders a break may separate words"
     );
 }

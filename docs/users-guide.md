@@ -329,10 +329,12 @@ A done marker is appended to the end of the item's title, after any wrapped
 title lines and before its nested bullets. Terminal punctuation stays terminal:
 `--suffix "— done"` turns `1.1.1. Finish the scope.` into
 `1.1.1. Finish the scope — done.`, not `1.1.1. Finish the scope. — done`.
-Closing emphasis, strong, and strike markers stay after the suffix, so
-`**Finish the scope.**` becomes `**Finish the scope — done.**`. Literal
-constructs are the exception: the suffix follows a closing backtick or a link,
-so `` `foo` `` becomes `` `foo` — done `` and `[foo](url)` becomes
+Terminal punctuation written as a character reference counts as the punctuation
+it renders as, so `Finish&#46;` becomes `Finish — done&#46;`, not
+`Finish&#46; — done`. Closing emphasis, strong, and strike markers stay after
+the suffix, so `**Finish the scope.**` becomes `**Finish the scope — done.**`.
+Literal constructs are the exception: the suffix follows a closing backtick or
+a link, so `` `foo` `` becomes `` `foo` — done `` and `[foo](url)` becomes
 `[foo](url) — done`, rather than changing the construct's content. A suffix
 that carries its own terminal punctuation replaces the title's trailing run, so
 `--suffix "done."` gives `1.1.1. Finish the scope done.` A suffix that itself
