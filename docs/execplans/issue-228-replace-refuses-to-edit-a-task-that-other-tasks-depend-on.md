@@ -194,7 +194,24 @@ Stop and report rather than working around a breached tolerance.
       `behaviour_cli` 19/19, and
       `roadmap_golden`/`roadmap_dependency_properties`/`roadmap_successive_commands`
       104/104.
-- [ ] `EP-M3` User guide, design document, verification ledger, and PR closed.
+- [x] (2026-11-20) `EP-M2` review remediation: the property selector takes the
+      edit kind from the remainder and the addressed position from the
+      quotient, so every kind reaches every position a generated model offers.
+      Evidence: `every_edit_kind_reaches_every_position` asserts the full cross
+      product over `0..=u8::MAX`; the focused property suite passes 16/16, and
+      all seven deterministic gates pass at `b59cc4f`, Whitaker included.
+- [x] (2026-11-20) `EP-M3` Documentation: the user guide states the in-place
+      rule and its retirement counterexamples; design C1 and section 7 record
+      the operation-granted alias without weakening either resolution rule; the
+      verification ledger gains a Pending row tagged #160 and #162 and links
+      retention to the target-local precedence theorem; the two stale
+      `src/roadmap/model.rs` path references name
+      `src/roadmap/renumber_plan.rs`; the ledger fixture is a byte copy.
+      Evidence: focused `verus_harness` suite passes 41/41; `make markdownlint`,
+      `make nixie`, and `make spelling` pass. Verus itself is not installed here
+      (`.verus/z3/z3` is absent), so `make verus`/`make verus-selftest` were not
+      runnable; no proof source changed.
+- [ ] `EP-M3` Delivery: push the branch and open the draft PR.
 
 ## Surprises & discoveries
 
@@ -250,6 +267,12 @@ Stop and report rather than working around a breached tolerance.
   `tests/support/generation/mod.rs` with fragment rendering and its tests in
   `tests/support/generation/fragments.rs`; the suite declares the module with
   `#[path = "support/generation/mod.rs"]`.
+- Observation: Clippy's `integer_division` and
+  `integer_division_remainder_used` lints are denied workspace-wide and apply
+  to test-support code as much as to `src/`. Evidence: the first full lint run
+  on the selector fix failed at `tests/support/oracle.rs:108-109` for `/` and
+  `%` alone. Impact: intentional quotient and remainder use `div_euclid` and
+  `rem_euclid`, matching the rest of the module, rather than an expectation.
 
 ## Decision log
 
@@ -287,6 +310,15 @@ Stop and report rather than working around a breached tolerance.
   committed document identity-equivalent to a fresh parse of its own rendering.
   The alias remains operation-scoped and is still required for the granting
   operation's rewrite. Date/Author: 2026-11-20, agent.
+- D6. Record the alias in the ledger as `Pending`, not as a proved obligation.
+  Rationale: `RenumberPlan::resolve` folds the alias into the source-local
+  answer before `select_resolution` sees it, so
+  `target_text_keeps_its_source_local_mapping` covers retention *given* the
+  alias — but alias construction, fragment cardinality, and descendant pairing
+  are premises the kernel cannot observe. Claiming them as proved would extend
+  the theorem past its boundary; recording them under #160 and #162 keeps the
+  proof claim honest while the golden, CLI, and property evidence exercises the
+  premise and its counterexamples. Date/Author: 2026-11-20, agent.
 
 ## Outcomes & retrospective
 
@@ -496,12 +528,14 @@ Scenario: Replacement that changes the number still dangles
 Add
 `RenumberPlan::record_continuity(&mut self, identity: ItemIdentity, new:
 RoadmapAnchor) -> bool`
-in `src/roadmap/model.rs`. It inserts only when the source-local map has no
-entry for `identity.anchor` and returns whether it inserted. `resolve`,
-`resolve_unique`, and `resolve_reference` keep their contracts (only `resolve`
-may gain a doc note if needed).
+in `src/roadmap/renumber_plan.rs` (then inside `src/roadmap/model.rs`). It
+inserts only when the source-local map has no entry for `identity.anchor` and
+returns whether it inserted. `resolve`, `resolve_unique`, and
+`resolve_reference` keep their contracts (only `resolve` may gain a doc note if
+needed).
 
-Add `src/roadmap/ops/continuity.rs` with a `pub(crate)` `ItemPosition` enum
+Add `src/roadmap/ops/continuity/` (split into `mod.rs`, `position.rs`, and
+`descendants.rs` during implementation) with a `pub(crate)` `ItemPosition` enum
 (phase/step/task/sub-task indices), a `ContinuityPlan` holding
 `Vec<(ItemIdentity, ItemPosition)>`, constructors for each replacement level,
 and `apply(&self, roadmap: &RoadmapDocument, plan: &mut RenumberPlan)` which
@@ -636,7 +670,8 @@ writes outside the worktree except `/tmp` logs.
 Reconnaissance evidence at `622b71d`:
 
 - `src/roadmap/ops/mod.rs` pipeline and `replace_anchor` dispatch.
-- `src/roadmap/model.rs` `RenumberPlan` API.
+- `src/roadmap/renumber_plan.rs` `RenumberPlan` API (then inside
+  `src/roadmap/model.rs`; split out during implementation).
 - `src/roadmap/ops/rewrite.rs` renumber-then-rewrite ordering and
   `DanglingDependency` construction.
 - `tests/support/oracle_tree.rs` models `Edit::ReplaceTask` as removal plus
@@ -648,7 +683,8 @@ Implementation transcripts are appended per milestone.
 
 ## Interfaces and dependencies
 
-New domain-internal interface in `src/roadmap/model.rs`:
+New domain-internal interface in `src/roadmap/renumber_plan.rs` (the type
+started inside `src/roadmap/model.rs` and was split out during implementation):
 
 ```rust
 pub(crate) fn record_continuity(
@@ -658,19 +694,22 @@ pub(crate) fn record_continuity(
 ) -> bool;
 ```
 
-New module `src/roadmap/ops/continuity.rs`:
+New module `src/roadmap/ops/continuity/` (`mod.rs`, `position.rs`, and
+`descendants.rs`):
 
 ```rust
 pub(crate) enum ItemPosition { /* phase/step/task/sub-task indices */ }
+pub(crate) struct Replacement { /* level, position, and item count */ }
 pub(crate) struct ContinuityPlan { /* pairs of retired identity and position */ }
 
-pub(crate) fn phase_continuity(retired: &PhaseSection, fragment: &[PhaseSection], position: ItemPosition) -> ContinuityPlan;
-pub(crate) fn step_continuity(retired: &StepSection, fragment: &[StepSection], position: ItemPosition) -> ContinuityPlan;
-pub(crate) fn task_continuity(retired: &TaskEntry, fragment: &[TaskEntry], position: ItemPosition) -> ContinuityPlan;
-pub(crate) fn sub_task_continuity(retired: &SubTaskEntry, fragment: &[SubTaskEntry], position: ItemPosition) -> ContinuityPlan;
+pub(crate) fn continuity_for(
+    roadmap: &RoadmapDocument,
+    retired: &RetiredSubtree,
+    replacement: Replacement,
+) -> ContinuityPlan;
 
 impl ContinuityPlan {
-    pub(crate) fn apply(&self, roadmap: &RoadmapDocument, plan: &mut RenumberPlan);
+    pub(crate) fn apply(&self, roadmap: &RoadmapDocument, plan: &mut RenumberPlan) -> usize;
 }
 ```
 
@@ -688,3 +727,9 @@ record aliases. No dependencies are added.
   showed every second command failed once the first rewrote a reference; added
   the successive-command regressions and the `INV-commit` obligation. No public
   API or milestone order changed.
+- 2026-11-20: Review remediation in `EP-M2` and documentation in `EP-M3`.
+  Decoupled the property selector's edit kind from its addressed position after
+  CodeRabbit showed the shared remainder limited each task edit to two of the
+  twelve tasks; recorded the Clippy division-lint lesson; documented the
+  in-place rule, the operation-granted alias, and its Pending proof status. No
+  runtime behaviour or milestone order changed.
