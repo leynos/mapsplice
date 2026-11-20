@@ -424,8 +424,10 @@ with the parsed model, or a failed post-condition fails closed with
 `MapspliceError::UnsupportedAnchorLevel`, because no checkbox exists at those
 levels. An already-checked item returns the original text, so C5 holds and a
 configured suffix can never be applied twice. The composition root prints that
-unchanged text in preview mode, so a redirected preview is always a complete
-document, while an in-place no-op reports success without a file write.
+unchanged text in preview mode, so a preview redirected to another file is a
+complete document even when nothing changed; redirecting onto the target itself
+truncates it before it can be read, which is why same-file updates use
+`--in-place`. An in-place no-op reports success without a file write.
 
 Done-marker placement keeps the repository Markdown formatter stable when the
 title's existing wrapping already satisfies `make check-fmt`: the marker is

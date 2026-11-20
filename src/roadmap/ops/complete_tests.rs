@@ -2,7 +2,10 @@
 
 use rstest::rstest;
 
-use super::{complete_item, test_support::complete_ok};
+use super::{
+    complete_item,
+    test_support::{complete_ok, completion_source},
+};
 use crate::{
     error::MapspliceError,
     roadmap::{RoadmapItemLevel, parse_anchor, parse_roadmap},
@@ -101,6 +104,18 @@ fn a_checkbox_like_sequence_in_the_title_is_not_the_checkbox() {
         complete_ok(source, "1.1.1", None),
         expected,
         "only the item's own marker should change"
+    );
+}
+
+#[test]
+fn a_tab_marked_unchecked_item_is_completed() {
+    let source = completion_source("- [\t] 1.1.1. Finish the scope.");
+    let expected = completion_source("- [x] 1.1.1. Finish the scope.");
+
+    assert_eq!(
+        complete_ok(&source, "1.1.1", None),
+        expected,
+        "a tab, which the parser accepts as unchecked, should become checked"
     );
 }
 

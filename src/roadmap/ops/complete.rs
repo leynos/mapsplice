@@ -216,7 +216,9 @@ fn checkbox_marker_offset(
     let closing = source.as_bytes().get(state_offset + 1).copied();
     let agrees = closing == Some(b']')
         && match state {
-            Some(b' ') => !checked,
+            // The Markdown parser accepts a space or a tab as an unchecked
+            // marker, so both byte values must agree with the parsed state.
+            Some(b' ' | b'\t') => !checked,
             Some(b'x' | b'X') => checked,
             _ => false,
         };
