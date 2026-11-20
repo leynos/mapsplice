@@ -46,8 +46,9 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 
 /// Insert the done suffix into the addressed title in the patched text.
 ///
-/// Returns `None` when the retained span does not fit the source, which the
-/// caller reports as an unsafe edit. The suffix is placed before the title's
+/// Returns `None` when the retained span does not fit the source or a wrapped
+/// break cannot be made safe, which the caller reports as an unsafe edit. The
+/// suffix is placed before the title's
 /// terminal sentence punctuation so `… scope — done.` replaces `… scope.`; a
 /// suffix carrying its own punctuation replaces the title's run instead. A
 /// suffix that ends with an inline marker follows the title's closing markers,
@@ -99,7 +100,7 @@ pub(super) fn insert_suffix(
     if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    let mut inserted = wrap_suffix(suffix, &wrap);
+    let mut inserted = wrap_suffix(suffix, &wrap)?;
     if inserted.starts_with(wrap.line_ending)
         && ends_with_unpaired_backslash(source.get(..slot.insert_at)?)
     {
@@ -196,7 +197,10 @@ fn suffix_slot<'source>(
 }
 
 /// Append the suffix words greedily, wrapping at [`WRAP_COLUMNS`].
-fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> String {
+///
+/// Returns `None` when a generated break cannot be made safe, so the caller
+/// fails closed rather than changing the rendered title.
+fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> Option<String> {
     let terminal_width = wrap.terminal.trim_end_matches([' ', '\t']).chars().count();
     let hanging_width = wrap.hanging.chars().count();
     let words = suffix.split_whitespace().collect::<Vec<_>>();
@@ -212,19 +216,45 @@ fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> String {
             1
         };
         if width + separator + word_width + tail_width <= WRAP_COLUMNS {
-            if separator == 1 {
-                rendered.push(' ');
-            }
-            rendered.push_str(word);
+            push_word(&mut rendered, word, separator);
             width += separator + word_width + tail_width;
         } else {
-            rendered.push_str(wrap.line_ending);
-            rendered.push_str(&wrap.hanging);
-            rendered.push_str(word);
+            start_continuation_line(&mut rendered, width, wrap, word)?;
             width = hanging_width + word_width + tail_width;
         }
     }
-    rendered
+    Some(rendered)
+}
+
+/// Append a word to the current line, preceded by `separator` spaces.
+fn push_word(rendered: &mut String, word: &str, separator: usize) {
+    if separator == 1 {
+        rendered.push(' ');
+    }
+    rendered.push_str(word);
+}
+
+/// Start a continuation line at the hanging indent with `word` on it.
+///
+/// A line that would end with an unpaired backslash gets one more backslash so
+/// the literal character survives the break. Returns `None` when the line is
+/// already at the column limit and cannot take that character.
+fn start_continuation_line(
+    rendered: &mut String,
+    width: usize,
+    wrap: &SuffixWrap<'_>,
+    word: &str,
+) -> Option<()> {
+    if !rendered.is_empty() && ends_with_unpaired_backslash(rendered) {
+        if width >= WRAP_COLUMNS {
+            return None;
+        }
+        rendered.push('\\');
+    }
+    rendered.push_str(wrap.line_ending);
+    rendered.push_str(&wrap.hanging);
+    rendered.push_str(word);
+    Some(())
 }
 
 /// Layout inputs for wrapping an inserted suffix.

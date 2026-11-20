@@ -124,8 +124,10 @@ fn renders_word_break(node: &Node) -> bool {
 /// Report whether an inline HTML tag renders a line break.
 ///
 /// Only break elements such as `<br>`, `<br/>`, and `<br class="gap">` render a
-/// visible break between words. Other inline tags, including closing tags and
-/// empty containers, render nothing and so join the surrounding text.
+/// visible break between words. The whole tag name is compared, so a
+/// hyphenated element such as `<br-widget>` is not a break. Other inline tags,
+/// including closing tags and empty containers, render nothing and so join the
+/// surrounding text.
 fn html_renders_line_break(value: &str) -> bool {
     let Some(tag) = value.trim().strip_prefix('<') else {
         return false;
@@ -133,7 +135,7 @@ fn html_renders_line_break(value: &str) -> bool {
     let name = tag
         .trim_start_matches('/')
         .chars()
-        .take_while(char::is_ascii_alphanumeric)
+        .take_while(|character| character.is_ascii_alphanumeric() || *character == '-')
         .collect::<String>();
     name.eq_ignore_ascii_case("br")
 }

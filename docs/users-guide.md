@@ -345,7 +345,8 @@ inline title text, so a leading `#` or list marker is inserted literally rather
 than being read as block syntax. When the suffix would push the title's last
 line past 80 columns, only the suffix words move onto continuation lines
 indented to the title's content column; no existing title line is joined or
-split. If that line ends with a literal backslash, the inserted break is
+split. If a line would end with a literal backslash where the suffix wraps,
+whether that backslash ends the title or a suffix word, the inserted break is
 preceded by one additional backslash so the original character stays literal; a
 line already at the column limit cannot take the extra character, and
 completion then fails rather than changing the title. Provided the title's
