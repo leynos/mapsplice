@@ -13,10 +13,15 @@
 //! return `None` rather than construct a diagnostic when an offset does not
 //! fit, leaving the caller to report fail-closed completion errors.
 
+use std::ops::Range;
+
 use super::super::model::ItemSourceSpan;
 
 /// Column limit for Markdown paragraphs and bullets in this repository.
 const WRAP_COLUMNS: usize = 80;
+
+/// Characters that can close inline emphasis, strong, code, or strike spans.
+const INLINE_CLOSERS: [char; 4] = ['*', '_', '`', '~'];
 
 /// Collapse the configured suffix into the single-line words that are inserted.
 ///
@@ -43,12 +48,11 @@ pub(super) fn title_has_suffix(source: &str, span: ItemSourceSpan, suffix: &str)
         return false;
     };
     let normalized = normalize_title(raw);
+    let content = normalized.trim_end_matches(INLINE_CLOSERS).trim_end();
     if suffix_supplies_punctuation(suffix) {
-        ends_at_word_boundary(&normalized, suffix)
+        ends_at_word_boundary(content, suffix)
     } else {
-        let without_terminal = normalized
-            .trim_end_matches(is_terminal_punctuation)
-            .trim_end();
+        let without_terminal = content.trim_end_matches(is_terminal_punctuation).trim_end();
         ends_at_word_boundary(without_terminal, suffix)
     }
 }
@@ -65,51 +69,95 @@ pub(super) fn insert_suffix(
     span: ItemSourceSpan,
     suffix: &str,
 ) -> Option<()> {
-    let raw = source.get(span.title_start..span.paragraph_end)?;
-    let number_end = raw.find(". ").map(|index| span.title_start + index + 2)?;
-    let trimmed_end = span.title_start + raw.trim_end_matches([' ', '\t']).len();
-    let punctuation_start = trimmed_end - trailing_punctuation_len(source, trimmed_end);
-    let suffix_owns_punctuation = suffix_supplies_punctuation(suffix);
-    let title_is_empty = punctuation_start <= number_end;
-    let (insert_at, terminal) = if title_is_empty {
-        (span.paragraph_end, "")
-    } else if suffix_owns_punctuation {
-        (punctuation_start, "")
-    } else {
-        (
-            punctuation_start,
-            source.get(punctuation_start..span.paragraph_end)?,
-        )
-    };
-    let replaces_title_punctuation =
-        suffix_owns_punctuation && !title_is_empty && punctuation_start < trimmed_end;
-    if replaces_title_punctuation {
-        if !source.is_char_boundary(trimmed_end) {
+    let slot = suffix_slot(source, span, suffix)?;
+    if let Some(replaced) = slot.replaced.clone() {
+        if !source.is_char_boundary(replaced.end) {
             return None;
         }
-        patched.replace_range(punctuation_start..trimmed_end, "");
+        patched.replace_range(replaced, "");
     }
 
     let line_start = source
-        .get(..insert_at)
+        .get(..slot.insert_at)
         .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
         .unwrap_or(0);
     let wrap = SuffixWrap {
         width: source
-            .get(line_start..insert_at)
+            .get(line_start..slot.insert_at)
             .map_or(0, |line| line.chars().count()),
         leading_space: !source
-            .get(..insert_at)
+            .get(..slot.insert_at)
             .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
-        terminal,
+        terminal: slot.terminal,
         hanging: " ".repeat(title_column(source, span.title_start)),
         line_ending: detect_line_ending(source),
     };
-    if !patched.is_char_boundary(insert_at) {
+    if !patched.is_char_boundary(slot.insert_at) {
         return None;
     }
-    patched.insert_str(insert_at, &wrap_suffix(suffix, &wrap));
+    patched.insert_str(slot.insert_at, &wrap_suffix(suffix, &wrap));
     Some(())
+}
+
+/// Where the suffix goes and which title bytes it displaces.
+struct SuffixSlot<'source> {
+    /// Byte offset at which the suffix words begin.
+    insert_at: usize,
+    /// Title bytes that follow the suffix and count toward the last width.
+    terminal: &'source str,
+    /// Existing title punctuation the suffix replaces, if any.
+    replaced: Option<Range<usize>>,
+}
+
+/// Choose the insertion point relative to the title's final content.
+///
+/// Closing inline markers stay after the suffix so terminal punctuation
+/// remains terminal inside emphasis, as in `**Finish the scope — done.**`.
+fn suffix_slot<'source>(
+    source: &'source str,
+    span: ItemSourceSpan,
+    suffix: &str,
+) -> Option<SuffixSlot<'source>> {
+    let raw = source.get(span.title_start..span.paragraph_end)?;
+    let number_end = raw.find(". ").map(|index| span.title_start + index + 2)?;
+    let trimmed_end = span.title_start + raw.trim_end_matches([' ', '\t']).len();
+    let content_end = trimmed_end - trailing_closer_len(source, trimmed_end);
+    let punctuation_start = content_end - trailing_punctuation_len(source, content_end);
+    if punctuation_start <= number_end {
+        return Some(SuffixSlot {
+            insert_at: span.paragraph_end,
+            terminal: "",
+            replaced: None,
+        });
+    }
+    if suffix_supplies_punctuation(suffix) {
+        let replaced = (punctuation_start < content_end).then_some(punctuation_start..content_end);
+        return Some(SuffixSlot {
+            insert_at: punctuation_start,
+            terminal: "",
+            replaced,
+        });
+    }
+    Some(SuffixSlot {
+        insert_at: punctuation_start,
+        terminal: source.get(punctuation_start..span.paragraph_end)?,
+        replaced: None,
+    })
+}
+
+/// Return the byte length of closing inline markers ending at `end`.
+///
+/// The scan is limited to marker characters so ordinary title words are never
+/// treated as delimiters.
+fn trailing_closer_len(source: &str, end: usize) -> usize {
+    source.get(..end).map_or(0, |prefix| {
+        prefix
+            .chars()
+            .rev()
+            .take_while(|character| INLINE_CLOSERS.contains(character))
+            .map(char::len_utf8)
+            .sum()
+    })
 }
 
 /// Append the suffix words greedily, wrapping at [`WRAP_COLUMNS`].

@@ -188,9 +188,12 @@ Untouched gate-clean content remains byte-exact.
   resolves through the cross-source fallback described in section 7. `complete`
   is not structural: it checks one addressed task or addendum sub-task off,
   changes no number, takes no fragment, and is specified in section 12.
-- **C2 — Renumber contract.** After any edit, phase, step, task, and addendum
-  numbers are contiguous from 1, in document order, at every level. No gaps, no
-  duplicates, no out-of-order numbering survives an operation.
+- **C2 — Renumber contract.** After any structural edit (`append`, `insert`,
+  `delete`, `replace`), phase, step, task, and addendum numbers are contiguous
+  from 1, in document order, at every level. No gaps, no duplicates, no
+  out-of-order numbering survives an operation. `complete` is exempt: it
+  changes no number and must preserve the document's existing numbering
+  byte-for-byte, so a roadmap that already carries a gap keeps it.
 - **C3 — Reference-rewrite contract.** A *dependency reference* (section 7) to a
   renumbered item is rewritten to that item's new number. A valid dependency
   reference that does not resolve after an edit is reported as a dangling
@@ -402,11 +405,12 @@ restructuring the document. It is the minimum edit the grammar allows, and it
 is specified as a source patch rather than a re-render: the parser's mdast
 positions yield an `ItemSourceSpan` for the addressed item, the checkbox byte
 inside the marker becomes `x`, and an optional configured done marker is
-inserted at the end of the title paragraph before its terminal punctuation.
-Every other byte — title wrapping, continuation lines, nested bullets,
-`Requires` references, and all numbering — is retained, which satisfies F1 and
-F2 without invoking the renderer at all. Section 5's *gate-clean* caveat does
-not apply, because no unstable syntax is normalized.
+inserted at the end of the title paragraph before its terminal punctuation,
+keeping any closing inline markers after the inserted words. Every other byte —
+title wrapping, continuation lines, nested bullets, `Requires` references, and
+all numbering — is retained, which satisfies F1 and F2 without invoking the
+renderer at all. Section 5's *gate-clean* caveat does not apply, because no
+unstable syntax is normalized.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must
