@@ -15,9 +15,11 @@
 
 use std::ops::Range;
 
-use markdown::mdast::Node;
-
-use super::super::model::{ItemSourceSpan, MarkdownNodes};
+pub(super) use super::complete_text::title_has_suffix;
+use super::{
+    super::model::ItemSourceSpan,
+    complete_text::{is_terminal_punctuation, plain_suffix_text, suffix_supplies_punctuation},
+};
 
 /// Column limit for Markdown paragraphs and bullets in this repository.
 const WRAP_COLUMNS: usize = 80;
@@ -35,91 +37,6 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
     suffix
         .map(|text| text.split_whitespace().collect::<Vec<_>>().join(" "))
         .filter(|text| !text.is_empty())
-}
-
-/// Report whether the item's title already ends with the configured suffix.
-///
-/// The comparison uses the title's parsed inline nodes rather than its source
-/// spelling, so a literal trailing marker such as the `*` in `build*` is never
-/// mistaken for closing markup, while formatting around a real suffix is
-/// ignored: `**Finish — done**.`, `Finish **done**`, and `**done.**` all match
-/// their plain words. The configured suffix is rendered the same way, so a
-/// suffix carrying its own literal marker, such as `build*`, still matches
-/// itself. A suffix beginning with a word character must start at a word
-/// boundary, where punctuation separates words as well as whitespace does;
-/// otherwise `done` would treat a title ending in `undone` as already
-/// complete.
-pub(super) fn title_has_suffix(title: &MarkdownNodes, suffix: &str) -> bool {
-    let plain_suffix = plain_suffix_text(suffix);
-    if plain_suffix.is_empty() {
-        return false;
-    }
-    suffix_matches(&plain_title_text(title.nodes()), &plain_suffix)
-}
-
-/// Collapse a title's parsed inline nodes into its rendered plain text.
-fn plain_title_text(nodes: &[Node]) -> String {
-    let mut text = String::new();
-    for node in nodes {
-        append_plain_text(node, &mut text);
-    }
-    collapse_whitespace(&text)
-}
-
-/// Collapse every whitespace run in `text` to one space and trim the ends.
-fn collapse_whitespace(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// Append one node's rendered text, descending through inline containers.
-fn append_plain_text(node: &Node, text: &mut String) {
-    if let Some(value) = node_text(node) {
-        text.push_str(value);
-    } else if let Some(children) = node.children() {
-        for child in children {
-            append_plain_text(child, text);
-        }
-    } else {
-        // A leaf without text, such as an image or a break, still separates the
-        // words around it, so it can never join two words together.
-        text.push(' ');
-    }
-}
-
-/// Return the literal text one mdast node contributes, when it carries any.
-fn node_text(node: &Node) -> Option<&str> {
-    match node {
-        Node::Text(content) => Some(&content.value),
-        Node::InlineCode(content) => Some(&content.value),
-        Node::InlineMath(content) => Some(&content.value),
-        Node::Math(content) => Some(&content.value),
-        _ => None,
-    }
-}
-
-/// Reduce a configured suffix to the plain words a reader would see.
-///
-/// Parsing the suffix removes only delimiters that really pair up, so a
-/// configured `build*` keeps its literal asterisk while `**done.**` compares
-/// as `done.`. Text the parser cannot handle falls back to its trimmed source.
-fn plain_suffix_text(suffix: &str) -> String {
-    let Ok(document) = markdown::to_mdast(suffix, &markdown::ParseOptions::gfm()) else {
-        return collapse_whitespace(suffix);
-    };
-    document.children().map_or_else(
-        || collapse_whitespace(suffix),
-        |children| plain_title_text(children),
-    )
-}
-
-/// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
-fn suffix_matches(text: &str, suffix: &str) -> bool {
-    if suffix_supplies_punctuation(suffix) {
-        ends_at_word_boundary(text, suffix)
-    } else {
-        let without_terminal = text.trim_end_matches(is_terminal_punctuation).trim_end();
-        ends_at_word_boundary(without_terminal, suffix)
-    }
 }
 
 /// Insert the done suffix into the addressed title in the patched text.
@@ -216,6 +133,9 @@ fn suffix_slot<'source>(
             replaced: None,
         });
     }
+    // Decorations such as links end with syntax characters, so punctuation is
+    // classified from the text a reader sees, not from the suffix's spelling.
+    let supplies_punctuation = suffix_supplies_punctuation(&plain_suffix_text(suffix));
     if suffix_ends_with_marker(suffix) && content_end < trimmed_end {
         // Placing marker-wrapped words directly before the title's closing
         // markers would merge both runs into one delimiter sequence, so such a
@@ -223,7 +143,7 @@ fn suffix_slot<'source>(
         // still replaces the title's trailing run. A title whose content runs
         // to its end has no closing run, so the marker suffix keeps the usual
         // placement before terminal punctuation.
-        let replaced = (suffix_supplies_punctuation(suffix) && punctuation_start < content_end)
+        let replaced = (supplies_punctuation && punctuation_start < content_end)
             .then_some(punctuation_start..content_end);
         return Some(SuffixSlot {
             insert_at: span.paragraph_end,
@@ -231,7 +151,7 @@ fn suffix_slot<'source>(
             replaced,
         });
     }
-    if suffix_supplies_punctuation(suffix) {
+    if supplies_punctuation {
         let replaced = (punctuation_start < content_end).then_some(punctuation_start..content_end);
         return Some(SuffixSlot {
             insert_at: punctuation_start,
@@ -297,22 +217,6 @@ struct SuffixWrap<'source> {
     line_ending: &'source str,
 }
 
-/// Match a suffix at the end of `text`, honouring word boundaries.
-fn ends_at_word_boundary(text: &str, suffix: &str) -> bool {
-    let Some(prefix) = text.strip_suffix(suffix) else {
-        return false;
-    };
-    let starts_with_word = suffix.chars().next().is_some_and(char::is_alphanumeric);
-    !starts_with_word || prefix.chars().next_back().is_none_or(is_word_separator)
-}
-
-/// Report whether a character separates words rather than continuing one.
-///
-/// Punctuation separates a suffix from the preceding title, so `Status:done`
-/// already ends with `done`. An underscore binds a compound word, so
-/// `foo_done` does not.
-fn is_word_separator(character: char) -> bool { !character.is_alphanumeric() && character != '_' }
-
 /// Return the byte length of the terminal punctuation ending at `end`.
 ///
 /// Punctuation escaped by a backslash is literal title content, so the scan
@@ -346,11 +250,6 @@ fn is_escaped(text: &str, offset: usize) -> bool {
     !backslashes.is_multiple_of(2)
 }
 
-/// Report whether a character is sentence-ending punctuation this edit moves.
-const fn is_terminal_punctuation(character: char) -> bool {
-    matches!(character, '.' | '!' | '?' | '…')
-}
-
 /// Report whether a suffix ends with an inline marker character.
 ///
 /// Such a suffix cannot be placed immediately before a closing marker run: the
@@ -361,19 +260,6 @@ fn suffix_ends_with_marker(suffix: &str) -> bool {
         .chars()
         .next_back()
         .is_some_and(|character| INLINE_MARKERS.contains(&character))
-}
-
-/// Report whether a suffix carries its own terminal punctuation.
-///
-/// Closing inline markers are ignored so a formatted suffix such as
-/// `**done.**` still counts as punctuated.
-fn suffix_supplies_punctuation(suffix: &str) -> bool {
-    suffix
-        .trim_end_matches(INLINE_MARKERS)
-        .trim_end()
-        .chars()
-        .next_back()
-        .is_some_and(is_terminal_punctuation)
 }
 
 /// Return the character column at which the numbered title begins.

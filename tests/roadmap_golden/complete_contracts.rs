@@ -10,7 +10,6 @@ use super::golden::{
     assert_golden_case,
     create_workspace,
     golden_fixture,
-    golden_success_case,
     golden_success_output_case,
 };
 
@@ -34,10 +33,13 @@ fn complete_preview_golden_cases(
 ) -> TestResult {
     assert_golden_case(
         &workspace?,
-        golden_success_case(
+        golden_success_output_case(
             fixture_name,
             GoldenCommand::Complete { anchor, suffix },
             false,
+            SuccessOutput::StdoutTargetUnchanged {
+                expected: golden_fixture(fixture_name, "expected.md"),
+            },
         ),
     )
 }
@@ -56,7 +58,9 @@ fn complete_preview_of_a_completed_item_prints_the_original(
                 suffix: Some("— done"),
             },
             false,
-            SuccessOutput::OriginalTargetStdout,
+            SuccessOutput::StdoutTargetUnchanged {
+                expected: golden_fixture("complete_preview_completed", "expected.md"),
+            },
         ),
     )
 }

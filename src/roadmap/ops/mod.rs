@@ -2,6 +2,7 @@
 
 mod complete;
 mod complete_suffix;
+mod complete_text;
 mod dependency_text;
 mod dependency_visitor;
 mod level_edit;
