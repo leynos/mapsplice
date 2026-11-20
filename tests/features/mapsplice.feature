@@ -144,6 +144,13 @@ Feature: Mapsplice roadmap editing
     And stdout is empty
     And the target file remains unchanged
 
+  Scenario: Previewing an already completed task prints the unchanged roadmap
+    Given the target roadmap with a completed task
+    When I complete task 1.1.1
+    Then the command succeeds
+    And stdout prints the completed task 1.1.1 and leaves the other task open
+    And the target file remains unchanged
+
   Scenario: Complete rejects a step anchor because a step has no checkbox
     Given the target roadmap with one step and two tasks
     When I try to complete step 1.1

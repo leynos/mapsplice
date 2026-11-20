@@ -410,13 +410,17 @@ keeping closing emphasis, strong, and strike markers after the inserted words.
 The parser's inline node positions locate that point: an emphasis container
 ends before its closing markers, while inline code and links end after their
 closing delimiter, so the suffix follows those literal constructs instead of
-joining them. Every other byte — title wrapping, continuation lines, nested
-bullets, `Requires` references, and all numbering — is retained, which
-satisfies F1 and F2 without invoking the renderer at all. Section 5's
-*gate-clean* caveat does not arise from syntax, because no unstable syntax is
-normalized. It still bounds line width: an input paragraph that is already
-wider than 80 columns stays that wide, because completion never reflows
-existing title text.
+joining them. A suffix that itself ends with an inline marker is placed after
+the title's closing markers, because joining two marker runs would produce one
+ambiguous delimiter sequence. Existing-suffix detection compares the rendered
+plain text of the title's parsed inline nodes, so literal trailing markers such
+as the `*` in `build*` are never mistaken for closing markup. Every other byte
+— title wrapping, continuation lines, nested bullets, `Requires` references,
+and all numbering — is retained, which satisfies F1 and F2 without invoking the
+renderer at all. Section 5's *gate-clean* caveat does not arise from syntax,
+because no unstable syntax is normalized. It still bounds line width: an input
+paragraph that is already wider than 80 columns stays that wide, because
+completion never reflows existing title text.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must
@@ -426,7 +430,9 @@ with the parsed model, or a failed post-condition fails closed with
 `MapspliceError::UnsafeCompletionEdit`. Phase and step anchors fail with
 `MapspliceError::UnsupportedAnchorLevel`, because no checkbox exists at those
 levels. An already-checked item returns the original text, so C5 holds and a
-configured suffix can never be applied twice.
+configured suffix can never be applied twice. The composition root prints that
+unchanged text in preview mode, so a redirected preview is always a complete
+document, while an in-place no-op reports success without a file write.
 
 Done-marker placement keeps the repository Markdown formatter stable when the
 title's existing wrapping already satisfies `make check-fmt`: the marker is

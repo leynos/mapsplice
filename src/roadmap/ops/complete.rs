@@ -40,7 +40,7 @@ use super::{
         SubTaskEntry,
         SubTaskNumber,
         TaskNumber,
-        model::{ItemSourceSpan, StepSection, TaskEntry},
+        model::{ItemSourceSpan, MarkdownNodes, StepSection, TaskEntry},
         parse_roadmap,
     },
     complete_suffix::{insert_suffix, normalize_suffix, title_has_suffix},
@@ -111,7 +111,7 @@ pub(crate) fn complete_item(
     let normalized_suffix = normalize_suffix(suffix);
     let has_suffix = normalized_suffix
         .as_deref()
-        .is_some_and(|text| title_has_suffix(source, span, text));
+        .is_some_and(|text| title_has_suffix(target.summary, text));
     let suffix_to_insert = normalized_suffix.as_deref().filter(|_| !has_suffix);
 
     let mut patched = source.to_owned();
@@ -125,24 +125,28 @@ pub(crate) fn complete_item(
 }
 
 /// Parsed facts needed to complete one addressed item.
-struct CompletionTarget {
+struct CompletionTarget<'roadmap> {
     /// Checked state recorded by the parser.
     checked: Option<bool>,
     /// Retained byte span in the target source.
     span: Option<ItemSourceSpan>,
+    /// Parsed title nodes, used for rendering-independent suffix detection.
+    summary: &'roadmap MarkdownNodes,
 }
 
 /// Resolve the addressed task or sub-task, rejecting anchors without checkboxes.
-fn find_target(roadmap: &RoadmapDocument, anchor: RoadmapAnchor) -> Result<CompletionTarget> {
+fn find_target(roadmap: &RoadmapDocument, anchor: RoadmapAnchor) -> Result<CompletionTarget<'_>> {
     match anchor {
         RoadmapAnchor::Task(target) => find_task(roadmap, target).map(|task| CompletionTarget {
             checked: task.checked(),
             span: task.source_span(),
+            summary: &task.summary,
         }),
         RoadmapAnchor::SubTask(target) => {
             find_sub_task(roadmap, target).map(|sub_task| CompletionTarget {
                 checked: sub_task.checked,
                 span: sub_task.source_span(),
+                summary: &sub_task.summary,
             })
         }
         RoadmapAnchor::Phase(_) | RoadmapAnchor::Step(_) => {
@@ -253,16 +257,13 @@ fn validate_patch(
             "the patch did not mark the item as checked",
         ));
     }
-    if let Some(expected) = suffix {
-        let span = target
-            .span
-            .ok_or_else(|| unsafe_edit(anchor, "the patched item has no retained source span"))?;
-        if !title_has_suffix(patched, span, expected) {
-            return Err(unsafe_edit(
-                anchor,
-                "the patch did not place the done suffix at the title end",
-            ));
-        }
+    if let Some(expected) = suffix
+        && !title_has_suffix(target.summary, expected)
+    {
+        return Err(unsafe_edit(
+            anchor,
+            "the patch did not place the done suffix at the title end",
+        ));
     }
     Ok(())
 }

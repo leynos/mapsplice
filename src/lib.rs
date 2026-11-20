@@ -207,10 +207,11 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
 /// Complete one roadmap item by patching the target text directly.
 ///
 /// The completion command keeps every byte outside the addressed checkbox and
-/// inserted suffix, so it cannot share the render-based edit pipeline. A
-/// no-op completion, including one for an already checked item, reports
-/// success without stdout or a file write, and therefore without an in-place
-/// rewrite metric.
+/// inserted suffix, so it cannot share the render-based edit pipeline. Preview
+/// mode always emits the resulting document, including the unchanged roadmap
+/// for an already checked item, so redirecting standard output never truncates
+/// it. An in-place completion that changes nothing reports success without a
+/// file write, and an actual rewrite records the in-place rewrite metric.
 fn run_complete(
     target: &Utf8PathBuf,
     anchor: RoadmapAnchor,
@@ -222,16 +223,15 @@ fn run_complete(
     let target_text = read_utf8(target)?;
     let roadmap = parse_roadmap_inner(&target_text)?;
     let completed = complete_item(&roadmap, &target_text, anchor, suffix)?;
+    if !in_place {
+        return Ok(RunOutcome::stdout(completed));
+    }
     if completed == target_text {
         return Ok(RunOutcome::silent_success());
     }
-    if in_place {
-        rewrite_utf8(target, &completed)?;
-        observability::record_in_place_rewrite();
-        Ok(RunOutcome::in_place(target.clone()))
-    } else {
-        Ok(RunOutcome::stdout(completed))
-    }
+    rewrite_utf8(target, &completed)?;
+    observability::record_in_place_rewrite();
+    Ok(RunOutcome::in_place(target.clone()))
 }
 
 /// Load a fragment only for commands that consume one.

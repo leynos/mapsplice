@@ -57,6 +57,16 @@ fn stdout_ticks_first_task(cli_state: &mut CliFixture) -> TestResult {
     Ok(())
 }
 
+#[then("stdout prints the completed task 1.1.1 and leaves the other task open")]
+fn stdout_prints_the_completed_task(cli_state: &mut CliFixture) -> TestResult {
+    let state = state_mut(cli_state)?;
+    assert_eq!(
+        state.stdout, TARGET_COMPLETED_TASK,
+        "previewing a completed item should print the unchanged roadmap"
+    );
+    Ok(())
+}
+
 #[then("the target file ticks task 1.1.1 and marks it done before the full stop")]
 fn target_marks_task_done(cli_state: &mut CliFixture) -> TestResult {
     let rewritten = state_mut(cli_state)?.read_target()?;
