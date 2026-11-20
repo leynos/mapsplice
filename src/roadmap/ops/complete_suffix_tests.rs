@@ -128,6 +128,16 @@ fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &s
     Some("— done"),
     "- [x] 1.1.1. Finish the scope\\ — done…"
 )]
+#[case::a_link_suffix_replaces_the_title_punctuation(
+    "- [ ] 1.1.1. Finish the scope.",
+    Some("[done.](https://example.org)"),
+    "- [x] 1.1.1. Finish the scope [done.](https://example.org)"
+)]
+#[case::an_unpunctuated_link_suffix_keeps_the_title_punctuation(
+    "- [ ] 1.1.1. Finish the scope.",
+    Some("[done](https://example.org)"),
+    "- [x] 1.1.1. Finish the scope [done](https://example.org)."
+)]
 fn punctuation_handling_respects_formatting_and_escapes(
     #[case] item: &str,
     #[case] suffix: Option<&str>,
