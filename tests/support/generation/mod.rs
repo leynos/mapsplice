@@ -8,9 +8,10 @@
 
 use std::fmt::{self, Write as _};
 
+use self::fragments::render_fragment;
 use super::oracle::{
     ClauseForm,
-    FRAGMENT_TASKS,
+    Edit,
     ItemId,
     Level,
     Model,
@@ -20,6 +21,8 @@ use super::oracle::{
     TASKS_PER_STEP,
     old_anchor,
 };
+
+mod fragments;
 
 /// Byte-level shape of the generated Markdown.
 #[derive(Clone, Copy, Debug)]
@@ -85,10 +88,16 @@ pub struct Generated {
 /// `edge_selectors` supplies one selector per generated step; `shape` selects
 /// optional valid document features. Every clause generated is in one of the
 /// three positions `docs/mapsplice-design.md` section 7 recognizes.
-pub fn generate(edge_selectors: &[u8], shape: Shape) -> Result<Generated, fmt::Error> {
+///
+/// The fragment depends on the edit because one edit is defined by its
+/// fragment: an in-place replacement supplies a fragment holding exactly the
+/// addressed task, whereas an insert or a retiring replacement supplies the
+/// ordinary multi-task fragment. Rendering the right one here keeps the
+/// fragment's bytes beside the model that predicts them.
+pub fn generate(edge_selectors: &[u8], shape: Shape, edit: Edit) -> Result<Generated, fmt::Error> {
     let model = Model::generate(edge_selectors);
     let target = retarget(render_target(shape, &model)?, shape.line_ending());
-    let fragment = retarget(render_fragment()?, shape.line_ending());
+    let fragment = retarget(render_fragment(edit, shape, &model)?, shape.line_ending());
     Ok(Generated {
         target,
         fragment,
@@ -125,11 +134,7 @@ fn retarget(rendered: String, ending: &str) -> String {
 
 /// Render the target roadmap, spacing each clause according to its form.
 fn render_target(shape: Shape, model: &Model) -> Result<String, fmt::Error> {
-    let sub_task_indent = if shape.has(Shape::DEEP_SUB_TASK_INDENT) {
-        "    "
-    } else {
-        "  "
-    };
+    let sub_task_indent = sub_task_indent(shape);
     let mut document = String::new();
     if shape.has(Shape::PREAMBLE) {
         document.push_str("# Generated roadmap\n\nPreamble text before the first phase.\n\n");
@@ -333,23 +338,14 @@ pub fn incidental_prose() -> String {
     text
 }
 
-/// Render the fragment tasks spliced by an insert or replace edit.
+/// Return the sub-task indentation the generated shape selects.
 ///
-/// A task fragment is recognized by its three-level anchor, so the tasks are
-/// spelled `1.1.n` even though the fragment is a standalone document. The
-/// target's numbering replaces those numbers on splice, so they are only a
-/// parse-time device, not an identity. No clause is generated inside the
-/// fragment: a fragment clause would resolve differently depending on which
-/// target it lands in and so could not be predicted from the model alone.
-pub fn render_fragment() -> Result<String, fmt::Error> {
-    let mut document = String::new();
-    for index in 0..FRAGMENT_TASKS {
-        writeln!(
-            document,
-            "- [ ] 1.1.{}. {}",
-            index + 1,
-            fragment_label(index)
-        )?;
+/// Both the target and an in-place fragment must agree on this, or the two
+/// documents would nest their sub-tasks differently under the same shape.
+const fn sub_task_indent(shape: Shape) -> &'static str {
+    if shape.has(Shape::DEEP_SUB_TASK_INDENT) {
+        "    "
+    } else {
+        "  "
     }
-    Ok(document)
 }

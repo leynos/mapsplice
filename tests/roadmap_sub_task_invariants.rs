@@ -162,6 +162,48 @@ fn replace_sub_task_preserves_interleaved_body_order(
     Ok(())
 }
 
+/// A one-item replacement numbered as the addressed sub-task is an edit of it.
+///
+/// This is the success counterpart to the rejection below: the fragment holds
+/// exactly one sub-task carrying `1.1.1.2`, so the identity continues and both
+/// surviving consumers keep their bytes.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn replace_sub_task_with_its_own_number_is_an_in_place_edit(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace
+        .write_target(TARGET_WITH_INTERLEAVED_SUB_TASK_BODY)
+        .expect("target should be written");
+    test_workspace
+        .write_fragment("  - [x] 1.1.1.2. Revised second sub-task.\n")
+        .expect("fragment should be written");
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1.2",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect("a one-item same-number sub-task replacement should succeed");
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_in_order(
+        &stdout,
+        &[
+            "1.1.1.1. First sub-task. Requires 1.1.1.",
+            "Body between sub-tasks.",
+            "1.1.1.2. Revised second sub-task.",
+            "Body after sub-tasks.",
+        ],
+    );
+    assert_contains(&stdout, "- [ ] 1.1.1. Parent task. Requires 1.1.1.2.");
+    assert_contains(&stdout, "- [ ] 1.1.2. Sibling task. Requires 1.1.1.2.");
+    Ok(())
+}
+
 #[rstest]
 #[serial_test::serial(cli_env)]
 fn replace_sub_task_required_by_a_surviving_consumer_is_rejected(

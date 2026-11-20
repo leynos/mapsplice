@@ -180,7 +180,20 @@ Stop and report rather than working around a breached tolerance.
       `reanchor_identities` disabled, both successive-command regressions fail
       with `DanglingDependency`; with it enabled, `cargo test --lib` passes 198
       tests and both regressions pass.
-- [ ] `EP-M2` Golden, integration, property, and BDD coverage added.
+- [x] (2026-11-20) `EP-M2` Golden, integration, property, and BDD coverage
+      added. Evidence: six golden cases in
+      `tests/roadmap_golden/replacement_continuity.rs` (same-number preview and
+      in-place success, changed-number preview and in-place rejection,
+      multi-item rejection, retained descendant); CLI regressions in
+      `tests/roadmap_ops/nested_requires.rs`,
+      `tests/roadmap_ops/retained_descendants.rs`, and
+      `tests/roadmap_sub_task_invariants.rs`; `Edit::ReplaceTaskInPlace` in the
+      property oracle and generator; two BDD scenarios backed by
+      `tests/steps/replace_continuity_steps.rs`. Focused suites pass:
+      `roadmap_ops` and `roadmap_sub_task_invariants` 44/44,
+      `behaviour_cli` 19/19, and
+      `roadmap_golden`/`roadmap_dependency_properties`/`roadmap_successive_commands`
+      104/104.
 - [ ] `EP-M3` User guide, design document, verification ledger, and PR closed.
 
 ## Surprises & discoveries
@@ -223,6 +236,20 @@ Stop and report rather than working around a breached tolerance.
   `src/roadmap/renumber_plan.rs`, finders moved to `src/roadmap/ops/lookup.rs`,
   continuity split into `position` and `descendants` submodules, and each
   replacement level gained a `*_with_continuity` helper.
+- Observation: an in-place replacement normalizes the terminator of a nested
+  clause line it re-emits, while the consumer task's own line keeps its `\r\n`.
+  Evidence: the initial CRLF regression expected
+  `"- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\r\n"` and failed; the actual
+  output ends the clause line with LF. Impact: the test pins the mixed result
+  and the text bytes of the clause, rather than claiming whole-block byte
+  identity. Changing the renderer is outside this issue's scope.
+- Observation: Whitaker's 400-line limit applies to the property suite's
+  test-support modules, not only to `src/`. Evidence: the full lint run failed
+  with `Module generation spans 477 lines, exceeding the allowed 400.` once the
+  fragment coverage was added. Impact: the generator is now
+  `tests/support/generation/mod.rs` with fragment rendering and its tests in
+  `tests/support/generation/fragments.rs`; the suite declares the module with
+  `#[path = "support/generation/mod.rs"]`.
 
 ## Decision log
 

@@ -72,6 +72,36 @@ fn insert_before_task_rewrites_nested_bullet_dependency(
     Ok(())
 }
 
+/// An in-place replacement keeps a nested-bullet consumer resolving.
+///
+/// The clause lives in the consumer's task body, so it is only reachable
+/// through the structural child sequence. Replacing the prerequisite with one
+/// item carrying its own number continues the identity, and the consumer's
+/// nested bullet must keep both its anchor and its bytes.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn in_place_replace_keeps_nested_bullet_dependency(workspace: TestResult<Workspace>) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
+    test_workspace.write_fragment("- [x] 1.1.1. Revised prerequisite.\n")?;
+
+    run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let written = test_workspace.read_target()?;
+
+    assert_contains(&written, "- [x] 1.1.1. Revised prerequisite.\n");
+    // The consumer is untouched, so it keeps the source's exact bytes — there
+    // is no blank line between the task line and its nested bullet here.
+    assert_contains(&written, "- [ ] 1.1.2. Consumer.\n  - Requires 1.1.1.\n");
+    Ok(())
+}
+
 /// Deleting a still-required prerequisite must fail, not create a self-dependency.
 #[rstest]
 #[serial_test::serial(cli_env)]
@@ -277,6 +307,39 @@ fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>)
 
     assert_dangling_anchor(&error, "1.1.1");
     assert_equal(&test_workspace.read_target()?, &original);
+    Ok(())
+}
+
+/// An in-place replacement keeps the consumer's own CRLF terminator.
+///
+/// The replacement item is canonically rendered and comes back with LF, but the
+/// consumer task it does not touch keeps its source line, carriage return
+/// included. Its nested clause is re-emitted by the dependency rewrite, so only
+/// that line's terminator normalizes; the clause's text and anchor are
+/// unchanged. Asserting only that the clause text survives would miss the
+/// consumer line's terminator: it could be re-rendered without its `\r` and
+/// still read correctly line by line.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn crlf_in_place_replace_preserves_untouched_terminators(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
+    test_workspace.write_fragment("- [x] 1.1.1. Revised prerequisite.\n")?;
+
+    run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let written = test_workspace.read_target()?;
+
+    assert_contains(&written, "- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\n");
+    assert_contains(&written, "- [x] 1.1.1. Revised prerequisite.\n");
     Ok(())
 }
 

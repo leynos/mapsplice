@@ -8,6 +8,8 @@ mod dependency_locations;
 mod nested_requires;
 #[path = "roadmap_ops/assertions.rs"]
 mod ops_assertions;
+#[path = "roadmap_ops/retained_descendants.rs"]
+mod retained_descendants;
 #[path = "support/ops.rs"]
 mod support;
 

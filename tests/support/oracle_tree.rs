@@ -119,11 +119,17 @@ enum Splice {
 /// Return the addressed task and splice position of a task-splicing edit.
 ///
 /// Delete and step- or phase-level edits splice nothing and return [`None`].
+/// An in-place replacement splices nothing either: the fragment reproduces the
+/// addressed task, so the tree keeps that task and its sub-tasks where they
+/// are.
 const fn splice_task(edit: Edit) -> Option<(usize, Splice)> {
     match edit {
         Edit::InsertTasksBefore { task } => Some((task, Splice::Before)),
         Edit::ReplaceTask { task } => Some((task, Splice::InPlace)),
-        Edit::DeleteTask { .. } | Edit::DeleteStep { .. } | Edit::DeletePhase { .. } => None,
+        Edit::DeleteTask { .. }
+        | Edit::DeleteStep { .. }
+        | Edit::DeletePhase { .. }
+        | Edit::ReplaceTaskInPlace { .. } => None,
     }
 }
 
@@ -176,7 +182,7 @@ fn number_tasks(tasks: &[TaskNode], step_anchor: &str, anchors: &mut BTreeMap<It
 fn removed_items(edit: Edit) -> BTreeSet<ItemId> {
     let mut removed = BTreeSet::new();
     match edit {
-        Edit::InsertTasksBefore { .. } => {}
+        Edit::InsertTasksBefore { .. } | Edit::ReplaceTaskInPlace { .. } => {}
         Edit::DeleteTask { task } | Edit::ReplaceTask { task } => {
             removed.insert(ItemId::new(Level::Task, task));
             removed.extend(sub_tasks_of_task(task));

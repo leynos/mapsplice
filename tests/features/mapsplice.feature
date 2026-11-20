@@ -47,6 +47,22 @@ Feature: Mapsplice roadmap editing
     Then the command succeeds
     And stdout contains replacement phases 2 and 3
 
+  Scenario: Replace edits a depended-upon task in place without stranding its consumer
+    Given the target roadmap with a depended-upon task
+    And the fragment reproducing the depended-upon task
+    When I replace the depended-upon task in place
+    Then the command succeeds
+    And the target file shows the checked-off task and keeps the consumer's clause
+
+  Scenario: A renumbered replacement of a depended-upon task is rejected in place
+    Given the target roadmap with a depended-upon task
+    And the fragment renumbering the depended-upon task
+    When I try to replace the depended-upon task in place
+    Then the command fails
+    And stdout is empty
+    And stderr mentions dangling dependency anchor 1.1.2
+    And the target file remains unchanged
+
   Scenario: In-place mode rewrites the target file and emits no roadmap body
     Given the target roadmap with two phases
     When I delete phase 1 in place
