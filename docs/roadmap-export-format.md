@@ -56,9 +56,11 @@ Supported formatting nodes still carry their Markdown delimiters, for example
 `**bold**` and `` `code` ``. Whitespace runs, including CRLF line endings and
 Markdown hard breaks, collapse to one ASCII space; leading and trailing
 whitespace is removed. Whitespace changes in the Markdown therefore do not
-create semantic export drift. Formatting changes do: the preserved delimiters
-are part of the exported value, so removing the emphasis from `**bold**`
-changes the value to `bold` and the check reports drift.
+create semantic export drift. Formatting changes do only when they change the
+exported value: removing the emphasis from `**bold**` exports `bold` and the
+check reports drift. Source formatting that renders identically is invisible to
+the check, so `**bold**` and escaped literal `\*\*bold\*\*` both export as
+`**bold**`.
 
 A leading label is a short phrase of ASCII letters, spaces or hyphens ending in
 `:`, or a leading strong-emphasis node containing such a phrase and colon.
