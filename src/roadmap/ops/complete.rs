@@ -51,6 +51,9 @@ use crate::error::{MapspliceError, Result};
 #[path = "complete_property_tests.rs"]
 mod property_tests;
 #[cfg(test)]
+#[path = "complete_suffix_regression_tests.rs"]
+mod suffix_regression_tests;
+#[cfg(test)]
 #[path = "complete_suffix_tests.rs"]
 mod suffix_tests;
 #[cfg(test)]
