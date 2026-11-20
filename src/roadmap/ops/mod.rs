@@ -181,6 +181,7 @@ pub(crate) fn apply_command_with_report(
     let mut plan = renumber_document(&mut staged, &mut report)?;
     continuity.apply(&staged, &mut plan);
     let dependency_rewrites = rewrite_dependencies(&mut staged, &plan, &mut report)?;
+    staged.reanchor_identities();
     *roadmap = staged;
     Ok((dependency_rewrites, report))
 }

@@ -14,6 +14,10 @@
 //! paired only where one retired item and one replacement item carry the same
 //! anchor: anchoring the rule to the number the consumer actually wrote is what
 //! stops an unrelated item from inheriting a reference.
+//!
+//! The alias is operation-scoped. When the operation commits, the document
+//! re-anchors the continuing item to the number it now holds, and that identity
+//! is what keeps later operations resolving; no alias outlives its command.
 
 mod descendants;
 mod position;

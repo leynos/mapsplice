@@ -1,5 +1,7 @@
 //! Unit tests for replacement identity continuity.
 
+use rstest::rstest;
+
 use super::{ItemPosition, RetiredSubtree, pair_descendants};
 use crate::{
     error::{MapspliceError, Result},
@@ -113,10 +115,12 @@ fn replace_task_with_identical_content_is_a_no_op() {
     );
 }
 
-#[test]
-fn replace_task_with_changed_number_still_reports_a_dangling_dependency() {
+#[rstest]
+#[case::changed_number(CHANGED_NUMBER_FRAGMENT)]
+#[case::multiple_items(MULTI_ITEM_FRAGMENT)]
+fn replace_task_that_retires_the_identity_reports_a_dangling_dependency(#[case] fragment: &str) {
     let expected = anchor("1.1.2");
-    let outcome = replace(TASK_TARGET, "1.1.2", CHANGED_NUMBER_FRAGMENT);
+    let outcome = replace(TASK_TARGET, "1.1.2", fragment);
 
     assert!(
         matches!(
@@ -124,22 +128,7 @@ fn replace_task_with_changed_number_still_reports_a_dangling_dependency() {
             Err(MapspliceError::DanglingDependency { anchor: reported, .. })
                 if *reported == expected
         ),
-        "a changed number retires the identity, got {outcome:?}"
-    );
-}
-
-#[test]
-fn replace_task_with_multiple_items_still_reports_a_dangling_dependency() {
-    let expected = anchor("1.1.2");
-    let outcome = replace(TASK_TARGET, "1.1.2", MULTI_ITEM_FRAGMENT);
-
-    assert!(
-        matches!(
-            &outcome,
-            Err(MapspliceError::DanglingDependency { anchor: reported, .. })
-                if *reported == expected
-        ),
-        "a multi-item replacement retires the identity, got {outcome:?}"
+        "the {fragment:?} replacement retires the identity, got {outcome:?}"
     );
 }
 
@@ -237,17 +226,17 @@ fn replace_task_continues_a_depended_on_sub_task() {
     assert_eq!(
         replacement_sub_task.identity,
         ItemIdentity {
-            source: SourceId::Fragment,
+            source: SourceId::Target,
             anchor: anchor("1.1.2.1"),
         },
-        "the replacement sub-task should keep its fragment identity"
+        "committing the operation should re-anchor the replacement sub-task"
     );
     assert!(
         replacement_task.children().iter().any(|child| matches!(
             child,
             TaskChild::SubTask(candidate) if *candidate == replacement_sub_task.identity
         )),
-        "the replacement task should list the sub-task marker, got: {:?}",
+        "the replacement task should list the re-anchored sub-task marker, got: {:?}",
         replacement_task.children()
     );
 }
