@@ -44,6 +44,25 @@ fn complete_preview_golden_cases(
 
 #[rstest]
 #[serial_test::serial(cli_env)]
+fn complete_preview_of_a_completed_item_prints_the_original(
+    workspace: TestResult<GoldenWorkspace>,
+) -> TestResult {
+    assert_golden_case(
+        &workspace?,
+        golden_success_output_case(
+            "complete_preview_completed",
+            GoldenCommand::Complete {
+                anchor: "1.1.1",
+                suffix: Some("— done"),
+            },
+            false,
+            SuccessOutput::OriginalTargetStdout,
+        ),
+    )
+}
+
+#[rstest]
+#[serial_test::serial(cli_env)]
 fn complete_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

@@ -15,7 +15,9 @@
 
 use std::ops::Range;
 
-use super::super::model::ItemSourceSpan;
+use markdown::mdast::Node;
+
+use super::super::model::{ItemSourceSpan, MarkdownNodes};
 
 /// Column limit for Markdown paragraphs and bullets in this repository.
 const WRAP_COLUMNS: usize = 80;
@@ -37,46 +39,64 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 
 /// Report whether the item's title already ends with the configured suffix.
 ///
-/// The comparison collapses the title's source wrapping back into single
-/// spaces and then peels trailing markup. Closing inline markers and terminal
-/// punctuation may wrap one another, as in `**Finish — done**.`, so each layer
-/// is removed and compared in turn; a formatted suffix such as `**done**` and a
-/// suffix placed before the title's full stop both match. A suffix beginning
-/// with a word character must start at a word or inline-marker boundary;
-/// otherwise `done` would treat a title ending in `undone` as already complete.
-pub(super) fn title_has_suffix(source: &str, span: ItemSourceSpan, suffix: &str) -> bool {
-    let Some(raw) = source.get(span.title_start..span.paragraph_end) else {
+/// The comparison uses the title's parsed inline nodes rather than its source
+/// spelling, so a literal trailing marker such as the `*` in `build*` is never
+/// mistaken for closing markup, while formatting around a real suffix is
+/// ignored: `**Finish — done**.`, `Finish **done**`, and `**done.**` all match
+/// their plain words. A suffix beginning with a word character must start at a
+/// word boundary; otherwise `done` would treat a title ending in `undone` as
+/// already complete.
+pub(super) fn title_has_suffix(title: &MarkdownNodes, suffix: &str) -> bool {
+    let plain_suffix = plain_suffix_text(suffix);
+    if plain_suffix.is_empty() {
         return false;
-    };
-    ends_with_suffix(&normalize_title(raw), suffix)
+    }
+    suffix_matches(&plain_title_text(title.nodes()), &plain_suffix)
 }
 
-/// Match `suffix` at the end of `text`, ignoring trailing markup layers.
-fn ends_with_suffix(text: &str, suffix: &str) -> bool {
-    let mut candidate = text.trim_end();
-    loop {
-        if suffix_matches(candidate, suffix) {
-            return true;
+/// Collapse a title's parsed inline nodes into its rendered plain text.
+fn plain_title_text(nodes: &[Node]) -> String {
+    let mut text = String::new();
+    for node in nodes {
+        append_plain_text(node, &mut text);
+    }
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Append one node's rendered text, descending through inline containers.
+fn append_plain_text(node: &Node, text: &mut String) {
+    if let Some(value) = node_text(node) {
+        text.push_str(value);
+    } else if let Some(children) = node.children() {
+        for child in children {
+            append_plain_text(child, text);
         }
-        let Some(shorter) = peel_title_ending(candidate) else {
-            return false;
-        };
-        candidate = shorter;
+    } else {
+        // A leaf without text, such as an image or a break, still separates the
+        // words around it, so it can never join two words together.
+        text.push(' ');
     }
 }
 
-/// Remove one trailing layer of inline markers or terminal punctuation.
-///
-/// Only the outermost layer goes, so repeated calls reach the plain title
-/// however markers and terminal punctuation interleave.
-fn peel_title_ending(text: &str) -> Option<&str> {
-    let trimmed = text.trim_end();
-    let without_markers = trimmed.trim_end_matches(INLINE_MARKERS);
-    if without_markers.len() != trimmed.len() {
-        return Some(without_markers.trim_end());
+/// Return the literal text one mdast node contributes, when it carries any.
+fn node_text(node: &Node) -> Option<&str> {
+    match node {
+        Node::Text(content) => Some(&content.value),
+        Node::InlineCode(content) => Some(&content.value),
+        Node::InlineMath(content) => Some(&content.value),
+        Node::Math(content) => Some(&content.value),
+        _ => None,
     }
-    let without_punctuation = trimmed.trim_end_matches(is_terminal_punctuation);
-    (without_punctuation.len() != trimmed.len()).then(|| without_punctuation.trim_end())
+}
+
+/// Reduce a configured suffix to the plain words a reader would see.
+fn plain_suffix_text(suffix: &str) -> String {
+    suffix
+        .chars()
+        .filter(|character| !INLINE_MARKERS.contains(character))
+        .collect::<String>()
+        .trim()
+        .to_owned()
 }
 
 /// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
@@ -94,7 +114,9 @@ fn suffix_matches(text: &str, suffix: &str) -> bool {
 /// Returns `None` when the retained span does not fit the source, which the
 /// caller reports as an unsafe edit. The suffix is placed before the title's
 /// terminal sentence punctuation so `… scope — done.` replaces `… scope.`; a
-/// suffix carrying its own punctuation replaces the title's run instead.
+/// suffix carrying its own punctuation replaces the title's run instead. A
+/// suffix that ends with an inline marker follows the title's closing markers,
+/// and the width of any replaced punctuation is credited back to the line.
 pub(super) fn insert_suffix(
     patched: &mut String,
     source: &str,
@@ -102,6 +124,17 @@ pub(super) fn insert_suffix(
     suffix: &str,
 ) -> Option<()> {
     let slot = suffix_slot(source, span, suffix)?;
+    // Only punctuation before the insertion point shifts its patched offset and
+    // frees width on the last line. Punctuation at the insertion point is removed
+    // ahead of the suffix, so both stay put.
+    let removed_before = slot.replaced.as_ref().map_or(0, |range| {
+        range.end.min(slot.insert_at) - range.start.min(slot.insert_at)
+    });
+    let removed_width = slot.replaced.as_ref().map_or(0, |range| {
+        source
+            .get(range.start..range.end.min(slot.insert_at))
+            .map_or(0, |removed| removed.chars().count())
+    });
     if let Some(replaced) = slot.replaced.clone() {
         if !source.is_char_boundary(replaced.end) {
             return None;
@@ -109,6 +142,7 @@ pub(super) fn insert_suffix(
         patched.replace_range(replaced, "");
     }
 
+    let insert_at = slot.insert_at.checked_sub(removed_before)?;
     let line_start = source
         .get(..slot.insert_at)
         .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
@@ -116,7 +150,8 @@ pub(super) fn insert_suffix(
     let wrap = SuffixWrap {
         width: source
             .get(line_start..slot.insert_at)
-            .map_or(0, |line| line.chars().count()),
+            .map_or(0, |line| line.chars().count())
+            .saturating_sub(removed_width),
         leading_space: !source
             .get(..slot.insert_at)
             .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
@@ -124,10 +159,10 @@ pub(super) fn insert_suffix(
         hanging: " ".repeat(title_column(source, span.title_start)),
         line_ending: detect_line_ending(source),
     };
-    if !patched.is_char_boundary(slot.insert_at) {
+    if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    patched.insert_str(slot.insert_at, &wrap_suffix(suffix, &wrap));
+    patched.insert_str(insert_at, &wrap_suffix(suffix, &wrap));
     Some(())
 }
 
@@ -146,7 +181,9 @@ struct SuffixSlot<'source> {
 /// The parser reports where the title's inline content ends, before closing
 /// emphasis, strong, and strike markers so terminal punctuation remains
 /// terminal inside them, as in `**Finish the scope — done.**`, but after
-/// literal constructs such as inline code and links.
+/// literal constructs such as inline code and links. A suffix that itself ends
+/// with an inline marker is placed after the closing markers instead, because
+/// joining two marker runs would make the result ambiguous.
 fn suffix_slot<'source>(
     source: &'source str,
     span: ItemSourceSpan,
@@ -162,6 +199,19 @@ fn suffix_slot<'source>(
             insert_at: span.paragraph_end,
             terminal: "",
             replaced: None,
+        });
+    }
+    if suffix_ends_with_marker(suffix) {
+        // Placing marker-wrapped words directly before the title's closing
+        // markers would merge both runs into one delimiter sequence, so such a
+        // suffix follows the closing markers instead. Punctuation it supplies
+        // still replaces the title's trailing run.
+        let replaced = (suffix_supplies_punctuation(suffix) && punctuation_start < content_end)
+            .then_some(punctuation_start..content_end);
+        return Some(SuffixSlot {
+            insert_at: span.paragraph_end,
+            terminal: "",
+            replaced,
         });
     }
     if suffix_supplies_punctuation(suffix) {
@@ -230,23 +280,13 @@ struct SuffixWrap<'source> {
     line_ending: &'source str,
 }
 
-/// Join a title's source lines into one single-spaced sentence.
-fn normalize_title(raw: &str) -> String { raw.split_whitespace().collect::<Vec<_>>().join(" ") }
-
 /// Match a suffix at the end of `text`, honouring word boundaries.
-///
-/// Inline marker characters count as a boundary because the suffix may sit
-/// just inside emphasis, as in `Finish **done**` once the closing markers are
-/// peeled.
 fn ends_at_word_boundary(text: &str, suffix: &str) -> bool {
     let Some(prefix) = text.strip_suffix(suffix) else {
         return false;
     };
     let starts_with_word = suffix.chars().next().is_some_and(char::is_alphanumeric);
-    !starts_with_word
-        || prefix.chars().next_back().is_none_or(|character| {
-            character.is_whitespace() || INLINE_MARKERS.contains(&character)
-        })
+    !starts_with_word || prefix.chars().next_back().is_none_or(char::is_whitespace)
 }
 
 /// Return the byte length of the terminal punctuation ending at `end`.
@@ -259,7 +299,10 @@ fn trailing_punctuation_len(source: &str, end: usize) -> usize {
     };
     let mut length = 0;
     for (offset, character) in text.char_indices().rev() {
-        if !is_terminal_punctuation(character) || is_escaped(text, offset) {
+        // Only ASCII punctuation can be backslash-escaped; the ellipsis is
+        // always literal punctuation, so a backslash before it is content.
+        let escaped = character.is_ascii() && is_escaped(text, offset);
+        if !is_terminal_punctuation(character) || escaped {
             break;
         }
         length += character.len_utf8();
@@ -282,6 +325,19 @@ fn is_escaped(text: &str, offset: usize) -> bool {
 /// Report whether a character is sentence-ending punctuation this edit moves.
 const fn is_terminal_punctuation(character: char) -> bool {
     matches!(character, '.' | '!' | '?' | '…')
+}
+
+/// Report whether a suffix ends with an inline marker character.
+///
+/// Such a suffix cannot be placed immediately before the title's closing
+/// markers: the two marker runs would touch and read as one ambiguous
+/// delimiter sequence.
+fn suffix_ends_with_marker(suffix: &str) -> bool {
+    suffix
+        .trim_end()
+        .chars()
+        .next_back()
+        .is_some_and(|character| INLINE_MARKERS.contains(&character))
 }
 
 /// Report whether a suffix carries its own terminal punctuation.

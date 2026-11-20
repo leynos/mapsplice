@@ -204,6 +204,17 @@ fn completing_completed_task_changes_nothing(
 
 #[scenario(
     path = "tests/features/mapsplice.feature",
+    name = "Previewing an already completed task prints the unchanged roadmap"
+)]
+fn previewing_completed_task_prints_the_roadmap(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
     name = "Complete rejects a step anchor because a step has no checkbox"
 )]
 fn complete_rejects_step_anchor(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {

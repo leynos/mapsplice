@@ -58,6 +58,16 @@ fn suffix_placement(
     Some("done."),
     "- [x] 1.1.1. **Finish the scope done.**"
 )]
+#[case::marker_suffix_follows_closing_markers(
+    "- [ ] 1.1.1. **Finish the scope.**",
+    Some("**done.**"),
+    "- [x] 1.1.1. **Finish the scope** **done.**"
+)]
+#[case::unpunctuated_marker_suffix_follows_closing_markers(
+    "- [ ] 1.1.1. **Finish the scope**",
+    Some("**done**"),
+    "- [x] 1.1.1. **Finish the scope** **done**"
+)]
 fn suffix_around_closing_inline_markers(
     #[case] item: &str,
     #[case] suffix: Option<&str>,
@@ -66,7 +76,7 @@ fn suffix_around_closing_inline_markers(
     assert_eq!(
         complete_ok(&completion_source(item), "1.1.1", suffix),
         completion_source(expected_item),
-        "the suffix should stay inside the closing inline markers"
+        "closing markers should stay intact around the inserted suffix"
     );
 }
 
@@ -99,6 +109,11 @@ fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &s
     "- [ ] 1.1.1. Finish the path segment Task\\",
     Some("— done"),
     "- [x] 1.1.1. Finish the path segment Task\\ — done"
+)]
+#[case::a_backslash_does_not_escape_an_ellipsis(
+    "- [ ] 1.1.1. Finish the scope\\…",
+    Some("— done"),
+    "- [x] 1.1.1. Finish the scope\\ — done…"
 )]
 fn punctuation_handling_respects_formatting_and_escapes(
     #[case] item: &str,
@@ -196,6 +211,31 @@ fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
     assert!(
         completed.contains("      done.**"),
         "the suffix should wrap before the preserved closing markers: {completed}"
+    );
+}
+
+#[test]
+fn a_literal_trailing_marker_does_not_hide_a_missing_suffix() {
+    let item = "- [ ] 1.1.1. Remove every build artefact named build*";
+    let expected = "- [x] 1.1.1. Remove every build artefact named build* build";
+
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some("build")),
+        completion_source(expected),
+        "a literal marker must not make the title look already suffixed"
+    );
+}
+
+#[test]
+fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
+    let content = "a".repeat(57);
+    let item = format!("- [ ] 1.1.1. {content}.");
+    let expected = format!("- [x] 1.1.1. {content} **done.**");
+
+    assert_eq!(
+        complete_ok(&completion_source(&item), "1.1.1", Some("**done.**")),
+        completion_source(&expected),
+        "the replaced full stop should free the column the suffix needs"
     );
 }
 

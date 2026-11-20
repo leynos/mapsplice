@@ -332,26 +332,33 @@ constructs are the exception: the suffix follows a closing backtick or a link,
 so `` `foo` `` becomes `` `foo` — done `` and `[foo](url)` becomes
 `[foo](url) — done`, rather than changing the construct's content. A suffix
 that carries its own terminal punctuation replaces the title's trailing run, so
-`--suffix "done."` gives `1.1.1. Finish the scope done.` When the suffix would
-push the title's last line past 80 columns, only the suffix words move onto
-continuation lines indented to the title's content column; no existing title
-line is joined or split. Provided the title's existing wrapping already
-satisfies `make check-fmt`, completion keeps the title formatter-stable: the
-inserted break follows the formatter's own 80-column reflow, so `make fmt`
-makes no further change and `make check-fmt` still passes. The suffix is
-configured by `--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a
-`[cmds.complete]` table (see [Complete `suffix`](#complete-suffix)); it is
-trimmed, an empty value selects no marker, and a value containing a line break
-is rejected.
+`--suffix "done."` gives `1.1.1. Finish the scope done.` A suffix that itself
+ends with inline markers is placed after the title's closing markers instead,
+so the two spans stay separate: with `--suffix "**done.**"`,
+`**Finish the scope.**` becomes `**Finish the scope** **done.**`. When the
+suffix would push the title's last line past 80 columns, only the suffix words
+move onto continuation lines indented to the title's content column; no
+existing title line is joined or split. Provided the title's existing wrapping
+already satisfies `make check-fmt`, completion keeps the title
+formatter-stable: the inserted break follows the formatter's own 80-column
+reflow, so `make fmt` makes no further change and `make check-fmt` still
+passes. The suffix is configured by `--suffix`,
+`MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
+[Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
+no marker, and a value containing a line break is rejected.
 
-Completing an item that is already `- [x]` is a no-op: the command exits 0 and
-writes nothing, even when a done marker is configured and the title does not
-carry one. A suffix is therefore never added twice.
+Completing an item that is already `- [x]` changes nothing: no byte of the
+title is rewritten and no done marker is added, even when one is configured and
+the title does not carry it. In the default preview mode the unchanged roadmap
+is still printed, so redirecting standard output always produces a complete
+document and can never truncate it; with `--in-place` the command exits 0
+without touching the target. A suffix is therefore never added twice.
 
 Library callers use `CommandKind::Complete { anchor, suffix }`. A successful
 completion returns the patched document on `RunOutcome::stdout`, or
-`RunOutcome::written_path` in place; an already-completed item returns a silent
-success. A phase or step anchor fails with
+`RunOutcome::written_path` in place. Previewing an already-completed item
+returns the unchanged document on `RunOutcome::stdout`; only an in-place no-op
+returns a silent success. A phase or step anchor fails with
 `MapspliceError::UnsupportedAnchorLevel`, and an edit that cannot be proven
 safe fails with `MapspliceError::UnsafeCompletionEdit`.
 
