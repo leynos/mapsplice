@@ -43,9 +43,10 @@ boundary, and roadmap domain modules:
   and optional fragment, translate CLI commands into roadmap operations, render
   the result, and perform in-place writes.
 - `src/cli.rs` is the command-line and `ortho-config` adapter. It exposes
-  `CommandKind`, `GlobalOptions`, and `CliRequest`, and delegates each
-  command's argument type and configuration merge to a sibling
-  `src/cli_<command>.rs` module.
+  `CommandKind`, `GlobalOptions`, and `CliRequest`. The `insert`, `complete`,
+  and `export` argument types and their configuration merges live in the sibling
+  `src/cli_insert.rs`, `src/cli_complete.rs`, and `src/cli_export.rs` modules;
+  `AppendArgs`, `DeleteArgs`, and `ReplaceArgs` remain in `src/cli.rs`.
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.

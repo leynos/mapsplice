@@ -217,12 +217,7 @@ fn run_complete(
     suffix: Option<&str>,
     in_place: bool,
 ) -> Result<RunOutcome> {
-    let span = tracing::info_span!(
-        "run_complete",
-        anchor = %anchor,
-        target = %target,
-        in_place = in_place
-    );
+    let span = tracing::info_span!("run_complete", anchor = %anchor, in_place = in_place);
     let _span_guard = span.enter();
     let target_text = read_utf8(target)?;
     let roadmap = parse_roadmap_inner(&target_text)?;

@@ -194,7 +194,10 @@ fn expectation_metadata_covers_output_modes_and_fixture_shapes() {
         .filter(|expectation| expectation.is_in_place())
         .count();
 
-    assert_eq!(in_place_count, 4);
+    assert_eq!(
+        in_place_count, 4,
+        "the expectation matrix must contain four in-place cases"
+    );
 }
 
 #[test]
