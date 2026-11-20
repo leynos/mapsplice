@@ -13,6 +13,13 @@ pub(crate) struct ItemSourceSpan {
     pub(crate) item_start: usize,
     /// Offset of the item's numbered title text, after the checkbox.
     pub(crate) title_start: usize,
+    /// Offset just past the title's inline content.
+    ///
+    /// Closing emphasis, strong, and strikethrough markers follow this point,
+    /// so a done suffix inserted here stays inside them. Constructs with
+    /// literal content, such as inline code and links, end here instead, so
+    /// the suffix follows them.
+    pub(crate) title_content_end: usize,
     /// Offset just past the item's opening paragraph.
     pub(crate) paragraph_end: usize,
 }
@@ -22,10 +29,12 @@ impl ItemSourceSpan {
     #[must_use]
     pub(crate) const fn is_valid_in(self, source: &str) -> bool {
         self.item_start <= self.title_start
-            && self.title_start <= self.paragraph_end
+            && self.title_start <= self.title_content_end
+            && self.title_content_end <= self.paragraph_end
             && self.paragraph_end <= source.len()
             && source.is_char_boundary(self.item_start)
             && source.is_char_boundary(self.title_start)
+            && source.is_char_boundary(self.title_content_end)
             && source.is_char_boundary(self.paragraph_end)
     }
 }

@@ -23,12 +23,6 @@ const WRAP_COLUMNS: usize = 80;
 /// Characters that open or close inline emphasis, strong, code, or strike spans.
 const INLINE_MARKERS: [char; 4] = ['*', '_', '`', '~'];
 
-/// Closing markers a suffix may be inserted inside.
-///
-/// A backtick is excluded: it closes an inline code span whose content is
-/// literal, so the suffix must follow the span instead of becoming part of it.
-const SUFFIX_CLOSERS: [char; 3] = ['*', '_', '~'];
-
 /// Collapse the configured suffix into the single-line words that are inserted.
 ///
 /// A suffix that is empty or only whitespace selects the default of no suffix.
@@ -149,10 +143,10 @@ struct SuffixSlot<'source> {
 
 /// Choose the insertion point relative to the title's final content.
 ///
-/// Closing emphasis, strong, and strike markers stay after the suffix so
-/// terminal punctuation remains terminal inside them, as in
-/// `**Finish the scope — done.**`. A closing backtick does not move: inline
-/// code is literal, so the suffix follows the code span.
+/// The parser reports where the title's inline content ends, before closing
+/// emphasis, strong, and strike markers so terminal punctuation remains
+/// terminal inside them, as in `**Finish the scope — done.**`, but after
+/// literal constructs such as inline code and links.
 fn suffix_slot<'source>(
     source: &'source str,
     span: ItemSourceSpan,
@@ -161,7 +155,7 @@ fn suffix_slot<'source>(
     let raw = source.get(span.title_start..span.paragraph_end)?;
     let number_end = raw.find(". ").map(|index| span.title_start + index + 2)?;
     let trimmed_end = span.title_start + raw.trim_end_matches([' ', '\t']).len();
-    let content_end = trimmed_end - insertable_closer_len(source, trimmed_end);
+    let content_end = span.title_content_end.min(trimmed_end);
     let punctuation_start = content_end - trailing_punctuation_len(source, content_end);
     if punctuation_start <= number_end {
         return Some(SuffixSlot {
@@ -184,21 +178,6 @@ fn suffix_slot<'source>(
         insert_at: punctuation_start,
         terminal: source.get(punctuation_start..span.paragraph_end)?,
         replaced: None,
-    })
-}
-
-/// Return the byte length of closers ending at `end` the suffix may precede.
-///
-/// The scan is limited to [`SUFFIX_CLOSERS`] so ordinary title words and
-/// inline code content are never treated as delimiters.
-fn insertable_closer_len(source: &str, end: usize) -> usize {
-    source.get(..end).map_or(0, |prefix| {
-        prefix
-            .chars()
-            .rev()
-            .take_while(|character| SUFFIX_CLOSERS.contains(character))
-            .map(char::len_utf8)
-            .sum()
     })
 }
 
