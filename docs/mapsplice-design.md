@@ -398,13 +398,15 @@ positions yield an `ItemSourceSpan` for the addressed item, the checkbox byte
 inside the marker becomes `x`, and an optional configured done marker is
 inserted at the end of the title paragraph before its terminal punctuation,
 keeping closing emphasis, strong, and strike markers after the inserted words.
-A closing backtick is different: inline code content is literal, so the suffix
-follows the code span instead of joining it. Every other byte — title wrapping,
-continuation lines, nested bullets, `Requires` references, and all numbering —
-is retained, which satisfies F1 and F2 without invoking the renderer at all.
-Section 5's *gate-clean* caveat does not arise from syntax, because no unstable
-syntax is normalized. It still bounds line width: an input paragraph that is
-already wider than 80 columns stays that wide, because completion never reflows
+The parser's inline node positions locate that point: an emphasis container
+ends before its closing markers, while inline code and links end after their
+closing delimiter, so the suffix follows those literal constructs instead of
+joining them. Every other byte — title wrapping, continuation lines, nested
+bullets, `Requires` references, and all numbering — is retained, which
+satisfies F1 and F2 without invoking the renderer at all. Section 5's
+*gate-clean* caveat does not arise from syntax, because no unstable syntax is
+normalized. It still bounds line width: an input paragraph that is already
+wider than 80 columns stays that wide, because completion never reflows
 existing title text.
 
 The patched text is re-parsed and compared with the original before it is

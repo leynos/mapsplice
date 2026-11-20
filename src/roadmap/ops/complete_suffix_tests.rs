@@ -85,6 +85,30 @@ fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &s
 }
 
 #[rstest]
+#[case::literal_tilde_ending_a_url_stays_before_the_suffix(
+    "- [ ] 1.1.1. Visit https://example.org/~",
+    "- [x] 1.1.1. Visit https://example.org/~ — done"
+)]
+#[case::literal_asterisk_ending_a_glob_stays_before_the_suffix(
+    "- [ ] 1.1.1. Remove every build artefact named build*",
+    "- [x] 1.1.1. Remove every build artefact named build* — done"
+)]
+#[case::strike_span_receives_the_suffix_inside(
+    "- [ ] 1.1.1. ~~Finish the scope~~",
+    "- [x] 1.1.1. ~~Finish the scope — done~~"
+)]
+fn suffix_placement_uses_the_parsed_inline_structure(
+    #[case] item: &str,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some("— done")),
+        completion_source(expected_item),
+        "literal trailing markers stay put while real closing markers move"
+    );
+}
+
+#[rstest]
 #[case::suffix_outside_closing_markers_is_not_duplicated(
     "- [ ] 1.1.1. **Finish the scope — done**.",
     Some("— done"),
