@@ -1,9 +1,9 @@
 # 1.2.3 Diagnose `Requires` keywords with no recognizable anchors
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`,
-`Decision log`, `Outcomes & retrospective`, `Conformance basis`, and
-`Verification plan` must be kept up to date as work proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & discoveries`, `Decision log`,
+`Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
+be kept up to date as work proceeds.
 
 Status: DRAFT (awaiting design review and user approval)
 
@@ -15,18 +15,18 @@ Implementation must not begin until the user explicitly approves this plan.
 
 ## Purpose / big picture
 
-`mapsplice` is a command-line tool that makes structural edits (append,
-insert, delete, replace) to numbered Markdown roadmaps such as
-`docs/roadmap.md`. After an edit it renumbers every phase, step, task, and
-addendum sub-task, and it rewrites *dependency references*: the anchor numbers
-written after the keyword `Requires`, such as the `1.2.2` in
-`- Requires 1.2.2.`. Only numbers in that dependency context are rewritten;
-section references, versions, and prose numbers are left alone.
+`mapsplice` is a command-line tool that makes structural edits (append, insert,
+delete, replace) to numbered Markdown roadmaps such as `docs/roadmap.md`. After
+an edit it renumbers every phase, step, task, and addendum sub-task, and it
+rewrites *dependency references*: the anchor numbers written after the keyword
+`Requires`, such as the `1.2.2` in `- Requires 1.2.2.`. Only numbers in that
+dependency context are rewritten; section references, versions, and prose
+numbers are left alone.
 
 The scanner that finds dependency references works number-first. It looks for
 anchor-shaped tokens (`8`, `8.2`, `8.2.3`, `8.2.3.1`) and then looks backwards
-for a `Requires` keyword that governs them. A `Requires` keyword that governs no
-recognizable token therefore leaves no trace at all. Today all of these are
+for a `Requires` keyword that governs them. A `Requires` keyword that governs
+no recognizable token therefore leaves no trace at all. Today all of these are
 accepted silently and are never renumbered, validated, or reported:
 
 ```markdown
@@ -49,8 +49,8 @@ After this change, every successful edit reports one warning on standard error
 for each `Requires` keyword that governs zero recognized anchor tokens, naming
 the input file, the source line and column of the keyword, and the item that
 contains it. The edit still succeeds, standard output still carries exactly the
-rendered roadmap, `--in-place` still rewrites the target, and the exit status is
-still zero. For example:
+rendered roadmap, `--in-place` still rewrites the target, and the exit status
+is still zero. For example:
 
 ```plaintext
 $ mapsplice delete roadmap.md 2 > new.md
@@ -146,19 +146,19 @@ Classification is whole-file by purpose:
 Budget survey. The closest precedent is roadmap item 1.2.1 (commit `a566a4d`,
 pull request #86), which changed 69 files with 6,876 insertions. That change
 also bootstrapped the Verus prover harness, the generated-roadmap oracle, and
-the dependency property suite, so most of its size was approved
-infrastructure, not missed scope; this plan reuses that infrastructure. The
-recent refactor plans `docs/execplans/roadmap-5-1-4.md` (production budget 180
-lines) and `docs/execplans/roadmap-4-4-4.md` (production budget 80 lines)
-recorded no budget increases. No comparable plan records a repeatedly raised
-budget. The estimate below traces every affected file listed in
-`Context and orientation`: about 330 production lines (scanner kernel 50,
-visitor mode 50, region walk 120, warning type 70, application and binary
-wiring 40), about 750 test lines (unit tables 110, bounded enumeration and
-oracle 260, golden harness extension 40, fixtures 120, behavioural steps and
-features 90, process and snapshot tests 80, property extension 50), and about
-330 documentation lines (ADR 130, design 60, users' guide 60, developers' guide
-40, migration note 20, validation design 10, skill 10).
+the dependency property suite, so most of its size was approved infrastructure,
+not missed scope; this plan reuses that infrastructure. The recent refactor
+plans `docs/execplans/roadmap-5-1-4.md` (production budget 180 lines) and
+`docs/execplans/roadmap-4-4-4.md` (production budget 80 lines) recorded no
+budget increases. No comparable plan records a repeatedly raised budget. The
+estimate below traces every affected file listed in `Context and orientation`:
+about 330 production lines (scanner kernel 50, visitor mode 50, region walk
+120, warning type 70, application and binary wiring 40), about 750 test lines
+(unit tables 110, bounded enumeration and oracle 260, golden harness extension
+40, fixtures 120, behavioural steps and features 90, process and snapshot tests
+80, property extension 50), and about 330 documentation lines (ADR 130, design
+60, users' guide 60, developers' guide 40, migration note 20, validation design
+10, skill 10).
 
 - Files: stop and escalate if more than 40 non-ExecPlan files change.
 - Code: stop and escalate if code changes exceed 1,400 net lines in total, or
@@ -205,10 +205,10 @@ not offset an overrun in another.
 - Risk: source coordinates drift after dependency rewriting changes the length
   of an earlier token in the same text node (for example, `1.2.9` becoming
   `1.2.10` before an anchor-free keyword). Severity: medium. Likelihood: low.
-  Mitigation: locate the keyword with the existing
-  `source_location_at`, which matches the n-th occurrence of the token text in
-  the node's own source span, so length changes elsewhere do not move it. A
-  named regression fixture pins this case.
+  Mitigation: locate the keyword with the existing `source_location_at`, which
+  matches the n-th occurrence of the token text in the node's own source span,
+  so length changes elsewhere do not move it. A named regression fixture pins
+  this case.
 - Risk: splitting `src/roadmap/ops/dependency_visitor.rs` to make room changes
   behaviour. Severity: medium. Likelihood: low. Mitigation: `EP-M1` is a
   behaviour-preserving move committed on its own, gated by the full existing
@@ -260,9 +260,10 @@ not offset an overrun in another.
   `init_tracing` in `src/main.rs`. Impact: the user-visible warning must be
   written through `report_stderr_diagnostic`, not through `tracing`.
 - Observation: an existing unit test already pins `Requires none.` as producing
-  no dependency candidates. Evidence: `src/roadmap/ops/dependency_text_tests.rs`
-  case `Count 27. Requires none.`. Impact: that expectation stays true; the
-  warning is computed by a separate query and does not change candidates.
+  no dependency candidates. Evidence:
+  `src/roadmap/ops/dependency_text_tests.rs` case `Count 27. Requires none.`.
+  Impact: that expectation stays true; the warning is computed by a separate
+  query and does not change candidates.
 - Observation: `src/roadmap/ops/dependency_visitor.rs` is 399 lines, one under
   the repository limit. Impact: `EP-M1` must move code out before adding the
   diagnostic visit mode.
@@ -280,10 +281,10 @@ not offset an overrun in another.
   dependency visitor is owned by it, where the owner of a candidate is the
   keyword occurrence that `latest_keyword_before` already selects. Rationale:
   the roadmap item defines the condition relative to "the scanner", so the
-  warning must be derived from the scanner's own ownership decision rather
-  than from a second grammar. A separately specified clause grammar would
-  create two definitions of a dependency clause that could disagree.
-  Date/Author: 2026-11-20, planning agent.
+  warning must be derived from the scanner's own ownership decision rather than
+  from a second grammar. A separately specified clause grammar would create two
+  definitions of a dependency clause that could disagree. Date/Author:
+  2026-11-20, planning agent.
 - D2. Decision: a clause whose only tokens are malformed dependency tokens,
   such as `Requires 1.4.0`, is *not* anchorless and does not warn. Rationale:
   the scanner does recognize `1.4.0` as an anchor-shaped dependency token
@@ -292,8 +293,8 @@ not offset an overrun in another.
   separate phase 6 rule in `docs/validation-and-agent-output-design.md`
   ("version-like or invalid dependency tokens are warnings"), owned by roadmap
   item 6.1.2. Rejected option: treating "zero *valid* anchors" as anchorless,
-  which would fold 6.1.2 scope into this item.
-  Date/Author: 2026-11-20, planning agent.
+  which would fold 6.1.2 scope into this item. Date/Author: 2026-11-20,
+  planning agent.
 - D3. Decision: these are anchorless and warn: `Requires none.`,
   `Requires: TBD`, a bare `Requires` or `Requires.` at the end of a paragraph,
   `Requires §1.2`, `Requires-1.2`, a keyword whose number sits in a different
@@ -301,22 +302,21 @@ not offset an overrun in another.
   `Requires [1.2.1](#x)`), and `Requires none; see 1.2.1` (the semicolon ends
   the clause). These do not warn: lowercase `requires`, `PreRequires`,
   `Requirements`, any keyword inside inline code, fenced code, or HTML (the
-  visitor never enters them), and a clause with at least one valid or
-  malformed token. Rationale: each follows mechanically from D1 and the
-  existing scanner; the inline-group cases are precisely the "malformed or
-  unparsable" clauses the roadmap item exists to surface.
-  Date/Author: 2026-11-20, planning agent.
+  visitor never enters them), and a clause with at least one valid or malformed
+  token. Rationale: each follows mechanically from D1 and the existing scanner;
+  the inline-group cases are precisely the "malformed or unparsable" clauses
+  the roadmap item exists to surface. Date/Author: 2026-11-20, planning agent.
 - D4. Decision: diagnose the edited document after the operation succeeds, not
   the inputs before it. Items are named by their identity (source document and
-  the anchor as written in that document), and locations are source
-  coordinates in that document. Rationale: the warning concerns clauses the
-  user is about to keep; a clause in a deleted item is no longer a hazard.
-  Post-operation scanning also covers fragment items without a second walk over
-  the four `RoadmapFragment` variants. Identity and source coordinates both
-  refer to the file as the user wrote it, so the line, column, and item number
-  agree with each other. Rejected option: scanning target and fragment before
-  the operation, which warns about deleted and replaced items and needs a
-  separate fragment walk. Date/Author: 2026-11-20, planning agent.
+  the anchor as written in that document), and locations are source coordinates
+  in that document. Rationale: the warning concerns clauses the user is about
+  to keep; a clause in a deleted item is no longer a hazard. Post-operation
+  scanning also covers fragment items without a second walk over the four
+  `RoadmapFragment` variants. Identity and source coordinates both refer to the
+  file as the user wrote it, so the line, column, and item number agree with
+  each other. Rejected option: scanning target and fragment before the
+  operation, which warns about deleted and replaced items and needs a separate
+  fragment walk. Date/Author: 2026-11-20, planning agent.
 - D5. Decision: introduce a minimal warning channel. The domain returns
   `AnchorlessClause` values; `src/lib.rs` maps each to a public
   `MapspliceWarning` carrying the file path; `RunOutcome` gains
@@ -326,21 +326,26 @@ not offset an overrun in another.
   `warning_class`. Rationale: this mirrors the existing error path
   (`report_error` traces a class and writes the display text), keeps domain
   purity, and gives phase 6 a typed channel to extend. Rejected options:
-  `tracing::warn!` alone (invisible by default), adding strings to the
-  `Copy` `PreservationReport`, and a full severity and finding-code model
-  (owned by phase 6). Date/Author: 2026-11-20, planning agent.
-- D6. Decision: the warning text is
-  `` <path>: line <L>, column <C>: <kind> <anchor>: `Requires` clause has no recognizable dependency anchors ``,
-  printed after the prefix `warning: `. `<kind>` is `phase`, `step`, `task`, or
-  `sub-task` from the anchor depth; text outside any item is labelled
-  `preamble` with no anchor. When a location is unknown the
-  `line <L>, column <C>: ` segment is omitted. Rationale: it matches the
-  existing error convention (`line N, column M: ...`, lower-case message, no
-  final full stop), follows the GNU Coding Standards guidance for
-  non-interactive diagnostics (file first, lower-case message, no trailing
-  period)[^gnu], and names the item as the roadmap item requires. The path is
-  the path as given on the command line, so output is deterministic in tests.
-  Date/Author: 2026-11-20, planning agent.
+  `tracing::warn!` alone (invisible by default), adding strings to the `Copy`
+  `PreservationReport`, and a full severity and finding-code model (owned by
+  phase 6). Date/Author: 2026-11-20, planning agent.
+- D6. Decision: each warning is one standard-error line of this form:
+
+  ```plaintext
+  warning: <path>: line <L>, column <C>: <kind> <anchor>: `Requires` clause has no recognizable dependency anchors
+  ```
+
+  The `warning:` prefix and its following space are added by `src/main.rs`;
+  `MapspliceWarning`'s `Display` text starts at `<path>`. `<kind>` is `phase`,
+  `step`, `task`, or `sub-task` from the anchor depth; text outside any item is
+  labelled `preamble` with no anchor. When a location is unknown, the
+  `line <L>, column <C>:` segment and its following space are omitted.
+  Rationale: it matches the existing error convention (`line N, column M: ...`,
+  lower-case message, no final full stop), follows the GNU Coding Standards
+  guidance for non-interactive diagnostics (file first, lower-case message, no
+  trailing period)[^gnu], and names the item as the roadmap item requires. The
+  path is the path as given on the command line, so output is deterministic in
+  tests. Date/Author: 2026-11-20, planning agent.
 - D7. Decision: one warning per anchorless keyword occurrence, in document
   order of the edited roadmap, without de-duplication. Rationale: each
   occurrence is a separate fix at a separate location, and document order is
@@ -386,9 +391,10 @@ failure (emits `tracing::error!` with `error_class`, then writes the error's
 records observability, and returns `RunOutcome::stdout(rendered)` or
 `RunOutcome::in_place(path)`. `RunOutcome` (`src/lib.rs`, about line 258) is
 `pub struct RunOutcome { pub stdout: Option<String>, pub written_path:
-Option<Utf8PathBuf> }` deriving `Debug, Eq, PartialEq`, with private
-constructors `stdout`, `in_place`, and `silent_success`. The export command
-builds its outcomes in `src/export_command/mod.rs`.
+Option<Utf8PathBuf> }`
+deriving `Debug, Eq, PartialEq`, with private constructors `stdout`,
+`in_place`, and `silent_success`. The export command builds its outcomes in
+`src/export_command/mod.rs`.
 
 `src/roadmap/ops/mod.rs` `apply_command_with_report` clones the roadmap,
 applies the splice, calls `renumber_document`, then `rewrite_dependencies`
@@ -400,8 +406,8 @@ step's `title`, `body`, and `trailing`; each task's `summary`, `body`, and
 region is a `MarkdownNodes` value, which carries the source text it was parsed
 from (`MarkdownNodes::source`, an `Arc<str>`), and each item carries an
 `identity: ItemIdentity { source: SourceId, anchor: RoadmapAnchor }` recording
-the source document (`SourceId::Target` or `SourceId::Fragment`) and the
-anchor as written there.
+the source document (`SourceId::Target` or `SourceId::Fragment`) and the anchor
+as written there.
 
 ### How the scanner recognizes a dependency reference
 
@@ -410,8 +416,8 @@ anchor as written there.
 - `dependency_candidates(value)` scans for anchor-shaped tokens with
   `next_anchor_candidate` and keeps a token when
   `classify_dependency_reference` returns `Reference(anchor)` (kept as
-  `anchor: Some`) or `InvalidDependencyToken` (kept as `anchor: None`).
-  It returns `Vec<DependencyCandidate { range, anchor }>`.
+  `anchor: Some`) or `InvalidDependencyToken` (kept as `anchor: None`). It
+  returns `Vec<DependencyCandidate { range, anchor }>`.
 - `is_dependency_anchor` checks the keyword list `["Requires"]` through
   `latest_keyword_before`, which takes the *last* `Requires` substring before
   the token (`rmatch_indices`), then requires `is_keyword_boundary` (no ASCII
@@ -420,12 +426,12 @@ anchor as written there.
   `has_dependency_clause_terminator` (a `;`, or a `.` not between two digits).
 - `has_section_sigil` rejects a token immediately preceded by `§`.
 
-`src/roadmap/ops/dependency_visitor.rs` (399 lines) is the shared traversal used
-by rewriting and by JSON export collection. `visit_dependency_nodes` groups
-adjacent `Text` and `Break` nodes, flattens each group with
+`src/roadmap/ops/dependency_visitor.rs` (399 lines) is the shared traversal
+used by rewriting and by JSON export collection. `visit_dependency_nodes`
+groups adjacent `Text` and `Break` nodes, flattens each group with
 `flatten_text_group` (a `Break` becomes one space), and records only candidates
-lying wholly inside one text node (`candidate_text_segment`). A single text node
-takes the fast path `visit_single_text`. Containers are descended by
+lying wholly inside one text node (`candidate_text_segment`). A single text
+node takes the fast path `visit_single_text`. Containers are descended by
 `visit_container_node`, `visit_inline_container_node`, and
 `visit_mdx_container_node`; inline code, fenced code, HTML, and link
 destinations are leaves and are never scanned. The visit modes are
@@ -441,9 +447,9 @@ occurrence of the token text inside the node's own source span.
 - Golden fixtures: `tests/roadmap_golden.rs` and
   `tests/roadmap_golden/nested_requires.rs`, driven by `tests/golden/`
   (`case.rs`, `runner.rs`, `assertions.rs`, `workspace.rs`, `format_gate.rs`).
-  Fixture directories are `tests/fixtures/golden/<case>/{target.md,
-  fragment.md, expected.md}`. Success cases assert `RunOutcome` stdout; no
-  fixture pins standard error today.
+  Fixture directories are
+  `tests/fixtures/golden/<case>/{target.md, fragment.md, expected.md}`. Success
+  cases assert `RunOutcome` stdout; no fixture pins standard error today.
 - Behavioural tests: `rstest-bdd` 0.6.0. Feature file
   `tests/features/mapsplice.feature`, scenarios bound in
   `tests/behaviour_cli.rs`, steps in `tests/steps/cli_steps.rs` (`CliState`
@@ -471,9 +477,9 @@ occurrence of the token text inside the node's own source span.
 
 Documentation: `docs/mapsplice-design.md` (sections 5–8, especially section 7,
 "The dependency-reference model (normative)"), `docs/developers-guide.md`
-(sections 2, 3, 6, 7, and 8.2), `docs/users-guide.md` ("Help and
-diagnostics", the dependency-rewriting text under the worked example,
-"Validation rules and failure cases", and "Compatibility and migration"),
+(sections 2, 3, 6, 7, and 8.2), `docs/users-guide.md` ("Help and diagnostics",
+the dependency-rewriting text under the worked example, "Validation rules and
+failure cases", and "Compatibility and migration"),
 `docs/validation-and-agent-output-design.md` (finding severities and the phase
 6 dependency pass), `docs/migrations/0.2.0.md`,
 `docs/documentation-style-guide.md` (ADR format),
@@ -511,8 +517,7 @@ Requirements:
 - `REQ-name`: the warning names the item containing the clause (roadmap
   1.2.3).
 - `REQ-succeed`: the edit still succeeds; output bytes and exit status are
-  those of the same edit without the warning (roadmap 1.2.3, design F1, F2,
-  C6).
+  those of the same edit without the warning (roadmap 1.2.3, design F1, F2, C6).
 - `REQ-pin`: a fixture pins the diagnostic text (roadmap 1.2.3, design
   section 8 regression discipline).
 - `REQ-scope`: no change to which numbers are rewritten (design C3, section 7).
@@ -557,10 +562,10 @@ replaced by one space). Define:
 For a roadmap document `D` after an edit, let `R(D)` be the ordered list of
 dependency regions that `rewrite_dependencies` visits, each paired with its
 owner (the containing item's `ItemIdentity`, or none for the preamble). The
-diagnostic result is the concatenation, over regions in order and text groups in
-traversal order, of one `AnchorlessClause { owner, location }` per element of
-`A(t)`, where `location` is `source_location_at` of the keyword range within its
-text node.
+diagnostic result is the concatenation, over regions in order and text groups
+in traversal order, of one `AnchorlessClause { owner, location }` per element of
+`A(t)`, where `location` is `source_location_at` of the keyword range within
+its text node.
 
 Preconditions: `D` is the staged document after a successful operation,
 renumbering, and rewriting. Malformed roadmaps never reach the query because
@@ -579,8 +584,8 @@ parsing or the operation has already failed (F5).
   owner (`REQ-scope`).
 - `L-region-parity` (establishes `REQ-warn` at document level): the query
   visits exactly the regions in `R(D)`, with the same node traversal as the
-  rewriter, and attributes each region to the item `rewrite_dependencies`
-  would treat as its owner.
+  rewriter, and attributes each region to the item `rewrite_dependencies` would
+  treat as its owner.
 - `INV-non-interference` (establishes `REQ-succeed`, `REQ-scope`): computing
   warnings does not mutate the roadmap; standard output bytes, in-place file
   bytes, and exit status equal those of the same edit with the query removed.
@@ -614,126 +619,116 @@ parsing or the operation has already failed (F5).
 
 - Obligation: `L-owner-total` and `L-owner-agrees`.
   Method: `rstest` partition table plus assertions on the existing table.
-  Rationale: ownership is a finite set of syntactic situations.
-  Domain: one keyword with one token; two keywords each with tokens; a
-  `PreRequires` substring between keyword and token; a terminator between; a
-  colon separator; a malformed token; a section sigil.
-  Artefact: `src/roadmap/ops/dependency_text_tests.rs`, new
-  `candidate_owner_cases`.
+  Rationale: ownership is a finite set of syntactic situations. Domain: one
+  keyword with one token; two keywords each with tokens; a `PreRequires`
+  substring between keyword and token; a terminator between; a colon separator;
+  a malformed token; a section sigil. Artefact:
+  `src/roadmap/ops/dependency_text_tests.rs`, new `candidate_owner_cases`.
   Evidence: `cargo nextest run -p mapsplice candidate_owner` fails to compile
   before `DependencyCandidate::keyword` exists (red), then passes (green).
-  Every existing `dependency_text_tests` case passes unchanged.
-  Non-vacuity: the table includes a case with two keywords where the token
-  belongs to the second, which rejects an implementation that always picks the
-  first keyword; a seeded fault that returns the first keyword must fail it.
+  Every existing `dependency_text_tests` case passes unchanged. Non-vacuity:
+  the table includes a case with two keywords where the token belongs to the
+  second, which rejects an implementation that always picks the first keyword;
+  a seeded fault that returns the first keyword must fail it.
 - Obligation: `INV-exact` at the text level.
   Method: `rstest` partition table for the classes in D3, a bounded exhaustive
   enumeration, and a `proptest` property, all compared against an independent
-  oracle.
-  Rationale: the input space is open-ended strings, but the behaviour depends
-  on a small lexeme vocabulary; bounded exhaustive enumeration over that
-  vocabulary covers every interleaving up to the bound, and `proptest` extends
-  coverage to longer strings with shrinking.
-  Domain: the lexemes `Requires`, `requires`, `PreRequires`, ` `, `:`, `.`,
-  `;`, `-`, `§`, `none`, `1.2`, `1.4.0`, `\n`. Exhaustive enumeration covers
-  every sequence of up to four lexemes (13^4 + 13^3 + 13^2 + 13 = 30,940
-  strings). The property draws sequences of up to 24 lexemes, 512 cases.
-  Artefact: `src/roadmap/ops/anchorless_oracle_tests.rs` (unit-test module,
-  `#[cfg(test)]`), with the oracle `oracle_anchorless(value: &str) ->
-  Vec<Range<usize>>` implemented as a forward scan: for each boundary-valid
-  keyword occurrence, the clause extends to the first terminator (`;`, or `.`
-  not between digits) or the next `Requires` substring; the occurrence is
-  anchored when the clause contains a token start (a digit not preceded by an
-  ASCII alphanumeric and not preceded by `§`), whose separator text from the
-  keyword end contains a colon or whitespace. The oracle never calls
-  `dependency_candidates` or `latest_keyword_before`.
-  Evidence: `cargo nextest run -p mapsplice anchorless` fails before the kernel
-  exists (red), then passes with 30,940 enumerated strings and 512 property
-  cases (green). Any disagreement is recorded in `Surprises & discoveries`;
-  if the production scanner is wrong the work stops, because changing the
-  scanner is outside scope.
-  Non-vacuity: the enumeration asserts that both anchored and anchorless
-  outcomes occur, that at least 1,000 strings contain a keyword, and that each
-  D3 class appears; the property records `prop_assert!` coverage counters for
-  "has keyword", "anchorless", and "anchored" and fails if any is zero. Seeded
-  faults to run once and revert: (a) report every keyword occurrence; (b)
-  ignore the boundary test; (c) count candidates without ownership. Each must
-  be rejected by the enumeration; the transcript is recorded in
-  `Artefacts and notes`.
+  oracle. Rationale: the input space is open-ended strings, but the behaviour
+  depends on a small lexeme vocabulary; bounded exhaustive enumeration over
+  that vocabulary covers every interleaving up to the bound, and `proptest`
+  extends coverage to longer strings with shrinking. Domain: the lexemes
+  `Requires`, `requires`, `PreRequires`, ` `, `:`, `.`, `;`, `-`, `§`, `none`,
+  `1.2`, `1.4.0`, `\n`. Exhaustive enumeration covers every sequence of up to
+  four lexemes (13^4 + 13^3 + 13^2 + 13 = 30,940 strings). The property draws
+  sequences of up to 24 lexemes, 512 cases. Artefact:
+  `src/roadmap/ops/anchorless_oracle_tests.rs` (unit-test module,
+  `#[cfg(test)]`), with the oracle
+  `oracle_anchorless(value: &str) -> Vec<Range<usize>>` implemented as a
+  forward scan: for each boundary-valid keyword occurrence, the clause extends
+  to the first terminator (`;`, or `.` not between digits) or the next
+  `Requires` substring; the occurrence is anchored when the clause contains a
+  token start (a digit not preceded by an ASCII alphanumeric and not preceded by
+  `§`), whose separator text from the keyword end contains a colon or
+  whitespace. The oracle never calls `dependency_candidates` or
+  `latest_keyword_before`. Evidence:
+  `cargo nextest run -p mapsplice anchorless` fails before the kernel exists
+  (red), then passes with 30,940 enumerated strings and 512 property cases
+  (green). Any disagreement is recorded in `Surprises & discoveries`; if the
+  production scanner is wrong the work stops, because changing the scanner is
+  outside scope. Non-vacuity: the enumeration asserts that both anchored and
+  anchorless outcomes occur, that at least 1,000 strings contain a keyword, and
+  that each D3 class appears; the property records `prop_assert!` coverage
+  counters for "has keyword", "anchorless", and "anchored" and fails if any is
+  zero. Seeded faults to run once and revert: (a) report every keyword
+  occurrence; (b) ignore the boundary test; (c) count candidates without
+  ownership. Each must be rejected by the enumeration; the transcript is
+  recorded in `Artefacts and notes`.
 - Obligation: `INV-exact` across text groups (`V(t)` versus `C(t)`).
-  Method: named `rstest` cases through the visitor.
-  Domain: a keyword followed by a hard break and then an anchor; a keyword in
-  `Strong` with the anchor outside; the anchor in inline code; the anchor in a
-  link; two keywords split by a hard break.
-  Artefact: `src/roadmap/ops/anchorless_clause_tests.rs`.
-  Evidence: red before the `Diagnose` mode exists, green after.
-  Non-vacuity: the hard-break case is anchored (no warning) while the `Strong`
-  case is anchorless; an implementation that scans each `Text` node separately
-  fails the first, and one that scans the paragraph's concatenated plain text
-  fails the second.
+  Method: named `rstest` cases through the visitor. Domain: a keyword followed
+  by a hard break and then an anchor; a keyword in `Strong` with the anchor
+  outside; the anchor in inline code; the anchor in a link; two keywords split
+  by a hard break. Artefact: `src/roadmap/ops/anchorless_clause_tests.rs`.
+  Evidence: red before the `Diagnose` mode exists, green after. Non-vacuity:
+  the hard-break case is anchored (no warning) while the `Strong` case is
+  anchorless; an implementation that scans each `Text` node separately fails
+  the first, and one that scans the paragraph's concatenated plain text fails
+  the second.
 - Obligation: `L-region-parity` and `INV-location`.
-  Method: one table-driven document test.
-  Domain: a target roadmap with an anchorless clause in each of the 13 region
-  kinds (preamble; phase title, body, trailing; step title, body, trailing;
-  task summary, continuation, body bullet; sub-task summary, body; plus a
-  fragment task), and a twin roadmap with a valid `Requires` in the same
-  regions.
-  Artefact: `src/roadmap/ops/anchorless_clause_tests.rs`, `region_parity`.
-  Evidence: the anchorless document yields exactly one warning per region with
-  the expected owner and line and column; the twin yields none, and an edit over
-  the twin rewrites every clause (proving the regions are ones the rewriter
-  visits).
-  Non-vacuity: removing any one region from the query's walk fails the test
-  for that region; the twin rejects an implementation that warns on every
-  keyword.
+  Method: one table-driven document test. Domain: a target roadmap with an
+  anchorless clause in each of the 13 region kinds (preamble; phase title,
+  body, trailing; step title, body, trailing; task summary, continuation, body
+  bullet; sub-task summary, body; plus a fragment task), and a twin roadmap
+  with a valid `Requires` in the same regions. Artefact:
+  `src/roadmap/ops/anchorless_clause_tests.rs`, `region_parity`. Evidence: the
+  anchorless document yields exactly one warning per region with the expected
+  owner and line and column; the twin yields none, and an edit over the twin
+  rewrites every clause (proving the regions are ones the rewriter visits).
+  Non-vacuity: removing any one region from the query's walk fails the test for
+  that region; the twin rejects an implementation that warns on every keyword.
 - Obligation: `INV-location` after a same-node rewrite.
-  Method: named regression case.
-  Domain: `Requires 1.1.9; Requires none.` where `1.1.9` is renumbered to
-  `1.1.10`.
-  Artefact: `src/roadmap/ops/anchorless_clause_tests.rs`.
-  Evidence: the reported column is the source column of the second `Requires`.
-  Non-vacuity: a fold over the rewritten value would report a column one
-  greater; the test asserts the exact column.
+  Method: named regression case. Domain: `Requires 1.1.9; Requires none.` where
+  `1.1.9` is renumbered to `1.1.10`. Artefact:
+  `src/roadmap/ops/anchorless_clause_tests.rs`. Evidence: the reported column
+  is the source column of the second `Requires`. Non-vacuity: a fold over the
+  rewritten value would report a column one greater; the test asserts the exact
+  column.
 - Obligation: `INV-non-interference`, `INV-stream-separation`, `INV-order`,
-  `REQ-pin`.
-  Method: golden fixture, golden zero-warning sweep, behavioural scenarios,
-  process test, and `insta` snapshot.
-  Artefacts: `tests/fixtures/golden/c3_anchorless_requires_warning/`
-  (`target.md`, `fragment.md`, `expected.md`, `expected_warnings.txt`);
-  the golden runner (`tests/golden/runner.rs` and `assertions.rs`) asserts
+  `REQ-pin`. Method: golden fixture, golden zero-warning sweep, behavioural
+  scenarios, process test, and `insta` snapshot. Artefacts:
+  `tests/fixtures/golden/c3_anchorless_requires_warning/` (`target.md`,
+  `fragment.md`, `expected.md`, `expected_warnings.txt`); the golden runner
+  (`tests/golden/runner.rs` and `assertions.rs`) asserts
   `expected_warnings.txt` when present and an empty warning list otherwise, so
   every existing success fixture becomes a zero-warning regression;
   `tests/features/mapsplice.feature` scenarios; a process case in
   `tests/cli_process_contract.rs`; an `insta` snapshot of all warnings for the
   region-parity document in `tests/cli_ui.rs` or a new
-  `tests/roadmap_warnings.rs`.
-  Evidence: red before `RunOutcome::warnings` exists; green after; the golden
-  sweep passes over all existing fixtures.
+  `tests/roadmap_warnings.rs`. Evidence: red before `RunOutcome::warnings`
+  exists; green after; the golden sweep passes over all existing fixtures.
   Non-vacuity: the fixture's expected output contains the anchor-free clause
   unchanged and a renumbered neighbour, proving the edit ran; the process test
   asserts standard output bytes equal `expected.md` and standard error equals
   the pinned warning line exactly.
 - Obligation: `INV-failure-silence`.
-  Method: behavioural scenario.
-  Domain: a target with both an anchor-free clause and a dangling reference.
-  Evidence: the command fails, standard error contains the dangling-dependency
-  diagnostic, and contains no line starting with `warning:`.
-  Non-vacuity: the same target without the dangling reference does warn
-  (covered by the main scenario), so the absence is caused by the failure.
+  Method: behavioural scenario. Domain: a target with both an anchor-free
+  clause and a dangling reference. Evidence: the command fails, standard error
+  contains the dangling-dependency diagnostic, and contains no line starting
+  with `warning:`. Non-vacuity: the same target without the dangling reference
+  does warn (covered by the main scenario), so the absence is caused by the
+  failure.
 - Obligation: generated-document false-positive freedom.
-  Method: extend the existing dependency property.
-  Domain: the 256 generated cases per property in
-  `tests/roadmap_dependency_properties.rs`.
-  Evidence: every successful generated edit returns an empty
-  `RunOutcome::warnings`, and a second property injects `- Requires none.` into
-  one generated task body and asserts exactly one warning naming that task's
-  source anchor, with stdout otherwise satisfying the existing oracle.
-  Non-vacuity: the injected property fails if the warning list is empty, and
-  the existing generator always emits at least one anchored clause.
+  Method: extend the existing dependency property. Domain: the 256 generated
+  cases per property in `tests/roadmap_dependency_properties.rs`. Evidence:
+  every successful generated edit returns an empty `RunOutcome::warnings`, and
+  a second property injects `- Requires none.` into one generated task body and
+  asserts exactly one warning naming that task's source anchor, with stdout
+  otherwise satisfying the existing oracle. Non-vacuity: the injected property
+  fails if the warning list is empty, and the existing generator always emits
+  at least one anchored clause.
 - Obligation: dogfood.
-  Method: manual acceptance check recorded in `Artefacts and notes`.
-  Evidence: `cargo run -- insert --after docs/roadmap.md 1.2.3 <task fragment>`
-  in preview prints no warning lines.
+  Method: manual acceptance check recorded in `Artefacts and notes`. Evidence:
+  `cargo run -- insert --after docs/roadmap.md 1.2.3 <task fragment>` in
+  preview prints no warning lines.
 
 ### Formal verification decision
 
@@ -751,8 +746,8 @@ alphabet gives exhaustive evidence within a stated bound without new tooling,
 and `proptest` extends it beyond the bound. The existing Verus proofs over
 `select_resolution` are untouched; `make verus` is not an acceptance criterion
 because no proved function changes, and `make check-verification-ledger` (part
-of `make lint`) still runs. Revisit this decision if implementation needs a
-new resolution or renumbering rule.
+of `make lint`) still runs. Revisit this decision if implementation needs a new
+resolution or renumbering rule.
 
 ### Suggested BDD features
 
@@ -805,11 +800,10 @@ location? Build once (`cargo build`), write a scratch target under `/tmp`
 containing the five clauses in `Purpose / big picture`, run
 `target/debug/mapsplice delete /tmp/probe/target.md 2`, and observe empty
 standard error and exit status 0. Read `parse_fragment_inner` and confirm that
-it passes the fragment text into each `MarkdownNodes` (search for
-`SourceText` in `src/roadmap/parse/`). Record the transcript in
-`Artefacts and notes`. No repository file changes. If fragment nodes carry no
-source, D6's location segment is omitted for fragment items and the plan is
-revised before `EP-M3`.
+it passes the fragment text into each `MarkdownNodes` (search for `SourceText`
+in `src/roadmap/parse/`). Record the transcript in `Artefacts and notes`. No
+repository file changes. If fragment nodes carry no source, D6's location
+segment is omitted for fragment items and the plan is revised before `EP-M3`.
 
 ### `EP-M1` split the dependency visitor without behaviour change
 
@@ -820,8 +814,8 @@ explaining that it owns the flattening of adjacent text and hard-break nodes
 and the mapping of flattened ranges back to their text nodes. Move
 `TextSegment`, `flatten_text_group`, and `candidate_text_segment` from
 `src/roadmap/ops/dependency_visitor.rs` into it, unchanged except for
-`pub(super)` visibility, and declare the module in `src/roadmap/ops/mod.rs`.
-No behaviour changes; no tests change. This is a refactor commit on its own.
+`pub(super)` visibility, and declare the module in `src/roadmap/ops/mod.rs`. No
+behaviour changes; no tests change. This is a refactor commit on its own.
 
 Acceptance: `make check-fmt`, `make lint`, and `make test` pass;
 `wc -l src/roadmap/ops/dependency_visitor.rs` reports fewer than 370 lines.
@@ -833,25 +827,26 @@ Requirements: `REQ-warn`, `REQ-scope`; obligations `L-owner-total`,
 
 Red: add `candidate_owner_cases` and the anchorless partition table to
 `src/roadmap/ops/dependency_text_tests.rs`, and the oracle, bounded
-enumeration, and property to the new `src/roadmap/ops/anchorless_oracle_tests.rs`
-(declared under `#[cfg(test)]` beside the existing test module). Use `rstest`
-for tables, `googletest` matchers (`assert_that!`, `elements_are!`,
-`is_empty()`) for collection assertions, and `pretty_assertions::assert_eq!`
-with a message for range lists. Run
+enumeration, and property to the new
+`src/roadmap/ops/anchorless_oracle_tests.rs` (declared under `#[cfg(test)]`
+beside the existing test module). Use `rstest` for tables, `googletest` matchers
+(`assert_that!`, `elements_are!`, `is_empty()`) for collection assertions, and
+`pretty_assertions::assert_eq!` with a message for range lists. Run
 `cargo nextest run -p mapsplice dependency_text anchorless` and observe the
 compile failure for the missing `DependencyCandidate::keyword` field and the
 missing `anchorless_dependency_keywords` function.
 
-Green: in `src/roadmap/ops/dependency_text.rs`, add
-`keyword: Range<usize>` to `DependencyCandidate`, filled from the occurrence
-`latest_keyword_before` selected (thread it out of `is_dependency_anchor` and
+Green: in `src/roadmap/ops/dependency_text.rs`, add `keyword: Range<usize>` to
+`DependencyCandidate`, filled from the occurrence `latest_keyword_before`
+selected (thread it out of `is_dependency_anchor` and
 `classify_dependency_reference` by returning the keyword range alongside the
 `Reference` and `InvalidDependencyToken` classifications); add
 `dependency_keywords(value: &str) -> Vec<Range<usize>>`, which enumerates
 boundary-valid `Requires` occurrences using `is_keyword_boundary`; and add
 `anchorless_dependency_keywords(value: &str, recorded: &[DependencyCandidate])
--> Vec<Range<usize>>`, returning the keyword ranges not owned by any recorded
-candidate, in ascending order. Re-run the focused tests to green.
+-> Vec<Range<usize>>`,
+returning the keyword ranges not owned by any recorded candidate, in ascending
+order. Re-run the focused tests to green.
 
 Refactor: keep the file under 400 lines; extract a predicate if
 `classify_dependency_reference` grows beyond one screen. Run the three gates.
@@ -874,8 +869,19 @@ the compile failure for the missing query.
 
 Green:
 
-1. In `src/roadmap/ops/dependency_visitor.rs`, add
-   `DependencyVisitMode::Diagnose { anchorless: &'a mut Vec<Option<SourceLocation>>, source_text: Option<&'a str> }`.
+1. In `src/roadmap/ops/dependency_visitor.rs`, add a `Diagnose` variant to
+   `DependencyVisitMode`:
+
+   ```rust
+   /// Report `Requires` keywords that own no recorded candidate.
+   Diagnose {
+       /// Source location of each anchorless keyword, in traversal order.
+       anchorless: &'a mut Vec<Option<SourceLocation>>,
+       /// Document the nodes were parsed from, used to locate diagnostics.
+       source_text: Option<&'a str>,
+   },
+   ```
+
    Extend `mode_source_text`. In `visit_text_group`, for `Diagnose`, record the
    group candidates (reusing `candidate_text_segment`), compute
    `anchorless_dependency_keywords(&flattened, &recorded)`, map each keyword
@@ -906,9 +912,9 @@ Green:
    The function walks the same regions, in the same order, as
    `rewrite_dependencies`, cloning each region's nodes (as
    `collect_dependencies` already does) and visiting them in `Diagnose` mode.
-   Task body children need read access; add `TaskEntry::body_children()`
-   beside `body_children_mut()` in `src/roadmap/model_task_entry.rs` if no
-   immutable accessor exists.
+   Task body children need read access; add `TaskEntry::body_children()` beside
+   `body_children_mut()` in `src/roadmap/model_task_entry.rs` if no immutable
+   accessor exists.
 3. Re-export the query and type for the crate from `src/roadmap/ops/mod.rs`
    (`pub(crate) use`). Add a doc comment to `rewrite_dependencies` stating that
    a change to its region list must be mirrored in
@@ -952,13 +958,13 @@ Green:
 
    with `pub const fn class(&self) -> &'static str` returning
    `"anchorless_dependency_clause"` and a `Display` implementation producing
-   the D6 text without the `warning: ` prefix. Include a doctest that
-   constructs the variant and checks its display text. Re-export it from
-   `src/lib.rs` beside `MapspliceError`.
+   the D6 text without the `warning:` prefix. Include a doctest that constructs
+   the variant and checks its display text. Re-export it from `src/lib.rs`
+   beside `MapspliceError`.
 2. In `src/lib.rs`, add `pub warnings: Vec<MapspliceWarning>` to `RunOutcome`
    with a doc comment, initialize it empty in `stdout`, `in_place`, and
-   `silent_success`, and add a private `with_warnings(self, warnings)`.
-   In `run_request`, keep the fragment path, and after the in-place write (or
+   `silent_success`, and add a private `with_warnings(self, warnings)`. In
+   `run_request`, keep the fragment path, and after the in-place write (or
    after rendering in preview) call `anchorless_dependency_clauses(&roadmap)`
    and map each `AnchorlessClause` to `MapspliceWarning`, choosing
    `request.target` for `SourceId::Target` and the fragment path for
@@ -968,12 +974,14 @@ Green:
 3. In `src/main.rs`, before writing standard output, emit each warning: one
    `tracing::warn!(warning_class = warning.class(), "mapsplice command warning")`
    and one `report_stderr_diagnostic(&format_args!("warning: {warning}"))`.
-   Add a unit test beside `diagnostic_tracing_tests` asserting the traced
-   class and that the event does not contain the file path.
+   Add a unit test beside `diagnostic_tracing_tests` asserting the traced class
+   and that the event does not contain the file path.
 4. Add steps to `tests/steps/cli_steps.rs`: the new `Given` targets (as
-   constants in `tests/support/cli.rs`), `When I append the phase fragment in
-   place`, `Then stderr warns that task 1.1.2 has a Requires clause with no
-   recognizable anchors` (exact line match), `Then stderr is empty`,
+   constants in `tests/support/cli.rs`),
+   `When I append the phase fragment in place`,
+   `Then stderr warns that task 1.1.2 has a Requires clause with no
+   recognizable anchors`
+   (exact line match), `Then stderr is empty`,
    `Then stderr contains no warning lines`, and the two content assertions.
 
 Refactor: keep `src/lib.rs` under 400 lines; if needed, move `RunOutcome` and
@@ -987,35 +995,34 @@ error is empty.
 1. Add `docs/adrs/adr-0002-non-fatal-edit-warnings.md` (status `Proposed`
    until the pull request is approved, then `Accepted` with the date),
    following the ADR section order in `docs/documentation-style-guide.md`:
-   context (fail-closed tool, silent inert clauses), decision (D1, D4, D5,
-   D6), consequences (stderr may carry output on success; phase 6 extends the
+   context (fail-closed tool, silent inert clauses), decision (D1, D4, D5, D6),
+   consequences (stderr may carry output on success; phase 6 extends the
    channel), and rejected alternatives (fail the edit; tracing only; validate
    only).
 2. `docs/mapsplice-design.md`: in section 7 add a bullet "Anchorless clauses"
    stating D1–D3 normatively and that they are reported as warnings, not
    errors; in section 6 C6 state that warnings go to standard error in both
-   output modes and never alter output or exit status; in section 5 note that
-   a warning is not a failure under F5; add a Table 2 row "Anchorless
-   `Requires`" proving "warned, preserved, edit succeeds"; reference the ADR.
+   output modes and never alter output or exit status; in section 5 note that a
+   warning is not a failure under F5; add a Table 2 row "Anchorless `Requires`"
+   proving "warned, preserved, edit succeeds"; reference the ADR.
 3. `docs/users-guide.md`: add `### Warnings` under "Help and diagnostics"
    with the exact line format and an example; extend the dependency-rewriting
    text with the anchorless rule and how to fix each D3 class; note in
    "Validation rules and failure cases" that warnings are non-fatal; add a
    "Compatibility and migration" subsection.
 4. `docs/migrations/0.2.0.md`: record the new `RunOutcome::warnings` field,
-   `MapspliceWarning`, and the possibility of standard-error output on
-   success.
+   `MapspliceWarning`, and the possibility of standard-error output on success.
 5. `docs/developers-guide.md`: section 2 (domain `AnchorlessClause` →
    application `MapspliceWarning` → binary output), section 3 (public
    `RunOutcome::warnings` and `MapspliceWarning`), section 7 (the bounded
    enumeration and oracle), and a re-use policy: `MapspliceWarning` is the only
-   user-facing warning type; new warnings are new variants produced by
-   domain queries and mapped in `src/lib.rs`; domain code never formats paths
-   or writes output; `anchorless_dependency_clauses` must mirror
+   user-facing warning type; new warnings are new variants produced by domain
+   queries and mapped in `src/lib.rs`; domain code never formats paths or
+   writes output; `anchorless_dependency_clauses` must mirror
    `rewrite_dependencies`.
 6. `docs/validation-and-agent-output-design.md`: note that the edit-time
-   warning exists with class `anchorless_dependency_clause`, and that the
-   phase 6 dependency pass should reuse it as a `warning`-severity finding.
+   warning exists with class `anchorless_dependency_clause`, and that the phase
+   6 dependency pass should reuse it as a `warning`-severity finding.
 7. `skill/mapsplice/SKILL.md`: tell agents that warnings may appear on standard
    error after a successful edit and how to fix them.
 8. `docs/roadmap.md`: mark 1.2.3 `[x]` with an "Addressed:" note like 1.2.1.
@@ -1032,26 +1039,23 @@ error is empty.
   Requirements: `REQ-scope` (held), `REQ-warn` (text level). Evidence:
   ownership and anchorless tables, enumeration, and property green; seeded
   faults rejected. Conformance: recognizer decisions unchanged
-  (`dependency_text_tests` untouched in meaning); no public change.
-  Recovery: revert the milestone commits. Remaining gaps: document query and
-  output. Compatibility decision: none (`DependencyCandidate` is
-  crate-private).
+  (`dependency_text_tests` untouched in meaning); no public change. Recovery:
+  revert the milestone commits. Remaining gaps: document query and output.
+  Compatibility decision: none (`DependencyCandidate` is crate-private).
 - `EP-M3`: the crate can list anchorless clauses for a document.
   Requirements: `REQ-warn`, `REQ-name` (data). Evidence: cross-group,
-  region-parity, and location tests green; domain purity green.
-  Conformance: query is read-only; region walk mirrors the rewriter.
-  Recovery: revert. Remaining gaps: user-visible output. Compatibility
-  decision: none.
+  region-parity, and location tests green; domain purity green. Conformance:
+  query is read-only; region walk mirrors the rewriter. Recovery: revert.
+  Remaining gaps: user-visible output. Compatibility decision: none.
 - `EP-M4`: users see warnings. Requirements: all `REQ-*`. Evidence: golden
   fixture with `expected_warnings.txt`, golden zero-warning sweep, BDD
   scenarios, process test, snapshot, properties, dogfood. Conformance: F1–F5
-  and C1–C6 hold; the two authorized public API additions only.
-  Recovery: revert. Remaining gaps: documentation. Compatibility decision:
-  none (pre-1.0, unreleased; migration note only).
+  and C1–C6 hold; the two authorized public API additions only. Recovery:
+  revert. Remaining gaps: documentation. Compatibility decision: none (pre-1.0,
+  unreleased; migration note only).
 - `EP-M5`: documentation, ADR, and roadmap reflect the behaviour.
-  Evidence: Markdown, Mermaid, spelling, and code gates green.
-  Recovery: revert documentation commits. Remaining gaps: none.
-  Compatibility decision: none.
+  Evidence: Markdown, Mermaid, spelling, and code gates green. Recovery: revert
+  documentation commits. Remaining gaps: none. Compatibility decision: none.
 
 ## Concrete steps
 
@@ -1124,8 +1128,8 @@ Quality criteria:
 
 ## Idempotence and recovery
 
-Every step is a source edit followed by a test run, so it can be repeated.
-Each milestone ends in a commit that is a safe rollback point. Seeded faults are
+Every step is a source edit followed by a test run, so it can be repeated. Each
+milestone ends in a commit that is a safe rollback point. Seeded faults are
 applied to the working tree only, never committed, and reverted with
 `git checkout -- <file>`; remove any `*.proptest-regressions` entries they
 produce. The `EP-M0` probe writes only under `/tmp`. If a gate fails, read its
@@ -1149,23 +1153,23 @@ dogfood) are added here as milestones complete.
 
 At the end of `EP-M4` these exist:
 
-- `crate::roadmap::ops::dependency_text::DependencyCandidate { range,
-  anchor, keyword }` (crate-private), plus `dependency_keywords` and
-  `anchorless_dependency_keywords` (`pub(crate)`).
+- In `crate::roadmap::ops::dependency_text`: the crate-private
+  `DependencyCandidate { range, anchor, keyword }`, plus the `pub(crate)`
+  functions `dependency_keywords` and `anchorless_dependency_keywords`.
 - `crate::roadmap::ops::dependency_visitor::DependencyVisitMode::Diagnose`
   (crate-private).
-- `crate::roadmap::ops::anchorless_clause::{AnchorlessClause,
-  anchorless_dependency_clauses}` (crate-private).
+- `crate::roadmap::ops::anchorless_clause::{AnchorlessClause, anchorless_dependency_clauses}`
+  (crate-private).
 - `mapsplice::MapspliceWarning` (public, `#[non_exhaustive]`) with `class()`
   and `Display`.
 - `mapsplice::RunOutcome::warnings: Vec<MapspliceWarning>` (public field).
 
-Reuse policy: `dependency_candidates` remains the only recognizer of
-dependency tokens and the only source of ownership; `visit_dependency_nodes`
-remains the only Markdown traversal for dependency text; no module re-parses
-Markdown or re-implements keyword matching. `anchorless_dependency_clauses` is
-the only producer of anchorless findings and is called only from
-`run_request`. `MapspliceWarning` is the only public warning type.
+Reuse policy: `dependency_candidates` remains the only recognizer of dependency
+tokens and the only source of ownership; `visit_dependency_nodes` remains the
+only Markdown traversal for dependency text; no module re-parses Markdown or
+re-implements keyword matching. `anchorless_dependency_clauses` is the only
+producer of anchorless findings and is called only from `run_request`.
+`MapspliceWarning` is the only public warning type.
 
 Dependencies: add to `[dev-dependencies]` in `Cargo.toml`:
 
