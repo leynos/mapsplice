@@ -149,6 +149,34 @@ fn suffix_around_closing_inline_markers(
     );
 }
 
+#[rstest]
+#[case::suffix_outside_closing_markers_is_not_duplicated(
+    "- [ ] 1.1.1. **Finish the scope — done**.",
+    Some("— done"),
+    "- [x] 1.1.1. **Finish the scope — done**."
+)]
+#[case::suffix_after_an_opening_marker_is_not_duplicated(
+    "- [ ] 1.1.1. Finish **done**",
+    Some("done"),
+    "- [x] 1.1.1. Finish **done**"
+)]
+#[case::a_suffix_word_inside_marked_text_still_needs_a_boundary(
+    "- [ ] 1.1.1. Get it **undone**",
+    Some("done"),
+    "- [x] 1.1.1. Get it **undone done**"
+)]
+fn suffix_detection_across_inline_markers(
+    #[case] item: &str,
+    #[case] suffix: Option<&str>,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", suffix),
+        completion_source(expected_item),
+        "markup must not hide an existing suffix or fabricate one inside a word"
+    );
+}
+
 #[test]
 fn a_formatted_suffix_is_recognized_after_insertion() {
     let expected = completion_source("- [x] 1.1.1. Finish **done**");
