@@ -224,16 +224,22 @@ fn phase_and_step_anchors_have_no_checkbox_to_complete(
     }
 }
 
-#[test]
-fn a_missing_anchor_reports_anchor_not_found() {
+#[rstest]
+#[case::task("9.9.9")]
+#[case::sub_task_with_absent_parent("9.9.9.1")]
+#[case::sub_task_with_present_parent("1.1.1.1")]
+fn a_missing_anchor_reports_the_requested_anchor(#[case] anchor: &str) {
     let roadmap = parse_roadmap(ROADMAP).expect("fixture roadmap should parse");
-    let anchor = parse_anchor("9.9.9").expect("fixture anchor should parse");
+    let requested = parse_anchor(anchor).expect("fixture anchor should parse");
 
-    let error = complete_item(&roadmap, ROADMAP, anchor, None)
+    let error = complete_item(&roadmap, ROADMAP, requested, None)
         .expect_err("an absent anchor should be rejected");
 
-    assert!(
-        matches!(error, MapspliceError::AnchorNotFound { .. }),
-        "expected an anchor-not-found error, got {error:?}"
-    );
+    match error {
+        MapspliceError::AnchorNotFound { anchor: reported } => assert_eq!(
+            reported, requested,
+            "the diagnostic should name the anchor that was asked for"
+        ),
+        other => panic!("expected an anchor-not-found error, got {other:?}"),
+    }
 }

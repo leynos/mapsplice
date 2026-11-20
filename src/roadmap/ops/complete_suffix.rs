@@ -250,15 +250,33 @@ fn ends_at_word_boundary(text: &str, suffix: &str) -> bool {
 }
 
 /// Return the byte length of the terminal punctuation ending at `end`.
+///
+/// Punctuation escaped by a backslash is literal title content, so the scan
+/// stops at it and the suffix follows the escaped character.
 fn trailing_punctuation_len(source: &str, end: usize) -> usize {
-    source.get(..end).map_or(0, |prefix| {
+    let Some(text) = source.get(..end) else {
+        return 0;
+    };
+    let mut length = 0;
+    for (offset, character) in text.char_indices().rev() {
+        if !is_terminal_punctuation(character) || is_escaped(text, offset) {
+            break;
+        }
+        length += character.len_utf8();
+    }
+    length
+}
+
+/// Report whether the character at `offset` follows an odd run of backslashes.
+fn is_escaped(text: &str, offset: usize) -> bool {
+    let backslashes = text.get(..offset).map_or(0, |prefix| {
         prefix
             .chars()
             .rev()
-            .take_while(|character| is_terminal_punctuation(*character))
-            .map(char::len_utf8)
-            .sum()
-    })
+            .take_while(|character| *character == '\\')
+            .count()
+    });
+    !backslashes.is_multiple_of(2)
 }
 
 /// Report whether a character is sentence-ending punctuation this edit moves.
@@ -266,9 +284,14 @@ const fn is_terminal_punctuation(character: char) -> bool {
     matches!(character, '.' | '!' | '?' | '…')
 }
 
-/// Report whether a suffix already ends with its own terminal punctuation.
+/// Report whether a suffix carries its own terminal punctuation.
+///
+/// Closing inline markers are ignored so a formatted suffix such as
+/// `**done.**` still counts as punctuated.
 fn suffix_supplies_punctuation(suffix: &str) -> bool {
     suffix
+        .trim_end_matches(INLINE_MARKERS)
+        .trim_end()
         .chars()
         .next_back()
         .is_some_and(is_terminal_punctuation)

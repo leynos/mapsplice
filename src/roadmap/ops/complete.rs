@@ -154,13 +154,18 @@ fn find_target(roadmap: &RoadmapDocument, anchor: RoadmapAnchor) -> Result<Compl
     }
 }
 
-/// Find a task by its rendered number.
-fn find_task(roadmap: &RoadmapDocument, target: TaskNumber) -> Result<&TaskEntry> {
+/// Iterate over every task in document order.
+fn tasks(roadmap: &RoadmapDocument) -> impl Iterator<Item = &TaskEntry> {
     roadmap
         .phases
         .iter()
         .flat_map(|phase| phase.steps.iter())
         .flat_map(StepSection::tasks)
+}
+
+/// Find a task by its rendered number.
+fn find_task(roadmap: &RoadmapDocument, target: TaskNumber) -> Result<&TaskEntry> {
+    tasks(roadmap)
         .find(|task| task.number() == target)
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.into(),
@@ -168,8 +173,15 @@ fn find_task(roadmap: &RoadmapDocument, target: TaskNumber) -> Result<&TaskEntry
 }
 
 /// Find a sub-task by its rendered number beneath its parent task.
+///
+/// A missing parent is reported as the requested sub-task anchor, so the
+/// diagnostic names the anchor the caller asked for rather than its prefix.
 fn find_sub_task(roadmap: &RoadmapDocument, target: SubTaskNumber) -> Result<&SubTaskEntry> {
-    let task = find_task(roadmap, target.task_number())?;
+    let task = tasks(roadmap)
+        .find(|task| task.number() == target.task_number())
+        .ok_or(MapspliceError::AnchorNotFound {
+            anchor: target.into(),
+        })?;
     task.sub_tasks()
         .iter()
         .find(|sub_task| sub_task.number == target)

@@ -85,6 +85,34 @@ fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &s
 }
 
 #[rstest]
+#[case::formatted_punctuated_suffix_replaces_title_punctuation(
+    "- [ ] 1.1.1. Finish the scope.",
+    Some("**done.**"),
+    "- [x] 1.1.1. Finish the scope **done.**"
+)]
+#[case::escaped_full_stop_is_title_content(
+    "- [ ] 1.1.1. Match the literal scope\\.",
+    Some("— done"),
+    "- [x] 1.1.1. Match the literal scope\\. — done"
+)]
+#[case::trailing_literal_backslash_stays_before_the_suffix(
+    "- [ ] 1.1.1. Finish the path segment Task\\",
+    Some("— done"),
+    "- [x] 1.1.1. Finish the path segment Task\\ — done"
+)]
+fn punctuation_handling_respects_formatting_and_escapes(
+    #[case] item: &str,
+    #[case] suffix: Option<&str>,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", suffix),
+        completion_source(expected_item),
+        "marker-wrapped and escaped punctuation must not be misread"
+    );
+}
+
+#[rstest]
 #[case::literal_tilde_ending_a_url_stays_before_the_suffix(
     "- [ ] 1.1.1. Visit https://example.org/~",
     "- [x] 1.1.1. Visit https://example.org/~ — done"
