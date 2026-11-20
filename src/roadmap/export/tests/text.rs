@@ -104,6 +104,40 @@ fn render_text_preserves_supported_formatting_nodes() {
     );
 }
 
+/// Metacharacters inside formatting children must stay literal too. A mode
+/// regression that escaped a `Strong`, `Emphasis` or `Delete` child would
+/// otherwise pass every test whose formatting contains only plain words.
+#[rstest]
+#[case::strong("**Emit (pretty) snake_case**")]
+#[case::emphasis("*Note (x) and #1*")]
+#[case::delete("~~old (text)~~")]
+fn formatting_children_keep_literal_metacharacters(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("formatted text should render");
+
+    assert_eq!(
+        key, None,
+        "formatting should not create a label for {source:?}"
+    );
+    assert_eq!(
+        value, source,
+        "formatting children should stay unescaped for {source:?}"
+    );
+}
+
+/// A link label is rendered in the same mode as the surrounding text, so its
+/// metacharacters stay literal and inner emphasis keeps its delimiters.
+#[test]
+fn link_labels_keep_literal_metacharacters() {
+    let (key, value) = paragraph_entry(&paragraph("[see (this) _now_](https://example.com)"))
+        .expect("link text should render");
+
+    assert_eq!(key, None, "a link label should not create a label");
+    assert_eq!(
+        value, "[see (this) *now*](https://example.com)",
+        "link labels should stay unescaped and keep inner emphasis delimiters"
+    );
+}
+
 #[test]
 fn render_text_trims_and_collapses_explicit_whitespace() {
     let nodes = [Node::Text(Text {

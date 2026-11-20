@@ -382,3 +382,10 @@ hard-wrapped or nested-bullet `Requires` clause has one classification and one
 source order. Unsupported content fails with a located `InvalidRoadmap`
 diagnostic rather than disappearing from the export. JSON schema and semantic
 changes require a `FORMAT_VERSION` increment.
+
+Export text is literal while the rewriter still escapes: `render_inline_export`
+emits plain text without the backslash escapes that keep a rewritten roadmap
+reparsable, because the JSON is data rather than Markdown source. Dependency
+clauses are classified from the Markdown nodes, not from that rendered text, so
+an escaped literal `\*\*Requires\*\*` paragraph remains exported content and
+cannot be silently dropped as a clause.
