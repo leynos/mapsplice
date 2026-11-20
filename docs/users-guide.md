@@ -316,11 +316,13 @@ with a typed error. Unlike the structural edits, `complete` takes no fragment
 file.
 
 The edit is a source patch, not a re-render: the only bytes that change are the
-addressed item's `- [ ]` marker, which becomes `- [x]`, and the optional done
-marker. Title text and wrapping, continuation lines, nested bullets, `Requires`
-references, and every number in the document are preserved byte-for-byte, and
-nothing is renumbered. The default mode prints the patched roadmap to standard
-output; `--in-place` rewrites the target.
+addressed item's `- [ ]` marker, which becomes `- [x]`, the optional done
+marker, and, when that marker carries its own terminal punctuation, the title
+punctuation it replaces as described below. Title text and wrapping,
+continuation lines, nested bullets, `Requires` references, and every number in
+the document are otherwise preserved byte-for-byte, and nothing is renumbered.
+The default mode prints the patched roadmap to standard output; `--in-place`
+rewrites the target.
 
 A done marker is appended to the end of the item's title, after any wrapped
 title lines and before its nested bullets. Terminal punctuation stays terminal:

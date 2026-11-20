@@ -20,8 +20,8 @@ use super::super::model::ItemSourceSpan;
 /// Column limit for Markdown paragraphs and bullets in this repository.
 const WRAP_COLUMNS: usize = 80;
 
-/// Characters that can close inline emphasis, strong, code, or strike spans.
-const INLINE_CLOSERS: [char; 4] = ['*', '_', '`', '~'];
+/// Characters that open or close inline emphasis, strong, code, or strike spans.
+const INLINE_MARKERS: [char; 4] = ['*', '_', '`', '~'];
 
 /// Collapse the configured suffix into the single-line words that are inserted.
 ///
@@ -38,23 +38,45 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 /// Report whether the item's title already ends with the configured suffix.
 ///
 /// The comparison collapses the title's source wrapping back into single
-/// spaces. A suffix without its own terminal punctuation is matched against
-/// the title with that punctuation removed, because an earlier run placed the
-/// suffix before it. The complete title is checked before closing inline
-/// markers are stripped, so a formatted suffix such as `**done**` still
-/// matches. A suffix beginning with a word character must also start at a word
-/// boundary; otherwise `done` would treat a title ending in `undone` as
-/// already complete.
+/// spaces and then peels trailing markup. Closing inline markers and terminal
+/// punctuation may wrap one another, as in `**Finish — done**.`, so each layer
+/// is removed and compared in turn; a formatted suffix such as `**done**` and a
+/// suffix placed before the title's full stop both match. A suffix beginning
+/// with a word character must start at a word or inline-marker boundary;
+/// otherwise `done` would treat a title ending in `undone` as already complete.
 pub(super) fn title_has_suffix(source: &str, span: ItemSourceSpan, suffix: &str) -> bool {
     let Some(raw) = source.get(span.title_start..span.paragraph_end) else {
         return false;
     };
-    let normalized = normalize_title(raw);
-    if suffix_matches(&normalized, suffix) {
-        return true;
+    ends_with_suffix(&normalize_title(raw), suffix)
+}
+
+/// Match `suffix` at the end of `text`, ignoring trailing markup layers.
+fn ends_with_suffix(text: &str, suffix: &str) -> bool {
+    let mut candidate = text.trim_end();
+    loop {
+        if suffix_matches(candidate, suffix) {
+            return true;
+        }
+        let Some(shorter) = peel_title_ending(candidate) else {
+            return false;
+        };
+        candidate = shorter;
     }
-    let content = normalized.trim_end_matches(INLINE_CLOSERS).trim_end();
-    suffix_matches(content, suffix)
+}
+
+/// Remove one trailing layer of inline markers or terminal punctuation.
+///
+/// Only the outermost layer goes, so repeated calls reach the plain title
+/// however markers and terminal punctuation interleave.
+fn peel_title_ending(text: &str) -> Option<&str> {
+    let trimmed = text.trim_end();
+    let without_markers = trimmed.trim_end_matches(INLINE_MARKERS);
+    if without_markers.len() != trimmed.len() {
+        return Some(without_markers.trim_end());
+    }
+    let without_punctuation = trimmed.trim_end_matches(is_terminal_punctuation);
+    (without_punctuation.len() != trimmed.len()).then(|| without_punctuation.trim_end())
 }
 
 /// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
@@ -166,7 +188,7 @@ fn trailing_closer_len(source: &str, end: usize) -> usize {
         prefix
             .chars()
             .rev()
-            .take_while(|character| INLINE_CLOSERS.contains(character))
+            .take_while(|character| INLINE_MARKERS.contains(character))
             .map(char::len_utf8)
             .sum()
     })
@@ -225,12 +247,19 @@ struct SuffixWrap<'source> {
 fn normalize_title(raw: &str) -> String { raw.split_whitespace().collect::<Vec<_>>().join(" ") }
 
 /// Match a suffix at the end of `text`, honouring word boundaries.
+///
+/// Inline marker characters count as a boundary because the suffix may sit
+/// just inside emphasis, as in `Finish **done**` once the closing markers are
+/// peeled.
 fn ends_at_word_boundary(text: &str, suffix: &str) -> bool {
     let Some(prefix) = text.strip_suffix(suffix) else {
         return false;
     };
     let starts_with_word = suffix.chars().next().is_some_and(char::is_alphanumeric);
-    !starts_with_word || prefix.chars().next_back().is_none_or(char::is_whitespace)
+    !starts_with_word
+        || prefix.chars().next_back().is_none_or(|character| {
+            character.is_whitespace() || INLINE_MARKERS.contains(&character)
+        })
 }
 
 /// Return the byte length of the terminal punctuation ending at `end`.
