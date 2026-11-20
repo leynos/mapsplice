@@ -4,8 +4,9 @@
 //! block syntax and skipped, an entity-encoded prefix separator defeated the
 //! numbered prefix boundary, and a wrapped insertion let a literal trailing
 //! backslash escape the inserted line break. Encoded terminal punctuation was
-//! left ahead of the suffix, and inline HTML that renders nothing was treated
-//! as a word boundary.
+//! left ahead of the suffix, inline HTML that renders nothing was treated as a
+//! word boundary, and a suffix word ending in a backslash could lose it at a
+//! wrap point.
 
 use rstest::rstest;
 
@@ -13,7 +14,28 @@ use super::{
     super::complete_suffix::title_has_suffix,
     test_support::{complete_ok, completion_source},
 };
-use crate::roadmap::parse_roadmap;
+use crate::{
+    error::MapspliceError,
+    roadmap::{model::MarkdownNodes, parse_roadmap},
+};
+
+/// Return the parsed summary of the first task in a completed roadmap.
+fn first_task_summary(source: &str) -> MarkdownNodes {
+    let roadmap = parse_roadmap(source).expect("completed roadmap should parse");
+    let phase = roadmap
+        .phases
+        .first()
+        .expect("the completed roadmap should keep its phase");
+    let step = phase
+        .steps
+        .first()
+        .expect("the completed roadmap should keep its step");
+    let task = step
+        .tasks()
+        .first()
+        .expect("the completed roadmap should keep its task");
+    task.summary.clone()
+}
 
 #[rstest]
 #[case::a_heading_marker_stays_literal(
@@ -65,22 +87,42 @@ fn a_wrapped_suffix_preserves_a_literal_trailing_backslash() {
         completed, expected,
         "the inserted break must not let the backslash escape the newline"
     );
-    let roadmap = parse_roadmap(&completed).expect("completed roadmap should parse");
-    let phase = roadmap
-        .phases
-        .first()
-        .expect("the completed roadmap should keep its phase");
-    let step = phase
-        .steps
-        .first()
-        .expect("the completed roadmap should keep its step");
-    let task = step
-        .tasks()
-        .first()
-        .expect("the completed roadmap should keep its task");
     assert!(
-        title_has_suffix(&task.summary, "Task\\ — done"),
+        title_has_suffix(&first_task_summary(&completed), "Task\\ — done"),
         "the parsed title must keep the literal backslash: {completed}"
+    );
+}
+
+#[test]
+fn a_wrapped_suffix_pairs_its_own_trailing_backslash() {
+    let content = "a".repeat(60);
+    let source = completion_source(&format!("- [ ] 1.1.1. {content}"));
+    let expected = completion_source(&format!("- [x] 1.1.1. {content} Task\\\\\n      done"));
+
+    let completed = complete_ok(&source, "1.1.1", Some("Task\\ done"))
+        .expect("fixture completion should succeed");
+
+    assert_eq!(
+        completed, expected,
+        "the inserted break must not let the suffix backslash escape the newline"
+    );
+    assert!(
+        title_has_suffix(&first_task_summary(&completed), "Task\\ done"),
+        "the parsed title must keep the literal backslash: {completed}"
+    );
+}
+
+#[test]
+fn a_backslash_that_cannot_be_paired_fails_closed() {
+    let content = "a".repeat(61);
+    let source = completion_source(&format!("- [ ] 1.1.1. {content}"));
+
+    let error = complete_ok(&source, "1.1.1", Some("Task\\ done"))
+        .expect_err("a line at the column limit must fail closed");
+
+    assert!(
+        matches!(error, MapspliceError::UnsafeCompletionEdit { .. }),
+        "the failure must be a typed unsafe-edit error: {error:?}"
     );
 }
 
@@ -126,6 +168,10 @@ fn character_references_count_as_their_rendered_punctuation(
 #[case::a_break_tag_separates_the_surrounding_words(
     "- [ ] 1.1.1. Get it un<br>done.",
     "- [x] 1.1.1. Get it un<br>done."
+)]
+#[case::a_hyphenated_tag_name_is_not_a_break(
+    "- [ ] 1.1.1. Get it un<br-widget></br-widget>done.",
+    "- [x] 1.1.1. Get it un<br-widget></br-widget>done done."
 )]
 fn inline_html_is_a_boundary_only_when_it_renders_a_break(
     #[case] item: &str,
