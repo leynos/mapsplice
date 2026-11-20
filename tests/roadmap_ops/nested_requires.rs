@@ -10,6 +10,12 @@ use std::process::Command;
 use mapsplice::run_from_args;
 use rstest::rstest;
 
+// The CRLF regressions exercise this module's nested-bullet shape under the
+// other line-ending convention, so they are declared here rather than at the
+// crate root, whose shared fixture wiring is already over the size limit.
+#[path = "crlf_line_endings.rs"]
+mod crlf_line_endings;
+
 use super::{
     assert_equal,
     assertions::assert_contains,

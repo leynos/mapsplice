@@ -295,8 +295,12 @@ Stop and report rather than working around a breached tolerance.
   `Module nested_requires spans 421 lines, exceeding the allowed 400.` after
   the companion CRLF regression was added. Impact: the CRLF cases moved to
   `tests/roadmap_ops/crlf_line_endings.rs`, declared from
-  `tests/roadmap_ops.rs`; `assert_dangling_anchor` moved to
-  `tests/roadmap_ops/assertions.rs` so both modules share it.
+  `tests/roadmap_ops/nested_requires.rs` rather than the crate root, whose
+  fixture wiring is already 421 lines and would otherwise grow; the new module
+  imports shared helpers through `crate::` paths. `assert_dangling_anchor`
+  moved to `tests/roadmap_ops/assertions.rs` so both modules share it. The
+  crate root's pre-existing overage is not enforced by Whitaker and is recorded
+  here rather than widened by this change.
 - Observation: Clippy's `integer_division` and
   `integer_division_remainder_used` lints are denied workspace-wide and apply
   to test-support code as much as to `src/`. Evidence: the first full lint run

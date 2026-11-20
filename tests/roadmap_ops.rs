@@ -2,8 +2,6 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
-#[path = "roadmap_ops/crlf_line_endings.rs"]
-mod crlf_line_endings;
 #[path = "roadmap_ops/dependency_locations.rs"]
 mod dependency_locations;
 #[path = "roadmap_ops/nested_requires.rs"]

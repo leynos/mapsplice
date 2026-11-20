@@ -9,7 +9,7 @@
 use mapsplice::run_from_args;
 use rstest::rstest;
 
-use super::{
+use crate::{
     assertions::assert_contains,
     ops_assertions::{assert_dangling_anchor, assert_equal},
     support::{TASK_FRAGMENT, TestResult, Workspace, workspace},
