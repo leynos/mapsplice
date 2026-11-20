@@ -74,8 +74,9 @@ resolves to nothing.
   every level.
 - The resolution kernel is unchanged. `RenumberPlan::resolve_reference`,
   `RenumberPlan::resolve_unique`, and `select_resolution` keep their current
-  bodies and contracts; the alias is recorded through `RenumberPlan::resolve`
-  so the proved kernel still makes the final decision.
+  bodies and contracts. `RenumberPlan::resolve` gains a fallback to a separate
+  continuity map, so the proved kernel still makes the final decision for every
+  reference that reaches it.
 - `insert`, `delete`, and `append` gain no continuity behaviour.
 - `dangling_dependency` is preserved for every unpaired retired identity, and a
   failed operation must leave the caller's roadmap unchanged (staged clone
@@ -123,10 +124,9 @@ Stop and report rather than working around a breached tolerance.
   fallback test.
 - Risk: fragment text starts resolving through target aliases, changing
   fragment-clause semantics. Severity: medium. Likelihood: low. Mitigation: the
-  alias is recorded in the target's source-local map. Fragment-local lookup
-  already contains every alias key for a paired replacement item, and
-  `resolve_reference` consults the fragment map first; add a model test proving
-  `resolve_unique` and fragment resolution ignore aliases.
+  alias lives in a separate continuity map consulted only by
+  `RenumberPlan::resolve`; `resolve_unique` and fragment resolution never see
+  it, and model tests prove both stay unaffected.
 - Risk: descendant pairing by anchor is ambiguous when the parser accepts
   duplicate anchors. Severity: medium. Likelihood: low. Mitigation: pair only
   anchors that occur exactly once on each side; add ambiguity tests that prove
@@ -146,7 +146,11 @@ Stop and report rather than working around a breached tolerance.
       renumber plan, dependency rewriter, golden harness, property oracle, BDD
       harness, and the verification ledger.
 - [x] (2026-11-20) ExecPlan drafted; user task packet authorizes execution.
-- [ ] `EP-M1` Continuity aliases implemented in the domain with unit tests.
+- [x] (2026-11-20) `EP-M1` Continuity aliases implemented in the domain with
+      model and operation unit tests. Evidence: `cargo test --lib` passes 198
+      tests; disabling `continuity.apply` makes all six positive tests fail
+      with `DanglingDependency` while the rejection and pairing tests still
+      pass.
 - [ ] `EP-M2` Golden, integration, property, and BDD coverage added.
 - [ ] `EP-M3` User guide, design document, verification ledger, and PR closed.
 
@@ -166,16 +170,33 @@ Stop and report rather than working around a breached tolerance.
   `src/roadmap/ops/rewrite.rs` iterates the staged tree in place. Impact: a
   structural position captured at splice time stays valid through renumbering,
   so the final anchor can be read from the staged tree afterwards.
+- Observation: storing aliases in `by_source` would have changed
+  `resolve_unique` semantics. Evidence: a target alias and a fragment mapping
+  with the same anchor and value make `resolve_unique` return `None`, so a
+  target reference would fail for a different reason. Impact: D1 was revised to
+  a separate map consulted only by `resolve`.
+- Observation: Whitaker fails a gate when a module file exceeds 400 lines or a
+  function clusters nested conditionals, and Clippy requires `mod.rs` for any
+  module with a subdirectory. Evidence: the first full lint run reported
+  `model` at 439 lines, `ops` at 475, `continuity` at 469, and four complexity
+  bumps in `replace_anchor`. Impact: `RenumberPlan` moved to
+  `src/roadmap/renumber_plan.rs`, finders moved to `src/roadmap/ops/lookup.rs`,
+  continuity split into `position` and `descendants` submodules, and each
+  replacement level gained a `*_with_continuity` helper.
 
 ## Decision log
 
-- D1. Record continuity as an ordinary source-local mapping in
-  `RenumberPlan::by_source`, using insert-if-absent, rather than a separate
-  alias map. Rationale: `resolve_reference` and `resolve_unique` stay
-  byte-identical, as the task packet requires, and the kernel still decides
-  between local and cross-source resolution. A separate map would also work but
-  would special-case `resolve` and make the alias invisible to the model tests
-  that pin resolution. Date/Author: 2026-11-20, agent.
+- D1 (revised). Record continuity in a separate `RenumberPlan::continuity`
+  map, consulted only by `RenumberPlan::resolve`, rather than inserting into
+  `by_source`. Rationale: `resolve_reference`, `resolve_unique`, and
+  `select_resolution` stay byte-identical, as the task packet requires. Aliases
+  also stay invisible to the cross-source fallback, so a target alias can never
+  make `resolve_unique` ambiguous, and fragment text can never inherit one. A
+  surviving `by_source` mapping always wins because `resolve` consults it
+  first. The draft D1 proposed an insert-if-absent entry in `by_source`;
+  implementation showed that would expose aliases to `resolve_unique`, where a
+  target alias plus a fragment mapping of the same value would produce `None`,
+  and would contradict the target-local rule. Date/Author: 2026-11-20, agent.
 - D2. Identify replacement items by structural position, not by fragment
   identity. Rationale: fragment anchors are not validated for uniqueness and
   the fragment map is keyed by anchor, so a duplicate could collapse; positions

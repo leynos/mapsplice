@@ -17,20 +17,25 @@ use crate::error::{MapspliceError, Result};
 #[cfg(test)]
 #[path = "mixed_list_property_tests.rs"]
 mod mixed_list_property_tests;
+
 #[cfg(test)]
 #[path = "model_property_tests.rs"]
 mod property_tests;
+
 #[path = "model_renumber_plan.rs"]
 mod renumber_plan;
+
 #[path = "model_source_span.rs"]
 mod source_span;
+
 #[path = "model_task_entry.rs"]
 mod task_entry;
+
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;
 
-pub use renumber_plan::RenumberPlan;
+pub(crate) use renumber_plan::RenumberPlan;
 pub(crate) use source_span::ItemSourceSpan;
 
 /// A parsed roadmap document.
@@ -363,3 +368,4 @@ impl RoadmapFragment {
 /// Return the fragment level without consuming the fragment.
 #[must_use]
 pub const fn fragment_level(fragment: &RoadmapFragment) -> RoadmapItemLevel { fragment.level() }
+// weave: run 'weave explain src/roadmap/model.rs' for per-hunk detail, 'weave check' to verify your resolution
