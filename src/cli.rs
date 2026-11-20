@@ -147,7 +147,8 @@ impl CommandKind {
     ///         suffix: None
     ///     }
     ///     .fragment_path(),
-    ///     None
+    ///     None,
+    ///     "completion must not require a fragment file"
     /// );
     /// # Ok(())
     /// # }
