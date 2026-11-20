@@ -18,12 +18,7 @@ use std::ops::Range;
 pub(super) use super::complete_text::title_has_suffix;
 use super::{
     super::model::ItemSourceSpan,
-    complete_text::{
-        fragment_plain_text,
-        is_terminal_punctuation,
-        plain_suffix_text,
-        suffix_supplies_punctuation,
-    },
+    complete_text::{plain_suffix_text, suffix_supplies_punctuation, trailing_punctuation_len},
 };
 
 /// Column limit for Markdown paragraphs and bullets in this repository.
@@ -46,15 +41,15 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 
 /// Insert the done suffix into the addressed title in the patched text.
 ///
-/// Returns `None` when the retained span does not fit the source or a wrapped
-/// break cannot be made safe, which the caller reports as an unsafe edit. The
-/// suffix is placed before the title's
-/// terminal sentence punctuation so `… scope — done.` replaces `… scope.`; a
-/// suffix carrying its own punctuation replaces the title's run instead. A
-/// suffix that ends with an inline marker follows the title's closing markers,
-/// and the width of any replaced punctuation is credited back to the line. An
-/// inserted line break directly after an unpaired backslash is paired so the
-/// author's literal backslash survives.
+/// Returns `None` when the retained span does not fit the source or a pairing
+/// character cannot fit, which the caller reports as an unsafe edit. The suffix
+/// is placed before the title's terminal sentence punctuation so
+/// `… scope — done.` replaces `… scope.`; a suffix carrying its own punctuation
+/// replaces the title's run instead. A suffix that ends with an inline marker
+/// follows the title's closing markers, and the width of any replaced
+/// punctuation is credited back to the line. A backslash that would otherwise
+/// escape the punctuation, marker, or line ending after the inserted words is
+/// paired so the author's literal backslash survives.
 pub(super) fn insert_suffix(
     patched: &mut String,
     source: &str,
@@ -114,8 +109,51 @@ pub(super) fn insert_suffix(
         }
         inserted.insert(0, '\\');
     }
+    let removed_end = slot
+        .replaced
+        .as_ref()
+        .map_or(slot.insert_at, |range| range.end.max(slot.insert_at));
+    let followed_by_escape = source
+        .get(removed_end..)
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(is_escaping_follower);
+    if ends_with_unpaired_backslash(&inserted) && followed_by_escape {
+        // The suffix's own trailing backslash would escape the punctuation,
+        // closing marker, or line ending that follows it, so pair it the same
+        // way. A last line already at the column limit cannot take the extra
+        // character, so the edit fails closed instead.
+        if last_line_width(&inserted, wrap.width) + wrap.terminal_width() >= WRAP_COLUMNS {
+            return None;
+        }
+        inserted.push('\\');
+    }
     patched.insert_str(insert_at, &inserted);
     Some(())
+}
+
+/// Report whether a preceding unpaired backslash would consume `character`.
+///
+/// CommonMark turns a backslash before a line ending into a hard break and
+/// removes it, and a backslash before ASCII punctuation into a literal
+/// character. In both cases the author's backslash would vanish unless it is
+/// paired.
+const fn is_escaping_follower(character: char) -> bool {
+    character.is_ascii_punctuation() || matches!(character, '\n' | '\r')
+}
+
+/// Return the display width of the last line in `rendered`.
+///
+/// The first line follows the title text already on it, so its width adds
+/// `first_line_width`; continuation lines carry their own hanging indent.
+fn last_line_width(rendered: &str, first_line_width: usize) -> usize {
+    rendered.rfind(['\n', '\r']).map_or_else(
+        || first_line_width + rendered.chars().count(),
+        |index| {
+            rendered
+                .get(index + 1..)
+                .map_or(0, |line| line.chars().count())
+        },
+    )
 }
 
 /// Where the suffix goes and which title bytes it displaces.
@@ -201,7 +239,7 @@ fn suffix_slot<'source>(
 /// Returns `None` when a generated break cannot be made safe, so the caller
 /// fails closed rather than changing the rendered title.
 fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> Option<String> {
-    let terminal_width = wrap.terminal.trim_end_matches([' ', '\t']).chars().count();
+    let terminal_width = wrap.terminal_width();
     let hanging_width = wrap.hanging.chars().count();
     let words = suffix.split_whitespace().collect::<Vec<_>>();
     let mut rendered = String::new();
@@ -274,79 +312,11 @@ struct SuffixWrap<'source> {
     line_ending: &'source str,
 }
 
-/// Return the byte length of the terminal punctuation ending at `end`.
-///
-/// Punctuation escaped by a backslash is literal title content, so the scan
-/// stops at it and the suffix follows the escaped character. A terminal
-/// character reference such as `&#46;` or `&hellip;` renders as punctuation, so
-/// its whole source sequence counts as one punctuation mark and the suffix
-/// still precedes the visible character. An escaped ampersand is literal text,
-/// so a reference behind one stops the scan.
-fn trailing_punctuation_len(source: &str, end: usize) -> usize {
-    source.get(..end).map_or(0, terminal_punctuation_run_len)
-}
-
-/// Return the byte length of the punctuation run ending `text`.
-fn terminal_punctuation_run_len(text: &str) -> usize {
-    let mut rest = text;
-    let mut length = 0;
-    loop {
-        if let Some((start, rendered)) = trailing_character_reference(rest) {
-            if !reference_renders_punctuation(rest, start, &rendered) {
-                return length;
-            }
-            length += rest.len() - start;
-            rest = rest.get(..start).unwrap_or_default();
-            continue;
-        }
-        let Some(character) = rest.chars().next_back() else {
-            return length;
-        };
-        let offset = rest.len() - character.len_utf8();
-        // Only ASCII punctuation can be backslash-escaped; the ellipsis is
-        // always literal punctuation, so a backslash before it is content.
-        let escaped = character.is_ascii() && is_escaped(rest, offset);
-        if !is_terminal_punctuation(character) || escaped {
-            return length;
-        }
-        length += character.len_utf8();
-        rest = rest.get(..offset).unwrap_or_default();
+impl SuffixWrap<'_> {
+    /// Display width of the title punctuation that follows the suffix.
+    fn terminal_width(&self) -> usize {
+        self.terminal.trim_end_matches([' ', '\t']).chars().count()
     }
-}
-
-/// Report whether a decoded reference renders only terminal punctuation.
-///
-/// The reference must decode to visible text, that text must be sentence-ending
-/// punctuation, and the ampersand must not be backslash-escaped.
-fn reference_renders_punctuation(text: &str, start: usize, rendered: &str) -> bool {
-    !rendered.is_empty()
-        && rendered.chars().all(is_terminal_punctuation)
-        && !is_escaped(text, start)
-}
-
-/// Return the start and rendered text of the character reference ending `text`.
-///
-/// Returns `None` when `text` does not end with a reference the Markdown parser
-/// decodes; the caller then treats the ampersand as ordinary content.
-fn trailing_character_reference(text: &str) -> Option<(usize, String)> {
-    if !text.ends_with(';') {
-        return None;
-    }
-    let start = text.rfind('&')?;
-    let rendered = fragment_plain_text(text.get(start..)?)?;
-    Some((start, rendered))
-}
-
-/// Report whether the character at `offset` follows an odd run of backslashes.
-fn is_escaped(text: &str, offset: usize) -> bool {
-    let backslashes = text.get(..offset).map_or(0, |prefix| {
-        prefix
-            .chars()
-            .rev()
-            .take_while(|character| *character == '\\')
-            .count()
-    });
-    !backslashes.is_multiple_of(2)
 }
 
 /// Report whether `text` ends with a backslash that is not itself escaped.

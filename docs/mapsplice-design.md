@@ -428,13 +428,16 @@ whose whole tag name is `br`, so `un<span></span>done` and
 `un<br-widget></br-widget>done` do not satisfy a `done` suffix while
 `un<br>done` does. When a generated break would follow an unpaired backslash,
 whether it ends the title or an inserted suffix word, the break is paired with
-one more backslash so the literal character survives; a line already at the
-width limit fails closed instead. Every other byte — title wrapping,
-continuation lines, nested bullets, `Requires` references, and all numbering —
-is retained, which satisfies F1 and F2 without invoking the renderer at all.
-Section 5's *gate-clean* caveat does not arise from syntax, because no unstable
-syntax is normalized. It still bounds line width: an input paragraph that is
-already wider than 80 columns stays that wide, because completion never reflows
+one more backslash so the literal character survives. A backslash ending the
+suffix itself is paired the same way before the terminal punctuation, closing
+marker, or line ending that would otherwise consume it, and stays single at the
+end of the document, where nothing follows. A line already at the width limit
+fails closed instead. Every other byte — title wrapping, continuation lines,
+nested bullets, `Requires` references, and all numbering — is retained, which
+satisfies F1 and F2 without invoking the renderer at all. Section 5's
+*gate-clean* caveat does not arise from syntax, because no unstable syntax is
+normalized. It still bounds line width: an input paragraph that is already
+wider than 80 columns stays that wide, because completion never reflows
 existing title text.
 
 The patched text is re-parsed and compared with the original before it is
