@@ -2,6 +2,15 @@
 
 use super::*;
 
+/// A phase paragraph whose escaped asterisks render exactly like a bold
+/// `Requires` keyword, followed by a step so the phase parses as content.
+const ESCAPED_REQUIRES_ROADMAP: &str = concat!(
+    "## 1. Plan\n\n",
+    "\\*\\*Requires\\*\\* further review.\n\n",
+    "### 1.1. Work\n\n",
+    "- [ ] 1.1.1. Task.\n",
+);
+
 #[rstest]
 #[case::task_title("Emit **stable** JSON", "Emit changed JSON", "~ task 1.1.1 title")]
 #[case::dependency("Requires 1.1.2.", "Requires 1.1.1.", "~ task 1.1.1 requires")]
@@ -44,6 +53,48 @@ fn export_check_names_semantic_drift_and_preserves_both_files(
         &original_export,
         "preserved export",
     )?;
+    Ok(())
+}
+
+/// Classification must read the Markdown nodes, because escaped asterisks
+/// render identically to a bold keyword. Reading the rendered prefix would
+/// import the paragraph as nothing at all and then report no drift when its
+/// text changes.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn escaped_literal_requires_text_exports_and_drifts(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(ESCAPED_REQUIRES_ROADMAP)?;
+    let committed = export(&test_workspace)?;
+
+    let document: serde_json::Value = serde_json::from_str(&committed)?;
+    let phase = members(&document, "phases")
+        .first()
+        .ok_or("the export should contain a phase")?;
+    let entry = members(phase, "entries")
+        .first()
+        .ok_or("the literal paragraph should be exported")?;
+    require_equal(
+        &entry.get("value"),
+        &Some(&serde_json::json!("**Requires** further review.")),
+        "literal escaped paragraph",
+    )?;
+
+    let export_path = write_committed_export(&test_workspace, &committed)?;
+    let changed = ESCAPED_REQUIRES_ROADMAP.replace("further review", "further changes");
+    test_workspace.write_target(&changed)?;
+    let error = run_from_args([
+        "mapsplice",
+        "export",
+        "--check",
+        export_path.as_str(),
+        test_workspace.target.as_str(),
+    ])
+    .expect_err("an edit to literal text is semantic drift");
+
+    require_contains(&error.to_string(), "~ phase 1 entry 1 value")?;
     Ok(())
 }
 

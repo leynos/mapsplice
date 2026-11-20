@@ -95,9 +95,11 @@ mapsplice export --check docs/roadmap.json docs/roadmap.md
 `export` reads the canonical Markdown roadmap and writes a deterministic,
 versioned JSON representation to standard output. The JSON contains phases,
 steps, tasks, checkbox states, dependency references, labelled content and
-nested checkbox details. Its complete version 1 contract is documented in the
+nested checkbox details. Its complete version 2 contract is documented in the
 [roadmap export format](roadmap-export-format.md). The Markdown preamble is
-excluded.
+excluded. Plain text is exported literally, so characters such as `(` and `_`
+appear as written rather than backslash-escaped; formatting such as `**bold**`
+keeps its Markdown delimiters.
 
 `--format json` is the default. `--check <export>` compares the committed JSON
 with a fresh export. An exact match exits 0 without output. A mismatch exits 1

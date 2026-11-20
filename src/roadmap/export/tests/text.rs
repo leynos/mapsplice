@@ -1,10 +1,14 @@
 //! Unit tests for export inline rendering and label recognition.
 
 use markdown::mdast::{Node, Text};
+use proptest::prelude::*;
 use rstest::rstest;
 
 use super::paragraph;
-use crate::roadmap::export::text::{paragraph_entry, render_text};
+use crate::roadmap::{
+    export::text::{paragraph_entry, render_text},
+    render::inline::render_inline_export,
+};
 
 #[test]
 fn plain_paragraph_without_a_label_is_unlabelled() {
@@ -107,4 +111,37 @@ fn render_text_trims_and_collapses_explicit_whitespace() {
     let rendered = render_text(&nodes).expect("text should render");
 
     assert_eq!(rendered, "alpha beta");
+}
+
+/// Characters the Markdown renderer escapes, plus characters that begin
+/// Markdown constructs and ordinary letters and digits to combine them.
+const LITERAL_CHARACTERS: &[char] = &[
+    '\\', '*', '_', '`', '(', ')', '[', ']', '#', '-', '+', '!', '<', '>', '&', '|', '{', '}',
+    '\'', '"', ' ', '\t', 'a', 'Z', '0', '.',
+];
+
+/// Generate plain text from characters that invite escaping.
+fn literal_text() -> impl Strategy<Value = String> {
+    prop::collection::vec(prop::sample::select(LITERAL_CHARACTERS), 0..24)
+        .prop_map(|characters| characters.into_iter().collect())
+}
+
+proptest! {
+    /// Export rendering is the identity on plain text. It must not add,
+    /// remove or transform characters, so literal backslashes and Markdown
+    /// metacharacters reach consumers exactly as they appear in the source.
+    /// This exercises the renderer on its own: whitespace normalization is a
+    /// separate step, deliberately excluded here so its collapsing cannot
+    /// mask a rendering change.
+    #[test]
+    fn export_rendering_keeps_literal_text_unchanged(value in literal_text()) {
+        let nodes = [Node::Text(Text {
+            value: value.clone(),
+            position: None,
+        })];
+
+        let rendered = render_inline_export(&nodes).expect("text should render");
+
+        prop_assert_eq!(rendered.as_str(), value.as_str());
+    }
 }
