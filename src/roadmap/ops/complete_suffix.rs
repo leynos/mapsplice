@@ -46,7 +46,9 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 /// terminal sentence punctuation so `… scope — done.` replaces `… scope.`; a
 /// suffix carrying its own punctuation replaces the title's run instead. A
 /// suffix that ends with an inline marker follows the title's closing markers,
-/// and the width of any replaced punctuation is credited back to the line.
+/// and the width of any replaced punctuation is credited back to the line. An
+/// inserted line break directly after an unpaired backslash is paired so the
+/// author's literal backslash survives.
 pub(super) fn insert_suffix(
     patched: &mut String,
     source: &str,
@@ -92,7 +94,21 @@ pub(super) fn insert_suffix(
     if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    patched.insert_str(insert_at, &wrap_suffix(suffix, &wrap));
+    let mut inserted = wrap_suffix(suffix, &wrap);
+    if inserted.starts_with(wrap.line_ending)
+        && ends_with_unpaired_backslash(source.get(..slot.insert_at)?)
+    {
+        // A backslash immediately before a line break is a CommonMark hard
+        // break, so the author's literal backslash would vanish from the
+        // rendered title. Pairing it with one inserted backslash keeps the
+        // visible text unchanged. A line already at the column limit cannot
+        // take that character, so the edit fails closed instead.
+        if wrap.width >= WRAP_COLUMNS {
+            return None;
+        }
+        inserted.insert(0, '\\');
+    }
+    patched.insert_str(insert_at, &inserted);
     Some(())
 }
 
@@ -116,13 +132,19 @@ struct SuffixSlot<'source> {
 /// is placed after those markers instead, because joining two marker runs would
 /// make the result ambiguous. A title without closing markers keeps the usual
 /// placement, so terminal punctuation stays last.
+///
+/// The numbered prefix contains no whitespace, so the first whitespace in the
+/// source paragraph ends it whatever the separator's spelling. A separator
+/// written as an entity such as `&#46;` has no literal `. ` to search for.
 fn suffix_slot<'source>(
     source: &'source str,
     span: ItemSourceSpan,
     suffix: &str,
 ) -> Option<SuffixSlot<'source>> {
     let raw = source.get(span.title_start..span.paragraph_end)?;
-    let number_end = raw.find(". ").map(|index| span.title_start + index + 2)?;
+    let number_end = raw
+        .find([' ', '\t'])
+        .map_or(span.paragraph_end, |index| span.title_start + index + 1);
     let trimmed_end = span.title_start + raw.trim_end_matches([' ', '\t']).len();
     let content_end = span.title_content_end.min(trimmed_end);
     let punctuation_start = content_end - trailing_punctuation_len(source, content_end);
@@ -247,6 +269,16 @@ fn is_escaped(text: &str, offset: usize) -> bool {
             .take_while(|character| *character == '\\')
             .count()
     });
+    !backslashes.is_multiple_of(2)
+}
+
+/// Report whether `text` ends with a backslash that is not itself escaped.
+fn ends_with_unpaired_backslash(text: &str) -> bool {
+    let backslashes = text
+        .chars()
+        .rev()
+        .take_while(|character| *character == '\\')
+        .count();
     !backslashes.is_multiple_of(2)
 }
 

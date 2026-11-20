@@ -11,6 +11,14 @@ use markdown::mdast::Node;
 
 use super::super::model::MarkdownNodes;
 
+/// Punctuation that keeps a parsed suffix in paragraph context.
+///
+/// A suffix is inline title content, but parsing it as a standalone document
+/// would read a leading `#`, `>`, or list marker as block syntax and compare
+/// only the block's text. Parsing behind this prefix keeps the suffix in one
+/// paragraph, and the prefix is removed from the rendered comparison text.
+const PARAGRAPH_PREFIX: char = '(';
+
 /// Report whether the item's title already ends with the configured suffix.
 ///
 /// The comparison uses the title's parsed inline nodes rather than its source
@@ -35,15 +43,25 @@ pub(super) fn title_has_suffix(title: &MarkdownNodes, suffix: &str) -> bool {
 ///
 /// Parsing the suffix removes only delimiters that really pair up, so a
 /// configured `build*` keeps its literal asterisk while `**done.**` compares
-/// as `done.`. Text the parser cannot handle falls back to its trimmed source.
+/// as `done.`. The suffix is parsed as inline title content, so a leading `#`
+/// stays literal text rather than becoming a heading marker that would hide
+/// it from the comparison. Text the parser cannot handle falls back to its
+/// trimmed source.
 pub(super) fn plain_suffix_text(suffix: &str) -> String {
-    let Ok(document) = markdown::to_mdast(suffix, &markdown::ParseOptions::gfm()) else {
+    let document = format!("{PARAGRAPH_PREFIX}{suffix}");
+    let Ok(parsed) = markdown::to_mdast(&document, &markdown::ParseOptions::gfm()) else {
         return collapse_whitespace(suffix);
     };
-    document.children().map_or_else(
+    parsed.children().map_or_else(
         || collapse_whitespace(suffix),
-        |children| plain_title_text(children),
+        |children| strip_paragraph_prefix(&plain_title_text(children)),
     )
+}
+
+/// Remove the prefix that pinned the suffix to inline parsing.
+fn strip_paragraph_prefix(text: &str) -> String {
+    text.strip_prefix(PARAGRAPH_PREFIX)
+        .map_or_else(|| text.to_owned(), |rest| rest.trim_start().to_owned())
 }
 
 /// Report whether rendered suffix text carries its own terminal punctuation.
