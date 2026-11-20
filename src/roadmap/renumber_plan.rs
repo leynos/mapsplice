@@ -7,6 +7,10 @@
 //! item is still the item at this position", not "fragment numbering applies
 //! here". See [`RenumberPlan::resolve_reference`] for why that distinction is a
 //! correctness requirement.
+//!
+//! Both statements describe one operation. On success the document re-anchors
+//! every identity to the number it now holds, so the next operation builds a
+//! fresh plan keyed by those numbers rather than by these original anchors.
 
 use std::collections::BTreeMap;
 
@@ -113,7 +117,10 @@ impl RenumberPlan {
     /// A replacement containing exactly the addressed item, numbered as it was,
     /// edits that item in place: the item is retired from the tree and a
     /// fragment item takes its position and number. Its identity has not gone
-    /// away, so references to it must keep resolving.
+    /// away, so references to it must keep resolving. The committed document
+    /// then re-anchors the continuing item, which carries the continuation
+    /// into later operations; this alias is needed only for the granting
+    /// operation's rewrite.
     ///
     /// Returns whether the alias was recorded. An identity with any existing
     /// mapping is left alone: a surviving item with the same source-local

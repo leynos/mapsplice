@@ -27,14 +27,14 @@ Today, replacing a task another task depends on fails with
 changed. For example, this target:
 
 ```markdown
-- [ ] 1.1.1. Draft the plan.
-- [ ] 1.1.2. Review the plan. Requires 1.1.1.
+- [ ] 1.1.1. Review the plan. Requires 1.1.2.
+- [ ] 1.1.2. Draft the plan.
 ```
 
 and this fragment:
 
 ```markdown
-- [x] 1.1.2. Review the plan carefully.
+- [x] 1.1.2. Draft the plan carefully.
 ```
 
 make `mapsplice replace target.md 1.1.2 fragment.md` fail, because `replace`
@@ -50,16 +50,22 @@ replaced item (steps under a phase, tasks and sub-tasks under a step, sub-tasks
 under a task) keep their identities too, but only where a unique same-numbered
 descendant exists on both the retired and replacement sides.
 
-A changed number (`1.1.2` replaced by `1.1.5`) or a multi-item replacement
-still retires every replaced identity, and a surviving reference to one of them
-still fails with `dangling_dependency`. `delete` is unchanged.
-
 The mechanism is an **operation-granted continuity alias**: the renumber plan
 temporarily remembers that a retired identity continues at the new anchor of
 the item that replaced it in the same structural position. Target text resolves
 through that alias. Fragment text never does, and the cross-source fallback
 keeps its existing rule: a target reference with no source-local mapping
-resolves to nothing.
+resolves to nothing. When the operation commits, every retained identity is
+re-anchored to the number it now holds and to the target source, so a later
+operation on the same in-memory document resolves the committed output without
+any continuity state. The alias is needed only while the granting operation is
+still rewriting its references.
+
+A changed number (`1.1.2` replaced by `1.1.5`) or a multi-item replacement
+still retires every replaced identity, and a surviving reference to one of them
+still fails with `dangling_dependency`. `delete` is unchanged. `insert`,
+`append`, and `delete` keep their existing reference semantics; they gain only
+the same commit-time identity re-anchoring every operation now performs.
 
 ## Constraints
 
@@ -72,6 +78,11 @@ resolves to nothing.
   guarantees F1-F5) must not be weakened.
 - Contiguous renumbering (C2) is unchanged: numbers are assigned by position at
   every level.
+- On success, every retained identity is re-anchored to the number the item now
+  holds and to `SourceId::Target`, keeping `TaskChild::SubTask` markers
+  aligned. A later `apply_command` on the same document must resolve the
+  references the committed operation wrote, without relying on continuity
+  aliases.
 - The resolution kernel is unchanged. `RenumberPlan::resolve_reference`,
   `RenumberPlan::resolve_unique`, and `select_resolution` keep their current
   bodies and contracts. `RenumberPlan::resolve` gains a fallback to a separate
@@ -139,6 +150,12 @@ Stop and report rather than working around a breached tolerance.
   suite would disagree with the new behaviour. Severity: high. Likelihood:
   high. Mitigation: extend the oracle with the one-item same-number variant and
   retain retirement for the two-item variant in the same milestone.
+- Risk: re-anchoring changes the identity values callers observe after a
+  successful `apply_command`, including fragment items becoming target-sourced.
+  Severity: medium. Likelihood: certain. Mitigation: the model method documents
+  the invariant, the only in-tree identity assertion is updated, and
+  successive-command regressions prove a later operation resolves the committed
+  output. No public signature changes.
 
 ## Progress
 
@@ -151,6 +168,13 @@ Stop and report rather than working around a breached tolerance.
       tests; disabling `continuity.apply` makes all six positive tests fail
       with `DanglingDependency` while the rejection and pairing tests still
       pass.
+- [x] (2026-11-20) `EP-M1` review remediation: parameterized the retirement
+      regressions, corrected the reproduction direction, and made successive
+      commands consistent by re-anchoring identities at commit. Added
+      `tests/roadmap_successive_commands.rs`. Evidence: with
+      `reanchor_identities` disabled, both successive-command regressions fail
+      with `DanglingDependency`; with it enabled, `cargo test --lib` passes 198
+      tests and both regressions pass.
 - [ ] `EP-M2` Golden, integration, property, and BDD coverage added.
 - [ ] `EP-M3` User guide, design document, verification ledger, and PR closed.
 
@@ -175,6 +199,17 @@ Stop and report rather than working around a breached tolerance.
   with the same anchor and value make `resolve_unique` return `None`, so a
   target reference would fail for a different reason. Impact: D1 was revised to
   a separate map consulted only by `resolve`.
+- Observation: `apply_command` identities are operation-scoped. A second
+  command on the same parsed document failed whenever the first command had
+  rewritten a reference: the next plan is keyed by each item's original anchor,
+  but the rewritten text names the item's new number. Evidence: probes for
+  replace-then-append and insert-then-append both reported
+  `DanglingDependency`; the insert probe uses no continuity at all. Impact:
+  keeping a continuity registry on the document would not be enough, because
+  every identity key would still be stale.
+  `RoadmapDocument::reanchor_identities` now resets each identity to the
+  rendered number and target source on commit, which makes a committed document
+  identity-equivalent to a fresh parse of its own rendering.
 - Observation: Whitaker fails a gate when a module file exceeds 400 lines or a
   function clusters nested conditionals, and Clippy requires `mod.rs` for any
   module with a subdirectory. Evidence: the first full lint run reported
@@ -210,6 +245,16 @@ Stop and report rather than working around a breached tolerance.
   `rewrite_dependencies`. Rationale: the final anchor must come from the staged
   tree, and the rewriter must see a complete plan. A failure in the rewriter
   discards the staged clone as before. Date/Author: 2026-11-20, agent.
+- D5. Re-anchor every retained identity at commit instead of persisting
+  continuity aliases on `RoadmapDocument`. Rationale: a later command builds
+  its plan from the numbers the committed output contains, so the plan keys
+  must be those numbers; storing aliases alone would leave every other key
+  stale. Document state would also be a public API change, which the
+  Constraints exclude. Re-anchoring additionally fixes the pre-existing
+  insert-then-append failure, in which no continuity was involved, and makes a
+  committed document identity-equivalent to a fresh parse of its own rendering.
+  The alias remains operation-scoped and is still required for the granting
+  operation's rewrite. Date/Author: 2026-11-20, agent.
 
 ## Outcomes & retrospective
 
@@ -235,9 +280,9 @@ fragment's items in its place. The fragment items carry
 `ItemIdentity { source: SourceId::Fragment, anchor }`, where the anchor is the
 number written in the fragment file.
 
-`RenumberPlan` in `src/roadmap/model.rs` holds
-`BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>` and exposes
-`resolve`, `resolve_unique`, `resolve_reference`, and `record_mapping`.
+`RenumberPlan` in `src/roadmap/renumber_plan.rs` holds the source-local mapping
+plus a separate continuity map and exposes `resolve`, `resolve_unique`,
+`resolve_reference`, `record_mapping`, and `record_continuity`.
 `resolve_reference` delegates to `select_resolution` (in
 `src/roadmap/ops/remap_kernel.rs`, proved in `verus/lib.rs`): a local mapping
 wins; the cross-source mapping is used only for fragment text. A target
@@ -328,6 +373,10 @@ occupying the addressed position, when the plan has no other mapping for it.
   `resolve_unique` observe the plan exactly as before.
 - `INV-failure`: an unpaired identity produces `DanglingDependency` and the
   original roadmap is unchanged.
+- `INV-commit`: after a successful operation every identity is target-sourced
+  and equal to the item's current number, sub-task markers name the matching
+  identities, and a later operation on the same document resolves every
+  reference the committed output contains.
 - `L-in-place`: replacing a task with an identical same-number task produces
   byte-identical output (modulo the intended edit), because the replacement
   keeps its number and every consumer keeps its clause.
@@ -356,6 +405,12 @@ occupying the addressed position, when the plan has no other mapping for it.
   fragment lookup is unchanged, and `resolve_unique` ignores alias-only keys.
   Artefact: `src/roadmap/model_tests.rs`. Non-vacuity: include a control where
   no alias exists and resolution fails.
+- Obligation `INV-commit`: named integration regressions in
+  `tests/roadmap_successive_commands.rs` apply a second operation after an
+  in-place replacement and after a renumbering insertion. Artefact: the
+  document-level `reanchor_identities` unit is exercised through the public
+  API. Non-vacuity: disabling `reanchor_identities` makes both regressions fail
+  with `DanglingDependency`, and the insertion case does not involve continuity.
 - Obligation `INV-failure` and `L-in-place`: CLI integration tests and golden
   fixtures asserting exit status, exact bytes, and the diagnostic for
   changed-number and multi-item replacements. Artefacts: `tests/roadmap_ops.rs`,
@@ -596,3 +651,8 @@ record aliases. No dependencies are added.
 
 - 2026-11-20: Initial draft derived from issue #228 and the task packet's
   three-task plan. No API, milestone order, or scope changed during drafting.
+- 2026-11-20: Review remediation in `EP-M1`. Corrected the reproduction's
+  dependency direction; added commit-time identity re-anchoring after probes
+  showed every second command failed once the first rewrote a reference; added
+  the successive-command regressions and the `INV-commit` obligation. No public
+  API or milestone order changed.
