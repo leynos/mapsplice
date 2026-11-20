@@ -68,6 +68,16 @@ fn suffix_placement(
     Some("**done**"),
     "- [x] 1.1.1. **Finish the scope** **done**"
 )]
+#[case::marker_suffix_precedes_plain_terminal_punctuation(
+    "- [ ] 1.1.1. Finish the scope.",
+    Some("**done**"),
+    "- [x] 1.1.1. Finish the scope **done**."
+)]
+#[case::punctuated_marker_suffix_replaces_plain_punctuation(
+    "- [ ] 1.1.1. Finish the scope.",
+    Some("**done.**"),
+    "- [x] 1.1.1. Finish the scope **done.**"
+)]
 fn suffix_around_closing_inline_markers(
     #[case] item: &str,
     #[case] suffix: Option<&str>,

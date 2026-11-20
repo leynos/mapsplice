@@ -313,7 +313,8 @@ mapsplice --in-place complete --suffix "— done" docs/roadmap.md 1.3.1
 `complete` checks off exactly one addressed task (`8.2.3`) or addendum sub-task
 (`8.2.3.1`). Phases and steps have no checkbox, so those anchors are rejected
 with a typed error. Unlike the structural edits, `complete` takes no fragment
-file.
+file and never validates or rewrites `Requires` references, so a task can be
+checked off whatever other tasks depend on it.
 
 The edit is a source patch, not a re-render: the only bytes that change are the
 addressed item's `- [ ]` marker, which becomes `- [x]`, the optional done
@@ -337,7 +338,9 @@ that carries its own terminal punctuation replaces the title's trailing run, so
 `--suffix "done."` gives `1.1.1. Finish the scope done.` A suffix that itself
 ends with inline markers is placed after the title's closing markers instead,
 so the two spans stay separate: with `--suffix "**done.**"`,
-`**Finish the scope.**` becomes `**Finish the scope** **done.**`. When the
+`**Finish the scope.**` becomes `**Finish the scope** **done.**`. A title
+without closing markers keeps the usual placement, so `Finish the scope.`
+becomes `Finish the scope **done**.` with `--suffix "**done**"`. When the
 suffix would push the title's last line past 80 columns, only the suffix words
 move onto continuation lines indented to the title's content column; no
 existing title line is joined or split. Provided the title's existing wrapping
@@ -524,7 +527,7 @@ error, because the insertion happens inside one Markdown paragraph.
 - a `complete` anchor names a phase or step, which has no checkbox
 - unsupported heading structure appears inside the roadmap body
 - a valid `Requires` dependency reference cannot be resolved to a roadmap item
-  after the edit
+  after a structural edit; `complete` does not validate dependencies
 
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.

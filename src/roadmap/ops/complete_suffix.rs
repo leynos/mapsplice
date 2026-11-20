@@ -194,9 +194,11 @@ struct SuffixSlot<'source> {
 /// The parser reports where the title's inline content ends, before closing
 /// emphasis, strong, and strike markers so terminal punctuation remains
 /// terminal inside them, as in `**Finish the scope — done.**`, but after
-/// literal constructs such as inline code and links. A suffix that itself ends
-/// with an inline marker is placed after the closing markers instead, because
-/// joining two marker runs would make the result ambiguous.
+/// literal constructs such as inline code and links. When the title ends with
+/// closing markers and the suffix itself ends with an inline marker, the suffix
+/// is placed after those markers instead, because joining two marker runs would
+/// make the result ambiguous. A title without closing markers keeps the usual
+/// placement, so terminal punctuation stays last.
 fn suffix_slot<'source>(
     source: &'source str,
     span: ItemSourceSpan,
@@ -214,11 +216,13 @@ fn suffix_slot<'source>(
             replaced: None,
         });
     }
-    if suffix_ends_with_marker(suffix) {
+    if suffix_ends_with_marker(suffix) && content_end < trimmed_end {
         // Placing marker-wrapped words directly before the title's closing
         // markers would merge both runs into one delimiter sequence, so such a
         // suffix follows the closing markers instead. Punctuation it supplies
-        // still replaces the title's trailing run.
+        // still replaces the title's trailing run. A title whose content runs
+        // to its end has no closing run, so the marker suffix keeps the usual
+        // placement before terminal punctuation.
         let replaced = (suffix_supplies_punctuation(suffix) && punctuation_start < content_end)
             .then_some(punctuation_start..content_end);
         return Some(SuffixSlot {
@@ -349,9 +353,8 @@ const fn is_terminal_punctuation(character: char) -> bool {
 
 /// Report whether a suffix ends with an inline marker character.
 ///
-/// Such a suffix cannot be placed immediately before the title's closing
-/// markers: the two marker runs would touch and read as one ambiguous
-/// delimiter sequence.
+/// Such a suffix cannot be placed immediately before a closing marker run: the
+/// two runs would touch and read as one ambiguous delimiter sequence.
 fn suffix_ends_with_marker(suffix: &str) -> bool {
     suffix
         .trim_end()

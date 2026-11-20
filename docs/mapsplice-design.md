@@ -412,17 +412,19 @@ ends before its closing markers, while inline code and links end after their
 closing delimiter, so the suffix follows those literal constructs instead of
 joining them. A suffix that itself ends with an inline marker is placed after
 the title's closing markers, because joining two marker runs would produce one
-ambiguous delimiter sequence. Existing-suffix detection compares the rendered
-plain text of the title's parsed inline nodes, so literal trailing markers such
-as the `*` in `build*` are never mistaken for closing markup. The configured
-suffix is rendered the same way, so a suffix carrying a literal marker still
-matches itself, and punctuation separates a suffix word just as whitespace
-does. Every other byte — title wrapping, continuation lines, nested bullets,
-`Requires` references, and all numbering — is retained, which satisfies F1 and
-F2 without invoking the renderer at all. Section 5's *gate-clean* caveat does
-not arise from syntax, because no unstable syntax is normalized. It still
-bounds line width: an input paragraph that is already wider than 80 columns
-stays that wide, because completion never reflows existing title text.
+ambiguous delimiter sequence; a title without a closing run keeps the usual
+placement before its terminal punctuation. Existing-suffix detection compares
+the rendered plain text of the title's parsed inline nodes, so literal trailing
+markers such as the `*` in `build*` are never mistaken for closing markup. The
+configured suffix is rendered the same way, so a suffix carrying a literal
+marker still matches itself, and punctuation separates a suffix word just as
+whitespace does. Every other byte — title wrapping, continuation lines, nested
+bullets, `Requires` references, and all numbering — is retained, which
+satisfies F1 and F2 without invoking the renderer at all. Section 5's
+*gate-clean* caveat does not arise from syntax, because no unstable syntax is
+normalized. It still bounds line width: an input paragraph that is already
+wider than 80 columns stays that wide, because completion never reflows
+existing title text.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must
