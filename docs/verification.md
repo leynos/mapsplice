@@ -2,24 +2,25 @@
 
 `mapsplice` uses Verus to prove narrow kernels that the renumbering,
 dependency-rewrite and source-preservation paths call in production. This
-ledger records every claimed proof result, its executable function, input
-domain, external contracts, and result class. A kernel may not be represented
-by a separate `proofs/` implementation unless a refinement proof connects it to
-the production function.
+ledger records every claimed proof result and every obligation that is not yet
+proved, with its executable function, input domain, external contracts, and
+result class. A kernel may not be represented by a separate `proofs/`
+implementation unless a refinement proof connects it to the production function.
 
 ## Claim ledger
 
-| Claim                                                                                           | Executable function  | Input domain                                                                                       | Unverified external contracts                                                          | Result class      |
-| ----------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------- |
-| Identity preservation: a target-text reference never resolves through the cross-source fallback | `select_resolution`  | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls                                               | Local correctness |
-| Local-mapping precedence: a target-text reference with its own mapping keeps it                 | `select_resolution`  | As above                                                                                           | None                                                                                   | Local correctness |
-| Non-vacuity: fragment text does consult the cross-source fallback                               | `select_resolution`  | As above, with the local option absent and the cross-source option present                         | None                                                                                   | Local correctness |
-| Line start: the scan returns exactly the offset after the last CR or LF before the offset       | `line_start_offset`  | Any `&str` and a byte offset at or below its byte length                                           | `str::as_bytes`, `str::len`                                                            | Local correctness |
-| Line-start rejection: an out-of-range or non-boundary offset yields `None`                      | `checked_line_start` | Any `&str` and any `usize`                                                                         | `str::is_char_boundary`                                                                | Local correctness |
-| Span validation: the first failing check is the one reported, in the documented order           | `checked_line_span`  | Any `&str` and any pair of `usize` offsets                                                         | `str::is_char_boundary`                                                                | Local correctness |
-| Span bounds and boundaries: a successful span is ordered, in range and boundary-aligned         | `checked_line_span`  | As above                                                                                           | `str::is_char_boundary`                                                                | Local correctness |
-| Extraction: the copied text is exactly the source subrange of the line-widened span             | `extract_line_span`  | Any `&str` and a validated span                                                                    | `str::split_at`, `str::to_owned`                                                       | Local correctness |
-| Task-item spans: each item resolves to the next checked line start or the list end              | `task_item_spans`    | Any slice of optional item starts, an optional list end and a source                               | `str::split_at`, `str::to_owned`, slice `len`/`get`, `Vec::with_capacity`, `Vec::push` | Local correctness |
+| Claim                                                                                           | Executable function  | Input domain                                                                                       | Unverified external contracts                                                                                                                                                                  | Result class      |
+| ----------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Identity preservation: a target-text reference never resolves through the cross-source fallback | `select_resolution`  | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls                                                                                                                                                       | Local correctness |
+| Local-mapping precedence: a target-text reference with its own mapping keeps it                 | `select_resolution`  | As above                                                                                           | None                                                                                                                                                                                           | Local correctness |
+| Non-vacuity: fragment text does consult the cross-source fallback                               | `select_resolution`  | As above, with the local option absent and the cross-source option present                         | None                                                                                                                                                                                           | Local correctness |
+| Line start: the scan returns exactly the offset after the last CR or LF before the offset       | `line_start_offset`  | Any `&str` and a byte offset at or below its byte length                                           | `str::as_bytes`, `str::len`                                                                                                                                                                    | Local correctness |
+| Line-start rejection: an out-of-range or non-boundary offset yields `None`                      | `checked_line_start` | Any `&str` and any `usize`                                                                         | `str::is_char_boundary`                                                                                                                                                                        | Local correctness |
+| Span validation: the first failing check is the one reported, in the documented order           | `checked_line_span`  | Any `&str` and any pair of `usize` offsets                                                         | `str::is_char_boundary`                                                                                                                                                                        | Local correctness |
+| Span bounds and boundaries: a successful span is ordered, in range and boundary-aligned         | `checked_line_span`  | As above                                                                                           | `str::is_char_boundary`                                                                                                                                                                        | Local correctness |
+| Extraction: the copied text is exactly the source subrange of the line-widened span             | `extract_line_span`  | Any `&str` and a validated span                                                                    | `str::split_at`, `str::to_owned`                                                                                                                                                               | Local correctness |
+| Task-item spans: each item resolves to the next checked line start or the list end              | `task_item_spans`    | Any slice of optional item starts, an optional list end and a source                               | `str::split_at`, `str::to_owned`, slice `len`/`get`, `Vec::with_capacity`, `Vec::push`                                                                                                         | Local correctness |
+| Identity continuity: a surviving target reference to an in-place replacement still resolves     | Pending              | Exactly one fragment item at the addressed level and anchor, with descendants paired by anchor     | Alias construction, fragment cardinality, and descendant pairing; tracked by [#160](https://github.com/leynos/mapsplice/issues/160) and [#162](https://github.com/leynos/mapsplice/issues/162) | Pending           |
 
 _Table 1: The verification claim ledger._
 
@@ -27,7 +28,9 @@ Each row is discharged by the executable function's own `ensures` clause in the
 verified expansion, supported by the named lemmas in `verus/lib.rs` or in the
 included `verus/source_span_proofs.rs`, all of which run under `make verus`.
 The titles above name the obligation; the specification comment in the proof
-states its premise. `make verus-selftest` runs `verus/smoke.rs`, whose
+states its premise. A row whose executable-function cell reads `Pending`
+declares an obligation with no theorem yet; its evidence is the tests described
+below rather than a proof. `make verus-selftest` runs `verus/smoke.rs`, whose
 assertion is deliberately unprovable, and fails unless Verus rejects it — so a
 run in which the verifier never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
@@ -116,6 +119,18 @@ Extracting the recognizer into a provable kernel is not attempted here, and
 would be a substantial piece of work: it consumes mdast nodes and byte strings
 through several helpers whose contracts would each need stating. Recording the
 gap is preferable to implying a coverage that does not exist.
+
+In-place replacement adds a premise rather than a second kernel.
+`RenumberPlan::resolve` folds an operation-granted continuity alias into the
+source-local answer, and `target_text_keeps_its_source_local_mapping` gives the
+retention: whenever that alias exists, a surviving target reference to the
+addressed identity keeps it. Whether the alias exists at all is outside every
+proof boundary — it depends on the fragment holding exactly one item, on that
+item carrying the addressed anchor, and on unique descendant pairing — and the
+kernel cannot observe any of those. The golden cases, CLI regressions, and
+property oracle exercise the premise, including its counterexamples: a changed
+anchor and a multi-item fragment both retire the identity. The final ledger row
+records the premise as Pending under #160 and #162 rather than as proved.
 
 ## How the kernels connect to production
 

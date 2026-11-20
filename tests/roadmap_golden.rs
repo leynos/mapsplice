@@ -9,7 +9,6 @@ mod contracts;
 #[path = "roadmap_golden/fail_closed_contracts.rs"]
 mod fail_closed_contracts;
 
-
 #[path = "roadmap_golden/formatter_boundary.rs"]
 mod formatter_boundary;
 
