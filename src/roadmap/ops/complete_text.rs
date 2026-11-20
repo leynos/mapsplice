@@ -48,14 +48,20 @@ pub(super) fn title_has_suffix(title: &MarkdownNodes, suffix: &str) -> bool {
 /// it from the comparison. Text the parser cannot handle falls back to its
 /// trimmed source.
 pub(super) fn plain_suffix_text(suffix: &str) -> String {
-    let document = format!("{PARAGRAPH_PREFIX}{suffix}");
-    let Ok(parsed) = markdown::to_mdast(&document, &markdown::ParseOptions::gfm()) else {
-        return collapse_whitespace(suffix);
-    };
-    parsed.children().map_or_else(
-        || collapse_whitespace(suffix),
-        |children| strip_paragraph_prefix(&plain_title_text(children)),
-    )
+    fragment_plain_text(suffix).unwrap_or_else(|| collapse_whitespace(suffix))
+}
+
+/// Render one Markdown fragment as the plain inline text a reader sees.
+///
+/// The fragment is parsed behind [`PARAGRAPH_PREFIX`], so block syntax stays
+/// literal and remains part of the comparison text. Returns `None` when the
+/// parser rejects the fragment.
+pub(super) fn fragment_plain_text(fragment: &str) -> Option<String> {
+    let document = format!("{PARAGRAPH_PREFIX}{fragment}");
+    markdown::to_mdast(&document, &markdown::ParseOptions::gfm())
+        .ok()?
+        .children()
+        .map(|children| strip_paragraph_prefix(&plain_title_text(children)))
 }
 
 /// Remove the prefix that pinned the suffix to inline parsing.
@@ -98,11 +104,38 @@ fn append_plain_text(node: &Node, text: &mut String) {
         for child in children {
             append_plain_text(child, text);
         }
-    } else {
-        // A leaf without text, such as an image or a break, still separates the
-        // words around it, so it can never join two words together.
+    } else if renders_word_break(node) {
+        // A leaf without text still separates the words around it when it
+        // renders a break, such as an image, a line break, or a `<br>` tag. An
+        // inline HTML tag that renders nothing must not invent a boundary a
+        // reader never sees: `un<span></span>done` still renders `undone`.
         text.push(' ');
     }
+}
+
+/// Report whether a textless leaf node separates the words around it.
+fn renders_word_break(node: &Node) -> bool {
+    match node {
+        Node::Html(html) => html_renders_line_break(&html.value),
+        _ => true,
+    }
+}
+
+/// Report whether an inline HTML tag renders a line break.
+///
+/// Only break elements such as `<br>`, `<br/>`, and `<br class="gap">` render a
+/// visible break between words. Other inline tags, including closing tags and
+/// empty containers, render nothing and so join the surrounding text.
+fn html_renders_line_break(value: &str) -> bool {
+    let Some(tag) = value.trim().strip_prefix('<') else {
+        return false;
+    };
+    let name = tag
+        .trim_start_matches('/')
+        .chars()
+        .take_while(char::is_ascii_alphanumeric)
+        .collect::<String>();
+    name.eq_ignore_ascii_case("br")
 }
 
 /// Return the literal text one mdast node contributes, when it carries any.

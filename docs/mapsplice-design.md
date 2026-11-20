@@ -410,16 +410,21 @@ markers such as the `*` in `build*` are never mistaken for closing markup. The
 configured suffix is rendered as inline paragraph content, so a leading `#` or
 list marker stays literal text instead of being read as block syntax, a suffix
 carrying a literal marker still matches itself, and punctuation separates a
-suffix word just as whitespace does. When the suffix wraps and the title's last
-line ends with an unpaired backslash, the inserted break is paired with one
-more backslash so the literal character survives; a line already at the width
-limit fails closed instead. Every other byte — title wrapping, continuation
-lines, nested bullets, `Requires` references, and all numbering — is retained,
-which satisfies F1 and F2 without invoking the renderer at all. Section 5's
-*gate-clean* caveat does not arise from syntax, because no unstable syntax is
-normalized. It still bounds line width: an input paragraph that is already
-wider than 80 columns stays that wide, because completion never reflows
-existing title text.
+suffix word just as whitespace does. Terminal punctuation written as a
+character reference such as `&#46;` or `&hellip;` is classified by what it
+renders as, so it stays last after the inserted words and a punctuated suffix
+replaces it; an escaped ampersand keeps the reference literal. Inline HTML
+contributes a word boundary only when it renders a break, so
+`un<span></span>done` does not satisfy a `done` suffix while `un<br>done` does.
+When the suffix wraps and the title's last line ends with an unpaired
+backslash, the inserted break is paired with one more backslash so the literal
+character survives; a line already at the width limit fails closed instead.
+Every other byte — title wrapping, continuation lines, nested bullets,
+`Requires` references, and all numbering — is retained, which satisfies F1 and
+F2 without invoking the renderer at all. Section 5's *gate-clean* caveat does
+not arise from syntax, because no unstable syntax is normalized. It still
+bounds line width: an input paragraph that is already wider than 80 columns
+stays that wide, because completion never reflows existing title text.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must
