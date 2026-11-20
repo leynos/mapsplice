@@ -6,10 +6,10 @@
   the current implementation and the target contract the tool is evolving
   towards.
 - **Scope:** the roadmap-splicing engine — parsing, the roadmap model, the four
-  structural operations, renumbering, dependency-reference rewriting, and
-  rendering, plus the read-only JSON export and drift contract. CLI plumbing
-  (`ortho-config`, `--in-place`) is covered only where it bears on the
-  guarantees below.
+  structural operations, in-place checkbox completion, renumbering,
+  dependency-reference rewriting, and rendering, plus the read-only JSON export
+  and drift contract. CLI plumbing (`ortho-config`, `--in-place`) is covered
+  only where it bears on the guarantees below.
 - **Audience:** contributors to `mapsplice`, and operators who run it
   unsupervised over real roadmaps (for example as part of a df12-build
   workshop).
@@ -23,10 +23,10 @@
 
 ## 1. Problem statement
 
-`mapsplice` applies one structural edit to a roadmap-shaped Markdown document —
-`append`, `insert`, `delete`, or `replace` — then renumbers the affected
-phases, steps, and tasks and rewrites the dependency references that pointed at
-them.
+`mapsplice` applies one edit to a roadmap-shaped Markdown document — a
+structural `append`, `insert`, `delete`, or `replace` that renumbers the
+affected phases, steps, and tasks and rewrites the dependency references that
+pointed at them, or an in-place `complete` that only checks one item off.
 
 The defining hazard of such a tool is **collateral corruption**: silently
 rewriting content it was never asked to touch, or mangling structure it does
@@ -185,7 +185,9 @@ Untouched gate-clean content remains byte-exact.
   retired identity is gone, so a dependency reference to it no longer resolves
   and the operation fails closed rather than redirecting the consumer; a
   fragment clause, which is written in the fragment's own numbering, still
-  resolves through the cross-source fallback described in section 7.
+  resolves through the cross-source fallback described in section 7. `complete`
+  is not structural: it checks one addressed task or addendum sub-task off,
+  changes no number, takes no fragment, and is specified in section 12.
 - **C2 — Renumber contract.** After any edit, phase, step, task, and addendum
   numbers are contiguous from 1, in document order, at every level. No gaps, no
   duplicates, no out-of-order numbering survives an operation.
@@ -335,6 +337,7 @@ inspection.
   | Addendum render fidelity        | nesting and indentation preserved (C4, F1) |
   | `Requires` lists                | every id in a multi-id clause is rewritten |
   | Dangling `Requires`             | unresolved valid anchors fail closed       |
+  | Completion preservation         | only checkbox and marker bytes change (F2) |
 
   *Table 2: Required adversarial fixtures for the fidelity and reference
   contracts.*
@@ -382,3 +385,33 @@ hard-wrapped or nested-bullet `Requires` clause has one classification and one
 source order. Unsupported content fails with a located `InvalidRoadmap`
 diagnostic rather than disappearing from the export. JSON schema and semantic
 changes require a `FORMAT_VERSION` increment.
+
+## 12. In-place checkbox completion
+
+`complete` marks one addressed task or addendum sub-task done without
+restructuring the document. It is the minimum edit the grammar allows, and it
+is specified as a source patch rather than a re-render: the parser's mdast
+positions yield an `ItemSourceSpan` for the addressed item, the checkbox byte
+inside the marker becomes `x`, and an optional configured done marker is
+inserted at the end of the title paragraph before its terminal punctuation.
+Every other byte — title wrapping, continuation lines, nested bullets,
+`Requires` references, and all numbering — is retained, which satisfies F1 and
+F2 without invoking the renderer at all. Section 5's *gate-clean* caveat does
+not apply, because no unstable syntax is normalized.
+
+The patched text is re-parsed and compared with the original before it is
+returned or written: the anchor set must be unchanged, the addressed item must
+parse as checked, and a configured suffix must be present at the end of its
+title. A span that does not fit the source, a checkbox state that disagrees
+with the parsed model, or a failed post-condition fails closed with
+`MapspliceError::UnsafeCompletionEdit`. Phase and step anchors fail with
+`MapspliceError::UnsupportedAnchorLevel`, because no checkbox exists at those
+levels. An already-checked item returns the original text, so C5 holds and a
+configured suffix can never be applied twice.
+
+Done-marker placement keeps the repository Markdown formatter stable: the
+marker is appended to the title's final line, and only its own words wrap, at
+80 columns, onto continuation lines indented to the title's content column. The
+decision to patch source spans instead of rendering canonically, and to keep
+the marker optional, is recorded in
+[ADR 0002](adrs/adr-0002-in-place-checkbox-completion.md).
