@@ -23,8 +23,8 @@ pub use anchor::{
     parse_anchor,
 };
 pub use model::{RoadmapDocument, RoadmapFragment, SubTaskEntry, fragment_level};
-pub(crate) use ops::apply_command_with_report;
 pub use ops::{RoadmapOperation, apply_command};
+pub(crate) use ops::{apply_command_with_report, complete_item};
 pub use parse::{parse_fragment, parse_roadmap};
 pub use render::render_roadmap;
 pub(crate) use render::render_roadmap_with_report;

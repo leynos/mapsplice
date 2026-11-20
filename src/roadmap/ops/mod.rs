@@ -1,5 +1,7 @@
 //! Splice operations and anchor-aware mutation helpers.
 
+mod complete;
+mod complete_suffix;
 mod dependency_text;
 mod dependency_visitor;
 mod level_edit;
@@ -7,6 +9,7 @@ mod remap_kernel;
 mod rewrite;
 mod sub_task;
 
+pub(crate) use complete::complete_item;
 pub(crate) use dependency_text::dependency_candidates;
 pub(crate) use dependency_visitor::collect_dependencies;
 use level_edit::{

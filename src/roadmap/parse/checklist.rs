@@ -2,7 +2,11 @@
 
 use markdown::mdast::{ListItem, Node, Paragraph};
 
-use crate::error::{MapspliceError, Result};
+use super::{ParseContext, SourceId};
+use crate::{
+    error::{MapspliceError, Result},
+    roadmap::model::ItemSourceSpan,
+};
 
 /// Validated opening paragraph and remaining blocks of a checklist item.
 #[derive(Debug)]
@@ -62,6 +66,30 @@ pub(super) fn parse_checklist_item_head(
         paragraph,
         child_body: item.children.get(1..).unwrap_or(&[]),
     })
+}
+
+/// Capture the target-source span for one checklist item's marker and title.
+///
+/// The completion command edits the original document text instead of
+/// rendering the model, so it needs the offsets the Markdown parser reported.
+/// The title starts at the opening paragraph, after the checkbox, and ends
+/// before any nested blocks, so the span covers exactly the text a done suffix
+/// belongs in. Fragment items return `None`: their content is new and has no
+/// position in the target source.
+pub(super) fn item_source_span(
+    item: &ListItem,
+    paragraph: &Paragraph,
+    context: ParseContext<'_>,
+) -> Option<ItemSourceSpan> {
+    if context.source != SourceId::Target {
+        return None;
+    }
+    let span = ItemSourceSpan {
+        item_start: item.position.as_ref()?.start.offset,
+        title_start: paragraph.position.as_ref()?.start.offset,
+        paragraph_end: paragraph.position.as_ref()?.end.offset,
+    };
+    span.is_valid_in(context.source_text).then_some(span)
 }
 
 /// Construct a roadmap-grammar error from a checklist requirement.

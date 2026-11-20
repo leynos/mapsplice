@@ -1,10 +1,19 @@
 //! Golden fixture coverage for roadmap operations and contracts.
 
+#[path = "roadmap_golden/complete_contracts.rs"]
+mod complete_contracts;
+
 #[path = "roadmap_golden/contracts.rs"]
 mod contracts;
+
+#[path = "roadmap_golden/fail_closed_contracts.rs"]
+mod fail_closed_contracts;
+
 #[path = "roadmap_golden/formatter_boundary.rs"]
 mod formatter_boundary;
+
 mod golden;
+
 #[path = "roadmap_golden/nested_requires.rs"]
 mod nested_requires;
 

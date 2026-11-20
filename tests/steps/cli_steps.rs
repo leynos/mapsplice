@@ -43,9 +43,9 @@ impl CliState {
         self.workspace.write_fragment(contents)
     }
 
-    fn read_target(&self) -> TestResult<String> { self.workspace.read_target() }
+    pub(crate) fn read_target(&self) -> TestResult<String> { self.workspace.read_target() }
 
-    const fn target_path(&self) -> &Utf8PathBuf { &self.workspace.target }
+    pub(crate) const fn target_path(&self) -> &Utf8PathBuf { &self.workspace.target }
 
     const fn fragment_path(&self) -> &Utf8PathBuf { &self.workspace.fragment }
 

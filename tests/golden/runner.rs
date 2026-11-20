@@ -38,13 +38,49 @@ pub(crate) fn assert_golden_case(workspace: &GoldenWorkspace, case: GoldenCase) 
 
     match case.expectation {
         GoldenExpectation::Success { output } => {
-            assert_successful_case(&context, output, run_result)
+            assert_successful_case(&context, output, run_result)?;
+            if matches!(output, SuccessOutput::InPlaceIdempotent { .. }) {
+                assert_second_run_is_noop(&context)?;
+            }
+            Ok(())
         }
         GoldenExpectation::Failure {
             error: expected,
             output,
         } => assert_failed_case(&context, expected, output, run_result),
     }
+}
+
+/// Repeat an in-place command and require a silent, byte-identical no-op.
+///
+/// The workspace is deliberately not reset: the second run must observe the
+/// first run's output and decide there is nothing left to change.
+fn assert_second_run_is_noop(context: &RunContext<'_>) -> TestResult {
+    let expected = context.workspace.target_contents()?;
+    let outcome = run_from_args(command_args(context.workspace, context.case.command, true))
+        .map_err(|error| {
+            format!(
+                "golden fixture `{}` failed on its second run: {error}",
+                context.case.name
+            )
+        })?;
+    if outcome.stdout.is_some() || outcome.written_path.is_some() {
+        return Err(format!(
+            "golden fixture `{}` second run should be a silent no-op: {outcome:?}",
+            context.case.name
+        )
+        .into());
+    }
+    let after = context.workspace.target_contents()?;
+    if after != expected {
+        return Err(format!(
+            "golden fixture `{}` second run changed the \
+             target\nexpected:\n{expected}\nactual:\n{after}",
+            context.case.name
+        )
+        .into());
+    }
+    Ok(())
 }
 
 fn ensure_required_fragment(case: GoldenCase) -> TestResult {
@@ -161,6 +197,15 @@ pub(crate) fn command_args(
             args.push(target_arg);
             args.push(OsString::from(anchor));
             args.push(fragment_arg());
+        }
+        GoldenCommand::Complete { anchor, suffix } => {
+            args.push(OsString::from("complete"));
+            if let Some(configured) = suffix {
+                args.push(OsString::from("--suffix"));
+                args.push(OsString::from(configured));
+            }
+            args.push(target_arg);
+            args.push(OsString::from(anchor));
         }
     }
     args
