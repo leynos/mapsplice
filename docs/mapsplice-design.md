@@ -431,9 +431,10 @@ whether it ends the title or an inserted suffix word, the break is paired with
 one more backslash so the literal character survives. A backslash ending the
 suffix itself is paired the same way before the terminal punctuation, closing
 marker, or line ending that would otherwise consume it, and stays single at the
-end of the document, where nothing follows. A line already at the width limit
-fails closed instead. Every other byte — title wrapping, continuation lines,
-nested bullets, `Requires` references, and all numbering — is retained, which
+end of the document, where nothing follows. A line already at the width limit,
+or an unbreakable suffix word that cannot fit a fresh continuation line, fails
+closed instead. Every other byte — title wrapping, continuation lines, nested
+bullets, `Requires` references, and all numbering — is retained, which
 satisfies F1 and F2 without invoking the renderer at all. Section 5's
 *gate-clean* caveat does not arise from syntax, because no unstable syntax is
 normalized. It still bounds line width: an input paragraph that is already

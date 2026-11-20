@@ -354,14 +354,16 @@ suffix that itself ends with a literal backslash is paired the same way before
 the punctuation, closing marker, or line ending that follows it; nothing
 follows at the very end of a document, so no pairing is needed there. A line
 already at the column limit cannot take the extra character, and completion
-then fails rather than changing the title. Provided the title's existing
-wrapping already satisfies `make check-fmt`, completion keeps the title
-formatter-stable: the inserted break follows the formatter's own 80-column
-reflow, so `make fmt` makes no further change and `make check-fmt` still
-passes. The suffix is configured by `--suffix`,
-`MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
-[Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
-no marker, and a value containing a line break is rejected.
+then fails rather than changing the title. For the same reason, a suffix word
+that cannot fit even on a fresh continuation line is rejected rather than
+written past the limit. Provided the title's existing wrapping already satisfies
+`make check-fmt`, completion keeps the title formatter-stable: the inserted
+break follows the formatter's own 80-column reflow, so `make fmt` makes no
+further change and `make check-fmt` still passes. The suffix is configured by
+`--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
+[Complete `suffix`](#complete-suffix));
+it is trimmed, an empty value selects no marker, and a value containing a line
+break is rejected.
 
 Completing an item that is already `- [x]` changes nothing: no byte of the
 title is rewritten and no done marker is added, even when one is configured and

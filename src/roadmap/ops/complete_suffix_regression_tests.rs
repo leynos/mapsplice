@@ -6,8 +6,9 @@
 //! backslash escape the inserted line break. Encoded terminal punctuation was
 //! left ahead of the suffix, inline HTML that renders nothing was treated as a
 //! word boundary, a suffix word ending in a backslash could lose it at a wrap
-//! point, and a suffix ending in a backslash could escape the punctuation that
-//! followed it.
+//! point, a suffix ending in a backslash could escape the punctuation that
+//! followed it, and an unbreakable suffix word wider than a continuation line
+//! could overflow the column limit.
 
 use rstest::rstest;
 
@@ -169,6 +170,42 @@ fn a_backslash_that_cannot_be_paired_fails_closed() {
     assert!(
         matches!(error, MapspliceError::UnsafeCompletionEdit { .. }),
         "the failure must be a typed unsafe-edit error: {error:?}"
+    );
+}
+
+#[test]
+fn a_suffix_word_too_wide_for_a_continuation_line_fails_closed() {
+    let suffix = "a".repeat(75);
+    let source = completion_source("- [ ] 1.1.1. Finish the scope");
+
+    let error = complete_ok(&source, "1.1.1", Some(&suffix))
+        .expect_err("an unbreakable overlong word must fail closed");
+
+    assert!(
+        matches!(error, MapspliceError::UnsafeCompletionEdit { .. }),
+        "the failure must be a typed unsafe-edit error: {error:?}"
+    );
+}
+
+#[test]
+fn a_suffix_word_that_exactly_fills_a_continuation_line_is_allowed() {
+    let suffix = "a".repeat(74);
+    let expected = completion_source(&format!("- [x] 1.1.1. Finish the scope\n      {suffix}"));
+
+    let completed = complete_ok(
+        &completion_source("- [ ] 1.1.1. Finish the scope"),
+        "1.1.1",
+        Some(&suffix),
+    )
+    .expect("a word fitting the column limit should complete");
+
+    assert_eq!(
+        completed, expected,
+        "the continuation line must carry the word at the hanging indent"
+    );
+    assert!(
+        completed.lines().all(|line| line.chars().count() <= 80),
+        "every completed line must stay within 80 columns: {completed}"
     );
 }
 

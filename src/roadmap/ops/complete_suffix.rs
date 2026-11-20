@@ -257,11 +257,27 @@ fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> Option<String> {
             push_word(&mut rendered, word, separator);
             width += separator + word_width + tail_width;
         } else {
+            ensure_word_fits_continuation(hanging_width, word_width, tail_width)?;
             start_continuation_line(&mut rendered, width, wrap, word)?;
             width = hanging_width + word_width + tail_width;
         }
     }
     Some(rendered)
+}
+
+/// Require one unbreakable word to fit a fresh continuation line.
+///
+/// The wrapping loop only reaches here when the word cannot stay on the
+/// current line, and a word has no internal break point. A word too wide for
+/// the hanging indent, the terminal punctuation, and the column limit
+/// together would therefore leave the completed title over the limit, so the
+/// caller fails closed instead.
+fn ensure_word_fits_continuation(
+    hanging_width: usize,
+    word_width: usize,
+    tail_width: usize,
+) -> Option<()> {
+    (hanging_width + word_width + tail_width <= WRAP_COLUMNS).then_some(())
 }
 
 /// Append a word to the current line, preceded by `separator` spaces.
