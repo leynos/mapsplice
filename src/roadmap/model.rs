@@ -1,6 +1,6 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::{collections::BTreeMap, fmt, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use markdown::mdast::Node;
 
@@ -20,11 +20,18 @@ mod mixed_list_property_tests;
 #[cfg(test)]
 #[path = "model_property_tests.rs"]
 mod property_tests;
+#[path = "model_renumber_plan.rs"]
+mod renumber_plan;
+#[path = "model_source_span.rs"]
+mod source_span;
 #[path = "model_task_entry.rs"]
 mod task_entry;
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;
+
+pub use renumber_plan::RenumberPlan;
+pub(crate) use source_span::ItemSourceSpan;
 
 /// A parsed roadmap document.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -85,7 +92,7 @@ pub struct StepSection {
 }
 
 /// A numbered task list item.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct TaskEntry {
     /// Original identity for renumber tracking.
     pub identity: ItemIdentity,
@@ -99,14 +106,32 @@ pub struct TaskEntry {
     pub body: MarkdownNodes,
     /// Exact list-item source while this task and its descendants are unchanged.
     pub(crate) original_source: Option<String>,
+    /// Byte span of this item in the target source while it remains unchanged.
+    pub(crate) source_span: Option<ItemSourceSpan>,
     /// Ordered fourth-level sub-tasks nested beneath this task.
     sub_tasks: Vec<SubTaskEntry>,
     /// Original ordered child sequence beneath this task.
     children: Vec<TaskChild>,
 }
 
+impl PartialEq for TaskEntry {
+    /// Preserved source spans are provenance for in-place edits, not item identity.
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+            && self.number == other.number
+            && self.checked == other.checked
+            && self.summary == other.summary
+            && self.body == other.body
+            && self.original_source == other.original_source
+            && self.sub_tasks == other.sub_tasks
+            && self.children == other.children
+    }
+}
+
+impl Eq for TaskEntry {}
+
 /// Parser-owned parts required to build one task entry.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct TaskEntryParts {
     /// Original source and anchor identity for renumbering.
     pub(crate) identity: ItemIdentity,
@@ -120,6 +145,8 @@ pub(crate) struct TaskEntryParts {
     pub(crate) body: MarkdownNodes,
     /// Exact item source while its content remains unchanged.
     pub(crate) original_source: Option<String>,
+    /// Byte span of the item in the target source.
+    pub(crate) source_span: Option<ItemSourceSpan>,
     /// Structural sub-tasks nested beneath this task.
     pub(crate) sub_tasks: Vec<SubTaskEntry>,
     /// Body spans and sub-task identities in source order.
@@ -145,7 +172,7 @@ pub enum TaskChild {
 }
 
 /// A numbered sub-task list item.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SubTaskEntry {
     /// Original identity for renumber tracking.
     pub identity: ItemIdentity,
@@ -159,7 +186,23 @@ pub struct SubTaskEntry {
     pub body: MarkdownNodes,
     /// Exact list-item source while this sub-task and its descendants are unchanged.
     pub(crate) original_source: Option<String>,
+    /// Byte span of this item in the target source while it remains unchanged.
+    pub(crate) source_span: Option<ItemSourceSpan>,
 }
+
+impl PartialEq for SubTaskEntry {
+    /// Preserved source spans are provenance for in-place edits, not item identity.
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+            && self.number == other.number
+            && self.checked == other.checked
+            && self.summary == other.summary
+            && self.body == other.body
+            && self.original_source == other.original_source
+    }
+}
+
+impl Eq for SubTaskEntry {}
 
 /// Roadmap-owned Markdown nodes kept behind the parse/render boundary.
 #[derive(Clone, Default)]
@@ -213,13 +256,6 @@ pub struct ItemIdentity {
     pub source: SourceId,
     /// Original anchor in that document.
     pub anchor: RoadmapAnchor,
-}
-
-/// Old-to-new renumbering lookup.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct RenumberPlan {
-    /// Mapping by source document.
-    by_source: BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>,
 }
 
 impl RoadmapDocument {
@@ -327,74 +363,3 @@ impl RoadmapFragment {
 /// Return the fragment level without consuming the fragment.
 #[must_use]
 pub const fn fragment_level(fragment: &RoadmapFragment) -> RoadmapItemLevel { fragment.level() }
-
-impl RenumberPlan {
-    /// Resolve a rewritten anchor for the given source and original anchor.
-    #[must_use]
-    pub fn resolve(&self, source: SourceId, anchor: RoadmapAnchor) -> Option<RoadmapAnchor> {
-        self.by_source
-            .get(&source)
-            .and_then(|mapping| mapping.get(&anchor).copied())
-    }
-
-    /// Resolve a dependency reference written in `source` to its new anchor.
-    ///
-    /// The source-local mapping is consulted first. A unique cross-source
-    /// mapping is then accepted only for fragment text.
-    ///
-    /// The asymmetry is a correctness requirement rather than an optimization.
-    /// A fragment item's identity is its fragment-local spelling, because that
-    /// spelling is all the fragment file carries; a target item's identity is
-    /// the anchor it held before the operation. Those are the same kind of
-    /// value, so if target text could fall back to the fragment's mapping, a
-    /// replacement item spelled like the item it superseded would absorb a
-    /// surviving consumer's clause — the clause would keep its old digits and
-    /// silently resolve to a different item. A fragment clause, by contrast,
-    /// genuinely is written in the fragment's own numbering when it arrives, so
-    /// the fallback is exactly what makes it resolve.
-    ///
-    /// The choice between the two mappings is delegated to
-    /// [`select_resolution`], a pure kernel that `verus/lib.rs` proves
-    /// identity preservation over. Keeping the decision there — and only
-    /// there — is what makes the rule a theorem rather than a comment: were
-    /// the caller to withhold the cross-source value itself, the kernel's
-    /// fragment guard would be dead in production and the proof would be
-    /// about unreachable logic.
-    ///
-    /// [`select_resolution`]: super::ops::select_resolution
-    #[must_use]
-    pub fn resolve_reference(
-        &self,
-        source: SourceId,
-        anchor: RoadmapAnchor,
-    ) -> Option<RoadmapAnchor> {
-        let local = self.resolve(source, anchor);
-        let cross_unique = self.resolve_unique(anchor);
-        super::ops::select_resolution(local, cross_unique, source == SourceId::Fragment)
-    }
-
-    /// Resolve a unique mapping across all sources when local lookup is absent.
-    #[must_use]
-    pub fn resolve_unique(&self, anchor: RoadmapAnchor) -> Option<RoadmapAnchor> {
-        let mut matches = self
-            .by_source
-            .values()
-            .filter_map(|mapping| mapping.get(&anchor).copied());
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
-    }
-
-    /// Record a source-local old-to-new anchor mapping.
-    pub(crate) fn record_mapping(
-        &mut self,
-        source: SourceId,
-        old: RoadmapAnchor,
-        new: RoadmapAnchor,
-    ) {
-        self.by_source.entry(source).or_default().insert(old, new);
-    }
-}

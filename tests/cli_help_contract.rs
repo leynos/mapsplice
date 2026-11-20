@@ -58,6 +58,20 @@ const HELP_CASES: &[(&str, &str)] = &[
             "  -i, --in-place  Rewrite the target file instead of printing to stdout\n",
         ),
     ),
+    (
+        "complete",
+        concat!(
+            "Usage: mapsplice complete [OPTIONS] <TARGET> <ANCHOR>\n\n",
+            "Arguments:\n",
+            "  <TARGET>  \n",
+            "  <ANCHOR>  \n\n",
+            "Options:\n",
+            "      --suffix <SUFFIX>  \n",
+            "  -h, --help             Print help\n\n",
+            "Global options:\n",
+            "  -i, --in-place  Rewrite the target file instead of printing to stdout\n",
+        ),
+    ),
 ];
 
 #[test]

@@ -8,7 +8,7 @@ use super::{
     RoadmapItemLevel,
     SubTaskNumber,
     TaskNumber,
-    checklist::{ChecklistKind, parse_checklist_item_head},
+    checklist::{ChecklistKind, item_source_span, parse_checklist_item_head},
     locate,
     nested_task_list,
     parse_sub_task_paragraph,
@@ -46,6 +46,7 @@ pub(super) fn parse_task_item(
 ) -> Result<TaskEntry> {
     let head = parse_checklist_item_head(item, ChecklistKind::Task)
         .map_err(|error| locate(error, item.position.as_ref()))?;
+    let source_span = item_source_span(item, head.paragraph, context);
     let (number, summary) = parse_task_paragraph(head.paragraph)
         .map_err(|error| locate(error, head.paragraph.position.as_ref()))?;
     let (body, sub_tasks, children) = split_task_children(head.child_body, number, context)?;
@@ -59,6 +60,7 @@ pub(super) fn parse_task_item(
         summary: MarkdownNodes::from_nodes_in(summary, context.source_text),
         body,
         original_source,
+        source_span,
         sub_tasks,
         children,
     })
@@ -133,6 +135,7 @@ pub(super) fn parse_sub_task_item_unchecked(
 ) -> Result<SubTaskEntry> {
     let head = parse_checklist_item_head(item, ChecklistKind::SubTask)
         .map_err(|error| locate(error, item.position.as_ref()))?;
+    let source_span = item_source_span(item, head.paragraph, context);
     let (number, summary) = parse_sub_task_paragraph(head.paragraph)
         .map_err(|error| locate(error, head.paragraph.position.as_ref()))?;
     let body = parse_sub_task_body(head.child_body, context.source_text)?;
@@ -146,6 +149,7 @@ pub(super) fn parse_sub_task_item_unchecked(
         summary: MarkdownNodes::from_nodes_in(summary, context.source_text),
         body,
         original_source: original_item_source(item, context),
+        source_span,
     })
 }
 
