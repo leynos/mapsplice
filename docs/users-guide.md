@@ -329,8 +329,9 @@ Closing inline markers stay after the suffix, so `**Finish the scope.**` becomes
 punctuation replaces the title's trailing run, so `--suffix "done."` gives
 `1.1.1. Finish the scope done.` When the suffix would push the title's last
 line past 80 columns, only the suffix words move onto continuation lines
-indented to the title's content column; no existing title text is reflowed, so
-`make fmt` leaves the result unchanged. The suffix is configured by `--suffix`,
+indented to the title's content column; no existing title text is reflowed.
+Provided the title's existing lines already meet the 80-column gate, `make fmt`
+leaves the result unchanged. The suffix is configured by `--suffix`,
 `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
 [Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
 no marker, and a value containing a line break is rejected.
