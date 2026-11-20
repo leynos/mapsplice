@@ -21,64 +21,22 @@ fn workspace() -> TestResult<GoldenWorkspace> {
 }
 
 #[rstest]
+#[case::task("complete_task_preview", "1.1.1", None)]
+#[case::dependency("complete_dependency_preview", "1.1.1", None)]
+#[case::sub_task("complete_sub_task_preview", "1.1.1.1", None)]
+#[case::wrapped_title_suffix("complete_wrapped_title_suffix", "1.1.1", Some("— done"))]
 #[serial_test::serial(cli_env)]
-fn complete_task_preview(workspace: TestResult<GoldenWorkspace>) -> TestResult {
+fn complete_preview_golden_cases(
+    workspace: TestResult<GoldenWorkspace>,
+    #[case] fixture_name: &'static str,
+    #[case] anchor: &'static str,
+    #[case] suffix: Option<&'static str>,
+) -> TestResult {
     assert_golden_case(
         &workspace?,
         golden_success_case(
-            "complete_task_preview",
-            GoldenCommand::Complete {
-                anchor: "1.1.1",
-                suffix: None,
-            },
-            false,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn complete_dependency_preview(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "complete_dependency_preview",
-            GoldenCommand::Complete {
-                anchor: "1.1.1",
-                suffix: None,
-            },
-            false,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn complete_sub_task_preview(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "complete_sub_task_preview",
-            GoldenCommand::Complete {
-                anchor: "1.1.1.1",
-                suffix: None,
-            },
-            false,
-        ),
-    )
-}
-
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn complete_wrapped_title_suffix(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "complete_wrapped_title_suffix",
-            GoldenCommand::Complete {
-                anchor: "1.1.1",
-                suffix: Some("— done"),
-            },
+            fixture_name,
+            GoldenCommand::Complete { anchor, suffix },
             false,
         ),
     )

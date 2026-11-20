@@ -323,16 +323,17 @@ output; `--in-place` rewrites the target.
 A done marker is appended to the end of the item's title, after any wrapped
 title lines and before its nested bullets. Terminal punctuation stays terminal:
 `--suffix "— done"` turns `1.1.1. Finish the scope.` into
-`1.1.1. Finish the scope — done.`, not `1.1.1. Finish the scope. — done`. A
-suffix that carries its own terminal punctuation replaces the title's trailing
-run, so `--suffix "done."` gives `1.1.1. Finish the scope done.` When the
-suffix would push the title's last line past 80 columns, only the suffix words
-move onto continuation lines indented to the title's content column; no
-existing title text is reflowed, so `make fmt` leaves the result unchanged. The
-suffix is configured by `--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a
-`[cmds.complete]` table (see [Complete `suffix`](#complete-suffix)); it is
-trimmed, an empty value selects no marker, and a value containing a line break
-is rejected.
+`1.1.1. Finish the scope — done.`, not `1.1.1. Finish the scope. — done`.
+Closing inline markers stay after the suffix, so `**Finish the scope.**` becomes
+`**Finish the scope — done.**`. A suffix that carries its own terminal
+punctuation replaces the title's trailing run, so `--suffix "done."` gives
+`1.1.1. Finish the scope done.` When the suffix would push the title's last
+line past 80 columns, only the suffix words move onto continuation lines
+indented to the title's content column; no existing title text is reflowed, so
+`make fmt` leaves the result unchanged. The suffix is configured by `--suffix`,
+`MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
+[Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
+no marker, and a value containing a line break is rejected.
 
 Completing an item that is already `- [x]` is a no-op: the command exits 0 and
 writes nothing, even when a done marker is configured and the title does not
