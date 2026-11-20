@@ -90,29 +90,40 @@ pub(crate) enum Edit {
     },
 }
 
+/// Number of edit kinds [`Edit::from_selector`] divides the selector space by.
+const EDIT_KINDS: usize = 6;
+
 impl Edit {
     /// Convert a generated selector into a structural edit over the model.
+    ///
+    /// The remainder chooses the edit kind and the quotient chooses the
+    /// addressed position. Deriving both from one remainder would couple them:
+    /// with six kinds, a task index read from the remainder reaches only the
+    /// positions congruent to that kind, so some edits would never address
+    /// their tail. The quotient spans every position of every range over the
+    /// `u8` selector space.
     #[must_use]
     pub fn from_selector(selector: u8) -> Self {
         let index = usize::from(selector);
-        match selector.rem_euclid(6) {
+        let position = index.div_euclid(EDIT_KINDS);
+        match index.rem_euclid(EDIT_KINDS) {
             0 => Self::InsertTasksBefore {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             1 => Self::DeleteTask {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             2 => Self::ReplaceTask {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             3 => Self::DeleteStep {
-                step: index.rem_euclid(STEP_COUNT),
+                step: position.rem_euclid(STEP_COUNT),
             },
             4 => Self::DeletePhase {
-                phase: index.rem_euclid(PHASE_COUNT),
+                phase: position.rem_euclid(PHASE_COUNT),
             },
             _ => Self::ReplaceTaskInPlace {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
         }
     }
@@ -229,7 +240,7 @@ pub(crate) fn expectation_for(model: &Model, edit: Edit) -> Expectation {
 mod tests {
     //! Tests for the selector vocabulary the property suite draws from.
 
-    use super::Edit;
+    use super::{Edit, PHASE_COUNT, STEP_COUNT, TASK_COUNT};
 
     /// Every variant is reachable, including both replacement forms.
     ///
@@ -242,15 +253,46 @@ mod tests {
 
         for (selector, expected) in [
             (0, Edit::InsertTasksBefore { task: 0 }),
-            (1, Edit::DeleteTask { task: 1 }),
-            (2, Edit::ReplaceTask { task: 2 }),
-            (3, Edit::DeleteStep { step: 3 }),
+            (1, Edit::DeleteTask { task: 0 }),
+            (2, Edit::ReplaceTask { task: 0 }),
+            (3, Edit::DeleteStep { step: 0 }),
             (4, Edit::DeletePhase { phase: 0 }),
-            (5, Edit::ReplaceTaskInPlace { task: 5 }),
+            (5, Edit::ReplaceTaskInPlace { task: 0 }),
         ] {
             assert!(
                 edits.contains(&expected),
                 "selector {selector} should reach {expected:?}, got {edits:?}"
+            );
+        }
+    }
+
+    /// Every kind reaches every position it is able to address.
+    ///
+    /// The kind and the position are drawn from different parts of the
+    /// selector. Sharing one remainder ties each kind to the positions
+    /// congruent to it: with six kinds and twelve tasks, a task edit would
+    /// only ever reach two of the twelve, and the tail of the model would
+    /// never be edited. The quotient covers the whole `u8` space, so this
+    /// asserts the complete cross product rather than a sample.
+    #[test]
+    fn every_edit_kind_reaches_every_position() {
+        let edits = (0..=u8::MAX).map(Edit::from_selector).collect::<Vec<_>>();
+        let expected = (0..TASK_COUNT)
+            .flat_map(|task| {
+                [
+                    Edit::InsertTasksBefore { task },
+                    Edit::DeleteTask { task },
+                    Edit::ReplaceTask { task },
+                    Edit::ReplaceTaskInPlace { task },
+                ]
+            })
+            .chain((0..STEP_COUNT).map(|step| Edit::DeleteStep { step }))
+            .chain((0..PHASE_COUNT).map(|phase| Edit::DeletePhase { phase }));
+
+        for edit in expected {
+            assert!(
+                edits.contains(&edit),
+                "the selector space should reach {edit:?}"
             );
         }
     }
