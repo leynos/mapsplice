@@ -245,7 +245,13 @@ Stop and report rather than working around a breached tolerance.
       `in_place_replace_renumbers_item_and_rewrites_its_consumer` and
       `crlf_child_replacement_reemits_parent_summary_clause` pin both
       boundaries. Evidence: focused `roadmap_ops` suite passes 31/31.
-- [ ] `EP-M3` Delivery: push the branch and open the draft PR.
+- [x] (2026-11-20) `EP-M3` Delivery: branch
+      `issue-228-replace-refuses-to-edit-a-task-that-other-tasks-depend-on`
+      pushed over SSH at `ef46cab`, and draft PR
+      [#244](https://github.com/leynos/mapsplice/pull/244) opened against
+      `main`. CodeRabbit's third pass returned zero findings before delivery.
+      Verus remains unrunnable here; the ledger records the premise as Pending
+      under #160 and #162.
 
 ## Surprises & discoveries
 
@@ -797,6 +803,9 @@ record aliases. No dependencies are added.
   twelve tasks; recorded the Clippy division-lint lesson; documented the
   in-place rule, the operation-granted alias, and its Pending proof status. No
   runtime behaviour or milestone order changed.
+- 2026-11-20: Delivered as draft PR #244 from `ef46cab`, after the third
+  CodeRabbit pass returned no findings and all seven gates passed on that
+  commit. No scope or milestone order changed.
 - 2026-11-20: Second and third `EP-M3` review remediation. Qualified every
   promise that a consumer clause is textually unchanged: the identity always
   continues, the text is unchanged only when the number does not move, and
