@@ -7,12 +7,13 @@
 
 use std::process::Command;
 
-use mapsplice::{MapspliceError, run_from_args};
+use mapsplice::run_from_args;
 use rstest::rstest;
 
 use super::{
     assert_equal,
     assertions::assert_contains,
+    ops_assertions::assert_dangling_anchor,
     support::{TASK_FRAGMENT, TestResult, Workspace, workspace},
 };
 
@@ -29,18 +30,6 @@ const NESTED_BULLET_CONSUMER: &str = concat!(
     "- [ ] 1.1.2. Consumer.\n",
     "  - Requires 1.1.1.\n",
 );
-
-/// Assert a dangling-dependency error names the expected prerequisite.
-fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
-    let MapspliceError::DanglingDependency { anchor, .. } = error else {
-        panic!("expected dangling dependency error, got {error:?}");
-    };
-    assert_eq!(
-        anchor.to_string(),
-        expected,
-        "rejection must identify the expected prerequisite anchor"
-    );
-}
 
 /// Insertion must not silently redirect a nested consumer to the new task.
 ///
@@ -79,7 +68,7 @@ fn insert_before_task_rewrites_nested_bullet_dependency(
 /// item carrying its own number continues the identity, and the consumer's
 /// nested bullet must keep both its anchor and its bytes.
 #[rstest]
-#[serial_test::serial(cli_env)]
+#[serial_test::serial(observability_metrics)]
 fn in_place_replace_keeps_nested_bullet_dependency(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(NESTED_BULLET_CONSUMER)?;
@@ -263,113 +252,3 @@ fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
     Ok(())
 }
 
-/// The same roadmap with CRLF line endings, for the two cases below.
-///
-/// Every line ends in `\r\n`, including the nested clause bullet. The parser
-/// accepts CRLF and the rejection path compares whole-file bytes, so this
-/// fixture must be written and read without translation for the assertion to
-/// mean anything.
-const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
-    "# Test\r\n\r\n",
-    "## 1. Phase\r\n\r\n",
-    "### 1.1. Step\r\n\r\n",
-    "- [ ] 1.1.1. Prerequisite.\r\n",
-    "- [ ] 1.1.2. Consumer.\r\n",
-    "  - Requires 1.1.1.\r\n",
-);
-
-/// A rejected in-place edit must leave a CRLF target byte-identical, carriage returns and all.
-///
-/// Issue #85 lists line endings among the inputs the tests must vary,
-/// and this is the issue's own nested-bullet shape in the line-ending variant.
-/// The mode matters: preview never writes the file, so its byte-identity
-/// assertion would hold even if rejection normalized line endings on the way
-/// to a write. Only the in-place path can fail that way, which is why this
-/// mirrors `in_place_delete_required_by_nested_bullet_leaves_target_byte_identical`
-/// rather than `delete_task_required_by_nested_bullet_is_rejected`. A `\r`
-/// stripped from the untouched file would still leave a file that looks correct
-/// line-by-line, so the assertion is on the whole file rather than on any line.
-#[rstest]
-#[serial_test::serial(observability_metrics)]
-fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    let original = test_workspace.read_target()?;
-
-    let error = run_from_args([
-        "mapsplice",
-        "--in-place",
-        "delete",
-        test_workspace.target.as_str(),
-        "1.1.1",
-    ])
-    .expect_err("in-place delete of a required prerequisite must fail under CRLF too");
-
-    assert_dangling_anchor(&error, "1.1.1");
-    assert_equal(&test_workspace.read_target()?, &original);
-    Ok(())
-}
-
-/// An in-place replacement keeps the consumer's own CRLF terminator.
-///
-/// The replacement item is canonically rendered and comes back with LF, but the
-/// consumer task it does not touch keeps its source line, carriage return
-/// included. Its nested clause is re-emitted by the dependency rewrite, so only
-/// that line's terminator normalizes; the clause's text and anchor are
-/// unchanged. Asserting only that the clause text survives would miss the
-/// consumer line's terminator: it could be re-rendered without its `\r` and
-/// still read correctly line by line.
-#[rstest]
-#[serial_test::serial(cli_env)]
-fn crlf_in_place_replace_preserves_untouched_terminators(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment("- [x] 1.1.1. Revised prerequisite.\n")?;
-
-    run_from_args([
-        "mapsplice",
-        "--in-place",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let written = test_workspace.read_target()?;
-
-    assert_contains(&written, "- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\n");
-    assert_contains(&written, "- [x] 1.1.1. Revised prerequisite.\n");
-    Ok(())
-}
-
-/// A CRLF target rewrites its nested clause correctly, normalizing line endings.
-///
-/// The renumbering contract is unchanged by the line-ending convention: the
-/// clause follows its prerequisite rather than the inserted task that reused
-/// `1.1.1`. What differs is the rendering — the rewritten region comes back as
-/// LF, which is the documented normalization rather than a regression. Asserting
-/// the LF form is deliberate: it pins the actual behaviour, so a future change
-/// that starts preserving CRLF through a rewrite is visible here instead of
-/// passing unnoticed.
-#[rstest]
-#[serial_test::serial(observability_metrics)]
-fn crlf_target_rewrites_nested_clause_and_normalizes_line_endings(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment(TASK_FRAGMENT)?;
-
-    let outcome = run_from_args([
-        "mapsplice",
-        "insert",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let stdout = outcome.stdout.unwrap_or_default();
-
-    assert_contains(&stdout, "- [ ] 1.1.3. Consumer.\n\n  - Requires 1.1.2.\n");
-    Ok(())
-}

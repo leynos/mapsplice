@@ -19,7 +19,7 @@ use super::{
 /// The fragment holds only task `1.1.2`, so the retained task lands at
 /// `1.1.1`; the consumer in step `1.2` must follow it there.
 #[rstest]
-#[serial_test::serial(cli_env)]
+#[serial_test::serial(observability_metrics)]
 fn step_replacement_retains_a_referenced_task(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(concat!(
@@ -53,7 +53,7 @@ fn step_replacement_retains_a_referenced_task(workspace: TestResult<Workspace>) 
 
 /// A phase replacement retains the step and task a later phase requires.
 #[rstest]
-#[serial_test::serial(cli_env)]
+#[serial_test::serial(observability_metrics)]
 fn phase_replacement_retains_referenced_descendants(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

@@ -166,7 +166,6 @@ fn replace_sub_task_preserves_interleaved_body_order(
 /// exactly one sub-task carrying `1.1.1.2`, so the identity continues and both
 /// surviving consumers keep their bytes.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_sub_task_with_its_own_number_is_an_in_place_edit(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

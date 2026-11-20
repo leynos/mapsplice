@@ -210,9 +210,12 @@ insert still names whichever item that was, now carrying its new anchor.
 Replacement edits an item in place when it can. Replacing one phase, step,
 task, or addendum sub-task with exactly one fragment item that carries the
 addressed anchor continues the addressed identity, so a surviving clause keeps
-naming that item and is left byte-identical. Checking a task off is the common
-case; its identity survives because the replacement occupies the same
-structural position and number, not because its text is unchanged.
+naming that item and keeps its text and anchor. Checking a task off is the
+common case; its identity survives because the replacement occupies the same
+structural position and number, not because its text is unchanged. A clause the
+splice leaves unrewritten also keeps its source bytes, including an interior
+CRLF terminator; the final newline of the rendered document is always LF, as
+[Output modes](#output-modes) describes.
 
 A replacement retires the addressed identity when it cannot be read as an edit
 of that item: it supplies several sibling items, or one item whose anchor
@@ -306,9 +309,10 @@ including continuation-line indentation.
 
 Replacing a single item with one fragment item that carries the same anchor is
 an in-place edit: the addressed item's identity continues, dependency
-references to it are left alone, and only that item's own content changes. A
-replacement that changes the anchor or supplies several sibling items retires
-the addressed identity, as the dependency-reference section describes.
+references to it keep their text and resolve to it, and only that item's own
+content changes. A replacement that changes the anchor or supplies several
+sibling items retires the addressed identity, as the dependency-reference
+section describes.
 
 Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
 when replacement output must keep same-kind body lists distinct. The marker
@@ -414,7 +418,9 @@ The default mode writes the updated roadmap to standard output:
 mapsplice replace docs/roadmap.md 8 replacement.md > rewritten.md
 ```
 
-Non-empty rendered roadmaps end in exactly one final newline. A second
+Non-empty rendered roadmaps end in exactly one final newline. That newline is
+LF even when the source used CRLF. Interior terminators follow the source for
+items the edit preserves and are LF for items rendered canonically. A second
 `mapsplice` render of conformant output does not add another final newline.
 
 Use in-place mode when the target should be rewritten directly:

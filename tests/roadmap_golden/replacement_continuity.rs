@@ -27,7 +27,6 @@ use super::{
 
 /// Verify checking off a depended-on task leaves every consumer clause alone.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_depended_task_checks_off(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -44,7 +43,6 @@ fn replace_depended_task_checks_off(workspace: TestResult<GoldenWorkspace>) -> T
 /// The expected fixture is the preview case's own, so the two modes cannot
 /// drift apart without this case failing.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_depended_task_checks_off_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -61,7 +59,6 @@ fn replace_depended_task_checks_off_in_place(workspace: TestResult<GoldenWorkspa
 
 /// Verify a changed fragment number still retires the identity in preview.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_depended_task_changed_number_rejected_preview(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -82,7 +79,6 @@ fn replace_depended_task_changed_number_rejected_preview(
 
 /// Verify the same rejection in place leaves the target byte-identical.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_depended_task_changed_number_rejected_in_place(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -103,7 +99,6 @@ fn replace_depended_task_changed_number_rejected_in_place(
 
 /// Verify a multi-item replacement without the addressed number is rejected.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_depended_task_dropped_anchor_multi_item(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -128,7 +123,6 @@ fn replace_depended_task_dropped_anchor_multi_item(
 /// task, which lands at `1.1.1`. The consumer in step `1.2` must follow the
 /// task to its new number rather than be rejected or left naming the old one.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_retains_referenced_descendant(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

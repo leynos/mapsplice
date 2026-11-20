@@ -294,8 +294,8 @@ contract behind C3.
   maps to the anchor the replacement item holds after the edit, and the
   descendant identities paired with it are continued the same way. The alias is
   constructed only from structural correspondence — one fragment item at the
-  addressed level and anchor, its sub-tasks paired by position when their
-  anchors are unique on both sides — never by matching a number elsewhere in
+  addressed level and anchor, its sub-tasks paired by their shared anchor when
+  that anchor is unique on both sides — never by matching a number elsewhere in
   the document. `RenumberPlan::resolve` folds the alias into the local answer,
   so `select_resolution` still sees one source-local mapping and its guarantees
   are unchanged: target text resolves through the alias exactly as it resolves
