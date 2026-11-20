@@ -694,3 +694,40 @@ skill can drop from the safe-edit loop.
     rendering.
   - Success: inserting one task into a large roadmap leaves every other item
     byte-identical, pinned by golden fixtures for insert, delete, and replace.
+
+### 8.3. Complete roadmap items in place
+
+This step answers whether checking off finished work is a one-line operation
+rather than a fragment-file round trip. Its outcome informs whether an agent
+can record progress without rewriting any surrounding prose.
+
+- [x] 8.3.1. Add a `complete` command that checks off one item.
+
+  - Requires 8.2.3.
+  - Change only the addressed task or addendum sub-task's `- [ ]` marker to
+    `- [x]`, optionally inserting one configured done marker before terminal
+    punctuation, and leave every other byte unchanged.
+  - Success: a leaf task, a depended-upon task, and an addendum sub-task each
+    change only the target's checkbox or suffix; a wrapped title with nested
+    bullets is pinned by a golden fixture; running the command twice equals
+    running it once; phase, step, and missing anchors are rejected with typed
+    errors; and output is stable under the repository Markdown formatters.
+
+- [ ] 8.3.2. Guard completion of a parent with open sub-tasks.
+
+  - Requires 8.3.1.
+  - Add `--allow-incomplete-subtasks` so completing a task whose addendum
+    sub-tasks remain open fails unless the caller opts in, while dependants of
+    the completed item never block the edit.
+  - Success: completing a parent with an open sub-task is refused by default
+    with a typed error that names each open sub-task, and succeeds unchanged
+    with the flag.
+
+- [ ] 8.3.3. Reopen a completed roadmap item.
+
+  - Requires 8.3.1.
+  - Add a `reopen` command that reverses `complete`, restoring `- [x]` to
+    `- [ ]` and removing a configured done marker only when it is the exact
+    marker `complete` wrote.
+  - Success: `reopen` after `complete` restores the original bytes, rejects
+    phase and step anchors, and never removes incidental trailing text.

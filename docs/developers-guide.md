@@ -43,7 +43,9 @@ boundary, and roadmap domain modules:
   and optional fragment, translate CLI commands into roadmap operations, render
   the result, and perform in-place writes.
 - `src/cli.rs` is the command-line and `ortho-config` adapter. It exposes
-  `CommandKind`, `GlobalOptions`, and `CliRequest`.
+  `CommandKind`, `GlobalOptions`, and `CliRequest`, and delegates each
+  command's argument type and configuration merge to a sibling
+  `src/cli_<command>.rs` module.
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
@@ -134,10 +136,11 @@ only at external process boundaries.
 
 `MapspliceError` is the crate-level command error. Domain modules under
 `src/roadmap` construct only roadmap variants such as `InvalidRoadmap`,
-`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, and `DanglingDependency`;
-`ExportError` variants are constructed only in `src/export_command`, and `Io`
-variants only in `src/fs`. One public enum keeps command callers on a single
-error type while each boundary still owns the errors it can raise.
+`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, `DanglingDependency`,
+`UnsupportedAnchorLevel`, and `UnsafeCompletionEdit`; `ExportError` variants
+are constructed only in `src/export_command`, and `Io` variants only in
+`src/fs`. One public enum keeps command callers on a single error type while
+each boundary still owns the errors it can raise.
 
 ## 4. Roadmap export schema changes
 
@@ -151,14 +154,18 @@ pre-commit quality gates must pass before the change is reviewed.
 
 ## 5. Configuration behaviour
 
-Configuration behaviour has two current owners:
+Configuration behaviour has three current owners:
 
 - `src/cli_config.rs` owns global `in_place` discovery and parsing. It reads
   `$XDG_CONFIG_HOME/mapsplice/config.toml` and local `./.mapsplice.toml`,
   applies `MAPSPLICE_IN_PLACE`, then lets `--in-place` / `-i` force `true`.
-- `src/cli.rs::InsertConfig` owns the insert command's `after` option. It
+- `src/cli_insert.rs::InsertConfig` owns the insert command's `after` option. It
   removes Clap's implicit `false` value when `--after` is absent, then merges
   defaults through `ortho_config::load_and_merge_subcommand_for`.
+- `src/cli_complete.rs::CompleteConfig` owns the complete command's `suffix`
+  option. It merges defaults the same way, then rejects embedded line breaks
+  and treats blank input as no suffix, because the patcher inserts the text
+  inside a single Markdown paragraph.
 - Required values such as target paths, anchors, and fragment paths remain
   command-line arguments.
 
