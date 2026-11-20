@@ -36,7 +36,8 @@ fn suffix_placement(
     #[case] message: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
+        complete_ok(&completion_source(item), "1.1.1", suffix)
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "{message}"
     );
@@ -84,7 +85,8 @@ fn suffix_around_closing_inline_markers(
     #[case] expected_item: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
+        complete_ok(&completion_source(item), "1.1.1", suffix)
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "closing markers should stay intact around the inserted suffix"
     );
@@ -98,7 +100,8 @@ fn suffix_around_closing_inline_markers(
 )]
 fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &str) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("— done")),
+        complete_ok(&completion_source(item), "1.1.1", Some("— done"))
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "the suffix must follow a closing backtick, not extend the code span"
     );
@@ -131,7 +134,8 @@ fn punctuation_handling_respects_formatting_and_escapes(
     #[case] expected_item: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
+        complete_ok(&completion_source(item), "1.1.1", suffix)
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "marker-wrapped and escaped punctuation must not be misread"
     );
@@ -155,7 +159,8 @@ fn suffix_placement_uses_the_parsed_inline_structure(
     #[case] expected_item: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("— done")),
+        complete_ok(&completion_source(item), "1.1.1", Some("— done"))
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "literal trailing markers stay put while real closing markers move"
     );
@@ -183,7 +188,8 @@ fn suffix_detection_across_inline_markers(
     #[case] expected_item: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
+        complete_ok(&completion_source(item), "1.1.1", suffix)
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "markup must not hide an existing suffix or fabricate one inside a word"
     );
@@ -198,7 +204,8 @@ fn a_formatted_suffix_is_recognized_after_insertion() {
             &completion_source("- [ ] 1.1.1. Finish"),
             "1.1.1",
             Some("**done**")
-        ),
+        )
+        .expect("fixture completion should succeed"),
         expected,
         "a formatted suffix without title punctuation must pass validation"
     );
@@ -207,7 +214,8 @@ fn a_formatted_suffix_is_recognized_after_insertion() {
 #[test]
 fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
     let item = format!("- [ ] 1.1.1. **{}.**", "a".repeat(58));
-    let completed = complete_ok(&completion_source(&item), "1.1.1", Some("done."));
+    let completed = complete_ok(&completion_source(&item), "1.1.1", Some("done."))
+        .expect("fixture completion should succeed");
     let longest = completed
         .lines()
         .map(|line| line.chars().count())
@@ -230,7 +238,8 @@ fn a_literal_trailing_marker_does_not_hide_a_missing_suffix() {
     let expected = "- [x] 1.1.1. Remove every build artefact named build* build";
 
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("build")),
+        complete_ok(&completion_source(item), "1.1.1", Some("build"))
+            .expect("fixture completion should succeed"),
         completion_source(expected),
         "a literal marker must not make the title look already suffixed"
     );
@@ -243,7 +252,8 @@ fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
     let expected = format!("- [x] 1.1.1. {content} **done.**");
 
     assert_eq!(
-        complete_ok(&completion_source(&item), "1.1.1", Some("**done.**")),
+        complete_ok(&completion_source(&item), "1.1.1", Some("**done.**"))
+            .expect("fixture completion should succeed"),
         completion_source(&expected),
         "the replaced full stop should free the column the suffix needs"
     );
@@ -264,7 +274,8 @@ fn suffix_detection_treats_punctuation_as_a_word_boundary(
     #[case] expected_item: &str,
 ) {
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("done")),
+        complete_ok(&completion_source(item), "1.1.1", Some("done"))
+            .expect("fixture completion should succeed"),
         completion_source(expected_item),
         "punctuation should end a word while an underscore should not"
     );
@@ -279,7 +290,8 @@ fn a_marker_carrying_suffix_passes_its_own_validation() {
             &completion_source("- [ ] 1.1.1. Remove the artefact"),
             "1.1.1",
             Some("build*")
-        ),
+        )
+        .expect("fixture completion should succeed"),
         completion_source(expected),
         "a literal marker in the configured suffix must survive validation"
     );
@@ -291,7 +303,8 @@ fn an_existing_literal_marker_suffix_is_not_duplicated() {
     let expected = "- [x] 1.1.1. Remove every artefact named build*";
 
     assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("build*")),
+        complete_ok(&completion_source(item), "1.1.1", Some("build*"))
+            .expect("fixture completion should succeed"),
         completion_source(expected),
         "a title already ending with the literal-marker suffix should only be ticked"
     );
@@ -303,7 +316,7 @@ fn a_title_already_ending_with_the_suffix_word_keeps_it_once() {
     let expected = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Ship it done.\n";
 
     assert_eq!(
-        complete_ok(source, "1.1.1", Some("done")),
+        complete_ok(source, "1.1.1", Some("done")).expect("fixture completion should succeed"),
         expected,
         "an existing whole-word suffix should not be repeated"
     );

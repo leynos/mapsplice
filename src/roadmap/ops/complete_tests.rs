@@ -26,7 +26,7 @@ fn completes_a_leaf_task_without_touching_anything_else() {
     let expected = ROADMAP.replace("- [ ] 1.1.1.", "- [x] 1.1.1.");
 
     assert_eq!(
-        complete_ok(ROADMAP, "1.1.1", None),
+        complete_ok(ROADMAP, "1.1.1", None).expect("fixture completion should succeed"),
         expected,
         "completion should change only the addressed checkbox"
     );
@@ -34,7 +34,7 @@ fn completes_a_leaf_task_without_touching_anything_else() {
 
 #[test]
 fn completing_a_depended_upon_task_leaves_its_dependants_alone() {
-    let completed = complete_ok(ROADMAP, "1.1.1", None);
+    let completed = complete_ok(ROADMAP, "1.1.1", None).expect("fixture completion should succeed");
 
     assert!(
         completed.contains("- [x] 1.1.1. First task."),
@@ -48,7 +48,8 @@ fn completing_a_depended_upon_task_leaves_its_dependants_alone() {
 
 #[test]
 fn completes_an_addendum_sub_task_only() {
-    let completed = complete_ok(ROADMAP, "1.1.3.1", None);
+    let completed =
+        complete_ok(ROADMAP, "1.1.3.1", None).expect("fixture completion should succeed");
 
     assert!(
         completed.contains("  - [x] 1.1.3.1. Addendum sub-task."),
@@ -62,7 +63,7 @@ fn completes_an_addendum_sub_task_only() {
 
 #[test]
 fn completing_a_parent_task_leaves_its_addendum_alone() {
-    let completed = complete_ok(ROADMAP, "1.1.3", None);
+    let completed = complete_ok(ROADMAP, "1.1.3", None).expect("fixture completion should succeed");
 
     assert!(
         completed.contains("- [x] 1.1.3. Parent task."),
@@ -78,8 +79,10 @@ fn completing_a_parent_task_leaves_its_addendum_alone() {
 fn completing_twice_equals_completing_once() {
     let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Finish the scope.\n";
 
-    let first = complete_ok(source, "1.1.1", Some("— done"));
-    let second = complete_ok(&first, "1.1.1", Some("— done"));
+    let first =
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
+    let second =
+        complete_ok(&first, "1.1.1", Some("— done")).expect("fixture completion should succeed");
 
     assert_eq!(second, first, "the second run should be byte-identical");
 }
@@ -89,7 +92,7 @@ fn an_already_checked_item_is_untouched_even_with_a_new_suffix() {
     let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Finish the scope.\n";
 
     assert_eq!(
-        complete_ok(source, "1.1.1", Some("— done")),
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed"),
         source,
         "a checked item must not gain a suffix on a later run"
     );
@@ -101,7 +104,7 @@ fn a_checkbox_like_sequence_in_the_title_is_not_the_checkbox() {
     let expected = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Copy [ ] markers.\n";
 
     assert_eq!(
-        complete_ok(source, "1.1.1", None),
+        complete_ok(source, "1.1.1", None).expect("fixture completion should succeed"),
         expected,
         "only the item's own marker should change"
     );
@@ -113,7 +116,7 @@ fn a_tab_marked_unchecked_item_is_completed() {
     let expected = completion_source("- [x] 1.1.1. Finish the scope.");
 
     assert_eq!(
-        complete_ok(&source, "1.1.1", None),
+        complete_ok(&source, "1.1.1", None).expect("fixture completion should succeed"),
         expected,
         "a tab, which the parser accepts as unchecked, should become checked"
     );
@@ -140,7 +143,7 @@ fn a_wrapped_title_wraps_the_suffix_with_the_title_hanging_indent() {
     );
 
     assert_eq!(
-        complete_ok(source, "1.1.1", Some("— done")),
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed"),
         expected,
         "only the final title line should be refilled, at six spaces of hanging indent"
     );
@@ -161,7 +164,7 @@ fn an_addendum_suffix_uses_eight_spaces_of_hanging_indent() {
     );
 
     assert_eq!(
-        complete_ok(source, "1.1.1.1", Some("— done")),
+        complete_ok(source, "1.1.1.1", Some("— done")).expect("fixture completion should succeed"),
         expected,
         "a nested addendum should wrap beneath its own content column"
     );
@@ -174,7 +177,8 @@ fn crlf_line_endings_are_used_for_inserted_breaks() {
         "- [ ] 1.1.1. A wrapped task title that continues\r\n",
         "  keeps the dependent task reference visible in the rendered roadmap output.\r\n",
     );
-    let completed = complete_ok(source, "1.1.1", Some("— done"));
+    let completed =
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
 
     assert!(
         completed.contains("output —\r\n      done.\r\n"),
@@ -193,7 +197,8 @@ fn cr_only_line_endings_are_used_for_inserted_breaks() {
         "- [ ] 1.1.1. A wrapped task title that continues\r",
         "  keeps the dependent task reference visible in the rendered roadmap output.\r",
     );
-    let completed = complete_ok(source, "1.1.1", Some("— done"));
+    let completed =
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
 
     assert!(
         completed.contains("output —\r      done.\r"),
@@ -208,7 +213,7 @@ fn multibyte_titles_keep_their_bytes_intact() {
         "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Café — naïve résumé — done.\n";
 
     assert_eq!(
-        complete_ok(source, "1.1.1", Some("— done")),
+        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed"),
         expected,
         "byte offsets should not split multibyte characters"
     );
