@@ -207,12 +207,21 @@ insert still names whichever item that was, now carrying its new anchor.
 Replacement edits an item in place when it can. Replacing one phase, step,
 task, or addendum sub-task with exactly one fragment item that carries the
 addressed anchor continues the addressed identity, so a surviving clause keeps
-naming that item and keeps its text and anchor. Checking a task off is the
+naming that item rather than failing as dangling. Checking a task off is the
 common case; its identity survives because the replacement occupies the same
-structural position and number, not because its text is unchanged. A clause the
-splice leaves unrewritten also keeps its source bytes, including an interior
-CRLF terminator; the final newline of the rendered document is always LF, as
-[Output modes](#output-modes) describes.
+structural position and anchor, not because its text is unchanged. When the
+replacement keeps the addressed number, the clause's text is unchanged too.
+Renumbering can still move the item: replacing `1.1.3` in a step that holds only
+`1.1.1` and `1.1.3` gives the replacement `1.1.2`, so the clause is rewritten
+to the new number. It keeps the dependency either way.
+
+Source bytes are preserved only for items the splice does not re-render. The
+addressed item, a parent whose content changed, and headings are emitted
+canonically with LF. Replacing a sub-task therefore re-emits a clause in its
+parent task's summary even when the clause's anchor does not change. A task
+item that keeps its source also keeps an interior CRLF terminator. The final
+newline of the rendered document is always LF, as [Output modes](#output-modes)
+describes.
 
 A replacement retires the addressed identity when it cannot be read as an edit
 of that item: it supplies several sibling items, or one item whose anchor
@@ -302,14 +311,16 @@ from the fragment file. Replacing a phase with multiple phases is supported,
 provided the fragment itself contains phases.
 
 Task-level replacements preserve unchanged sibling task source byte-for-byte,
-including continuation-line indentation.
+including continuation-line indentation and interior line terminators; only the
+document's final newline is normalized.
 
 Replacing a single item with one fragment item that carries the same anchor is
-an in-place edit: the addressed item's identity continues, dependency
-references to it keep their text and resolve to it, and only that item's own
-content changes. A replacement that changes the anchor or supplies several
-sibling items retires the addressed identity, as the dependency-reference
-section describes.
+an in-place edit: the addressed item's identity continues and dependency
+references to it keep resolving. When the replacement keeps the addressed
+number, those references also keep their text; when renumbering moves the item,
+they are rewritten to its new number. A replacement that changes the anchor or
+supplies several sibling items retires the addressed identity, as the
+dependency-reference section describes.
 
 Canonical output can include `<!-- mapsplice: preserve body list boundary -->`
 when replacement output must keep same-kind body lists distinct. The marker

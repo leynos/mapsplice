@@ -44,17 +44,20 @@ change.
 
 After this change, a replacement consisting of exactly one item at the same
 level, whose fragment-local number equals the addressed number, is an in-place
-edit of the same item. The command succeeds, only the replaced item's line
-changes, and every `Requires` clause naming the addressed item keeps its text
-and anchor: its number did not move. A clause the splice does not rewrite also
-keeps its source bytes, including an interior CRLF terminator; the rendered
-document's final newline is always LF, as the users' guide documents, so a
-clause that is the document's last line loses only that terminator. Descendants
-of the replaced item (steps under a phase, tasks and sub-tasks under a step,
-sub-tasks under a task) keep their identities too, but only where a unique
-same-numbered descendant exists on both the retired and replacement sides. A
-retained descendant can still move to a different number within the replacement
-— replacing step `1.1` with a step holding only task `1.1.2` renumbers it to
+edit of the same item. The command succeeds and only the replaced item's
+content changes. Every `Requires` clause naming the addressed item keeps
+resolving to that identity. When the replacement keeps the addressed number its
+text is unchanged; when contiguous renumbering moves the item, as in a step
+with gaps, the clause is rewritten to the new number. Source bytes are retained
+per item: the addressed item, a parent whose content changed, and headings are
+rendered canonically with LF, so a clause in a re-rendered parent summary loses
+its interior CRLF even when its anchor does not change. The rendered document's
+final newline is always LF, as the users' guide documents. Descendants of the
+replaced item (steps under a phase, tasks and sub-tasks under a step, sub-tasks
+under a task) keep their identities too, but only where a unique same-numbered
+descendant exists on both the retired and replacement sides. A retained
+descendant can still move to a different number within the replacement —
+replacing step `1.1` with a step holding only task `1.1.2` renumbers it to
 `1.1.1` — so references to that descendant are rewritten deterministically
 rather than preserved byte-for-byte.
 
@@ -217,12 +220,14 @@ Stop and report rather than working around a breached tolerance.
       runnable; no proof source changed.
 - [x] (2026-11-20) `EP-M3` review remediation: qualified the byte-identity
       claims after CodeRabbit showed a re-rendered line can end LF on a CRLF
-      source. The user guide now promises text and anchor continuity, states
-      that an unrewritten clause keeps its source bytes including an interior
-      CRLF terminator, and records that the rendered document's final newline
-      is always LF; the design pairs sub-tasks by their shared anchor under the
-      uniqueness rule the implementation uses; the ExecPlan's own
-      byte-identity claims are qualified the same way. Renamed the CRLF
+      source. The user guide now promises identity continuity, unchanged clause
+      text only when the number does not move, and per-item source
+      preservation: an unrewritten task item keeps an interior CRLF, while the
+      addressed item, a changed parent, and headings render canonically, and
+      the document's final newline is always LF. The design pairs sub-tasks by
+      their shared anchor under the uniqueness rule the implementation uses;
+      the ExecPlan's own byte-identity claims are qualified the same way.
+      Renamed the CRLF
       regression to `crlf_in_place_replace_normalizes_only_the_final_terminator`
       and added `crlf_in_place_replace_keeps_an_interior_clause_terminator`,
       which is only observable with a trailing task. The first full gate run
@@ -231,6 +236,15 @@ Stop and report rather than working around a breached tolerance.
       `tests/roadmap_ops/crlf_line_endings.rs` and the shared
       `assert_dangling_anchor` helper in `tests/roadmap_ops/assertions.rs`.
       Evidence: focused `roadmap_ops` suite passes 29/29 after the split.
+- [x] (2026-11-20) `EP-M3` third review remediation: CodeRabbit showed two
+      over-broad promises. Identity continuity is now separated from text
+      continuity — a same-anchor replacement whose item is renumbered rewrites
+      the surviving clause — and source preservation is stated per item: the
+      addressed item, a changed parent summary, and headings render with LF,
+      while an unrewritten task keeps an interior CRLF.
+      `in_place_replace_renumbers_item_and_rewrites_its_consumer` and
+      `crlf_child_replacement_reemits_parent_summary_clause` pin both
+      boundaries. Evidence: focused `roadmap_ops` suite passes 31/31.
 - [ ] `EP-M3` Delivery: push the branch and open the draft PR.
 
 ## Surprises & discoveries
@@ -279,10 +293,20 @@ Stop and report rather than working around a breached tolerance.
   `"- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\r\n"` and failed because the
   clause is the last line; a probe with a trailing task then produced
   `"- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\r\n- [ ] 1.1.3. Tail task.\n"`,
-  showing interior CRLF was preserved. Impact: the two companion regressions
-  separate preserved source from the documented document-ending rule, and the
-  guides promise text and anchor continuity rather than whole-clause byte
-  identity. Changing the renderer is outside this issue's scope.
+  showing interior CRLF was preserved. A later probe showed the rule is per
+  item: replacing a sub-task re-renders its parent, so a summary clause in that
+  parent returns with LF even though its anchor does not change, and headings
+  always render with LF. Impact: the two companion regressions separate
+  preserved source from the documented document-ending rule, and the guides
+  promise identity continuity with per-item preservation rather than
+  document-wide byte identity. Changing the renderer is outside this issue's
+  scope.
+- Observation: an in-place replacement does not always keep its number.
+  Evidence: a step holding only `1.1.1` and `1.1.3` accepts a fragment item
+  `1.1.3`, renumbers it to `1.1.2`, and rewrites the surviving consumer's
+  clause from `Requires 1.1.3.` to `Requires 1.1.2.`. Impact: the guides
+  separate identity continuity from text continuity, which holds only when the
+  number does not move.
 - Observation: Whitaker's 400-line limit applies to the property suite's
   test-support modules, not only to `src/`. Evidence: the full lint run failed
   with `Module generation spans 477 lines, exceeding the allowed 400.` once the
@@ -476,10 +500,10 @@ occupying the addressed position, when the plan has no other mapping for it.
   identities, and a later operation on the same document resolves every
   reference the committed output contains.
 - `L-in-place`: replacing a task with an identical same-number task produces
-  byte-identical output (modulo the intended edit) for a document whose
-  terminators are LF, because the replacement keeps its number and every
-  consumer keeps its clause. A CRLF document differs only in its final newline,
-  which the renderer normalizes to LF.
+  byte-identical output (modulo the intended edit) for a conformant LF
+  document, because the replacement keeps its number and every consumer keeps
+  its clause. On a CRLF source, headings and every re-rendered item come back
+  with LF; preservation is per item, not document-wide.
 
 ### Axioms (trusted, not verified here)
 
@@ -773,9 +797,10 @@ record aliases. No dependencies are added.
   twelve tasks; recorded the Clippy division-lint lesson; documented the
   in-place rule, the operation-granted alias, and its Pending proof status. No
   runtime behaviour or milestone order changed.
-- 2026-11-20: Second `EP-M3` review remediation. Qualified every promise that
-  an unrewritten consumer clause is byte-identical: text and anchor continuity
-  hold, interior terminators are preserved, and only the document's final
-  newline is always LF. Corrected the descendant pairing description to shared
+- 2026-11-20: Second and third `EP-M3` review remediation. Qualified every
+  promise that a consumer clause is textually unchanged: the identity always
+  continues, the text is unchanged only when the number does not move, and
+  source preservation is per item, so a re-rendered parent summary loses its
+  interior terminators. Corrected the descendant pairing description to shared
   anchor, matching `pair_descendants`. No runtime behaviour, API, or milestone
   order changed.
