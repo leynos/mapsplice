@@ -97,6 +97,42 @@ fn in_place_replace_keeps_nested_bullet_dependency(workspace: TestResult<Workspa
     Ok(())
 }
 
+/// An in-place replacement that renumbers still keeps its dependency.
+///
+/// The fragment carries the addressed anchor `1.1.3`, but the step has a gap,
+/// so contiguous renumbering moves the replacement to `1.1.2`. The consumer's
+/// clause is rewritten to the new number rather than left dangling: the
+/// reference follows the identity, not the digits.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn in_place_replace_renumbers_item_and_rewrites_its_consumer(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "# Test\n\n",
+        "## 1. Phase\n\n",
+        "### 1.1. Step\n\n",
+        "- [ ] 1.1.1. Consumer. Requires 1.1.3.\n",
+        "- [ ] 1.1.3. Prerequisite.\n",
+    ))?;
+    test_workspace.write_fragment("- [x] 1.1.3. Revised prerequisite.\n")?;
+
+    run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.3",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let written = test_workspace.read_target()?;
+
+    assert_contains(&written, "- [ ] 1.1.1. Consumer. Requires 1.1.2.\n");
+    assert_contains(&written, "- [x] 1.1.2. Revised prerequisite.\n");
+    Ok(())
+}
+
 /// Deleting a still-required prerequisite must fail, not create a self-dependency.
 #[rstest]
 #[serial_test::serial(observability_metrics)]

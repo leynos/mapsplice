@@ -139,6 +139,56 @@ fn crlf_in_place_replace_keeps_an_interior_clause_terminator(
     Ok(())
 }
 
+/// Replacing a sub-task re-emits its parent summary with canonical terminators.
+///
+/// Source preservation is per item. The parent task's child list changes, so
+/// the parent renders canonically and the clause on its summary continuation
+/// line ends LF even though its anchor does not change. The sibling task after
+/// it still keeps its interior CRLF, which makes this a per-item rule rather
+/// than document-wide normalization.
+#[rstest]
+#[serial_test::serial(cli_env)]
+fn crlf_child_replacement_reemits_parent_summary_clause(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "# Test\r\n\r\n",
+        "## 1. Phase\r\n\r\n",
+        "### 1.1. Step\r\n\r\n",
+        "- [ ] 1.1.1. Parent task.\r\n",
+        "  Requires 1.1.2.\r\n",
+        "  - [ ] 1.1.1.1. Child.\r\n",
+        "- [ ] 1.1.2. Prerequisite.\r\n",
+        "- [ ] 1.1.3. Tail task.\r\n",
+    ))?;
+    test_workspace.write_fragment("- [x] 1.1.1.1. Revised child.\n")?;
+
+    run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let written = test_workspace.read_target()?;
+
+    assert_contains(
+        &written,
+        concat!(
+            "- [ ] 1.1.1. Parent task.\n",
+            "  Requires 1.1.2.\n",
+            "  - [x] 1.1.1.1. Revised child.\n",
+        ),
+    );
+    assert_contains(
+        &written,
+        "- [ ] 1.1.2. Prerequisite.\r\n- [ ] 1.1.3. Tail task.\n",
+    );
+    Ok(())
+}
+
 /// A CRLF target rewrites its nested clause correctly, normalizing line endings.
 ///
 /// The renumbering contract is unchanged by the line-ending convention: the
