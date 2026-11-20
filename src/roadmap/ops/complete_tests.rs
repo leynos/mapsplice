@@ -2,7 +2,7 @@
 
 use rstest::rstest;
 
-use super::complete_item;
+use super::{complete_item, test_support::complete_ok};
 use crate::{
     error::MapspliceError,
     roadmap::{RoadmapItemLevel, parse_anchor, parse_roadmap},
@@ -17,13 +17,6 @@ const ROADMAP: &str = concat!(
     "- [ ] 1.1.3. Parent task.\n",
     "  - [ ] 1.1.3.1. Addendum sub-task.\n",
 );
-
-/// Complete `anchor` in `source`, failing the test on error.
-fn complete_ok(source: &str, anchor: &str, suffix: Option<&str>) -> String {
-    let roadmap = parse_roadmap(source).expect("fixture roadmap should parse");
-    let parsed_anchor = parse_anchor(anchor).expect("fixture anchor should parse");
-    complete_item(&roadmap, source, parsed_anchor, suffix).expect("completion should succeed")
-}
 
 #[test]
 fn completes_a_leaf_task_without_touching_anything_else() {
@@ -78,140 +71,6 @@ fn completing_a_parent_task_leaves_its_addendum_alone() {
     );
 }
 
-/// Build a one-step roadmap around one task line.
-fn completion_source(item: &str) -> String {
-    format!("## 1. Phase one\n\n### 1.1. Step one\n\n{item}\n")
-}
-
-#[rstest]
-#[case::terminal_punctuation_is_preserved(
-    "- [ ] 1.1.1. Finish the scope.",
-    Some("— done"),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "the done suffix should sit before the title's final full stop"
-)]
-#[case::punctuated_suffix_replaces_title_punctuation(
-    "- [ ] 1.1.1. Finish the scope.",
-    Some("— done."),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "a punctuated suffix should not double the terminal punctuation"
-)]
-#[case::existing_suffix_is_not_duplicated(
-    "- [ ] 1.1.1. Finish the scope — done.",
-    Some("— done"),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "an already suffixed title should only gain its check mark"
-)]
-#[case::suffix_word_inside_a_longer_word_does_not_match(
-    "- [ ] 1.1.1. Get it undone.",
-    Some("done"),
-    "- [x] 1.1.1. Get it undone done.",
-    "a suffix should only match at a word boundary"
-)]
-fn suffix_placement(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-    #[case] message: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
-        completion_source(expected_item),
-        "{message}"
-    );
-}
-
-#[rstest]
-#[case::suffix_stays_inside_closing_markers(
-    "- [ ] 1.1.1. **Finish the scope.**",
-    Some("— done"),
-    "- [x] 1.1.1. **Finish the scope — done.**"
-)]
-#[case::existing_suffix_inside_closing_markers_is_not_duplicated(
-    "- [ ] 1.1.1. **Finish the scope — done.**",
-    Some("— done"),
-    "- [x] 1.1.1. **Finish the scope — done.**"
-)]
-#[case::punctuated_suffix_replaces_marker_punctuation(
-    "- [ ] 1.1.1. **Finish the scope.**",
-    Some("done."),
-    "- [x] 1.1.1. **Finish the scope done.**"
-)]
-fn suffix_around_closing_inline_markers(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
-        completion_source(expected_item),
-        "the suffix should stay inside the closing inline markers"
-    );
-}
-
-#[rstest]
-#[case::suffix_outside_closing_markers_is_not_duplicated(
-    "- [ ] 1.1.1. **Finish the scope — done**.",
-    Some("— done"),
-    "- [x] 1.1.1. **Finish the scope — done**."
-)]
-#[case::suffix_after_an_opening_marker_is_not_duplicated(
-    "- [ ] 1.1.1. Finish **done**",
-    Some("done"),
-    "- [x] 1.1.1. Finish **done**"
-)]
-#[case::a_suffix_word_inside_marked_text_still_needs_a_boundary(
-    "- [ ] 1.1.1. Get it **undone**",
-    Some("done"),
-    "- [x] 1.1.1. Get it **undone done**"
-)]
-fn suffix_detection_across_inline_markers(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix),
-        completion_source(expected_item),
-        "markup must not hide an existing suffix or fabricate one inside a word"
-    );
-}
-
-#[test]
-fn a_formatted_suffix_is_recognized_after_insertion() {
-    let expected = completion_source("- [x] 1.1.1. Finish **done**");
-
-    assert_eq!(
-        complete_ok(
-            &completion_source("- [ ] 1.1.1. Finish"),
-            "1.1.1",
-            Some("**done**")
-        ),
-        expected,
-        "a formatted suffix without title punctuation must pass validation"
-    );
-}
-
-#[test]
-fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
-    let item = format!("- [ ] 1.1.1. **{}.**", "a".repeat(58));
-    let completed = complete_ok(&completion_source(&item), "1.1.1", Some("done."));
-    let longest = completed
-        .lines()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(0);
-
-    assert!(
-        longest <= 80,
-        "every completed line must stay within 80 columns: {completed}"
-    );
-    assert!(
-        completed.contains("      done.**"),
-        "the suffix should wrap before the preserved closing markers: {completed}"
-    );
-}
-
 #[test]
 fn completing_twice_equals_completing_once() {
     let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Finish the scope.\n";
@@ -230,18 +89,6 @@ fn an_already_checked_item_is_untouched_even_with_a_new_suffix() {
         complete_ok(source, "1.1.1", Some("— done")),
         source,
         "a checked item must not gain a suffix on a later run"
-    );
-}
-
-#[test]
-fn a_title_already_ending_with_the_suffix_word_keeps_it_once() {
-    let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Ship it done.\n";
-    let expected = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Ship it done.\n";
-
-    assert_eq!(
-        complete_ok(source, "1.1.1", Some("done")),
-        expected,
-        "an existing whole-word suffix should not be repeated"
     );
 }
 
