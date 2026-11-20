@@ -179,13 +179,19 @@ Untouched gate-clean content remains byte-exact.
 
 - **C1 — Operations.** `append` (phase-level), `insert` (before, or `--after`),
   `delete`, and `replace`, each addressed by an anchor, with strict level
-  matching between fragment and anchor. `insert` and `replace` differ only in
-  what happens to the addressed item's identity: an `insert` leaves it in place
-  and splices the fragment around it, while a `replace` **retires** it. A
-  retired identity is gone, so a dependency reference to it no longer resolves
-  and the operation fails closed rather than redirecting the consumer; a
-  fragment clause, which is written in the fragment's own numbering, still
-  resolves through the cross-source fallback described in section 7.
+  matching between fragment and anchor. `insert` and `replace` differ in what
+  happens to the addressed item's identity: an `insert` leaves it in place and
+  splices the fragment around it, while a `replace` **retires** it — with one
+  exception. A replacement of exactly one fragment item that carries the
+  addressed anchor at the addressed level is an **in-place edit**: the
+  operation grants the replacement the addressed identity, so the identity
+  survives and every reference to it keeps resolving. Checking a task off is
+  the common case. Any other replacement — several sibling items, or one item
+  bearing a different anchor — retires the identity. A retired identity is
+  gone, so a dependency reference to it no longer resolves and the operation
+  fails closed rather than redirecting the consumer; a fragment clause, which
+  is written in the fragment's own numbering, still resolves through the
+  cross-source fallback described in section 7.
 - **C2 — Renumber contract.** After any edit, phase, step, task, and addendum
   numbers are contiguous from 1, in document order, at every level. No gaps, no
   duplicates, no out-of-order numbering survives an operation.
@@ -264,9 +270,23 @@ contract behind C3.
   fragment's mapping, a replacement item spelled like the item it superseded
   would absorb a surviving consumer's clause — the clause would keep its old
   digits and silently resolve to a different item. This is the identity
-  preservation guarantee in its resolution form. A valid dependency reference
-  that does not resolve is a dangling dependency and the operation fails with a
-  typed diagnostic before output is emitted or an in-place write occurs.
+  preservation guarantee in its resolution form. An in-place replacement (C1)
+  extends the plan with an **operation-granted alias**: the addressed identity
+  maps to the anchor the replacement item holds after the edit, and the
+  descendant identities paired with it are continued the same way. The alias is
+  constructed only from structural correspondence — one fragment item at the
+  addressed level and anchor, its sub-tasks paired by position when their
+  anchors are unique on both sides — never by matching a number elsewhere in
+  the document. `RenumberPlan::resolve` folds the alias into the local answer,
+  so `select_resolution` still sees one source-local mapping and its guarantees
+  are unchanged: target text resolves through the alias exactly as it resolves
+  through any other mapping, never through the cross-source fallback, and an
+  unrelated item that inherits the same number neither gains nor supplies an
+  identity. A replacement that establishes no alias retires the addressed
+  identity, so a surviving reference to it is dangling. A valid dependency
+  reference that does not resolve is a dangling dependency and the operation
+  fails with a typed diagnostic before output is emitted or an in-place write
+  occurs.
 
 ## 8. Fixture and test requirements
 

@@ -235,7 +235,7 @@ text, scoped reference preservation beside mapped `Requires` references, and
 append preservation across generated task-list shapes.
 
 Which answer a reference resolves through is a separate, proven boundary.
-`RenumberPlan::resolve_reference` in `src/roadmap/model.rs` calls
+`RenumberPlan::resolve_reference` in `src/roadmap/renumber_plan.rs` calls
 `select_resolution` in `src/roadmap/ops/remap_kernel.rs`, a pure `const fn`
 over two already-computed anchors and a `bool` source flag; it performs no
 lookup and cannot fail. The kernel's body is shared as a `macro_rules!`

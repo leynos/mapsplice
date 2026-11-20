@@ -2,25 +2,30 @@
 
 `mapsplice` uses Verus to prove narrow kernels that the renumbering and
 dependency-rewrite path calls in production. This ledger records every claimed
-proof result, its executable function, input domain, external contracts, and
-result class. A kernel may not be represented by a separate `proofs/`
-implementation unless a refinement proof connects it to the production function.
+proof result and every obligation that is not yet proved, with its executable
+function, input domain, external contracts, and result class. A kernel may not
+be represented by a separate `proofs/` implementation unless a refinement proof
+connects it to the production function.
 
 ## Claim ledger
 
-| Claim                                                                                           | Executable function | Input domain                                                                                       | Unverified external contracts            | Result class      |
-| ----------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------- |
-| Identity preservation: a target-text reference never resolves through the cross-source fallback | `select_resolution` | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls | Local correctness |
-| Local-mapping precedence: a target-text reference with its own mapping keeps it                 | `select_resolution` | As above                                                                                           | None                                     | Local correctness |
-| Non-vacuity: fragment text does consult the cross-source fallback                               | `select_resolution` | As above, with the local option absent and the cross-source option present                         | None                                     | Local correctness |
+| Claim                                                                                           | Executable function | Input domain                                                                                       | Unverified external contracts                                                                                                                                                                  | Result class      |
+| ----------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Identity preservation: a target-text reference never resolves through the cross-source fallback | `select_resolution` | `Option<T>` and `Option<T>` for any `T: Copy`, plus a `bool` source flag; no allocation, no lookup | None: the function has no external calls                                                                                                                                                       | Local correctness |
+| Local-mapping precedence: a target-text reference with its own mapping keeps it                 | `select_resolution` | As above                                                                                           | None                                                                                                                                                                                           | Local correctness |
+| Non-vacuity: fragment text does consult the cross-source fallback                               | `select_resolution` | As above, with the local option absent and the cross-source option present                         | None                                                                                                                                                                                           | Local correctness |
+| Identity continuity: a surviving target reference to an in-place replacement still resolves     | Pending             | Exactly one fragment item at the addressed level and anchor, with descendants paired by anchor     | Alias construction, fragment cardinality, and descendant pairing; tracked by [#160](https://github.com/leynos/mapsplice/issues/160) and [#162](https://github.com/leynos/mapsplice/issues/162) | Pending           |
 
 _Table 1: The verification claim ledger._
 
-Each row is discharged by a theorem in `verus/lib.rs`, which runs under
-`make verus`. The titles above name the obligation; the theorem's comment in
-that file states its premise. `make verus-selftest` runs `verus/smoke.rs`,
-whose assertion is deliberately unprovable, and fails unless Verus rejects it —
-so a run in which the verifier never started cannot pass as a successful one.
+Each row naming an executable function is discharged by a theorem in
+`verus/lib.rs`, which runs under `make verus`. The titles above name the
+obligation; the theorem's comment in that file states its premise. A row whose
+executable-function cell reads `Pending` declares an obligation with no theorem
+yet; its evidence is the tests described below rather than a proof.
+`make verus-selftest` runs `verus/smoke.rs`, whose assertion is deliberately
+unprovable, and fails unless Verus rejects it — so a run in which the verifier
+never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
 claim names a function that no longer exists in `src/`.
 
@@ -59,14 +64,26 @@ would be a substantial piece of work: it consumes mdast nodes and byte strings
 through several helpers whose contracts would each need stating. Recording the
 gap is preferable to implying a coverage that does not exist.
 
+In-place replacement adds a premise rather than a second kernel.
+`RenumberPlan::resolve` folds an operation-granted continuity alias into the
+source-local answer, and `target_text_keeps_its_source_local_mapping` gives the
+retention: whenever that alias exists, a surviving target reference to the
+addressed identity keeps it. Whether the alias exists at all is outside every
+proof boundary — it depends on the fragment holding exactly one item, on that
+item carrying the addressed anchor, and on unique descendant pairing — and the
+kernel cannot observe any of those. The golden cases, CLI regressions, and
+property oracle exercise the premise, including its counterexamples: a changed
+anchor and a multi-item fragment both retire the identity. The final ledger row
+records the premise as Pending under #160 and #162 rather than as proved.
+
 ## How the kernel connects to production
 
 `verus/lib.rs` proves the macro-defined body in
 `src/roadmap/ops/select_resolution.macro.rs`. `src/roadmap/ops/remap_kernel.rs`
 includes that same file and expands `select_resolution_body!` inside its
-`const fn`, and `RenumberPlan::resolve_reference` in `src/roadmap/model.rs`
-calls it. The verified text and the compiled text are therefore one artefact,
-not two implementations that can drift.
+`const fn`, and `RenumberPlan::resolve_reference` in
+`src/roadmap/renumber_plan.rs` calls it. The verified text and the compiled
+text are therefore one artefact, not two implementations that can drift.
 
 The shared body lives beside the domain module that expands it, and the proof
 is what crosses the tree to reach it. The dependency therefore runs from
