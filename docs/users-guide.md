@@ -347,13 +347,16 @@ line past 80 columns, only the suffix words move onto continuation lines
 indented to the title's content column; no existing title line is joined or
 split. If a line would end with a literal backslash where the suffix wraps,
 whether that backslash ends the title or a suffix word, the inserted break is
-preceded by one additional backslash so the original character stays literal; a
-line already at the column limit cannot take the extra character, and
-completion then fails rather than changing the title. Provided the title's
-existing wrapping already satisfies `make check-fmt`, completion keeps the
-title formatter-stable: the inserted break follows the formatter's own
-80-column reflow, so `make fmt` makes no further change and `make check-fmt`
-still passes. The suffix is configured by `--suffix`,
+preceded by one additional backslash so the original character stays literal. A
+suffix that itself ends with a literal backslash is paired the same way before
+the punctuation, closing marker, or line ending that follows it; nothing
+follows at the very end of a document, so no pairing is needed there. A line
+already at the column limit cannot take the extra character, and completion
+then fails rather than changing the title. Provided the title's existing
+wrapping already satisfies `make check-fmt`, completion keeps the title
+formatter-stable: the inserted break follows the formatter's own 80-column
+reflow, so `make fmt` makes no further change and `make check-fmt` still
+passes. The suffix is configured by `--suffix`,
 `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
 [Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
 no marker, and a value containing a line break is rejected.

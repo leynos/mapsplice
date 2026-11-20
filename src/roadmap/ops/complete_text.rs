@@ -181,3 +181,78 @@ fn is_word_separator(character: char) -> bool { !character.is_alphanumeric() && 
 pub(super) const fn is_terminal_punctuation(character: char) -> bool {
     matches!(character, '.' | '!' | '?' | '…')
 }
+
+/// Return the byte length of the terminal punctuation ending at `end`.
+///
+/// Punctuation escaped by a backslash is literal title content, so the scan
+/// stops at it and the suffix follows the escaped character. A terminal
+/// character reference such as `&#46;` or `&hellip;` renders as punctuation, so
+/// its whole source sequence counts as one punctuation mark and the suffix
+/// still precedes the visible character. An escaped ampersand is literal text,
+/// so a reference behind one stops the scan.
+pub(super) fn trailing_punctuation_len(source: &str, end: usize) -> usize {
+    source.get(..end).map_or(0, terminal_punctuation_run_len)
+}
+
+/// Return the byte length of the punctuation run ending `text`.
+fn terminal_punctuation_run_len(text: &str) -> usize {
+    let mut rest = text;
+    let mut length = 0;
+    loop {
+        if let Some((start, rendered)) = trailing_character_reference(rest) {
+            if !reference_renders_punctuation(rest, start, &rendered) {
+                return length;
+            }
+            length += rest.len() - start;
+            rest = rest.get(..start).unwrap_or_default();
+            continue;
+        }
+        let Some(character) = rest.chars().next_back() else {
+            return length;
+        };
+        let offset = rest.len() - character.len_utf8();
+        // Only ASCII punctuation can be backslash-escaped; the ellipsis is
+        // always literal punctuation, so a backslash before it is content.
+        let escaped = character.is_ascii() && is_escaped(rest, offset);
+        if !is_terminal_punctuation(character) || escaped {
+            return length;
+        }
+        length += character.len_utf8();
+        rest = rest.get(..offset).unwrap_or_default();
+    }
+}
+
+/// Report whether a decoded reference renders only terminal punctuation.
+///
+/// The reference must decode to visible text, that text must be sentence-ending
+/// punctuation, and the ampersand must not be backslash-escaped.
+fn reference_renders_punctuation(text: &str, start: usize, rendered: &str) -> bool {
+    !rendered.is_empty()
+        && rendered.chars().all(is_terminal_punctuation)
+        && !is_escaped(text, start)
+}
+
+/// Return the start and rendered text of the character reference ending `text`.
+///
+/// Returns `None` when `text` does not end with a reference the Markdown parser
+/// decodes; the caller then treats the ampersand as ordinary content.
+fn trailing_character_reference(text: &str) -> Option<(usize, String)> {
+    if !text.ends_with(';') {
+        return None;
+    }
+    let start = text.rfind('&')?;
+    let rendered = fragment_plain_text(text.get(start..)?)?;
+    Some((start, rendered))
+}
+
+/// Report whether the character at `offset` follows an odd run of backslashes.
+fn is_escaped(text: &str, offset: usize) -> bool {
+    let backslashes = text.get(..offset).map_or(0, |prefix| {
+        prefix
+            .chars()
+            .rev()
+            .take_while(|character| *character == '\\')
+            .count()
+    });
+    !backslashes.is_multiple_of(2)
+}

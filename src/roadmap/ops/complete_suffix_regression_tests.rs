@@ -5,8 +5,9 @@
 //! numbered prefix boundary, and a wrapped insertion let a literal trailing
 //! backslash escape the inserted line break. Encoded terminal punctuation was
 //! left ahead of the suffix, inline HTML that renders nothing was treated as a
-//! word boundary, and a suffix word ending in a backslash could lose it at a
-//! wrap point.
+//! word boundary, a suffix word ending in a backslash could lose it at a wrap
+//! point, and a suffix ending in a backslash could escape the punctuation that
+//! followed it.
 
 use rstest::rstest;
 
@@ -108,6 +109,51 @@ fn a_wrapped_suffix_pairs_its_own_trailing_backslash() {
     );
     assert!(
         title_has_suffix(&first_task_summary(&completed), "Task\\ done"),
+        "the parsed title must keep the literal backslash: {completed}"
+    );
+}
+
+#[rstest]
+#[case::a_title_full_stop(
+    "- [ ] 1.1.1. Finish the scope.",
+    "- [x] 1.1.1. Finish the scope done\\\\."
+)]
+#[case::a_full_stop_inside_closing_markers(
+    "- [ ] 1.1.1. **Finish the scope.**",
+    "- [x] 1.1.1. **Finish the scope done\\\\.**"
+)]
+fn a_trailing_suffix_backslash_is_paired_before_punctuation(
+    #[case] item: &str,
+    #[case] expected_item: &str,
+) {
+    let completed = complete_ok(&completion_source(item), "1.1.1", Some("done\\"))
+        .expect("fixture completion should succeed");
+
+    assert_eq!(
+        completed,
+        completion_source(expected_item),
+        "the backslash must stay literal before the punctuation it precedes"
+    );
+    assert!(
+        title_has_suffix(&first_task_summary(&completed), "done\\"),
+        "the completed title must already carry the configured suffix: {completed}"
+    );
+}
+
+#[test]
+fn a_trailing_suffix_backslash_at_the_end_of_the_document_stays_single() {
+    let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Finish the scope";
+    let expected = "## 1. Phase one\n\n### 1.1. Step one\n\n- [x] 1.1.1. Finish the scope done\\";
+
+    let completed =
+        complete_ok(source, "1.1.1", Some("done\\")).expect("fixture completion should succeed");
+
+    assert_eq!(
+        completed, expected,
+        "nothing follows the suffix at the end of the document, so no pairing is needed"
+    );
+    assert!(
+        title_has_suffix(&first_task_summary(&completed), "done\\"),
         "the parsed title must keep the literal backslash: {completed}"
     );
 }
