@@ -9,6 +9,7 @@ mod contracts;
 #[path = "roadmap_golden/fail_closed_contracts.rs"]
 mod fail_closed_contracts;
 
+
 #[path = "roadmap_golden/formatter_boundary.rs"]
 mod formatter_boundary;
 
@@ -16,6 +17,9 @@ mod golden;
 
 #[path = "roadmap_golden/nested_requires.rs"]
 mod nested_requires;
+
+#[path = "roadmap_golden/replacement_continuity.rs"]
+mod replacement_continuity;
 
 use golden::{
     GoldenCommand,

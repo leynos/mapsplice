@@ -3,5 +3,6 @@
 pub(crate) mod cli_steps;
 pub(crate) mod complete_steps;
 pub(crate) mod export_steps;
+pub(crate) mod replace_continuity_steps;
 
 pub(crate) use cli_steps::{CliFixture, cli_state};

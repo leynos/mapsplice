@@ -1,6 +1,7 @@
 //! Behavioural coverage for the `mapsplice` binary.
 
 mod steps;
+
 #[path = "support/cli.rs"]
 mod support;
 
@@ -71,6 +72,26 @@ fn delete_preserves_adversarial_reference_text(
     name = "Replace swaps a phase with multiple phases from a fragment file"
 )]
 fn replace_phase(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Replace edits a depended-upon task in place without stranding its consumer"
+)]
+fn replace_depended_task_in_place(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "A renumbered replacement of a depended-upon task is rejected in place"
+)]
+fn replace_depended_task_renumbered_rejected(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
     let _ = cli_state?;
     Ok(())
 }

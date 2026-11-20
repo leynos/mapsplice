@@ -2,12 +2,19 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
+
 #[path = "roadmap_ops/dependency_locations.rs"]
 mod dependency_locations;
+
 #[path = "roadmap_ops/nested_requires.rs"]
 mod nested_requires;
+
 #[path = "roadmap_ops/assertions.rs"]
 mod ops_assertions;
+
+#[path = "roadmap_ops/retained_descendants.rs"]
+mod retained_descendants;
+
 #[path = "support/ops.rs"]
 mod support;
 
