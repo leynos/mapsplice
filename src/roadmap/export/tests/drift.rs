@@ -146,7 +146,8 @@ fn a_format_version_change_is_reported_first() {
         vec![format!(
             "~ format_version: {FORMAT_VERSION} -> {}",
             FORMAT_VERSION + 1
-        )]
+        )],
+        "a version-only change should report exactly the version transition"
     );
 }
 

@@ -97,8 +97,11 @@ fn render_text_preserves_supported_formatting_nodes() {
     let (key, value) = paragraph_entry(&paragraph("Keep **bold** and `code` (literal)."))
         .expect("formatted text should render");
 
-    assert_eq!(key, None);
-    assert_eq!(value, "Keep **bold** and `code` (literal).");
+    assert_eq!(key, None, "formatting should not create a label");
+    assert_eq!(
+        value, "Keep **bold** and `code` (literal).",
+        "formatting delimiters and parentheses should stay literal"
+    );
 }
 
 #[test]

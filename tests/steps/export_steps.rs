@@ -86,7 +86,10 @@ fn change_checkbox_and_check_export(cli_state: &mut CliFixture) -> TestResult {
 #[then("stdout contains the exported format version")]
 fn stdout_contains_export_version(cli_state: &mut CliFixture) -> TestResult {
     let stdout = &state_mut(cli_state)?.stdout;
-    assert!(stdout.contains("\"format_version\": 2"));
+    assert!(
+        stdout.contains("\"format_version\": 2"),
+        "expected format_version 2 in exported stdout, got: {stdout}"
+    );
     Ok(())
 }
 

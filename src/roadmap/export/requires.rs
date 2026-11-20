@@ -249,31 +249,39 @@ fn is_ignorable_prefix(node: &Node) -> bool {
 /// Return whether the leading plain-text run opens with the keyword.
 ///
 /// Only the leading run of text and break nodes is inspected, so a bold
-/// keyword is never mistaken for plain text. Leading whitespace is trimmed
-/// but not collapsed; the keyword is a single word, so both forms agree.
+/// keyword is never mistaken for plain text. A formatting node ends the run
+/// but keeps the text gathered before it, so a clause followed by formatted
+/// prose still opens with the keyword. Leading whitespace is trimmed but not
+/// collapsed; the keyword is a single word, so both forms agree.
 fn opens_with_plain_keyword(nodes: &[Node], keyword: &str) -> bool {
-    leading_text_run(nodes).is_some_and(|leading| begins_keyword(leading.trim_start(), keyword))
+    begins_keyword(leading_text_run(nodes).trim_start(), keyword)
 }
 
 /// Flatten the leading run of text and break nodes, stopping at anything else.
-fn leading_text_run(nodes: &[Node]) -> Option<String> {
+///
+/// Text before a formatting node still counts: `Requires 1.1.1. Success:
+/// **keep this**.` opens with the plain keyword even though a formatting node
+/// appears later in the paragraph.
+fn leading_text_run(nodes: &[Node]) -> String {
     let mut leading = String::new();
     for node in nodes {
-        append_plain_text(node, &mut leading)?;
+        if !append_plain_text(node, &mut leading) {
+            break;
+        }
     }
-    Some(leading)
+    leading
 }
 
 /// Append one node's contribution to a plain-text run.
 ///
-/// Returns `None` for a node that ends the run.
-fn append_plain_text(node: &Node, leading: &mut String) -> Option<()> {
+/// Returns `false` for a node that ends the run.
+fn append_plain_text(node: &Node, leading: &mut String) -> bool {
     match node {
         Node::Text(text) => leading.push_str(&text.value),
         Node::Break(_) => leading.push(' '),
-        _ => return None,
+        _ => return false,
     }
-    Some(())
+    true
 }
 
 /// Return whether a rendered value starts with a whole keyword.
