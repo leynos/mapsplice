@@ -352,9 +352,11 @@ no marker, and a value containing a line break is rejected.
 Completing an item that is already `- [x]` changes nothing: no byte of the
 title is rewritten and no done marker is added, even when one is configured and
 the title does not carry it. In the default preview mode the unchanged roadmap
-is still printed, so redirecting standard output always produces a complete
-document and can never truncate it; with `--in-place` the command exits 0
-without touching the target. A suffix is therefore never added twice.
+is still printed, so redirecting standard output to another file yields a
+complete document rather than an empty one. Never redirect onto the target
+itself: the shell truncates that file before `mapsplice` reads it, whatever the
+command would print. Use `--in-place` for same-file updates; a no-op run exits
+0 without touching the target. A suffix is therefore never added twice.
 
 Library callers use `CommandKind::Complete { anchor, suffix }`. A successful
 completion returns the patched document on `RunOutcome::stdout`, or

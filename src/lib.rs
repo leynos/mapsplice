@@ -209,9 +209,10 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
 /// The completion command keeps every byte outside the addressed checkbox and
 /// inserted suffix, so it cannot share the render-based edit pipeline. Preview
 /// mode always emits the resulting document, including the unchanged roadmap
-/// for an already checked item, so redirecting standard output never truncates
-/// it. An in-place completion that changes nothing reports success without a
-/// file write, and an actual rewrite records the in-place rewrite metric.
+/// for an already checked item, so a preview redirected to another file is
+/// complete even when nothing changed. An in-place completion that changes
+/// nothing reports success without a file write, and an actual rewrite records
+/// the in-place rewrite metric.
 fn run_complete(
     target: &Utf8PathBuf,
     anchor: RoadmapAnchor,
