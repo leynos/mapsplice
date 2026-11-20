@@ -239,6 +239,54 @@ fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
     );
 }
 
+#[rstest]
+#[case::a_colon_separates_the_suffix("- [ ] 1.1.1. Status:done.", "- [x] 1.1.1. Status:done.")]
+#[case::an_unspaced_dash_separates_the_suffix(
+    "- [ ] 1.1.1. Finish the scope—done.",
+    "- [x] 1.1.1. Finish the scope—done."
+)]
+#[case::an_underscore_binds_the_suffix_word(
+    "- [ ] 1.1.1. Keep foo_done.",
+    "- [x] 1.1.1. Keep foo_done done."
+)]
+fn suffix_detection_treats_punctuation_as_a_word_boundary(
+    #[case] item: &str,
+    #[case] expected_item: &str,
+) {
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some("done")),
+        completion_source(expected_item),
+        "punctuation should end a word while an underscore should not"
+    );
+}
+
+#[test]
+fn a_marker_carrying_suffix_passes_its_own_validation() {
+    let expected = "- [x] 1.1.1. Remove the artefact build*";
+
+    assert_eq!(
+        complete_ok(
+            &completion_source("- [ ] 1.1.1. Remove the artefact"),
+            "1.1.1",
+            Some("build*")
+        ),
+        completion_source(expected),
+        "a literal marker in the configured suffix must survive validation"
+    );
+}
+
+#[test]
+fn an_existing_literal_marker_suffix_is_not_duplicated() {
+    let item = "- [ ] 1.1.1. Remove every artefact named build*";
+    let expected = "- [x] 1.1.1. Remove every artefact named build*";
+
+    assert_eq!(
+        complete_ok(&completion_source(item), "1.1.1", Some("build*")),
+        completion_source(expected),
+        "a title already ending with the literal-marker suffix should only be ticked"
+    );
+}
+
 #[test]
 fn a_title_already_ending_with_the_suffix_word_keeps_it_once() {
     let source = "## 1. Phase one\n\n### 1.1. Step one\n\n- [ ] 1.1.1. Ship it done.\n";
