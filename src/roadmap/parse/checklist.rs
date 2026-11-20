@@ -2,7 +2,11 @@
 
 use markdown::mdast::{ListItem, Node, Paragraph};
 
-use crate::error::{MapspliceError, Result};
+use super::{ParseContext, SourceId};
+use crate::{
+    error::{MapspliceError, Result},
+    roadmap::model::ItemSourceSpan,
+};
 
 /// Validated opening paragraph and remaining blocks of a checklist item.
 #[derive(Debug)]
@@ -62,6 +66,63 @@ pub(super) fn parse_checklist_item_head(
         paragraph,
         child_body: item.children.get(1..).unwrap_or(&[]),
     })
+}
+
+/// Capture the target-source span for one checklist item's marker and title.
+///
+/// The completion command edits the original document text instead of
+/// rendering the model, so it needs the offsets the Markdown parser reported.
+/// The title starts at the opening paragraph, after the checkbox, and ends
+/// before any nested blocks, so the span covers exactly the text a done suffix
+/// belongs in. Fragment items return `None`: their content is new and has no
+/// position in the target source.
+pub(super) fn item_source_span(
+    item: &ListItem,
+    paragraph: &Paragraph,
+    context: ParseContext<'_>,
+) -> Option<ItemSourceSpan> {
+    if context.source != SourceId::Target {
+        return None;
+    }
+    let span = ItemSourceSpan {
+        item_start: item.position.as_ref()?.start.offset,
+        title_start: paragraph.position.as_ref()?.start.offset,
+        title_content_end: title_content_end(paragraph)?,
+        paragraph_end: paragraph.position.as_ref()?.end.offset,
+    };
+    span.is_valid_in(context.source_text).then_some(span)
+}
+
+/// Return the offset just past the title's inline content.
+///
+/// Closing emphasis, strong, and strikethrough markers are excluded so a done
+/// suffix can be inserted inside them; any other construct ends the content,
+/// so the suffix follows inline code or a link rather than changing it.
+fn title_content_end(paragraph: &Paragraph) -> Option<usize> {
+    paragraph
+        .children
+        .last()
+        .and_then(inline_content_end)
+        .or_else(|| {
+            paragraph
+                .position
+                .as_ref()
+                .map(|position| position.end.offset)
+        })
+}
+
+/// Return the end of one inline node, descending through emphasis containers.
+fn inline_content_end(node: &Node) -> Option<usize> {
+    let end = node.position().map(|position| position.end.offset);
+    let is_emphasis_container =
+        matches!(node, Node::Strong(_) | Node::Emphasis(_) | Node::Delete(_));
+    if !is_emphasis_container {
+        return end;
+    }
+    node.children()
+        .and_then(|children| children.last())
+        .and_then(inline_content_end)
+        .or(end)
 }
 
 /// Construct a roadmap-grammar error from a checklist requirement.

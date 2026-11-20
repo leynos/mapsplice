@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 
 use super::{
+    ItemSourceSpan,
     MapspliceError,
     MarkdownNodes,
     Result,
@@ -46,6 +47,7 @@ impl TaskEntry {
             summary: parts.summary,
             body: parts.body,
             original_source: parts.original_source,
+            source_span: parts.source_span,
             sub_tasks: parts.sub_tasks,
             children: parts.children,
         })
@@ -65,12 +67,23 @@ impl TaskEntry {
     #[must_use]
     pub(crate) fn original_source(&self) -> Option<&str> { self.original_source.as_deref() }
 
+    /// Return the target-source span while this task remains unchanged.
+    #[must_use]
+    pub(crate) const fn source_span(&self) -> Option<ItemSourceSpan> { self.source_span }
+
     /// Clear preserved source after this task or one of its descendants changes.
     ///
     /// Returns whether a preserved source span was present before the mutation,
     /// allowing the application layer to record an actual invalidation without
     /// coupling the model to process-wide observability.
-    pub(crate) fn clear_original_source(&mut self) -> bool { self.original_source.take().is_some() }
+    ///
+    /// The byte span is cleared alongside the source text: a completion edit
+    /// computed from offsets that no longer match the item would corrupt the
+    /// document, so both forms of provenance expire together.
+    pub(crate) fn clear_original_source(&mut self) -> bool {
+        self.source_span = None;
+        self.original_source.take().is_some()
+    }
 
     /// Return the original ordered task-child sequence.
     #[must_use]
@@ -158,12 +171,19 @@ impl SubTaskEntry {
     #[must_use]
     pub(crate) fn original_source(&self) -> Option<&str> { self.original_source.as_deref() }
 
+    /// Return the target-source span while this sub-task remains unchanged.
+    #[must_use]
+    pub(crate) const fn source_span(&self) -> Option<ItemSourceSpan> { self.source_span }
+
     /// Clear preserved source after this sub-task changes.
     ///
     /// Returns whether a preserved source span was present before the mutation,
     /// allowing the application layer to record an actual invalidation without
     /// coupling the model to process-wide observability.
-    pub(crate) fn clear_original_source(&mut self) -> bool { self.original_source.take().is_some() }
+    pub(crate) fn clear_original_source(&mut self) -> bool {
+        self.source_span = None;
+        self.original_source.take().is_some()
+    }
 }
 
 /// Build child markers for the supplied sub-task sequence in the same order.

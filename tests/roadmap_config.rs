@@ -323,6 +323,9 @@ fn insert_after_cli_flag_overrides_env_false(workspace: TestResult<Workspace>) -
     })
 }
 
+#[path = "roadmap_config/complete.rs"]
+mod complete;
+
 #[path = "roadmap_config/in_place.rs"]
 mod in_place;
 

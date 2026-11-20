@@ -23,8 +23,9 @@ Commands:
   insert
   delete
   replace
+  complete
   export
-  help     Print this message or the help of the given subcommand(s)
+  help      Print this message or the help of the given subcommand(s)
 Global options:
   -i, --in-place  Rewrite the target file instead of printing to stdout
 ");
@@ -42,6 +43,7 @@ fn stable_help_lines(stdout: &str) -> String {
                 || line.starts_with("  insert")
                 || line.starts_with("  delete")
                 || line.starts_with("  replace")
+                || line.starts_with("  complete")
                 || line.starts_with("  export")
                 || line.starts_with("  help")
                 || line.starts_with("  -i, --in-place")

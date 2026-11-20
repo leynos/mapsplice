@@ -58,7 +58,7 @@ items at the same level as the target anchor.
 
 ## Command overview
 
-`mapsplice` supports four edit operations and a read-only export:
+`mapsplice` supports five edit operations and a read-only export:
 
 ```text
 mapsplice append <target> <file-to-append>
@@ -66,6 +66,7 @@ mapsplice insert <target> <anchor> <file-to-insert>
 mapsplice insert --after <target> <anchor> <file-to-insert>
 mapsplice delete <target> <anchor>
 mapsplice replace <target> <anchor> <file-to-replace-with>
+mapsplice complete [--suffix <text>] <target> <anchor>
 mapsplice export [--format json] <target> [--check <export>]
 ```
 
@@ -299,6 +300,86 @@ bullet-list runs merge into one list when the separating addendum is removed.
 Inserted or replaced tasks, and tasks whose number or dependency reference
 changes, or whose sub-task content is edited, are rendered canonically.
 
+### `complete`
+
+```bash
+mapsplice complete docs/roadmap.md 1.3.1
+mapsplice --in-place complete docs/roadmap.md 1.3.1
+mapsplice --in-place complete --suffix "— done" docs/roadmap.md 1.3.1
+```
+
+`complete` checks off exactly one addressed task (`8.2.3`) or addendum sub-task
+(`8.2.3.1`). Phases and steps have no checkbox, so those anchors are rejected
+with a typed error. Unlike the structural edits, `complete` takes no fragment
+file and never validates or rewrites `Requires` references, so a task can be
+checked off whatever other tasks depend on it.
+
+The edit is a source patch, not a re-render: the only bytes that change are the
+addressed item's `- [ ]` marker, which becomes `- [x]`, the optional done
+marker, and, when that marker carries its own terminal punctuation, the title
+punctuation it replaces as described below. Title text and wrapping,
+continuation lines, nested bullets, `Requires` references, and every number in
+the document are otherwise preserved byte-for-byte, and nothing is renumbered.
+The default mode prints the patched roadmap to standard output; `--in-place`
+rewrites the target.
+
+A done marker is appended to the end of the item's title, after any wrapped
+title lines and before its nested bullets. Terminal punctuation stays terminal:
+`--suffix "— done"` turns `1.1.1. Finish the scope.` into
+`1.1.1. Finish the scope — done.`, not `1.1.1. Finish the scope. — done`.
+Terminal punctuation written as a character reference counts as the punctuation
+it renders as, so `Finish&#46;` becomes `Finish — done&#46;`, not
+`Finish&#46; — done`. Closing emphasis, strong, and strike markers stay after
+the suffix, so `**Finish the scope.**` becomes `**Finish the scope — done.**`.
+Literal constructs are the exception: the suffix follows a closing backtick or
+a link, so `` `foo` `` becomes `` `foo` — done `` and `[foo](url)` becomes
+`[foo](url) — done`, rather than changing the construct's content. A suffix
+that carries its own terminal punctuation replaces the title's trailing run, so
+`--suffix "done."` gives `1.1.1. Finish the scope done.` A suffix that itself
+ends with inline markers is placed after the title's closing markers instead,
+so the two spans stay separate: with `--suffix "**done.**"`,
+`**Finish the scope.**` becomes `**Finish the scope** **done.**`. A title
+without closing markers keeps the usual placement, so `Finish the scope.`
+becomes `Finish the scope **done**.` with `--suffix "**done**"`. The suffix is
+inline title text, so a leading `#` or list marker is inserted literally rather
+than being read as block syntax. When the suffix would push the title's last
+line past 80 columns, only the suffix words move onto continuation lines
+indented to the title's content column; no existing title line is joined or
+split. If a line would end with a literal backslash where the suffix wraps,
+whether that backslash ends the title or a suffix word, the inserted break is
+preceded by one additional backslash so the original character stays literal. A
+suffix that itself ends with a literal backslash is paired the same way before
+the punctuation, closing marker, or line ending that follows it; nothing
+follows at the very end of a document, so no pairing is needed there. A line
+already at the column limit cannot take the extra character, and completion
+then fails rather than changing the title. For the same reason, a suffix word
+that cannot fit even on a fresh continuation line is rejected rather than
+written past the limit. Provided the title's existing wrapping already satisfies
+`make check-fmt`, completion keeps the title formatter-stable: the inserted
+break follows the formatter's own 80-column reflow, so `make fmt` makes no
+further change and `make check-fmt` still passes. The suffix is configured by
+`--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
+[Complete `suffix`](#complete-suffix));
+it is trimmed, an empty value selects no marker, and a value containing a line
+break is rejected.
+
+Completing an item that is already `- [x]` changes nothing: no byte of the
+title is rewritten and no done marker is added, even when one is configured and
+the title does not carry it. In the default preview mode the unchanged roadmap
+is still printed, so redirecting standard output to another file yields a
+complete document rather than an empty one. Never redirect onto the target
+itself: the shell truncates that file before `mapsplice` reads it, whatever the
+command would print. Use `--in-place` for same-file updates; a no-op run exits
+0 without touching the target. A suffix is therefore never added twice.
+
+Library callers use `CommandKind::Complete { anchor, suffix }`. A successful
+completion returns the patched document on `RunOutcome::stdout`, or
+`RunOutcome::written_path` in place. Previewing an already-completed item
+returns the unchanged document on `RunOutcome::stdout`; only an in-place no-op
+returns a silent success. A phase or step anchor fails with
+`MapspliceError::UnsupportedAnchorLevel`, and an edit that cannot be proven
+safe fails with `MapspliceError::UnsafeCompletionEdit`.
+
 ## Output modes
 
 The default mode writes the updated roadmap to standard output:
@@ -326,7 +407,8 @@ no roadmap body is emitted on standard output.
 
 Required inputs such as target paths, anchors, and fragment paths remain
 command-line arguments. Configuration only supplies optional defaults for the
-global `in_place` setting and the `insert` command's `after` setting.
+global `in_place` setting, the `insert` command's `after` setting, and the
+`complete` command's `suffix` setting.
 
 Boolean configuration values use `true` or `false`.
 
@@ -406,6 +488,45 @@ The command-line flag can only force `after = true`. There is no command-line
 flag that forces `after = false`; use `MAPSPLICE_CMDS_INSERT_AFTER=false` when
 a file default should be disabled for one process.
 
+### Complete `suffix`
+
+`suffix` is the text `mapsplice complete` appends to the completed item's
+title. It defaults to no suffix, so completion only changes `[ ]` to `[x]`.
+
+Set the file default under the complete command table:
+
+```toml
+[cmds.complete]
+suffix = "— done"
+```
+
+`mapsplice` searches the same three files for `complete` defaults, in
+increasing precedence order:
+
+1. `~/.mapsplice.toml`.
+2. `$XDG_CONFIG_HOME/mapsplice/config.toml`, when present.
+3. `./.mapsplice.toml` in the current working directory.
+
+The environment variable is:
+
+```bash
+MAPSPLICE_CMDS_COMPLETE_SUFFIX='— done'
+```
+
+Final precedence for `suffix` is:
+
+1. `--suffix <text>`.
+2. `MAPSPLICE_CMDS_COMPLETE_SUFFIX`.
+3. Local `./.mapsplice.toml`.
+4. XDG `$XDG_CONFIG_HOME/mapsplice/config.toml`.
+5. Home `~/.mapsplice.toml`.
+6. Default no suffix.
+
+The suffix is trimmed, and an empty suffix selects no marker. An explicitly
+empty environment value therefore suppresses a file default rather than falling
+back to it. A suffix containing a line break is rejected with a configuration
+error, because the insertion happens inside one Markdown paragraph.
+
 ## Validation rules and failure cases
 
 `mapsplice` will fail fast when:
@@ -414,9 +535,10 @@ a file default should be disabled for one process.
 - a fragment starts at the wrong structural level for the requested anchor
 - a step appears before the first phase
 - a task list appears without a containing step
+- a `complete` anchor names a phase or step, which has no checkbox
 - unsupported heading structure appears inside the roadmap body
 - a valid `Requires` dependency reference cannot be resolved to a roadmap item
-  after the edit
+  after a structural edit; `complete` does not validate dependencies
 
 This strictness is intentional. The tool is designed to produce predictable
 roadmap edits, not to guess what a malformed document might have meant.

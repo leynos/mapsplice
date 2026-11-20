@@ -2,27 +2,27 @@
 
 #[path = "cli_export.rs"]
 mod cli_export;
+#[path = "cli_complete.rs"]
+mod complete_args;
 #[path = "cli_config.rs"]
 mod config;
+#[path = "cli_insert.rs"]
+mod insert_args;
 
 use std::ffi::OsString;
 
 use camino::Utf8PathBuf;
-use clap::{
-    ArgAction,
-    ArgMatches,
-    Args,
-    CommandFactory,
-    FromArgMatches,
-    Parser,
-    Subcommand,
-    parser::ValueSource,
-};
+use clap::{ArgAction, ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
 use ortho_config::{OrthoConfig, load_and_merge_subcommand_for};
 use serde::{Deserialize, Serialize};
 
 pub use self::cli_export::ExportFormat;
-use self::{cli_export::ExportArgs, config::load_global_config};
+use self::{
+    cli_export::ExportArgs,
+    complete_args::CompleteArgs,
+    config::load_global_config,
+    insert_args::InsertArgs,
+};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::RoadmapAnchor,
@@ -86,6 +86,13 @@ pub enum CommandKind {
         /// Fragment file.
         fragment: Utf8PathBuf,
     },
+    /// Mark one task or addendum sub-task as done in place.
+    Complete {
+        /// Task or addendum sub-task to complete.
+        anchor: RoadmapAnchor,
+        /// Optional text appended to the completed title.
+        suffix: Option<String>,
+    },
     /// Export the roadmap as a stable machine-readable document.
     Export {
         /// Output format.
@@ -134,6 +141,15 @@ impl CommandKind {
     ///     Some(&fragment)
     /// );
     /// assert_eq!(CommandKind::Delete { anchor }.fragment_path(), None);
+    /// assert_eq!(
+    ///     CommandKind::Complete {
+    ///         anchor: task_anchor,
+    ///         suffix: None
+    ///     }
+    ///     .fragment_path(),
+    ///     None,
+    ///     "completion must not require a fragment file"
+    /// );
     /// # Ok(())
     /// # }
     /// ```
@@ -143,7 +159,7 @@ impl CommandKind {
             Self::Append { fragment }
             | Self::Insert { fragment, .. }
             | Self::Replace { fragment, .. } => Some(fragment),
-            Self::Delete { .. } | Self::Export { .. } => None,
+            Self::Delete { .. } | Self::Complete { .. } | Self::Export { .. } => None,
         }
     }
 }
@@ -209,6 +225,9 @@ enum Commands {
     /// Collect the target, anchor, and fragment for a replacement.
     #[command(about = None)]
     Replace(ReplaceArgs),
+    /// Mark one roadmap item as done without a fragment.
+    #[command(about = None)]
+    Complete(CompleteArgs),
     /// Read and export a roadmap without entering the mutation pipeline.
     #[command(about = None)]
     Export(ExportArgs),
@@ -222,6 +241,7 @@ impl Commands {
             Self::Insert(args) => args.into_request(global, subcommand_matches(matches)?),
             Self::Delete(args) => Ok(args.into_request(global)),
             Self::Replace(args) => Ok(args.into_request(global)),
+            Self::Complete(args) => args.into_request(global),
             Self::Export(args) => Ok(args.into_request()),
         }
     }
@@ -237,35 +257,6 @@ struct AppendArgs {
     /// Markdown fragment to append.
     #[arg(help = None)]
     fragment: Utf8PathBuf,
-}
-
-/// Positional inputs and optional settings for insertion.
-#[derive(Debug, Args)]
-#[command(about = None)]
-struct InsertArgs {
-    /// Insert settings merged with environment and file defaults.
-    #[command(flatten)]
-    config: InsertConfig,
-    /// Roadmap file to modify.
-    #[arg(help = None)]
-    target: Utf8PathBuf,
-    /// Existing item before or after which to insert.
-    #[arg(help = None)]
-    anchor: RoadmapAnchor,
-    /// Markdown fragment to insert.
-    #[arg(help = None)]
-    fragment: Utf8PathBuf,
-}
-
-/// Optional insert settings before configuration sources are merged.
-#[derive(Clone, Debug, Default, Parser, Serialize, Deserialize, OrthoConfig)]
-#[command(name = "insert")]
-#[ortho_config(prefix = "MAPSPLICE_")]
-struct InsertConfig {
-    /// Insert after the anchor when true; absence preserves lower-priority defaults.
-    #[arg(long, action = ArgAction::SetTrue, help = None)]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    after: Option<bool>,
 }
 
 /// Positional inputs for deleting one roadmap item.
@@ -314,33 +305,6 @@ impl AppendArgs {
                 fragment: self.fragment,
             },
         }
-    }
-}
-
-impl InsertArgs {
-    /// Build an insert request after merging optional config defaults.
-    fn into_request(self, global: GlobalOptions, matches: &ArgMatches) -> Result<CliRequest> {
-        let config = self.config.with_absent_flags_removed(matches);
-        let merged = load_merged_config(&config)?;
-        Ok(CliRequest {
-            global,
-            target: self.target,
-            command: CommandKind::Insert {
-                anchor: self.anchor,
-                after: merged.after.unwrap_or(false),
-                fragment: self.fragment,
-            },
-        })
-    }
-}
-
-impl InsertConfig {
-    /// Remove clap's implicit `false` value when `--after` was not provided.
-    fn with_absent_flags_removed(mut self, matches: &ArgMatches) -> Self {
-        if matches.value_source("after") != Some(ValueSource::CommandLine) {
-            self.after = None;
-        }
-        self
     }
 }
 

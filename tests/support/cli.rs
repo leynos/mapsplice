@@ -36,6 +36,14 @@ pub const TARGET_THREE_PHASES: &str = concat!(
     "- [ ] 3.1.1. Final task. Requires 3.1.1.\n",
 );
 
+pub const TARGET_COMPLETED_TASK: &str = concat!(
+    "# Example\n\n",
+    "## 1. Phase one\n\n",
+    "### 1.1. Step one\n\n",
+    "- [x] 1.1.1. First task.\n",
+    "- [ ] 1.1.2. Later task.\n",
+);
+
 pub const TARGET_DANGLING_DEPENDENCY: &str = concat!(
     "# Example\n\n",
     "## 1. Phase one\n\n",
