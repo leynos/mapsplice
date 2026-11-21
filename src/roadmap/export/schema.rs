@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Current roadmap export contract version.
-pub(crate) const FORMAT_VERSION: u32 = 1;
+pub(crate) const FORMAT_VERSION: u32 = 2;
 
 /// Supported task checkbox states in the versioned JSON contract.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]

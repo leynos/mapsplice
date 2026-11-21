@@ -18,6 +18,7 @@ use markdown::{
 use super::{export_task, known_anchor_numbers, serialize, to_schema};
 use crate::roadmap::{
     RoadmapDocument,
+    export::FORMAT_VERSION,
     model::{MarkdownNodes, TaskEntry},
     parse_roadmap,
 };
@@ -122,7 +123,7 @@ fn serialize_is_pretty_json_with_one_final_newline() {
         serde_json::from_str(&rendered).expect("serialized JSON should decode");
     assert_eq!(
         decoded.get("format_version"),
-        Some(&serde_json::json!(1)),
+        Some(&serde_json::json!(FORMAT_VERSION)),
         "serialized JSON should carry the current format version"
     );
 }

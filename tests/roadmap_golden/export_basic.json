@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "phases": [
     {
       "number": "1",
@@ -7,7 +7,7 @@
       "entries": [
         {
           "key": "Idea",
-          "value": "Keep Markdown canonical.",
+          "value": "Keep Markdown canonical (snake_case stays literal).",
           "entries": []
         },
         {
@@ -33,7 +33,7 @@
           "tasks": [
             {
               "number": "1.1.1",
-              "title": "Emit **stable** JSON. Requires 1.1.2.",
+              "title": "Emit **stable** JSON (pretty). Requires 1.1.2.",
               "state": "open",
               "requires": [
                 "1.1.2"

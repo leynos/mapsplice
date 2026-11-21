@@ -58,16 +58,19 @@ boundary, and roadmap domain modules:
   [`mixed_body.rs`](../tests/roadmap_sub_task_invariants/mixed_body.rs).
 - `src/roadmap/export` adapts the existing model to the pure, ordered JSON
   schema. It shares dependency recognition with the rewriter and contains the
-  semantic drift comparison; `src/export_command/mod.rs` executes the read-only
-  export, reading the source and committed export files without writing. The
-  reader is injected as a private `ReadUtf8Fn`, so the orchestration is
-  testable without a temporary filesystem. `run_export` is the instrumented
-  command boundary: it records one export attempt and exactly one outcome in
-  the process-local counters. Its `export_request` query performs the work
-  without touching counters and without opening a span of its own, so a caller
-  that only needs the rendered result cannot alter the recorded metrics. The
-  spans owned by its callees, `parse_roadmap` and the injected reader, are
-  unchanged.
+  semantic drift comparison. Paragraph classification reads the Markdown nodes
+  — a leading `Strong` node whose text is `Requires`, or the leading plain-text
+  run — so escaped literal `\*\*Requires\*\*` prose stays content; only the
+  clause-end scan reads the rendered text. `src/export_command/mod.rs` executes
+  the read-only export, reading the source and committed export files without
+  writing. The reader is injected as a private `ReadUtf8Fn`, so the
+  orchestration is testable without a temporary filesystem. `run_export` is the
+  instrumented command boundary: it records one export attempt and exactly one
+  outcome in the process-local counters. Its `export_request` query performs
+  the work without touching counters and without opening a span of its own, so
+  a caller that only needs the rendered result cannot alter the recorded
+  metrics. The spans owned by its callees, `parse_roadmap` and the injected
+  reader, are unchanged.
 
   The outcome is derived from the returned result, so every return path records
   exactly one. `export_emitted` counts a render without `--check`;
@@ -79,7 +82,13 @@ boundary, and roadmap domain modules:
   roadmap grammar error. Drift is therefore never counted as a failure.
 - The private `render::inline` module, implemented in
   `src/roadmap/render_inline.rs`, renders supported inline Markdown AST nodes
-  and reports unsupported nodes as roadmap errors.
+  and reports unsupported nodes as roadmap errors. It renders in one of two
+  modes: `Markdown`, used by `render_inline` on the rewrite path, escapes plain
+  text so a rewritten roadmap stays reparsable, while `Export`, used by
+  `render_inline_export` for the JSON export, emits plain text literally
+  because the JSON is data rather than Markdown source. Formatting nodes keep
+  their Markdown delimiters in both modes and render their children in the same
+  mode; export-side text must not reuse the rewriter's escaping.
 - The private `anchor::deserialize` module, implemented in
   `src/roadmap/anchor_deserialize.rs`, validates serialized phase, step, task,
   and sub-task numbers through their domain constructors.

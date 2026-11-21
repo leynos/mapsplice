@@ -1,10 +1,14 @@
 //! Unit tests for export inline rendering and label recognition.
 
 use markdown::mdast::{Node, Text};
+use proptest::prelude::*;
 use rstest::rstest;
 
 use super::paragraph;
-use crate::roadmap::export::text::{paragraph_entry, render_text};
+use crate::roadmap::{
+    export::text::{paragraph_entry, render_text},
+    render::inline::render_inline_export,
+};
 
 #[test]
 fn plain_paragraph_without_a_label_is_unlabelled() {
@@ -72,6 +76,68 @@ fn render_text_collapses_soft_wrapped_lines() {
     assert_eq!(rendered, "alpha beta");
 }
 
+/// Export text is data, not Markdown source, so it must not carry the escape
+/// backslashes that the rewrite renderer needs to keep Markdown reparsable.
+#[rstest]
+#[case::parentheses("Cost (estimate) stays literal.")]
+#[case::underscore("A snake_case name stays literal.")]
+#[case::brackets("A [bracketed] phrase stays literal.")]
+#[case::hash("Issue #144 stays literal.")]
+fn render_text_emits_literal_metacharacters(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("text should render");
+
+    assert_eq!(key, None, "unexpected label for {source:?}");
+    assert_eq!(value, source, "metacharacters should survive unescaped");
+}
+
+/// Supported formatting nodes still retain their Markdown delimiters; only
+/// plain text is emitted literally.
+#[test]
+fn render_text_preserves_supported_formatting_nodes() {
+    let (key, value) = paragraph_entry(&paragraph("Keep **bold** and `code` (literal)."))
+        .expect("formatted text should render");
+
+    assert_eq!(key, None, "formatting should not create a label");
+    assert_eq!(
+        value, "Keep **bold** and `code` (literal).",
+        "formatting delimiters and parentheses should stay literal"
+    );
+}
+
+/// Metacharacters inside formatting children must stay literal too. A mode
+/// regression that escaped a `Strong`, `Emphasis` or `Delete` child would
+/// otherwise pass every test whose formatting contains only plain words.
+#[rstest]
+#[case::strong("**Emit (pretty) snake_case**")]
+#[case::emphasis("*Note (x) and #1*")]
+#[case::delete("~~old (text)~~")]
+fn formatting_children_keep_literal_metacharacters(#[case] source: &str) {
+    let (key, value) = paragraph_entry(&paragraph(source)).expect("formatted text should render");
+
+    assert_eq!(
+        key, None,
+        "formatting should not create a label for {source:?}"
+    );
+    assert_eq!(
+        value, source,
+        "formatting children should stay unescaped for {source:?}"
+    );
+}
+
+/// A link label is rendered in the same mode as the surrounding text, so its
+/// metacharacters stay literal and inner emphasis keeps its delimiters.
+#[test]
+fn link_labels_keep_literal_metacharacters() {
+    let (key, value) = paragraph_entry(&paragraph("[see (this) _now_](https://example.com)"))
+        .expect("link text should render");
+
+    assert_eq!(key, None, "a link label should not create a label");
+    assert_eq!(
+        value, "[see (this) *now*](https://example.com)",
+        "link labels should stay unescaped and keep inner emphasis delimiters"
+    );
+}
+
 #[test]
 fn render_text_trims_and_collapses_explicit_whitespace() {
     let nodes = [Node::Text(Text {
@@ -82,4 +148,37 @@ fn render_text_trims_and_collapses_explicit_whitespace() {
     let rendered = render_text(&nodes).expect("text should render");
 
     assert_eq!(rendered, "alpha beta");
+}
+
+/// Characters the Markdown renderer escapes, plus characters that begin
+/// Markdown constructs and ordinary letters and digits to combine them.
+const LITERAL_CHARACTERS: &[char] = &[
+    '\\', '*', '_', '`', '(', ')', '[', ']', '#', '-', '+', '!', '<', '>', '&', '|', '{', '}',
+    '\'', '"', ' ', '\t', 'a', 'Z', '0', '.',
+];
+
+/// Generate plain text from characters that invite escaping.
+fn literal_text() -> impl Strategy<Value = String> {
+    prop::collection::vec(prop::sample::select(LITERAL_CHARACTERS), 0..24)
+        .prop_map(|characters| characters.into_iter().collect())
+}
+
+proptest! {
+    /// Export rendering is the identity on plain text. It must not add,
+    /// remove or transform characters, so literal backslashes and Markdown
+    /// metacharacters reach consumers exactly as they appear in the source.
+    /// This exercises the renderer on its own: whitespace normalization is a
+    /// separate step, deliberately excluded here so its collapsing cannot
+    /// mask a rendering change.
+    #[test]
+    fn export_rendering_keeps_literal_text_unchanged(value in literal_text()) {
+        let nodes = [Node::Text(Text {
+            value: value.clone(),
+            position: None,
+        })];
+
+        let rendered = render_inline_export(&nodes).expect("text should render");
+
+        prop_assert_eq!(rendered.as_str(), value.as_str());
+    }
 }

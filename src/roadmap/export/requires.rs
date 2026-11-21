@@ -34,12 +34,12 @@ pub(super) enum RequiresParagraph {
 pub(super) fn classify_paragraph(nodes: &[Node]) -> Result<RequiresParagraph> {
     let rendered = render_text(nodes)?;
     let trimmed = rendered.trim_start();
-    if trimmed.starts_with("**Requires**") {
+    if opens_with_formatted_keyword(nodes)? {
         // `dependencies` rejects this form; classification only keeps the
         // paragraph from being exported as content on the way to that error.
         return Ok(RequiresParagraph::ClauseOnly);
     }
-    if !begins_keyword(trimmed, "Requires") {
+    if !opens_with_plain_keyword(nodes, "Requires") {
         return Ok(RequiresParagraph::Content);
     }
     let clause_end = super::super::ops::dependency_candidates(trimmed)
@@ -217,6 +217,71 @@ pub(super) fn node_children(node: &Node) -> Option<&[Node]> {
         Node::MdxJsxTextElement(value) => Some(&value.children),
         _ => None,
     }
+}
+
+/// Return whether the paragraph opens with a bold `Requires` keyword.
+///
+/// Classification reads the Markdown nodes rather than the rendered prefix.
+/// Export rendering emits plain text literally, so escaped source such as
+/// `\*\*Requires\*\*` produces the same characters as a bold keyword; a
+/// rendered-prefix test would mistake that prose for a dependency clause and
+/// drop it from the export without an error. Only whitespace between the
+/// paragraph start and the strong node is ignored, matching `trim_start`.
+fn opens_with_formatted_keyword(nodes: &[Node]) -> Result<bool> {
+    let Some(node) = nodes.iter().find(|node| !is_ignorable_prefix(node)) else {
+        return Ok(false);
+    };
+    let Node::Strong(strong) = node else {
+        return Ok(false);
+    };
+    Ok(render_text(&strong.children)?.trim() == "Requires")
+}
+
+/// Return whether a node adds no content before a formatted keyword.
+fn is_ignorable_prefix(node: &Node) -> bool {
+    match node {
+        Node::Text(text) => text.value.trim().is_empty(),
+        Node::Break(_) => true,
+        _ => false,
+    }
+}
+
+/// Return whether the leading plain-text run opens with the keyword.
+///
+/// Only the leading run of text and break nodes is inspected, so a bold
+/// keyword is never mistaken for plain text. A formatting node ends the run
+/// but keeps the text gathered before it, so a clause followed by formatted
+/// prose still opens with the keyword. Leading whitespace is trimmed but not
+/// collapsed; the keyword is a single word, so both forms agree.
+fn opens_with_plain_keyword(nodes: &[Node], keyword: &str) -> bool {
+    begins_keyword(leading_text_run(nodes).trim_start(), keyword)
+}
+
+/// Flatten the leading run of text and break nodes, stopping at anything else.
+///
+/// Text before a formatting node still counts: `Requires 1.1.1. Success:
+/// **keep this**.` opens with the plain keyword even though a formatting node
+/// appears later in the paragraph.
+fn leading_text_run(nodes: &[Node]) -> String {
+    let mut leading = String::new();
+    for node in nodes {
+        if !append_plain_text(node, &mut leading) {
+            break;
+        }
+    }
+    leading
+}
+
+/// Append one node's contribution to a plain-text run.
+///
+/// Returns `false` for a node that ends the run.
+fn append_plain_text(node: &Node, leading: &mut String) -> bool {
+    match node {
+        Node::Text(text) => leading.push_str(&text.value),
+        Node::Break(_) => leading.push(' '),
+        _ => return false,
+    }
+    true
 }
 
 /// Return whether a rendered value starts with a whole keyword.

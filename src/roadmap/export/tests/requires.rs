@@ -17,6 +17,7 @@ use crate::roadmap::export::requires::{
     from_markdown,
     from_task,
     node_children,
+    paragraph_entry_or_clause,
 };
 
 /// Parse a Markdown fixture and return its root node.
@@ -51,13 +52,23 @@ fn first_inline(source: &str) -> Node {
 #[rstest]
 #[case::plain("Requires 1.1.1.", RequiresParagraph::ClauseOnly)]
 #[case::strong("**Requires** 1.1.1.", RequiresParagraph::ClauseOnly)]
+#[case::strong_with_prose("**Requires** further review.", RequiresParagraph::ClauseOnly)]
 #[case::keyword_only("Requires", RequiresParagraph::ClauseOnly)]
 #[case::longer_word("Required 1.1.1.", RequiresParagraph::Content)]
 #[case::unrelated("Notes.", RequiresParagraph::Content)]
 #[case::connector("Requires 1.1.1 and 1.1.2.", RequiresParagraph::ClauseOnly)]
+#[case::escaped_strong("\\*\\*Requires\\*\\* further review.", RequiresParagraph::Content)]
 #[case::trailing_prose(
     "Requires 1.1.1. Success: keep this.",
     RequiresParagraph::ClauseWithProse("Success: keep this.".to_owned())
+)]
+#[case::formatted_prose(
+    "Requires 1.1.1. Success: **keep this**.",
+    RequiresParagraph::ClauseWithProse("Success: **keep this**.".to_owned())
+)]
+#[case::formatted_before_prose(
+    "Requires 1.1.1. **Success**: keep this.",
+    RequiresParagraph::ClauseWithProse("**Success**: keep this.".to_owned())
 )]
 fn classify_paragraph_separates_clauses_from_content(
     #[case] source: &str,
@@ -65,7 +76,43 @@ fn classify_paragraph_separates_clauses_from_content(
 ) {
     let result = classify_paragraph(&paragraph(source).children).expect("text should render");
 
-    assert_eq!(result, expected);
+    assert_eq!(result, expected, "unexpected classification for {source:?}");
+}
+
+/// Escaped asterisks are ordinary prose that happens to render exactly like a
+/// bold keyword. If classification read the rendered prefix, this paragraph
+/// would be dropped as a dependency clause and an edit to its text would never
+/// surface as export drift.
+#[test]
+fn escaped_literal_asterisks_export_as_content() {
+    let paragraph = paragraph("\\*\\*Requires\\*\\* further review.");
+
+    let entry = paragraph_entry_or_clause(&paragraph)
+        .expect("literal text should classify")
+        .expect("escaped asterisks are content, not a clause");
+
+    assert_eq!(
+        entry,
+        (None, "**Requires** further review.".to_owned()),
+        "escaped asterisks should be exported as unlabelled content"
+    );
+}
+
+/// A formatting node after the clause must not stop keyword recognition or
+/// swallow the labelled prose that follows the dependency clause.
+#[test]
+fn formatted_prose_after_a_clause_keeps_its_label() {
+    let paragraph = paragraph("Requires 1.1.1. Success: **keep this**.");
+
+    let entry = paragraph_entry_or_clause(&paragraph)
+        .expect("text should classify")
+        .expect("prose after a clause is content");
+
+    assert_eq!(
+        entry,
+        (Some("Success".to_owned()), "**keep this**.".to_owned()),
+        "the Success entry should keep its label and formatted value"
+    );
 }
 
 #[test]

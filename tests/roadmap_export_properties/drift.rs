@@ -45,7 +45,7 @@ fn set_requires(root: &mut Value, pointer: &str, _replacement: &str) -> bool {
 /// Replace the export format version.
 fn set_format_version(root: &mut Value, _pointer: &str, _replacement: &str) -> bool {
     root.pointer_mut("/format_version").is_some_and(|slot| {
-        *slot = json!(2);
+        *slot = json!(999);
         true
     })
 }

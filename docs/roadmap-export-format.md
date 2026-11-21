@@ -7,11 +7,16 @@ checks that a committed view is current.
 
 ## Versioning
 
-The root `format_version` is `1`. Consumers should check this value before
+The root `format_version` is `2`. Consumers should check this value before
 reading other fields. Any change to the JSON shape or to the meaning of an
 existing field requires incrementing `FORMAT_VERSION` and updating this
 document. The exporter emits pretty JSON with two-space indentation, fixed
 field order, and one final newline.
+
+Version 2 emits plain text literally, so the backslash escapes that exist only
+to keep a rewritten roadmap reparsable no longer appear in exported values.
+Version 1 escaped them, so a value such as `Cost (estimate)` arrived as
+`Cost \(estimate\)`. No field was added, removed or renamed.
 
 ## Root and item fields
 
@@ -44,10 +49,21 @@ appear in `details` in source order.
 ## Text and labels
 
 Text is rendered from supported inline Markdown nodes, preserving code spans,
-emphasis and links. Whitespace runs, including CRLF line endings and Markdown
-hard breaks, collapse to one ASCII space; leading and trailing whitespace is
-removed. Formatting and whitespace changes in the Markdown therefore do not
-create semantic export drift.
+emphasis and links. Plain text is emitted literally: the backslash escapes
+needed to keep a rewritten roadmap reparsable do not appear in the JSON, so `(`,
+`_`, `#` and similar characters keep the meaning they have in the source.
+Supported formatting nodes still carry their Markdown delimiters, for example
+`**bold**` and `` `code` ``. Whitespace runs, including CRLF line endings and
+Markdown hard breaks, collapse to one ASCII space; leading and trailing
+whitespace is removed. A whitespace change therefore creates no semantic export
+drift when it normalizes to the same value, such as reflowing a line or adding
+a second space between words. Inserting or removing whitespace between words
+changes the exported value, so `AlphaBeta` and `Alpha Beta` are different
+exports and the check reports drift. Formatting changes likewise report drift
+only when they change the exported value: removing the emphasis from `**bold**`
+exports `bold` and the check reports drift. Source formatting that renders
+identically is invisible to the check, so `**bold**` and escaped literal
+`\*\*bold\*\*` both export as `**bold**`.
 
 A leading label is a short phrase of ASCII letters, spaces or hyphens ending in
 `:`, or a leading strong-emphasis node containing such a phrase and colon.
@@ -106,7 +122,7 @@ details, but contributes no JSON value.
 
 ```json
 {
-  "format_version": 1,
+  "format_version": 2,
   "phases": [
     {
       "number": "1",
