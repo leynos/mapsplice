@@ -1,6 +1,9 @@
 //! Addendum sub-task splice helpers.
 
-use super::find_task_parent_mut;
+use super::{
+    continuity::{ContinuityPlan, ItemPosition, Replacement, RetiredSubtree, continuity_for},
+    lookup::{find_sub_task, find_task_parent_mut},
+};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
@@ -30,7 +33,7 @@ pub(super) fn insert_sub_tasks(
     report: &mut PreservationReport,
 ) -> Result<()> {
     let SubTaskInsertion { after, sub_tasks } = insertion;
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    let (_, _, step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     {
         let task = step
             .tasks
@@ -57,7 +60,7 @@ pub(super) fn delete_sub_task(
     target: SubTaskNumber,
     report: &mut PreservationReport,
 ) -> Result<()> {
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+    let (_, _, step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
     {
         let task = step
             .tasks
@@ -84,8 +87,10 @@ pub(super) fn replace_sub_task(
     target: SubTaskNumber,
     sub_tasks: Vec<SubTaskEntry>,
     report: &mut PreservationReport,
-) -> Result<()> {
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+) -> Result<Replacement> {
+    let (phase_index, step_index, step, task_index, sub_task_index) =
+        find_sub_task_parent_mut(roadmap, target)?;
+    let count = sub_tasks.len();
     {
         let task = step
             .tasks
@@ -100,27 +105,49 @@ pub(super) fn replace_sub_task(
         }
     }
     step.clear_task_list_source();
-    Ok(())
+    Ok(Replacement::new(
+        ItemPosition::SubTask {
+            phase: phase_index,
+            step: step_index,
+            task: task_index,
+            sub_task: sub_task_index,
+        },
+        count,
+    ))
+}
+
+/// Replace one sub-task and continue the identities that stay in place.
+pub(super) fn replace_sub_task_with_continuity(
+    roadmap: &mut RoadmapDocument,
+    target: SubTaskNumber,
+    sub_tasks: Vec<SubTaskEntry>,
+    report: &mut PreservationReport,
+) -> Result<ContinuityPlan> {
+    let retired = RetiredSubtree::sub_task(find_sub_task(roadmap, target)?);
+    let replacement = replace_sub_task(roadmap, target, sub_tasks, report)?;
+    Ok(continuity_for(roadmap, &retired, replacement))
 }
 
 /// Find the owning step and indices of an addressed sub-task.
 fn find_sub_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
-) -> Result<(&mut StepSection, usize, usize)> {
-    let (step, task_index) = find_task_parent_mut(roadmap, target.task_number())?;
-    let task = step
-        .tasks
-        .get(task_index)
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.task_number().into(),
-        })?;
-    let sub_task_index =
+) -> Result<(usize, usize, &mut StepSection, usize, usize)> {
+    let (phase_index, step_index, step, task_index) =
+        find_task_parent_mut(roadmap, target.task_number())?;
+    let sub_task_index = {
+        let task = step
+            .tasks
+            .get(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
         task.find_sub_task_index(target)
             .ok_or(MapspliceError::AnchorNotFound {
                 anchor: target.into(),
-            })?;
-    Ok((step, task_index, sub_task_index))
+            })?
+    };
+    Ok((phase_index, step_index, step, task_index, sub_task_index))
 }
 
 /// Resolve a sub-task identity from its index in the parent task.

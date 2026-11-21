@@ -1,25 +1,34 @@
 //! Splice operations and anchor-aware mutation helpers.
 
+mod continuity;
 mod dependency_text;
 mod dependency_visitor;
 mod level_edit;
+mod lookup;
 mod remap_kernel;
 mod rewrite;
 mod sub_task;
 
+use continuity::ContinuityPlan;
 pub(crate) use dependency_text::dependency_candidates;
 pub(crate) use dependency_visitor::collect_dependencies;
 use level_edit::{
     delete_phase,
     delete_step,
     delete_task,
-    replace_phase,
-    replace_step,
-    replace_task,
+    replace_phase_with_continuity,
+    replace_step_with_continuity,
+    replace_task_with_continuity,
 };
+use lookup::{find_phase_index, find_step_parent_mut, find_task_parent_mut};
 pub(crate) use remap_kernel::select_resolution;
 use rewrite::{renumber_document, rewrite_dependencies};
-use sub_task::{SubTaskInsertion, delete_sub_task, insert_sub_tasks, replace_sub_task};
+use sub_task::{
+    SubTaskInsertion,
+    delete_sub_task,
+    insert_sub_tasks,
+    replace_sub_task_with_continuity,
+};
 
 use super::{
     PhaseNumber,
@@ -29,7 +38,7 @@ use super::{
     RoadmapItemLevel,
     StepNumber,
     TaskNumber,
-    model::{PhaseSection, StepSection},
+    model::{PhaseSection, StepSection, TaskEntry},
     preservation_events::PreservationReport,
 };
 use crate::error::{MapspliceError, Result};
@@ -127,8 +136,11 @@ pub(crate) fn apply_command_with_report(
 ) -> Result<(u64, PreservationReport)> {
     let mut staged = roadmap.clone();
     let mut report = PreservationReport::default();
-    match operation {
-        RoadmapOperation::Append => append_fragment(&mut staged, fragment)?,
+    let continuity = match operation {
+        RoadmapOperation::Append => {
+            append_fragment(&mut staged, fragment)?;
+            ContinuityPlan::default()
+        }
         RoadmapOperation::Insert { anchor, after } => {
             insert_fragment(
                 &mut staged,
@@ -139,15 +151,21 @@ pub(crate) fn apply_command_with_report(
                 },
                 &mut report,
             )?;
+            ContinuityPlan::default()
         }
-        RoadmapOperation::Delete { anchor } => delete_anchor(&mut staged, anchor, &mut report)?,
+        RoadmapOperation::Delete { anchor } => {
+            delete_anchor(&mut staged, anchor, &mut report)?;
+            ContinuityPlan::default()
+        }
         RoadmapOperation::Replace { anchor } => {
-            replace_anchor(&mut staged, anchor, fragment, &mut report)?;
+            replace_anchor(&mut staged, anchor, fragment, &mut report)?
         }
-    }
+    };
 
-    let plan = renumber_document(&mut staged, &mut report)?;
+    let mut plan = renumber_document(&mut staged, &mut report)?;
+    continuity.apply(&staged, &mut plan);
     let dependency_rewrites = rewrite_dependencies(&mut staged, &plan, &mut report)?;
+    staged.reanchor_identities();
     *roadmap = staged;
     Ok((dependency_rewrites, report))
 }
@@ -231,7 +249,7 @@ fn insert_steps(
     after: bool,
     steps: Vec<StepSection>,
 ) -> Result<()> {
-    let (phase, step_index) = find_step_parent_mut(roadmap, target)?;
+    let (_, phase, step_index) = find_step_parent_mut(roadmap, target)?;
     phase.steps.splice(
         step_index + usize::from(after)..step_index + usize::from(after),
         steps,
@@ -244,9 +262,9 @@ fn insert_tasks(
     roadmap: &mut RoadmapDocument,
     target: TaskNumber,
     after: bool,
-    tasks: Vec<super::model::TaskEntry>,
+    tasks: Vec<TaskEntry>,
 ) -> Result<()> {
-    let (step, task_index) = find_task_parent_mut(roadmap, target)?;
+    let (_, _, step, task_index) = find_task_parent_mut(roadmap, target)?;
     step.clear_task_list_source();
     step.tasks.splice(
         task_index + usize::from(after)..task_index + usize::from(after),
@@ -282,23 +300,23 @@ fn replace_anchor(
     anchor: RoadmapAnchor,
     fragment: Option<RoadmapFragment>,
     report: &mut PreservationReport,
-) -> Result<()> {
+) -> Result<ContinuityPlan> {
     let fragment_document = required_fragment("replace", fragment)?;
     let found = fragment_document.level();
     validate_fragment_level(anchor, found)?;
 
     match (anchor, fragment_document) {
         (RoadmapAnchor::Phase(target), RoadmapFragment::Phase(phases)) => {
-            replace_phase(roadmap, target, phases)
+            replace_phase_with_continuity(roadmap, target, phases)
         }
         (RoadmapAnchor::Step(target), RoadmapFragment::Step(steps)) => {
-            replace_step(roadmap, target, steps)
+            replace_step_with_continuity(roadmap, target, steps)
         }
         (RoadmapAnchor::Task(target), RoadmapFragment::Task(tasks)) => {
-            replace_task(roadmap, target, tasks)
+            replace_task_with_continuity(roadmap, target, tasks)
         }
         (RoadmapAnchor::SubTask(target), RoadmapFragment::SubTask(sub_tasks)) => {
-            replace_sub_task(roadmap, target, sub_tasks, report)
+            replace_sub_task_with_continuity(roadmap, target, sub_tasks, report)
         }
         _ => Err(MapspliceError::LevelMismatch {
             anchor,
@@ -328,56 +346,4 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
             found,
         })
     }
-}
-
-/// Locate a numbered phase or report its anchor as missing.
-fn find_phase_index(roadmap: &RoadmapDocument, target: PhaseNumber) -> Result<usize> {
-    roadmap
-        .phases
-        .iter()
-        .position(|phase| phase.number == target)
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.into(),
-        })
-}
-
-/// Find the parent phase and index of an addressed step.
-fn find_step_parent_mut(
-    roadmap: &mut RoadmapDocument,
-    target: StepNumber,
-) -> Result<(&mut PhaseSection, usize)> {
-    roadmap
-        .phases
-        .iter_mut()
-        .find_map(|phase| {
-            phase
-                .steps
-                .iter()
-                .position(|step| step.number == target)
-                .map(|step_index| (phase, step_index))
-        })
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.into(),
-        })
-}
-
-/// Find the parent step and index of an addressed task.
-fn find_task_parent_mut(
-    roadmap: &mut RoadmapDocument,
-    target: TaskNumber,
-) -> Result<(&mut StepSection, usize)> {
-    for phase in &mut roadmap.phases {
-        if let Some((step, task_index)) = phase.steps.iter_mut().find_map(|step| {
-            step.tasks
-                .iter()
-                .position(|task| task.number == target)
-                .map(|task_index| (step, task_index))
-        }) {
-            return Ok((step, task_index));
-        }
-    }
-
-    Err(MapspliceError::AnchorNotFound {
-        anchor: target.into(),
-    })
 }

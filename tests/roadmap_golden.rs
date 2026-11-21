@@ -7,6 +7,8 @@ mod formatter_boundary;
 mod golden;
 #[path = "roadmap_golden/nested_requires.rs"]
 mod nested_requires;
+#[path = "roadmap_golden/replacement_continuity.rs"]
+mod replacement_continuity;
 
 use golden::{
     GoldenCommand,

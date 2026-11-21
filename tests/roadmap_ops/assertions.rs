@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use mapsplice::MapspliceError::{self, AnchorNotFound, LevelMismatch};
+use mapsplice::MapspliceError::{self, AnchorNotFound, DanglingDependency, LevelMismatch};
 
 /// Assert two values are equal, printing both on failure.
 pub(crate) fn assert_equal<T>(actual: &T, expected: &T)
@@ -22,4 +22,16 @@ pub(crate) fn assert_level_mismatch(error: &MapspliceError) {
 pub(crate) fn assert_anchor_not_found(error: &MapspliceError) {
     let is_anchor_not_found = matches!(error, AnchorNotFound { .. });
     assert!(is_anchor_not_found, "expected missing anchor");
+}
+
+/// Assert a dangling-dependency error names the expected prerequisite.
+pub(crate) fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
+    let DanglingDependency { anchor, .. } = error else {
+        panic!("expected dangling dependency error, got {error:?}");
+    };
+    assert_eq!(
+        anchor.to_string(),
+        expected,
+        "rejection must identify the expected prerequisite anchor"
+    );
 }

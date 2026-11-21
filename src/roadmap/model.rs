@@ -1,6 +1,6 @@
 //! In-memory representation of a supported roadmap document.
 
-use std::{collections::BTreeMap, fmt, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use markdown::mdast::Node;
 
@@ -25,6 +25,8 @@ mod task_entry;
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;
+
+pub(crate) use super::renumber_plan::RenumberPlan;
 
 /// A parsed roadmap document.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -215,13 +217,6 @@ pub struct ItemIdentity {
     pub anchor: RoadmapAnchor,
 }
 
-/// Old-to-new renumbering lookup.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct RenumberPlan {
-    /// Mapping by source document.
-    by_source: BTreeMap<SourceId, BTreeMap<RoadmapAnchor, RoadmapAnchor>>,
-}
-
 impl RoadmapDocument {
     /// Create an empty document.
     #[must_use]
@@ -229,6 +224,69 @@ impl RoadmapDocument {
         Self {
             preamble: MarkdownNodes::new(),
             phases: Vec::new(),
+        }
+    }
+
+    /// Re-anchor every retained identity to the number its item now holds.
+    ///
+    /// An operation rewrites dependency references against a renumber plan
+    /// keyed by the anchors items held when the operation started. Those
+    /// anchors are stale as soon as the operation commits: the next operation
+    /// reads the rendered numbers, so its plan must be keyed by them. Resetting
+    /// each identity to its current number, and to the target source because
+    /// spliced fragment content is now part of the target document, makes the
+    /// committed document identical in identity terms to a fresh parse of its
+    /// own rendering.
+    ///
+    /// This is what lets a caller apply successive operations without
+    /// rendering and re-parsing between them. A continuity alias granted by an
+    /// in-place replacement is therefore only needed for the operation that
+    /// granted it; the re-anchored identity carries the continuation forward.
+    pub(crate) fn reanchor_identities(&mut self) {
+        for phase in &mut self.phases {
+            phase.identity = identity_at(phase.number.into());
+            for step in &mut phase.steps {
+                reanchor_step(step);
+            }
+        }
+    }
+}
+
+/// Return the target-sourced identity for an item's current anchor.
+const fn identity_at(anchor: RoadmapAnchor) -> ItemIdentity {
+    ItemIdentity {
+        source: SourceId::Target,
+        anchor,
+    }
+}
+
+/// Re-anchor one step, its tasks, and their sub-tasks.
+fn reanchor_step(step: &mut StepSection) {
+    step.identity = identity_at(step.number.into());
+    for task in &mut step.tasks {
+        reanchor_task(task);
+    }
+}
+
+/// Re-anchor a task and its sub-tasks, realigning structural child markers.
+///
+/// The parser and every splice keep exactly one [`TaskChild::SubTask`] marker
+/// per sub-task, in the same order, so the marker sequence is updated by
+/// position rather than by the old identity: duplicate fragment anchors are
+/// possible before they are re-anchored to distinct numbers.
+fn reanchor_task(task: &mut TaskEntry) {
+    task.identity = identity_at(RoadmapAnchor::Task(task.number));
+    for sub_task in &mut task.sub_tasks {
+        sub_task.identity = identity_at(RoadmapAnchor::SubTask(sub_task.number));
+    }
+
+    let mut reanchored = task.sub_tasks.iter().map(|sub_task| sub_task.identity);
+    for marker in task.children.iter_mut().filter_map(|child| match child {
+        TaskChild::SubTask(identity) => Some(identity),
+        TaskChild::Body(_) => None,
+    }) {
+        if let Some(identity) = reanchored.next() {
+            *marker = identity;
         }
     }
 }
@@ -327,74 +385,3 @@ impl RoadmapFragment {
 /// Return the fragment level without consuming the fragment.
 #[must_use]
 pub const fn fragment_level(fragment: &RoadmapFragment) -> RoadmapItemLevel { fragment.level() }
-
-impl RenumberPlan {
-    /// Resolve a rewritten anchor for the given source and original anchor.
-    #[must_use]
-    pub fn resolve(&self, source: SourceId, anchor: RoadmapAnchor) -> Option<RoadmapAnchor> {
-        self.by_source
-            .get(&source)
-            .and_then(|mapping| mapping.get(&anchor).copied())
-    }
-
-    /// Resolve a dependency reference written in `source` to its new anchor.
-    ///
-    /// The source-local mapping is consulted first. A unique cross-source
-    /// mapping is then accepted only for fragment text.
-    ///
-    /// The asymmetry is a correctness requirement rather than an optimization.
-    /// A fragment item's identity is its fragment-local spelling, because that
-    /// spelling is all the fragment file carries; a target item's identity is
-    /// the anchor it held before the operation. Those are the same kind of
-    /// value, so if target text could fall back to the fragment's mapping, a
-    /// replacement item spelled like the item it superseded would absorb a
-    /// surviving consumer's clause — the clause would keep its old digits and
-    /// silently resolve to a different item. A fragment clause, by contrast,
-    /// genuinely is written in the fragment's own numbering when it arrives, so
-    /// the fallback is exactly what makes it resolve.
-    ///
-    /// The choice between the two mappings is delegated to
-    /// [`select_resolution`], a pure kernel that `verus/lib.rs` proves
-    /// identity preservation over. Keeping the decision there — and only
-    /// there — is what makes the rule a theorem rather than a comment: were
-    /// the caller to withhold the cross-source value itself, the kernel's
-    /// fragment guard would be dead in production and the proof would be
-    /// about unreachable logic.
-    ///
-    /// [`select_resolution`]: super::ops::select_resolution
-    #[must_use]
-    pub fn resolve_reference(
-        &self,
-        source: SourceId,
-        anchor: RoadmapAnchor,
-    ) -> Option<RoadmapAnchor> {
-        let local = self.resolve(source, anchor);
-        let cross_unique = self.resolve_unique(anchor);
-        super::ops::select_resolution(local, cross_unique, source == SourceId::Fragment)
-    }
-
-    /// Resolve a unique mapping across all sources when local lookup is absent.
-    #[must_use]
-    pub fn resolve_unique(&self, anchor: RoadmapAnchor) -> Option<RoadmapAnchor> {
-        let mut matches = self
-            .by_source
-            .values()
-            .filter_map(|mapping| mapping.get(&anchor).copied());
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
-    }
-
-    /// Record a source-local old-to-new anchor mapping.
-    pub(crate) fn record_mapping(
-        &mut self,
-        source: SourceId,
-        old: RoadmapAnchor,
-        new: RoadmapAnchor,
-    ) {
-        self.by_source.entry(source).or_default().insert(old, new);
-    }
-}

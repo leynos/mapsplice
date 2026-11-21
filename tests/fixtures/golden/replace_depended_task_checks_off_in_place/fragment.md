@@ -1,0 +1,1 @@
+- [x] 1.1.2. Draft the plan carefully.
