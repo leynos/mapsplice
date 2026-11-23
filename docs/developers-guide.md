@@ -382,6 +382,16 @@ make typecheck
 make lint
 ```
 
+`make test` begins with `cargo fetch --locked`, so the nested builds that tests
+start find the package cache warm instead of resolving dependencies while they
+hold the shared package-cache lock (the estate's offline-tests rule, NC-008).
+The locked fetch needs `Cargo.lock` to be current: after changing a manifest,
+run `cargo update --workspace` (or any cargo command that rewrites the
+lockfile) and commit the result, or the test gate stops at the fetch with a
+lockfile error. The fetch deliberately takes no `--target`, so it covers every
+platform the tests might compile for, and it does not honour `TEST_FLAGS`: the
+flags select what the tests run, not what the cache holds.
+
 Run these gates for Markdown changes:
 
 ```bash
