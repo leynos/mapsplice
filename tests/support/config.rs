@@ -70,8 +70,13 @@ impl Workspace {
             .target
             .parent()
             .ok_or_else(|| "target path should have a parent".to_owned())?;
+        // Pin the discovery roots so a missing `HOME` cannot fall back to the
+        // passwd home directory; tests that set them explicitly override these.
         Ok(CliInvocation {
-            env_vars: Vec::new(),
+            env_vars: vec![
+                ("HOME", root.join("home").to_string()),
+                ("XDG_CONFIG_HOME", root.join("empty-xdg").to_string()),
+            ],
             cwd: root.to_path_buf(),
         })
     }

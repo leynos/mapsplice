@@ -13,6 +13,7 @@ use super::{
 };
 
 #[rstest]
+#[serial_test::serial(observability_metrics)]
 fn wrapped_dangling_dependency_reports_its_source_column(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
