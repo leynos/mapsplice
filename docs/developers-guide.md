@@ -166,11 +166,20 @@ Future optional configuration settings must document which loader owns their
 discovery path. Add or update `tests/roadmap_config.rs` coverage for every
 source and precedence claim before changing the users' guide.
 
-Configuration tests use the shared `ProcessState` fixture in
-`tests/support/config.rs`. `set_env`, `remove_env`, and `enter_dir` configure
-changes that take effect only inside `run`; `Workspace::enter_root` selects the
-workspace directory through `enter_dir`. `run` holds a shared lock while the
-closure executes, then restores the environment and working directory.
+Configuration tests run the compiled `mapsplice` binary as a child process
+through the `CliInvocation` fixture in `tests/support/config.rs`.
+`Workspace::invocation` starts an invocation with an empty environment, `HOME`
+and `XDG_CONFIG_HOME` pinned to workspace paths, and the workspace directory as
+the working directory. `set_env` adds variables, and `run` executes the binary
+and captures its exit status, standard output, and standard error. Nothing in
+the test process changes its environment or working directory. Set `RUST_LOG`
+on the invocation to observe the `error_class` tracing field of a failure.
+
+The integration binaries that assert exact deltas of the process-global
+observability counters (`roadmap_ops`, `roadmap_lookup_rendering`, and
+`roadmap_preservation_observability`) mark every test that can write a counter
+with `#[serial_test::serial(observability_metrics)]`. That key protects the
+counters; it does not serialize any environment access.
 
 ## 6. Observability
 
@@ -746,15 +755,15 @@ tables under `[workspace.lints.*]` and make every member inherit them with
 the build and verification routes also require their documented tools. Keep
 environment access at an explicit CLI configuration boundary and inject an
 environment reader into code that needs deterministic testing. The
-`disallowed_methods` lint level is enabled, and `clippy.toml` forbids seven
+`disallowed_methods` lint level is enabled, and `clippy.toml` forbids three
 process-wide mutations in tests: `std::env::set_var`, `std::env::remove_var`,
-`std::env::set_current_dir`, and `temp_env`'s `with_var`, `with_var_unset`,
-`with_vars` and `with_vars_unset`. A site that cannot yet migrate carries a
-narrowly scoped `#[expect(clippy::disallowed_methods, reason = ...)]`. These
-mutation bans do not cover environment reads, so the environment-access rule
-above is still enforced by review. The maintainer selected Netsuke as the
-reference for the seven environment and current-directory bans. Canonical
-publication and consumer adoption remain follow-up work in
+and `std::env::set_current_dir`. The repository has no environment-wrapper
+dependency. A site that cannot yet migrate carries a narrowly scoped
+`#[expect(clippy::disallowed_methods, reason = ...)]`. These mutation bans do
+not cover environment reads, so the environment-access rule above is still
+enforced by review. The maintainer selected Netsuke as the reference for the
+environment and current-directory bans. Canonical publication and consumer
+adoption remain follow-up work in
 [Concordat issue #157](https://github.com/leynos/concordat/issues/157).
 
 The binding `make lint` documentation check runs

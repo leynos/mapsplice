@@ -168,10 +168,15 @@ fn invalid_insert_config_surfaces_configuration_error(
     let xdg_home = test_workspace.write_xdg_config("[cmds.insert]\nafter = \"later\"\n")?;
     let mut invocation = test_workspace.invocation()?;
     invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+    // The child reports `MapspliceError::class()` as a tracing field, which is
+    // how a process boundary exposes the typed `Configuration` variant.
+    invocation.set_env("RUST_LOG", "error");
 
     let outcome = run_insert(&test_workspace, &invocation, &[])?;
 
     assert_equal(&outcome.success, &false);
+    assert_contains(&outcome.stderr, "mapsplice command failed");
+    assert_contains(&outcome.stderr, "\"configuration\"");
     assert_contains(&outcome.stderr, "later");
     Ok(())
 }
