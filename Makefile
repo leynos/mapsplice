@@ -132,6 +132,7 @@ test: check-build-tools ## Run tests with warnings treated as errors
 		echo "error: jq is required to detect doctest-capable packages; install jq or set DOC_TEST_TARGETS=true/false" >&2; \
 		exit 2; \
 	fi
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) fetch --locked
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifeq ($(DOC_TEST_TARGETS),true)
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
