@@ -47,7 +47,6 @@ impl FailClosedCase {
     }
 }
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f1_minimal_untouched_content(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -60,7 +59,6 @@ fn f1_minimal_untouched_content(workspace: TestResult<GoldenWorkspace>) -> TestR
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f2_minimal_renumber_diff(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -73,7 +71,6 @@ fn f2_minimal_renumber_diff(workspace: TestResult<GoldenWorkspace>) -> TestResul
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f3_c5_identity_replace(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -87,7 +84,6 @@ fn f3_c5_identity_replace(workspace: TestResult<GoldenWorkspace>) -> TestResult 
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f4_formatter_stability_smoke(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -100,7 +96,6 @@ fn f4_formatter_stability_smoke(workspace: TestResult<GoldenWorkspace>) -> TestR
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c2_contiguous_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -113,7 +108,6 @@ fn c2_contiguous_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult 
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c4_addendum_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -126,7 +120,6 @@ fn c4_addendum_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c4_addendum_body_bullet_renumber(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     let case = golden_success_case(
         "c4_addendum_body_bullet_renumber",
@@ -137,7 +130,6 @@ fn c4_addendum_body_bullet_renumber(workspace: TestResult<GoldenWorkspace>) -> T
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c4_addendum_render_fidelity(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -150,7 +142,6 @@ fn c4_addendum_render_fidelity(workspace: TestResult<GoldenWorkspace>) -> TestRe
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c3_dangling_requires_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -164,7 +155,6 @@ fn c3_dangling_requires_failure(workspace: TestResult<GoldenWorkspace>) -> TestR
     )
 }
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c6_stdout_target_unchanged(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -180,7 +170,6 @@ fn c6_stdout_target_unchanged(workspace: TestResult<GoldenWorkspace>) -> TestRes
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c6_in_place_success(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -196,7 +185,6 @@ fn c6_in_place_success(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_malformed_grammar_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -211,7 +199,6 @@ fn f5_malformed_grammar_failure(workspace: TestResult<GoldenWorkspace>) -> TestR
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_level_mismatch_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -226,7 +213,6 @@ fn f5_level_mismatch_failure(workspace: TestResult<GoldenWorkspace>) -> TestResu
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_append_level_mismatch_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -352,7 +338,6 @@ fn f5_append_level_mismatch_failure(workspace: TestResult<GoldenWorkspace>) -> T
     ExpectedError::DanglingDependency
     )
 )]
-#[serial_test::serial(cli_env)]
 fn f5_in_place_boundary_matrix(
     workspace: TestResult<GoldenWorkspace>,
     #[case] case: FailClosedCase,
@@ -370,7 +355,6 @@ fn f5_in_place_boundary_matrix(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_render_failure_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -385,7 +369,6 @@ fn f5_render_failure_in_place(workspace: TestResult<GoldenWorkspace>) -> TestRes
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_missing_anchor_in_place_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

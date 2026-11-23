@@ -24,7 +24,6 @@ use super::{
 /// used to leave the consumer pointing at the unrelated item that inherited
 /// `1.1.1`.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c3_nested_bullet_requires_rewrite(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -38,7 +37,6 @@ fn c3_nested_bullet_requires_rewrite(workspace: TestResult<GoldenWorkspace>) -> 
 
 /// Verify insertion renumbers all three clause positions and leaves prose alone.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f4_nested_requires_clause_positions(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -51,7 +49,6 @@ fn f4_nested_requires_clause_positions(workspace: TestResult<GoldenWorkspace>) -
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c3_nested_bullet_requires_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -67,7 +64,6 @@ fn c3_nested_bullet_requires_failure(workspace: TestResult<GoldenWorkspace>) -> 
 
 /// Verify an in-place delete of a still-required item writes nothing at all.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f5_nested_requires_delete_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -91,7 +87,6 @@ fn f5_nested_requires_delete_in_place(workspace: TestResult<GoldenWorkspace>) ->
 /// `--in-place` off the command line; the byte-identical target assertion then
 /// proves nothing was written despite the absence of that flag.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -119,7 +114,6 @@ fn c6_nested_requires_preview_failure(workspace: TestResult<GoldenWorkspace>) ->
 /// dependency, which is a different contract and is covered by the C3 and F5
 /// cases.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn f6_hyphenated_range_endpoints_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -140,7 +134,6 @@ fn f6_hyphenated_range_endpoints_rewritten(workspace: TestResult<GoldenWorkspace
 /// positions, so the fixture shows the incidental prose and the fenced example
 /// holding their bytes *while* the surrounding clauses are rewritten.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn c2_nested_prose_and_code_not_rewritten(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

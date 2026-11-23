@@ -187,7 +187,6 @@ fn mixed_nested_list_classification_survives_canonical_renumbering(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn append_renumbers_sub_tasks_and_their_dependencies(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -215,7 +214,6 @@ fn append_renumbers_sub_tasks_and_their_dependencies(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_before_phase_moves_sub_task_and_rewrites_sub_task_references(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -245,7 +243,6 @@ fn insert_before_phase_moves_sub_task_and_rewrites_sub_task_references(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_renumbers_sub_tasks_with_parent_task(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -274,7 +271,6 @@ fn delete_renumbers_sub_tasks_with_parent_task(workspace: TestResult<Workspace>)
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_sub_task_renumbers_later_sub_tasks(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -304,7 +300,6 @@ fn delete_sub_task_renumbers_later_sub_tasks(workspace: TestResult<Workspace>) -
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn dependency_rewrites_inside_sub_task_text(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace

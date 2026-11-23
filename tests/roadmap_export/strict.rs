@@ -3,7 +3,6 @@
 use super::*;
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn invalid_committed_export_preserves_json_location(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -30,7 +29,6 @@ fn invalid_committed_export_preserves_json_location(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn invalid_committed_checkbox_state_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(BASIC_ROADMAP)?;
@@ -55,7 +53,6 @@ fn invalid_committed_checkbox_state_is_rejected(workspace: TestResult<Workspace>
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_ignores_in_place_even_for_a_direct_request(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -83,7 +80,6 @@ fn export_ignores_in_place_even_for_a_direct_request(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn dependency_bullet_exports_its_supported_children(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -104,7 +100,6 @@ fn dependency_bullet_exports_its_supported_children(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn prose_after_a_requires_clause_is_exported(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(concat!(
@@ -197,7 +192,6 @@ fn prose_after_a_requires_clause_is_exported(workspace: TestResult<Workspace>) -
     "checkbox detail cannot be nested beneath a non-checkbox entry",
     "line 7, column 5"
 )]
-#[serial_test::serial(cli_env)]
 fn malformed_or_unsupported_exports_fail_with_source_locations(
     workspace: TestResult<Workspace>,
     #[case] source: &str,

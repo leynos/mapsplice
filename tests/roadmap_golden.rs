@@ -29,7 +29,6 @@ pub(crate) fn workspace() -> TestResult<GoldenWorkspace> {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn append_phase(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -38,7 +37,6 @@ fn append_phase(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_phase_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -51,7 +49,6 @@ fn insert_phase_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -70,7 +67,6 @@ fn insert_step_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 #[case::fenced_ordered_markers("insert_task_preserves_fenced_ordered_markers", "1.1.2")]
 #[case::fence_delimiter_content("insert_task_preserves_fence_delimiter_content", "1.1.2")]
 #[case::fenced_sub_task_sibling("insert_sub_task_preserves_fenced_sibling", "1.1.1.1")]
-#[serial_test::serial(cli_env)]
 fn standard_insertions_preserve_target_source(
     workspace: TestResult<GoldenWorkspace>,
     #[case] fixture_name: &'static str,
@@ -83,7 +79,6 @@ fn standard_insertions_preserve_target_source(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_task_preserves_indented_code_markers(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -104,7 +99,6 @@ fn insert_task_preserves_indented_code_markers(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -117,7 +111,6 @@ fn insert_task_before(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_task_preserves_two_space_continuations(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -132,7 +125,6 @@ fn insert_task_preserves_two_space_continuations(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -145,7 +137,6 @@ fn insert_sub_task_after(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -158,7 +149,6 @@ fn delete_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_task_preserves_two_space_continuations(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -173,7 +163,6 @@ fn delete_task_preserves_two_space_continuations(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_step(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -186,7 +175,6 @@ fn replace_step(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_task_preserves_two_space_continuations(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -201,7 +189,6 @@ fn replace_task_preserves_two_space_continuations(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_sub_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -214,7 +201,6 @@ fn replace_sub_task(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn preamble_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -227,7 +213,6 @@ fn preamble_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn phase_step_task_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -240,7 +225,6 @@ fn phase_step_task_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn multi_line_task_body(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -253,7 +237,6 @@ fn multi_line_task_body(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn nested_bullets(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -266,7 +249,6 @@ fn nested_bullets(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn ordered_list_task_body(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -279,7 +261,6 @@ fn ordered_list_task_body(workspace: TestResult<GoldenWorkspace>) -> TestResult 
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn tables_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -292,7 +273,6 @@ fn tables_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn code_blocks_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -305,7 +285,6 @@ fn code_blocks_preserved(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn literal_backslash_escape(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -318,7 +297,6 @@ fn literal_backslash_escape(workspace: TestResult<GoldenWorkspace>) -> TestResul
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn addendum_body_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -331,19 +309,16 @@ fn addendum_body_surface(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn section_reference(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(&workspace?, reference_delete_case("section_reference", "1"))
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn version_quantity(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(&workspace?, reference_delete_case("version_quantity", "1"))
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn section_reference_outside_requires(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -352,7 +327,6 @@ fn section_reference_outside_requires(workspace: TestResult<GoldenWorkspace>) ->
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn substring_non_match(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -361,7 +335,6 @@ fn substring_non_match(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn multi_id_requires(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(&workspace?, reference_delete_case("multi_id_requires", "1"))
 }

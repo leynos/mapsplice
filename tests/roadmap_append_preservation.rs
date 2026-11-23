@@ -40,7 +40,6 @@ const CR_ONLY_TASK_DELETE_OUTPUT: &str =
     include_str!("fixtures/roadmap_append_preservation/cr_only_task_delete_output.txt");
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn append_preserves_existing_loose_task_spacing(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     let preserved_phase = concat!(
@@ -76,7 +75,6 @@ fn append_preserves_existing_loose_task_spacing(workspace: TestResult<Workspace>
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_preserves_untouched_two_space_task_source(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -100,7 +98,6 @@ fn insert_preserves_untouched_two_space_task_source(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_preserves_surviving_two_space_task_source(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -121,7 +118,6 @@ fn delete_preserves_surviving_two_space_task_source(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_does_not_leave_next_task_indentation_behind(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -152,7 +148,6 @@ fn delete_does_not_leave_next_task_indentation_behind(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_cr_only_task_does_not_preserve_the_document_prefix(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -183,7 +178,6 @@ fn delete_cr_only_task_does_not_preserve_the_document_prefix(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_preserves_untouched_two_space_task_source(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

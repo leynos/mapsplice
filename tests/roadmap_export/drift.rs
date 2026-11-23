@@ -15,7 +15,6 @@ const ESCAPED_REQUIRES_ROADMAP: &str = concat!(
 #[case::task_title("Emit **stable** JSON", "Emit changed JSON", "~ task 1.1.1 title")]
 #[case::dependency("Requires 1.1.2.", "Requires 1.1.1.", "~ task 1.1.1 requires")]
 #[case::checkbox("- [ ] 1.1.1.", "- [x] 1.1.1.", "~ task 1.1.1 state")]
-#[serial_test::serial(cli_env)]
 fn export_check_names_semantic_drift_and_preserves_both_files(
     workspace: TestResult<Workspace>,
     #[case] source: &str,
@@ -61,7 +60,6 @@ fn export_check_names_semantic_drift_and_preserves_both_files(
 /// import the paragraph as nothing at all and then report no drift when its
 /// text changes.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn escaped_literal_requires_text_exports_and_drifts(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -99,7 +97,6 @@ fn escaped_literal_requires_text_exports_and_drifts(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn nested_detail_drift_names_its_owning_task(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(BASIC_ROADMAP)?;
@@ -128,7 +125,6 @@ fn nested_detail_drift_names_its_owning_task(workspace: TestResult<Workspace>) -
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_check_succeeds_silently_and_does_not_rewrite_files(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -162,7 +158,6 @@ fn export_check_succeeds_silently_and_does_not_rewrite_files(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_check_reports_formatting_only_drift(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(BASIC_ROADMAP)?;
@@ -185,7 +180,6 @@ fn export_check_reports_formatting_only_drift(workspace: TestResult<Workspace>) 
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_check_reports_semantic_source_order_drift(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -215,7 +209,6 @@ fn export_check_reports_semantic_source_order_drift(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn nested_requires_export_matches_the_rewriter_after_renumbering(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

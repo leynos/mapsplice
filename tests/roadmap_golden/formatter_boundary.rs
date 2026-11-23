@@ -52,7 +52,6 @@ fn golden_corpus_has_no_formatter_boundary_surprises() -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn gate_clean_loose_list_survives_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -60,7 +59,6 @@ fn gate_clean_loose_list_survives_noop_replace(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn gate_clean_indented_code_fence_survives_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -78,7 +76,6 @@ fn gate_clean_indented_code_fence_survives_noop_replace(
 )]
 #[case::tilde_fence(data::tilde_fence_target(), data::canonical_fence_expected())]
 #[case::oversized_backtick_fence(data::oversized_fence_target(), data::canonical_fence_expected())]
-#[serial_test::serial(cli_env)]
 fn formatter_unstable_input_normalizes_on_noop_replace(
     workspace: TestResult<GoldenWorkspace>,
     #[case] target: &str,

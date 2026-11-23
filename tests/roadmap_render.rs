@@ -40,7 +40,6 @@ fn marker_index(haystack: &str, marker: &str) -> TestResult<usize> {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_preserves_code_metadata_and_blockquote_spacing(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -78,7 +77,6 @@ fn render_preserves_code_metadata_and_blockquote_spacing(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_separates_fenced_code_inside_task_body(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -120,7 +118,6 @@ fn render_separates_fenced_code_inside_task_body(workspace: TestResult<Workspace
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_separates_task_body_paragraphs(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -160,7 +157,6 @@ fn render_separates_task_body_paragraphs(workspace: TestResult<Workspace>) -> Te
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_preserves_untouched_body_markdown_exactly(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -192,7 +188,6 @@ fn render_preserves_untouched_body_markdown_exactly(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_preserves_task_body_and_sub_task_order(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -229,7 +224,6 @@ fn render_preserves_task_body_and_sub_task_order(workspace: TestResult<Workspace
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -296,7 +290,6 @@ fn render_preserves_nested_sub_task_block_exactly(workspace: TestResult<Workspac
         stale: "  - [x] 1.1.1.2. Deleted sub-task.",
     }
 )]
-#[serial_test::serial(cli_env)]
 fn render_sub_task_splices_do_not_reuse_preserved_task_list_source(
     workspace: TestResult<Workspace>,
     #[case] case: SubTaskSpliceCase<'_>,
