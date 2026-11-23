@@ -18,7 +18,6 @@ struct PreservationOperation<'a> {
 /// Verify stable task reuse increments preservation without mutation or
 /// canonical-fallback counters.
 #[test]
-#[serial_test::serial(cli_env)]
 fn stable_task_sources_record_preserved_rendering_only() {
     let before = metrics_snapshot();
     let stdout = run_preservation_operation(
@@ -46,7 +45,6 @@ fn stable_task_sources_record_preserved_rendering_only() {
 
 /// Verify a sub-task splice records only the parent's child-mutation reason.
 #[test]
-#[serial_test::serial(cli_env)]
 fn sub_task_splice_records_child_mutation_only() {
     let before = metrics_snapshot();
     let stdout = run_preservation_operation(
@@ -85,7 +83,6 @@ fn sub_task_splice_records_child_mutation_only() {
 
 /// Verify inserting before existing tasks records only renumber invalidation.
 #[test]
-#[serial_test::serial(cli_env)]
 fn task_insertion_before_existing_tasks_records_renumbering_only() {
     let before = metrics_snapshot();
     let stdout = run_preservation_operation(
@@ -125,7 +122,6 @@ fn task_insertion_before_existing_tasks_records_renumbering_only() {
 /// Verify a phase insertion records dependency-rewrite invalidation for the
 /// affected unchanged task.
 #[test]
-#[serial_test::serial(cli_env)]
 fn phase_insertion_records_dependency_rewrite_for_unchanged_task() {
     let before = metrics_snapshot();
     let stdout = run_preservation_operation(
@@ -183,7 +179,6 @@ fn phase_insertion_records_dependency_rewrite_for_unchanged_task() {
     0,
     1
 )]
-#[serial_test::serial(cli_env)]
 fn unstable_sources_record_only_their_canonical_fallback_reason(
     #[case] source: &str,
     #[case] expected_list_fallbacks: u64,

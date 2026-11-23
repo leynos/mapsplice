@@ -373,11 +373,10 @@ project:
   the environment via `Command::env`/`Command::env_clear`, because the mutation
   is confined to the child process. A test manipulating the environment
   in-process does not qualify, whatever layer it claims to occupy.
-- Known deviation: this repository has no `mockable` dependency, so its
-  integration tests that must set process environment variables use
-  `temp_env::with_vars` (see `tests/support/config.rs`) inside the
-  `serial_test` group `cli_env`. This existing local form is not an exemption,
-  and the rules above still apply to new code.
+- This repository has no `mockable` dependency, so its configuration tests use
+  the subprocess route: they run the compiled `mapsplice` binary with
+  `Command::env_clear`, `Command::env`, and `Command::current_dir` (see
+  `tests/support/config.rs`).
 
 ### Dependency management
 

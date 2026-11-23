@@ -1,11 +1,15 @@
 //! Shared fixtures for CLI configuration integration tests.
+//!
+//! Configuration tests run the compiled `mapsplice` binary as a child process,
+//! so each test owns its environment variables and working directory without
+//! touching the test process.
 
 #[path = "workspace.rs"]
 mod workspace_support;
 
-use std::{env, io::Write, path::PathBuf, sync::Mutex};
+use std::process::{Command, Output};
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use rstest::fixture;
 pub use workspace_support::{TestResult, Workspace};
 
@@ -29,8 +33,6 @@ pub const TARGET_TWO_TASKS: &str = concat!(
 
 pub const TASK_FRAGMENT: &str = "- [ ] 9.9.9. Inserted task. Requires 9.9.9.\n";
 
-static ENV_LOCK: Mutex<()> = Mutex::new(());
-
 impl Workspace {
     pub fn write_xdg_config(&self, contents: &str) -> TestResult<Utf8PathBuf> {
         self.dir.create_dir_all("mapsplice")?;
@@ -47,15 +49,6 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn enter_root(&self, state: &mut ProcessState) -> TestResult {
-        let parent = self
-            .target
-            .parent()
-            .ok_or_else(|| "target path should have a parent".to_owned())?;
-        state.enter_dir(parent);
-        Ok(())
-    }
-
     pub fn read_target(&self) -> TestResult<String> { Ok(self.dir.read_to_string("target.md")?) }
 
     pub fn write_home_config(&self, contents: &str) -> TestResult<Utf8PathBuf> {
@@ -67,77 +60,69 @@ impl Workspace {
             .ok_or_else(|| "target path should have a parent".to_owned())?;
         Ok(parent.join("home"))
     }
-}
 
-#[derive(Default)]
-pub struct ProcessState {
-    env_vars: Vec<(&'static str, Option<String>)>,
-    cwd: Option<Utf8PathBuf>,
-}
-
-impl ProcessState {
-    pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) {
-        self.env_vars.push((key, Some(value.as_ref().to_owned())));
-    }
-
-    pub fn remove_env(&mut self, key: &'static str) { self.env_vars.push((key, None)); }
-
-    pub fn enter_dir(&mut self, path: &Utf8Path) { self.cwd = Some(path.to_path_buf()); }
-
-    pub fn run<R>(&self, action: impl FnOnce() -> TestResult<R>) -> TestResult<R> {
-        // `temp_env::with_vars` and `CwdRestore` restore changes during unwinding,
-        // so a prior test's panic must not prevent later tests from taking this lock.
-        let _lock = ENV_LOCK
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let scoped = || {
-            let _cwd = self.cwd.as_deref().map(CwdRestore::enter).transpose()?;
-            action()
-        };
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "serialized by ENV_LOCK; moves to an injected environment when the config \
-                      loaders take one"
-        )]
-        let result = temp_env::with_vars(&self.env_vars, scoped);
-        result
+    /// Start a child-process invocation rooted at this workspace.
+    ///
+    /// The child starts with an empty environment and the workspace directory as
+    /// its working directory, so no developer configuration leaks into a test.
+    pub fn invocation(&self) -> TestResult<CliInvocation> {
+        let root = self
+            .target
+            .parent()
+            .ok_or_else(|| "target path should have a parent".to_owned())?;
+        Ok(CliInvocation {
+            env_vars: Vec::new(),
+            cwd: root.to_path_buf(),
+        })
     }
 }
 
-struct CwdRestore(PathBuf);
-
-impl CwdRestore {
-    fn enter(path: &Utf8Path) -> TestResult<Self> {
-        let previous = env::current_dir()?;
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "serialized by ENV_LOCK; the CLI under test reads the process working \
-                      directory"
-        )]
-        let entered = env::set_current_dir(path.as_std_path());
-        entered?;
-        Ok(Self(previous))
-    }
+/// Captured result of one child-process CLI run.
+pub struct CliOutcome {
+    pub success: bool,
+    pub stdout: String,
+    pub stderr: String,
 }
 
-impl Drop for CwdRestore {
-    fn drop(&mut self) {
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "restores the working directory entered under ENV_LOCK"
-        )]
-        let restored = env::set_current_dir(&self.0);
-        if let Err(error) = restored {
-            let diagnostic = format!(
-                "failed to restore working directory {}: {error}",
-                self.0.display()
-            );
-            if std::thread::panicking() {
-                let _write_result = writeln!(std::io::stderr().lock(), "{diagnostic}");
-            } else {
-                panic!("{diagnostic}");
-            }
+impl CliOutcome {
+    fn from_output(output: &Output) -> Self {
+        Self {
+            success: output.status.success(),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         }
+    }
+
+    /// Return standard output, or the child's diagnostics when it failed.
+    pub fn into_stdout(self) -> TestResult<String> {
+        if self.success {
+            Ok(self.stdout)
+        } else {
+            Err(format!("mapsplice failed unexpectedly: {}", self.stderr).into())
+        }
+    }
+}
+
+/// Environment and working directory for one child-process CLI run.
+pub struct CliInvocation {
+    env_vars: Vec<(&'static str, String)>,
+    cwd: Utf8PathBuf,
+}
+
+impl CliInvocation {
+    pub fn set_env(&mut self, key: &'static str, value: impl AsRef<str>) {
+        self.env_vars.push((key, value.as_ref().to_owned()));
+    }
+
+    /// Run `mapsplice` with the given arguments and collect its output.
+    pub fn run(&self, arguments: &[&str]) -> TestResult<CliOutcome> {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_mapsplice"));
+        command
+            .args(arguments)
+            .env_clear()
+            .envs(self.env_vars.iter().map(|(key, value)| (*key, value)))
+            .current_dir(self.cwd.as_std_path());
+        Ok(CliOutcome::from_output(&command.output()?))
     }
 }
 
@@ -145,21 +130,4 @@ impl Drop for CwdRestore {
 pub fn workspace() -> TestResult<Workspace> {
     let workspace = workspace_support::create_workspace()?;
     Ok(workspace)
-}
-
-#[cfg(test)]
-mod cwd_restore_tests {
-    //! Verify that an un-restorable working directory fails its enclosing test.
-
-    use super::CwdRestore;
-
-    #[test]
-    #[should_panic(expected = "failed to restore working directory")]
-    fn restoration_failure_fails_the_enclosing_test() {
-        let temporary_directory =
-            tempfile::tempdir().expect("temporary directory creation should succeed");
-        let missing_directory = temporary_directory.path().join("removed-working-directory");
-
-        drop(CwdRestore(missing_directory));
-    }
 }

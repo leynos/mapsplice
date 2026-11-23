@@ -49,7 +49,6 @@ fn assert_stdout(stdout: &str, expected: &str) -> TestResult {
         "  - A non-structural body bullet.\n",
     ),
 )]
-#[serial_test::serial(cli_env)]
 fn insert_task_before_mixed_nested_body_renumbers_parent_and_siblings(
     workspace: TestResult<Workspace>,
     #[case] nested_items: &str,
@@ -133,7 +132,6 @@ fn insert_task_before_mixed_nested_body_renumbers_parent_and_siblings(
         "  - A non-structural body bullet.\n",
     ),
 )]
-#[serial_test::serial(cli_env)]
 fn delete_sub_task_from_mixed_nested_body_preserves_order_and_rewrites_dependencies(
     workspace: TestResult<Workspace>,
     #[case] nested_items: &str,
@@ -207,7 +205,6 @@ fn delete_sub_task_from_mixed_nested_body_preserves_order_and_rewrites_dependenc
         "  - [ ] 1.1.1.1. Later addendum.\n",
     ),
 )]
-#[serial_test::serial(cli_env)]
 fn delete_sub_task_renders_mixed_body_separators(
     workspace: TestResult<Workspace>,
     #[case] task: &str,
@@ -273,7 +270,6 @@ fn delete_sub_task_renders_mixed_body_separators(
         "  - A non-structural body bullet.\n",
     ),
 )]
-#[serial_test::serial(cli_env)]
 fn insert_sub_task_before_mixed_nested_body_preserves_order_and_rewrites_dependencies(
     workspace: TestResult<Workspace>,
     #[case] nested_items: &str,

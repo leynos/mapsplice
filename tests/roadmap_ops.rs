@@ -36,7 +36,6 @@ use support::{
 };
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -75,7 +74,6 @@ fn append_emits_stdout_and_keeps_target_unchanged(workspace: TestResult<Workspac
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_before_phase_renumbers_later_phases_and_dependencies(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -103,7 +101,6 @@ fn insert_before_phase_renumbers_later_phases_and_dependencies(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_after_task_renumbers_later_tasks_within_the_step(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -135,7 +132,6 @@ fn insert_after_task_renumbers_later_tasks_within_the_step(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn unresolved_dependency_reference_is_reported(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -190,7 +186,6 @@ fn apply_command_leaves_roadmap_unchanged_on_error() -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -206,7 +201,6 @@ fn delete_phase_rewrites_downstream_identifiers(workspace: TestResult<Workspace>
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn help_and_version_do_not_record_failures() {
     let before = metrics_snapshot();
 
@@ -222,7 +216,6 @@ fn help_and_version_do_not_record_failures() {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -248,7 +241,6 @@ fn dependency_rewrite_skips_dotted_versions_but_rewrites_later_anchors(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn hard_wrapped_requires_clause_rewrites_its_anchor(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -275,7 +267,6 @@ fn hard_wrapped_requires_clause_rewrites_its_anchor(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn dependency_reference_delete_preserves_incidental_numbers_and_rewrites_requires(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -305,7 +296,6 @@ fn dependency_reference_delete_preserves_incidental_numbers_and_rewrites_require
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn dependency_rewrite_ignores_blocks_clauses(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -329,7 +319,6 @@ fn dependency_rewrite_ignores_blocks_clauses(workspace: TestResult<Workspace>) -
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -356,7 +345,6 @@ fn replace_phase_with_multiple_phases(workspace: TestResult<Workspace>) -> TestR
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn in_place_mode_rewrites_target_and_emits_no_stdout(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -380,7 +368,6 @@ fn in_place_mode_rewrites_target_and_emits_no_stdout(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace
@@ -404,7 +391,6 @@ fn level_mismatch_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn missing_anchor_is_rejected(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace

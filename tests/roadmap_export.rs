@@ -137,7 +137,6 @@ fn detail_requires(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_is_byte_stable_and_matches_the_golden_pair(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -163,7 +162,6 @@ fn export_is_byte_stable_and_matches_the_golden_pair(
 /// would otherwise churn a thousand-line artefact without testing export
 /// behaviour. Byte-exact coverage stays with the fixed golden pair.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_of_repository_roadmap_is_deterministic_and_well_formed(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -229,7 +227,6 @@ fn export_of_repository_roadmap_is_deterministic_and_well_formed(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn hard_wrapped_and_listed_dependencies_export_as_exact_arrays(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -276,7 +273,6 @@ fn hard_wrapped_and_listed_dependencies_export_as_exact_arrays(
     "- [ ] 1.1.1. Emit JSON. Requires 1.1.2.   \n",
     "- [ ] 1.1.2. Check JSON.\n",
 ))]
-#[serial_test::serial(cli_env)]
 fn export_normalizes_wrapping_and_whitespace(
     workspace: TestResult<Workspace>,
     #[case] variant: &str,
@@ -299,7 +295,6 @@ fn export_normalizes_wrapping_and_whitespace(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_normalizes_subtask_indentation(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(concat!(
@@ -324,7 +319,6 @@ fn export_normalizes_subtask_indentation(workspace: TestResult<Workspace>) -> Te
 /// of the backslash escapes the rewrite renderer adds for Markdown output.
 /// Supported formatting nodes still retain their Markdown delimiters.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn export_emits_literal_text_without_markdown_escapes(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

@@ -43,7 +43,6 @@ fn assert_in_order(haystack: &str, needles: &[&str]) {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_sub_task_preserves_interleaved_body_order(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -82,7 +81,6 @@ fn insert_sub_task_preserves_interleaved_body_order(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_sub_task_preserves_interleaved_body_order(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -117,7 +115,6 @@ fn delete_sub_task_preserves_interleaved_body_order(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_sub_task_preserves_interleaved_body_order(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -163,7 +160,6 @@ fn replace_sub_task_preserves_interleaved_body_order(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn replace_sub_task_required_by_a_surviving_consumer_is_rejected(
     workspace: TestResult<Workspace>,
 ) -> TestResult {

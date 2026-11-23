@@ -40,7 +40,6 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 #[case::insert("insert")]
 #[case::delete("delete")]
 #[case::replace("replace")]
-#[serial_test::serial(cli_env)]
 fn phase_operations_report_missing_phase_anchor(#[case] command: &str) -> TestResult {
     let workspace = Workspace::create()?;
     workspace.write_target(TARGET_TWO_PHASES)?;
@@ -78,7 +77,6 @@ fn phase_operations_report_missing_phase_anchor(#[case] command: &str) -> TestRe
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn metrics_record_equal_dependency_rewrites_for_output_modes() -> TestResult {
     let stdout_workspace = Workspace::create()?;
     stdout_workspace.write_target(TARGET_TWO_PHASES)?;
@@ -126,7 +124,6 @@ fn metrics_record_equal_dependency_rewrites_for_output_modes() -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn failed_in_place_rewrite_does_not_record_dependency_rewrites() -> TestResult {
     let workspace = Workspace::create()?;
     workspace.write_target(TARGET_TWO_PHASES)?;

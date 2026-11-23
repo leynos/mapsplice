@@ -48,7 +48,6 @@ fn assert_dangling_anchor(error: &MapspliceError, expected: &str) {
 /// clause that is never scanned leaves the consumer depending on an unrelated
 /// item.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn insert_before_task_rewrites_nested_bullet_dependency(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -74,7 +73,6 @@ fn insert_before_task_rewrites_nested_bullet_dependency(
 
 /// Deleting a still-required prerequisite must fail, not create a self-dependency.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn delete_task_required_by_nested_bullet_is_rejected(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -97,7 +95,6 @@ fn delete_task_required_by_nested_bullet_is_rejected(
 
 /// An in-place delete must reject the edit before touching the file.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn in_place_delete_required_by_nested_bullet_leaves_target_byte_identical(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -127,7 +124,6 @@ fn in_place_delete_required_by_nested_bullet_leaves_target_byte_identical(
 /// "no stdout" assertion vacuous; spawning the real process is what shows
 /// whether a roadmap escaped to stdout before the failure.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn preview_delete_required_by_nested_bullet_emits_no_body(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -159,7 +155,6 @@ fn preview_delete_required_by_nested_bullet_emits_no_body(
 
 /// Both non-nested clause forms must keep rewriting now that nesting works.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn inline_and_continuation_clauses_still_rewrite(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(concat!(
@@ -192,7 +187,6 @@ fn inline_and_continuation_clauses_still_rewrite(workspace: TestResult<Workspace
 
 /// Incidental numbers and fenced examples must survive a nested-clause rewrite.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
@@ -260,7 +254,6 @@ const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
 /// stripped from the untouched file would still leave a file that looks correct
 /// line-by-line, so the assertion is on the whole file rather than on any line.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>) -> TestResult {
     let test_workspace = workspace?;
     test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
@@ -290,7 +283,6 @@ fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>)
 /// that starts preserving CRLF through a rewrite is visible here instead of
 /// passing unnoticed.
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn crlf_target_rewrites_nested_clause_and_normalizes_line_endings(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
