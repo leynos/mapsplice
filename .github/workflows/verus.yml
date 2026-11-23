@@ -10,7 +10,7 @@ name: Verus
 # on the event so a hand-run dispatch, which has no successor waiting, always
 # runs to completion.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
