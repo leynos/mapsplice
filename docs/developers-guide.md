@@ -749,9 +749,15 @@ The GitHub API references are:
 ## Lint baseline
 
 [`Cargo.toml`](../Cargo.toml) holds the package's Clippy, Rust, and rustdoc
-lint levels. [`clippy.toml`](../clippy.toml) sets the complexity ceiling to 9,
-the argument limit to 4, the line limit to 70, and the nesting limit to 4. The
-selected estate baseline is Concordat revision
+lint levels. [`clippy.toml`](../clippy.toml) sets the argument limit to 4, the
+line limit to 70, and the nesting limit to 4. Clippy's `cognitive_complexity`
+scores code after macro expansion, so it counts branching a macro generated and
+is not enabled. Whitaker's experimental `macro_aware_cognitive_complexity`
+gates complexity at `max_complexity = 9`, CodeScene's ceiling, and
+[`dylint.toml`](../dylint.toml) opts in with
+`[whitaker] experimental = ["macro_aware_cognitive_complexity"]`. Fix a finding
+by extracting named helpers, never by raising the threshold. The selected
+estate baseline is Concordat revision
 `902d034d9da8e7ca33a0d4032770519dd1609de2`; this repository also requires
 `missing_assert_message`, `missing_docs_in_private_items`, and
 `unsafe_code = "forbid"`. Fix findings in source. Any unavoidable exception
