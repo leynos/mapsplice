@@ -23,7 +23,7 @@ selector. That left the source-preservation behaviour outside the proof.
 
 The obvious splice — share the loop body and pass the `invariant` as macro
 tokens — does not compile. The ordinary Rust parser rejects `invariant` before
-Verus can see it, and both spellings of annotation-parameterised sharing failed
+Verus can see it, and both spellings of annotation-parameterized sharing failed
 on the pinned verifier: tokens passed as a macro parameter, and an annotation
 supplied by a second macro around a shared body, each produced "expected `{`,
 found `invariant`". Sharing only a text fragment cannot express a loop
@@ -83,7 +83,7 @@ arrive before loop parsing, and the result is not ordinary Rust.
 ### Option B: Wrap a shared body in a second annotation macro
 
 Rejected for the same reason. The parser sees `invariant` inside an expansion
-before the loop header is recognised.
+before the loop header is recognized.
 
 ### Option C: Use a ghost-erasure build of a Verus-native source tree
 
