@@ -234,12 +234,6 @@ if [[ "$verus_only" == true ]]; then
     exit 0
 fi
 
-echo "runtime: the CR mutation breaks the preservation regressions"
-if ! mutate_once "$copied_kernel" "$cr_old" "$cr_new"; then
-    echo "the CR mutation matched no unique source text" >&2
-    exit 2
-fi
-
 target_dir="${CARGO_TARGET_DIR:-$copy/target}"
 
 # Run one selected regression in the copy and capture its output.
@@ -265,6 +259,12 @@ if ! run_regression "$copy/append-control.log" --test roadmap_append_preservatio
     echo "the unmutated copy fails the CR-only append regression" >&2
     cat "$copy/append-control.log" >&2
     exit 1
+fi
+
+echo "runtime: the CR mutation breaks the preservation regressions"
+if ! mutate_once "$copied_kernel" "$cr_old" "$cr_new"; then
+    echo "the CR mutation matched no unique source text" >&2
+    exit 2
 fi
 
 # A mutated run must fail because its selected test failed, not because Cargo
