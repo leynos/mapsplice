@@ -1,13 +1,16 @@
-//! Rendered plain text and word matching for completion suffixes.
+//! Rendered plain text and source scanning for completion suffixes.
 //!
 //! `mapsplice complete` decides whether a title already carries its configured
 //! done suffix by comparing the text a reader sees, not the source spelling.
-//! Both the title and the suffix are parsed as Markdown and flattened, so
-//! formatting is ignored while literal trailing markers survive. Suffix
-//! placement shares [`plain_suffix_text`] and [`suffix_supplies_punctuation`],
-//! so it classifies punctuation from rendered text as well.
+//! [`RenderedText`] carries that collapsed visible text, while raw Markdown
+//! stays a plain source string whose byte offsets locate terminal punctuation.
+//! Keeping the two domains in distinct types stops a source spelling such as
+//! `&#46;` from being compared as if it were the character a reader sees.
+//! Suffix placement shares [`plain_suffix_text`] and
+//! [`suffix_supplies_punctuation`], so it classifies punctuation from rendered
+//! text as well.
 
-use markdown::mdast::Node;
+use markdown::mdast::{Html, Node};
 
 use super::super::model::MarkdownNodes;
 
@@ -18,6 +21,25 @@ use super::super::model::MarkdownNodes;
 /// only the block's text. Parsing behind this prefix keeps the suffix in one
 /// paragraph, and the prefix is removed from the rendered comparison text.
 const PARAGRAPH_PREFIX: char = '(';
+
+/// Plain text a Markdown reader sees, with whitespace collapsed.
+///
+/// Constructing one from raw text is the only way to enter the rendered
+/// comparison domain, so a caller cannot pass source spelling where rendered
+/// text is required.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct RenderedText(String);
+
+impl RenderedText {
+    /// Collapse every whitespace run in `raw` to one space and trim the ends.
+    fn new(raw: &str) -> Self { Self(raw.split_whitespace().collect::<Vec<_>>().join(" ")) }
+
+    /// Return the rendered characters.
+    fn as_str(&self) -> &str { &self.0 }
+
+    /// Report whether nothing visible remains.
+    const fn is_empty(&self) -> bool { self.0.is_empty() }
+}
 
 /// Report whether the item's title already ends with the configured suffix.
 ///
@@ -47,8 +69,8 @@ pub(super) fn title_has_suffix(title: &MarkdownNodes, suffix: &str) -> bool {
 /// stays literal text rather than becoming a heading marker that would hide
 /// it from the comparison. Text the parser cannot handle falls back to its
 /// trimmed source.
-pub(super) fn plain_suffix_text(suffix: &str) -> String {
-    fragment_plain_text(suffix).unwrap_or_else(|| collapse_whitespace(suffix))
+pub(super) fn plain_suffix_text(suffix: &str) -> RenderedText {
+    fragment_plain_text(suffix).unwrap_or_else(|| RenderedText::new(suffix))
 }
 
 /// Render one Markdown fragment as the plain inline text a reader sees.
@@ -56,7 +78,7 @@ pub(super) fn plain_suffix_text(suffix: &str) -> String {
 /// The fragment is parsed behind [`PARAGRAPH_PREFIX`], so block syntax stays
 /// literal and remains part of the comparison text. Returns `None` when the
 /// parser rejects the fragment.
-pub(super) fn fragment_plain_text(fragment: &str) -> Option<String> {
+pub(super) fn fragment_plain_text(fragment: &str) -> Option<RenderedText> {
     let document = format!("{PARAGRAPH_PREFIX}{fragment}");
     markdown::to_mdast(&document, &markdown::ParseOptions::gfm())
         .ok()?
@@ -65,17 +87,21 @@ pub(super) fn fragment_plain_text(fragment: &str) -> Option<String> {
 }
 
 /// Remove the prefix that pinned the suffix to inline parsing.
-fn strip_paragraph_prefix(text: &str) -> String {
-    text.strip_prefix(PARAGRAPH_PREFIX)
-        .map_or_else(|| text.to_owned(), |rest| rest.trim_start().to_owned())
+fn strip_paragraph_prefix(text: &RenderedText) -> RenderedText {
+    let stripped = text.as_str().strip_prefix(PARAGRAPH_PREFIX).map_or_else(
+        || text.as_str().to_owned(),
+        |rest| rest.trim_start().to_owned(),
+    );
+    RenderedText::new(&stripped)
 }
 
 /// Report whether rendered suffix text carries its own terminal punctuation.
 ///
 /// The caller passes the suffix's rendered plain text, so closing syntax such
 /// as the `)` of a link never hides punctuation or stands in for it.
-pub(super) fn suffix_supplies_punctuation(plain: &str) -> bool {
+pub(super) fn suffix_supplies_punctuation(plain: &RenderedText) -> bool {
     plain
+        .as_str()
         .trim_end()
         .chars()
         .next_back()
@@ -83,17 +109,12 @@ pub(super) fn suffix_supplies_punctuation(plain: &str) -> bool {
 }
 
 /// Collapse a title's parsed inline nodes into its rendered plain text.
-fn plain_title_text(nodes: &[Node]) -> String {
+fn plain_title_text(nodes: &[Node]) -> RenderedText {
     let mut text = String::new();
     for node in nodes {
         append_plain_text(node, &mut text);
     }
-    collapse_whitespace(&text)
-}
-
-/// Collapse every whitespace run in `text` to one space and trim the ends.
-fn collapse_whitespace(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    RenderedText::new(&text)
 }
 
 /// Append one node's rendered text, descending through inline containers.
@@ -116,20 +137,20 @@ fn append_plain_text(node: &Node, text: &mut String) {
 /// Report whether a textless leaf node separates the words around it.
 fn renders_word_break(node: &Node) -> bool {
     match node {
-        Node::Html(html) => html_renders_line_break(&html.value),
+        Node::Html(html) => html_renders_line_break(html),
         _ => true,
     }
 }
 
-/// Report whether an inline HTML tag renders a line break.
+/// Report whether an inline HTML element renders a line break.
 ///
 /// Only break elements such as `<br>`, `<br/>`, and `<br class="gap">` render a
 /// visible break between words. The whole tag name is compared, so a
 /// hyphenated element such as `<br-widget>` is not a break. Other inline tags,
 /// including closing tags and empty containers, render nothing and so join the
 /// surrounding text.
-fn html_renders_line_break(value: &str) -> bool {
-    let Some(tag) = value.trim().strip_prefix('<') else {
+fn html_renders_line_break(html: &Html) -> bool {
+    let Some(tag) = html.value.trim().strip_prefix('<') else {
         return false;
     };
     let name = tag
@@ -152,21 +173,28 @@ fn node_text(node: &Node) -> Option<&str> {
 }
 
 /// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
-fn suffix_matches(text: &str, suffix: &str) -> bool {
+fn suffix_matches(text: &RenderedText, suffix: &RenderedText) -> bool {
     if suffix_supplies_punctuation(suffix) {
         ends_at_word_boundary(text, suffix)
     } else {
-        let without_terminal = text.trim_end_matches(is_terminal_punctuation).trim_end();
-        ends_at_word_boundary(without_terminal, suffix)
+        let without_terminal = text
+            .as_str()
+            .trim_end_matches(is_terminal_punctuation)
+            .trim_end();
+        ends_at_word_boundary(&RenderedText::new(without_terminal), suffix)
     }
 }
 
 /// Match a suffix at the end of `text`, honouring word boundaries.
-fn ends_at_word_boundary(text: &str, suffix: &str) -> bool {
-    let Some(prefix) = text.strip_suffix(suffix) else {
+fn ends_at_word_boundary(text: &RenderedText, suffix: &RenderedText) -> bool {
+    let Some(prefix) = text.as_str().strip_suffix(suffix.as_str()) else {
         return false;
     };
-    let starts_with_word = suffix.chars().next().is_some_and(char::is_alphanumeric);
+    let starts_with_word = suffix
+        .as_str()
+        .chars()
+        .next()
+        .is_some_and(char::is_alphanumeric);
     !starts_with_word || prefix.chars().next_back().is_none_or(is_word_separator)
 }
 
@@ -226,9 +254,9 @@ fn terminal_punctuation_run_len(text: &str) -> usize {
 ///
 /// The reference must decode to visible text, that text must be sentence-ending
 /// punctuation, and the ampersand must not be backslash-escaped.
-fn reference_renders_punctuation(text: &str, start: usize, rendered: &str) -> bool {
+fn reference_renders_punctuation(text: &str, start: usize, rendered: &RenderedText) -> bool {
     !rendered.is_empty()
-        && rendered.chars().all(is_terminal_punctuation)
+        && rendered.as_str().chars().all(is_terminal_punctuation)
         && !is_escaped(text, start)
 }
 
@@ -236,7 +264,7 @@ fn reference_renders_punctuation(text: &str, start: usize, rendered: &str) -> bo
 ///
 /// Returns `None` when `text` does not end with a reference the Markdown parser
 /// decodes; the caller then treats the ampersand as ordinary content.
-fn trailing_character_reference(text: &str) -> Option<(usize, String)> {
+fn trailing_character_reference(text: &str) -> Option<(usize, RenderedText)> {
     if !text.ends_with(';') {
         return None;
     }

@@ -2,223 +2,197 @@
 
 use rstest::rstest;
 
-use super::test_support::{complete_ok, completion_source};
+use super::test_support::{CompletionCase, assert_completion_case, complete_ok, completion_source};
 
 #[rstest]
-#[case::terminal_punctuation_is_preserved(
+#[case::terminal_punctuation_is_preserved(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("— done"),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "the done suffix should sit before the title's final full stop"
-)]
-#[case::punctuated_suffix_replaces_title_punctuation(
+    "- [x] 1.1.1. Finish the scope — done."
+))]
+#[case::punctuated_suffix_replaces_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("— done."),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "a punctuated suffix should not double the terminal punctuation"
-)]
-#[case::existing_suffix_is_not_duplicated(
+    "- [x] 1.1.1. Finish the scope — done."
+))]
+#[case::existing_suffix_is_not_duplicated(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope — done.",
     Some("— done"),
-    "- [x] 1.1.1. Finish the scope — done.",
-    "an already suffixed title should only gain its check mark"
-)]
-#[case::suffix_word_inside_a_longer_word_does_not_match(
+    "- [x] 1.1.1. Finish the scope — done."
+))]
+#[case::suffix_word_inside_a_longer_word_does_not_match(CompletionCase::new(
     "- [ ] 1.1.1. Get it undone.",
     Some("done"),
-    "- [x] 1.1.1. Get it undone done.",
-    "a suffix should only match at a word boundary"
-)]
-fn suffix_placement(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-    #[case] message: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix)
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "{message}"
-    );
-}
+    "- [x] 1.1.1. Get it undone done."
+))]
+#[case::formatted_suffix_is_recognized_after_insertion(CompletionCase::new(
+    "- [ ] 1.1.1. Finish",
+    Some("**done**"),
+    "- [x] 1.1.1. Finish **done**"
+))]
+#[case::literal_trailing_marker_does_not_hide_a_missing_suffix(CompletionCase::new(
+    "- [ ] 1.1.1. Remove every build artefact named build*",
+    Some("build"),
+    "- [x] 1.1.1. Remove every build artefact named build* build"
+))]
+#[case::marker_carrying_suffix_passes_its_own_validation(CompletionCase::new(
+    "- [ ] 1.1.1. Remove the artefact",
+    Some("build*"),
+    "- [x] 1.1.1. Remove the artefact build*"
+))]
+#[case::existing_literal_marker_suffix_is_not_duplicated(CompletionCase::new(
+    "- [ ] 1.1.1. Remove every artefact named build*",
+    Some("build*"),
+    "- [x] 1.1.1. Remove every artefact named build*"
+))]
+fn suffix_placement(#[case] case: CompletionCase) { assert_completion_case(&case); }
 
 #[rstest]
-#[case::suffix_stays_inside_closing_markers(
+#[case::suffix_stays_inside_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope.**",
     Some("— done"),
     "- [x] 1.1.1. **Finish the scope — done.**"
-)]
-#[case::existing_suffix_inside_closing_markers_is_not_duplicated(
+))]
+#[case::existing_suffix_inside_closing_markers_is_not_duplicated(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope — done.**",
     Some("— done"),
     "- [x] 1.1.1. **Finish the scope — done.**"
-)]
-#[case::punctuated_suffix_replaces_marker_punctuation(
+))]
+#[case::punctuated_suffix_replaces_marker_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope.**",
     Some("done."),
     "- [x] 1.1.1. **Finish the scope done.**"
-)]
-#[case::marker_suffix_follows_closing_markers(
+))]
+#[case::marker_suffix_follows_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope.**",
     Some("**done.**"),
     "- [x] 1.1.1. **Finish the scope** **done.**"
-)]
-#[case::unpunctuated_marker_suffix_follows_closing_markers(
+))]
+#[case::unpunctuated_marker_suffix_follows_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope**",
     Some("**done**"),
     "- [x] 1.1.1. **Finish the scope** **done**"
-)]
-#[case::marker_suffix_precedes_plain_terminal_punctuation(
+))]
+#[case::marker_suffix_precedes_plain_terminal_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("**done**"),
     "- [x] 1.1.1. Finish the scope **done**."
-)]
-#[case::punctuated_marker_suffix_replaces_plain_punctuation(
+))]
+#[case::punctuated_marker_suffix_replaces_plain_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("**done.**"),
     "- [x] 1.1.1. Finish the scope **done.**"
-)]
-fn suffix_around_closing_inline_markers(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix)
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "closing markers should stay intact around the inserted suffix"
-    );
+))]
+fn suffix_around_closing_inline_markers(#[case] case: CompletionCase) {
+    assert_completion_case(&case);
 }
 
 #[rstest]
-#[case::bare_inline_code("- [ ] 1.1.1. Update `foo`", "- [x] 1.1.1. Update `foo` — done")]
-#[case::inline_code_inside_emphasis(
+#[case::bare_inline_code(CompletionCase::new(
+    "- [ ] 1.1.1. Update `foo`",
+    Some("— done"),
+    "- [x] 1.1.1. Update `foo` — done"
+))]
+#[case::inline_code_inside_emphasis(CompletionCase::new(
     "- [ ] 1.1.1. **Update `foo`**",
+    Some("— done"),
     "- [x] 1.1.1. **Update `foo` — done**"
-)]
-fn suffix_stays_out_of_inline_code(#[case] item: &str, #[case] expected_item: &str) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("— done"))
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "the suffix must follow a closing backtick, not extend the code span"
-    );
-}
+))]
+fn suffix_stays_out_of_inline_code(#[case] case: CompletionCase) { assert_completion_case(&case); }
 
 #[rstest]
-#[case::formatted_punctuated_suffix_replaces_title_punctuation(
+#[case::formatted_punctuated_suffix_replaces_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("**done.**"),
     "- [x] 1.1.1. Finish the scope **done.**"
-)]
-#[case::escaped_full_stop_is_title_content(
+))]
+#[case::escaped_full_stop_is_title_content(CompletionCase::new(
     "- [ ] 1.1.1. Match the literal scope\\.",
     Some("— done"),
     "- [x] 1.1.1. Match the literal scope\\. — done"
-)]
-#[case::trailing_literal_backslash_stays_before_the_suffix(
+))]
+#[case::trailing_literal_backslash_stays_before_the_suffix(CompletionCase::new(
     "- [ ] 1.1.1. Finish the path segment Task\\",
     Some("— done"),
     "- [x] 1.1.1. Finish the path segment Task\\ — done"
-)]
-#[case::a_backslash_does_not_escape_an_ellipsis(
+))]
+#[case::a_backslash_does_not_escape_an_ellipsis(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope\\…",
     Some("— done"),
     "- [x] 1.1.1. Finish the scope\\ — done…"
-)]
-#[case::a_link_suffix_replaces_the_title_punctuation(
+))]
+#[case::a_link_suffix_replaces_the_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("[done.](https://example.org)"),
     "- [x] 1.1.1. Finish the scope [done.](https://example.org)"
-)]
-#[case::an_unpunctuated_link_suffix_keeps_the_title_punctuation(
+))]
+#[case::an_unpunctuated_link_suffix_keeps_the_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("[done](https://example.org)"),
     "- [x] 1.1.1. Finish the scope [done](https://example.org)."
-)]
-fn punctuation_handling_respects_formatting_and_escapes(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix)
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "marker-wrapped and escaped punctuation must not be misread"
-    );
+))]
+fn punctuation_handling_respects_formatting_and_escapes(#[case] case: CompletionCase) {
+    assert_completion_case(&case);
 }
 
 #[rstest]
-#[case::literal_tilde_ending_a_url_stays_before_the_suffix(
+#[case::literal_tilde_ending_a_url_stays_before_the_suffix(CompletionCase::new(
     "- [ ] 1.1.1. Visit https://example.org/~",
+    Some("— done"),
     "- [x] 1.1.1. Visit https://example.org/~ — done"
-)]
-#[case::literal_asterisk_ending_a_glob_stays_before_the_suffix(
+))]
+#[case::literal_asterisk_ending_a_glob_stays_before_the_suffix(CompletionCase::new(
     "- [ ] 1.1.1. Remove every build artefact named build*",
+    Some("— done"),
     "- [x] 1.1.1. Remove every build artefact named build* — done"
-)]
-#[case::strike_span_receives_the_suffix_inside(
+))]
+#[case::strike_span_receives_the_suffix_inside(CompletionCase::new(
     "- [ ] 1.1.1. ~~Finish the scope~~",
+    Some("— done"),
     "- [x] 1.1.1. ~~Finish the scope — done~~"
-)]
-fn suffix_placement_uses_the_parsed_inline_structure(
-    #[case] item: &str,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("— done"))
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "literal trailing markers stay put while real closing markers move"
-    );
+))]
+fn suffix_placement_uses_the_parsed_inline_structure(#[case] case: CompletionCase) {
+    assert_completion_case(&case);
 }
 
 #[rstest]
-#[case::suffix_outside_closing_markers_is_not_duplicated(
+#[case::suffix_outside_closing_markers_is_not_duplicated(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope — done**.",
     Some("— done"),
     "- [x] 1.1.1. **Finish the scope — done**."
-)]
-#[case::suffix_after_an_opening_marker_is_not_duplicated(
+))]
+#[case::suffix_after_an_opening_marker_is_not_duplicated(CompletionCase::new(
     "- [ ] 1.1.1. Finish **done**",
     Some("done"),
     "- [x] 1.1.1. Finish **done**"
-)]
-#[case::a_suffix_word_inside_marked_text_still_needs_a_boundary(
+))]
+#[case::a_suffix_word_inside_marked_text_still_needs_a_boundary(CompletionCase::new(
     "- [ ] 1.1.1. Get it **undone**",
     Some("done"),
     "- [x] 1.1.1. Get it **undone done**"
-)]
-fn suffix_detection_across_inline_markers(
-    #[case] item: &str,
-    #[case] suffix: Option<&str>,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", suffix)
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "markup must not hide an existing suffix or fabricate one inside a word"
-    );
+))]
+fn suffix_detection_across_inline_markers(#[case] case: CompletionCase) {
+    assert_completion_case(&case);
 }
 
-#[test]
-fn a_formatted_suffix_is_recognized_after_insertion() {
-    let expected = completion_source("- [x] 1.1.1. Finish **done**");
-
-    assert_eq!(
-        complete_ok(
-            &completion_source("- [ ] 1.1.1. Finish"),
-            "1.1.1",
-            Some("**done**")
-        )
-        .expect("fixture completion should succeed"),
-        expected,
-        "a formatted suffix without title punctuation must pass validation"
-    );
+#[rstest]
+#[case::a_colon_separates_the_suffix(CompletionCase::new(
+    "- [ ] 1.1.1. Status:done.",
+    Some("done"),
+    "- [x] 1.1.1. Status:done."
+))]
+#[case::an_unspaced_dash_separates_the_suffix(CompletionCase::new(
+    "- [ ] 1.1.1. Finish the scope—done.",
+    Some("done"),
+    "- [x] 1.1.1. Finish the scope—done."
+))]
+#[case::an_underscore_binds_the_suffix_word(CompletionCase::new(
+    "- [ ] 1.1.1. Keep foo_done.",
+    Some("done"),
+    "- [x] 1.1.1. Keep foo_done done."
+))]
+fn suffix_detection_treats_punctuation_as_a_word_boundary(#[case] case: CompletionCase) {
+    assert_completion_case(&case);
 }
 
 #[test]
@@ -243,19 +217,6 @@ fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
 }
 
 #[test]
-fn a_literal_trailing_marker_does_not_hide_a_missing_suffix() {
-    let item = "- [ ] 1.1.1. Remove every build artefact named build*";
-    let expected = "- [x] 1.1.1. Remove every build artefact named build* build";
-
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("build"))
-            .expect("fixture completion should succeed"),
-        completion_source(expected),
-        "a literal marker must not make the title look already suffixed"
-    );
-}
-
-#[test]
 fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
     let content = "a".repeat(57);
     let item = format!("- [ ] 1.1.1. {content}.");
@@ -266,57 +227,6 @@ fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
             .expect("fixture completion should succeed"),
         completion_source(&expected),
         "the replaced full stop should free the column the suffix needs"
-    );
-}
-
-#[rstest]
-#[case::a_colon_separates_the_suffix("- [ ] 1.1.1. Status:done.", "- [x] 1.1.1. Status:done.")]
-#[case::an_unspaced_dash_separates_the_suffix(
-    "- [ ] 1.1.1. Finish the scope—done.",
-    "- [x] 1.1.1. Finish the scope—done."
-)]
-#[case::an_underscore_binds_the_suffix_word(
-    "- [ ] 1.1.1. Keep foo_done.",
-    "- [x] 1.1.1. Keep foo_done done."
-)]
-fn suffix_detection_treats_punctuation_as_a_word_boundary(
-    #[case] item: &str,
-    #[case] expected_item: &str,
-) {
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("done"))
-            .expect("fixture completion should succeed"),
-        completion_source(expected_item),
-        "punctuation should end a word while an underscore should not"
-    );
-}
-
-#[test]
-fn a_marker_carrying_suffix_passes_its_own_validation() {
-    let expected = "- [x] 1.1.1. Remove the artefact build*";
-
-    assert_eq!(
-        complete_ok(
-            &completion_source("- [ ] 1.1.1. Remove the artefact"),
-            "1.1.1",
-            Some("build*")
-        )
-        .expect("fixture completion should succeed"),
-        completion_source(expected),
-        "a literal marker in the configured suffix must survive validation"
-    );
-}
-
-#[test]
-fn an_existing_literal_marker_suffix_is_not_duplicated() {
-    let item = "- [ ] 1.1.1. Remove every artefact named build*";
-    let expected = "- [x] 1.1.1. Remove every artefact named build*";
-
-    assert_eq!(
-        complete_ok(&completion_source(item), "1.1.1", Some("build*"))
-            .expect("fixture completion should succeed"),
-        completion_source(expected),
-        "a title already ending with the literal-marker suffix should only be ticked"
     );
 }
 

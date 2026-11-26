@@ -32,46 +32,32 @@ fn completes_a_leaf_task_without_touching_anything_else() {
     );
 }
 
-#[test]
-fn completing_a_depended_upon_task_leaves_its_dependants_alone() {
-    let completed = complete_ok(ROADMAP, "1.1.1", None).expect("fixture completion should succeed");
+#[rstest]
+#[case::a_depended_upon_task("1.1.1", "- [x] 1.1.1. First task.", "Second task. Requires 1.1.1.")]
+#[case::an_addendum_sub_task(
+    "1.1.3.1",
+    "  - [x] 1.1.3.1. Addendum sub-task.",
+    "- [ ] 1.1.3. Parent task."
+)]
+#[case::a_parent_task(
+    "1.1.3",
+    "- [x] 1.1.3. Parent task.",
+    "  - [ ] 1.1.3.1. Addendum sub-task."
+)]
+fn completing_one_item_leaves_its_relatives_alone(
+    #[case] anchor: &str,
+    #[case] checked_line: &str,
+    #[case] untouched_line: &str,
+) {
+    let completed = complete_ok(ROADMAP, anchor, None).expect("fixture completion should succeed");
 
     assert!(
-        completed.contains("- [x] 1.1.1. First task."),
-        "the depended-upon task should be checked: {completed}"
+        completed.contains(checked_line),
+        "the addressed item should be checked: {completed}"
     );
     assert!(
-        completed.contains("Second task. Requires 1.1.1."),
-        "the dependant's Requires clause must survive: {completed}"
-    );
-}
-
-#[test]
-fn completes_an_addendum_sub_task_only() {
-    let completed =
-        complete_ok(ROADMAP, "1.1.3.1", None).expect("fixture completion should succeed");
-
-    assert!(
-        completed.contains("  - [x] 1.1.3.1. Addendum sub-task."),
-        "the addendum should be checked: {completed}"
-    );
-    assert!(
-        completed.contains("- [ ] 1.1.3. Parent task."),
-        "the parent task must stay unchecked: {completed}"
-    );
-}
-
-#[test]
-fn completing_a_parent_task_leaves_its_addendum_alone() {
-    let completed = complete_ok(ROADMAP, "1.1.3", None).expect("fixture completion should succeed");
-
-    assert!(
-        completed.contains("- [x] 1.1.3. Parent task."),
-        "the parent task should be checked: {completed}"
-    );
-    assert!(
-        completed.contains("  - [ ] 1.1.3.1. Addendum sub-task."),
-        "the addendum must stay unchecked: {completed}"
+        completed.contains(untouched_line),
+        "the related item must keep its state: {completed}"
     );
 }
 
@@ -170,40 +156,50 @@ fn an_addendum_suffix_uses_eight_spaces_of_hanging_indent() {
     );
 }
 
-#[test]
-fn crlf_line_endings_are_used_for_inserted_breaks() {
-    let source = concat!(
-        "## 1. Phase one\r\n\r\n### 1.1. Step one\r\n\r\n",
-        "- [ ] 1.1.1. A wrapped task title that continues\r\n",
-        "  keeps the dependent task reference visible in the rendered roadmap output.\r\n",
-    );
-    let completed =
-        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
-
-    assert!(
-        completed.contains("output —\r\n      done.\r\n"),
-        "the inserted break should be CRLF: {completed:?}"
-    );
-    assert!(
-        !completed.contains("output —\n"),
-        "the inserted break must not be a bare LF: {completed:?}"
-    );
+/// One document line-ending scenario.
+struct LineEndingCase {
+    /// Line ending used by the document.
+    ending: &'static str,
+    /// Expected text around the inserted break.
+    inserted_break: &'static str,
+    /// Text that would reveal the wrong line ending.
+    forbidden: Option<&'static str>,
 }
 
-#[test]
-fn cr_only_line_endings_are_used_for_inserted_breaks() {
-    let source = concat!(
-        "## 1. Phase one\r\r### 1.1. Step one\r\r",
-        "- [ ] 1.1.1. A wrapped task title that continues\r",
-        "  keeps the dependent task reference visible in the rendered roadmap output.\r",
+#[rstest]
+#[case::crlf(LineEndingCase {
+    ending: "\r\n",
+    inserted_break: "output —\r\n      done.",
+    forbidden: Some("output —\n"),
+})]
+#[case::cr(LineEndingCase {
+    ending: "\r",
+    inserted_break: "output —\r      done.",
+    forbidden: None,
+})]
+fn inserted_breaks_use_the_document_line_ending(#[case] case: LineEndingCase) {
+    let source = format!(
+        concat!(
+            "## 1. Phase one{0}{0}### 1.1. Step one{0}{0}",
+            "- [ ] 1.1.1. A wrapped task title that continues{0}",
+            "  keeps the dependent task reference visible in the rendered roadmap output.{0}",
+        ),
+        case.ending
     );
+
     let completed =
-        complete_ok(source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
+        complete_ok(&source, "1.1.1", Some("— done")).expect("fixture completion should succeed");
 
     assert!(
-        completed.contains("output —\r      done.\r"),
-        "the inserted break should be a bare CR: {completed:?}"
+        completed.contains(case.inserted_break),
+        "the inserted break should use the document line ending: {completed:?}"
     );
+    if let Some(forbidden) = case.forbidden {
+        assert!(
+            !completed.contains(forbidden),
+            "the inserted break must not use another line ending: {completed:?}"
+        );
+    }
 }
 
 #[test]

@@ -1,15 +1,13 @@
-//! Done-suffix detection, placement, and wrapping for completion edits.
+//! Done-suffix detection and placement for completion edits.
 //!
-//! Repository Markdown is wrapped at 80 columns, and `mdtablefix --wrap`
-//! reflows an overflowing line using a hanging indent equal to the paragraph
-//! content column: six spaces beneath `- [ ] `, eight beneath `  - [ ] `. It
-//! leaves every other line alone. A suffix inserted by `mapsplice complete`
-//! therefore refills only the item's final title line, greedily, at the same
-//! 80-column limit and with the same hanging indent and document line ending.
-//! Formatter-clean input then stays formatter-clean without any other line
-//! being rewritten.
+//! The suffix is placed from the parser's retained title span: before the
+//! title's terminal sentence punctuation, inside any closing emphasis markers,
+//! and after the title text so nested bullets and numbering keep their place.
+//! Word wrapping, hanging indents, and backslash pairing live in
+//! [`super::complete_wrap`]; this module decides where the inserted words go
+//! and which existing title bytes they displace.
 //!
-//! The layout helpers are deliberately total over a validated span: they
+//! The placement helpers are deliberately total over a validated span: they
 //! return `None` rather than construct a diagnostic when an offset does not
 //! fit, leaving the caller to report fail-closed completion errors.
 
@@ -19,10 +17,14 @@ pub(super) use super::complete_text::title_has_suffix;
 use super::{
     super::model::ItemSourceSpan,
     complete_text::{plain_suffix_text, suffix_supplies_punctuation, trailing_punctuation_len},
+    complete_wrap::{
+        SuffixWrap,
+        WRAP_COLUMNS,
+        ends_with_unpaired_backslash,
+        last_line_width,
+        wrap_suffix,
+    },
 };
-
-/// Column limit for Markdown paragraphs and bullets in this repository.
-const WRAP_COLUMNS: usize = 80;
 
 /// Characters that open or close inline emphasis, strong, code, or strike spans.
 const INLINE_MARKERS: [char; 4] = ['*', '_', '`', '~'];
@@ -57,78 +59,136 @@ pub(super) fn insert_suffix(
     suffix: &str,
 ) -> Option<()> {
     let slot = suffix_slot(source, span, suffix)?;
-    // Only punctuation before the insertion point shifts its patched offset and
-    // frees width on the last line. Punctuation at the insertion point is removed
-    // ahead of the suffix, so both stay put.
-    let removed_before = slot.replaced.as_ref().map_or(0, |range| {
-        range.end.min(slot.insert_at) - range.start.min(slot.insert_at)
-    });
-    let removed_width = slot.replaced.as_ref().map_or(0, |range| {
-        source
-            .get(range.start..range.end.min(slot.insert_at))
-            .map_or(0, |removed| removed.chars().count())
-    });
-    if let Some(replaced) = slot.replaced.clone() {
-        if !source.is_char_boundary(replaced.end) {
-            return None;
-        }
-        patched.replace_range(replaced, "");
-    }
-
-    let insert_at = slot.insert_at.checked_sub(removed_before)?;
-    let line_start = source
-        .get(..slot.insert_at)
-        .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
-        .unwrap_or(0);
-    let wrap = SuffixWrap {
-        width: source
-            .get(line_start..slot.insert_at)
-            .map_or(0, |line| line.chars().count())
-            .saturating_sub(removed_width),
-        leading_space: !source
-            .get(..slot.insert_at)
-            .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
-        terminal: slot.terminal,
-        hanging: " ".repeat(title_column(source, span.title_start)),
-        line_ending: detect_line_ending(source),
-    };
+    let layout = SuffixLayout::new(source, span, &slot);
+    remove_replaced(patched, source, slot.replaced.as_ref())?;
+    let insert_at = slot.insert_at.checked_sub(layout.removed_before)?;
     if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    let mut inserted = wrap_suffix(suffix, &wrap)?;
-    if inserted.starts_with(wrap.line_ending)
-        && ends_with_unpaired_backslash(source.get(..slot.insert_at)?)
-    {
-        // A backslash immediately before a line break is a CommonMark hard
-        // break, so the author's literal backslash would vanish from the
-        // rendered title. Pairing it with one inserted backslash keeps the
-        // visible text unchanged. A line already at the column limit cannot
-        // take that character, so the edit fails closed instead.
-        if wrap.width >= WRAP_COLUMNS {
-            return None;
+    let mut inserted = wrap_suffix(suffix, &layout.wrap)?;
+    pair_leading_backslash(&mut inserted, source, &slot, &layout.wrap)?;
+    pair_trailing_backslash(&mut inserted, source, &slot, &layout.wrap)?;
+    patched.insert_str(insert_at, &inserted);
+    Some(())
+}
+
+/// Computed layout state for one suffix insertion.
+struct SuffixLayout<'source> {
+    /// Bytes removed before the insertion point, which shift its patched offset.
+    removed_before: usize,
+    /// Wrapping inputs for the inserted words.
+    wrap: SuffixWrap<'source>,
+}
+
+impl<'source> SuffixLayout<'source> {
+    /// Measure the title line and the bytes the chosen slot displaces.
+    fn new(source: &'source str, span: ItemSourceSpan, slot: &SuffixSlot<'source>) -> Self {
+        // Only punctuation before the insertion point shifts its patched
+        // offset and frees width on the last line. Punctuation at the
+        // insertion point is removed ahead of the suffix, so both stay put.
+        let removed_before = slot.replaced.as_ref().map_or(0, |range| {
+            range.end.min(slot.insert_at) - range.start.min(slot.insert_at)
+        });
+        let removed_width = slot.replaced.as_ref().map_or(0, |range| {
+            source
+                .get(range.start..range.end.min(slot.insert_at))
+                .map_or(0, |removed| removed.chars().count())
+        });
+        let line_start = source
+            .get(..slot.insert_at)
+            .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
+            .unwrap_or(0);
+        let wrap = SuffixWrap {
+            width: source
+                .get(line_start..slot.insert_at)
+                .map_or(0, |line| line.chars().count())
+                .saturating_sub(removed_width),
+            leading_space: !source
+                .get(..slot.insert_at)
+                .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
+            terminal: slot.terminal,
+            hanging: " ".repeat(title_column(source, span.title_start)),
+            line_ending: detect_line_ending(source),
+        };
+        Self {
+            removed_before,
+            wrap,
         }
-        inserted.insert(0, '\\');
     }
+}
+
+/// Delete the title bytes the suffix displaces from the patched text.
+fn remove_replaced(
+    patched: &mut String,
+    source: &str,
+    replaced: Option<&Range<usize>>,
+) -> Option<()> {
+    let Some(range) = replaced else {
+        return Some(());
+    };
+    if !source.is_char_boundary(range.end) {
+        return None;
+    }
+    patched.replace_range(range.clone(), "");
+    Some(())
+}
+
+/// Pair a backslash that would otherwise escape the inserted line break.
+///
+/// A backslash immediately before a line break is a CommonMark hard break, so
+/// the author's literal backslash would vanish from the rendered title.
+/// Pairing it with one inserted backslash keeps the visible text unchanged. A
+/// line already at the column limit cannot take that character, so the edit
+/// fails closed instead.
+fn pair_leading_backslash(
+    inserted: &mut String,
+    source: &str,
+    slot: &SuffixSlot<'_>,
+    wrap: &SuffixWrap<'_>,
+) -> Option<()> {
+    let starts_with_break = inserted.starts_with(wrap.line_ending);
+    let ends_with_escape = ends_with_unpaired_backslash(source.get(..slot.insert_at)?);
+    if !starts_with_break || !ends_with_escape {
+        return Some(());
+    }
+    if wrap.width >= WRAP_COLUMNS {
+        return None;
+    }
+    inserted.insert(0, '\\');
+    Some(())
+}
+
+/// Pair a suffix backslash that would escape the character after it.
+///
+/// The suffix's own trailing backslash would escape the punctuation, closing
+/// marker, or line ending that follows it. A last line already at the column
+/// limit cannot take the extra character, so the edit fails closed instead.
+fn pair_trailing_backslash(
+    inserted: &mut String,
+    source: &str,
+    slot: &SuffixSlot<'_>,
+    wrap: &SuffixWrap<'_>,
+) -> Option<()> {
+    let followed_by_escape = following_character(source, slot).is_some_and(is_escaping_follower);
+    if !ends_with_unpaired_backslash(inserted) || !followed_by_escape {
+        return Some(());
+    }
+    if last_line_width(inserted, wrap.width) + wrap.terminal_width() >= WRAP_COLUMNS {
+        return None;
+    }
+    inserted.push('\\');
+    Some(())
+}
+
+/// Return the source character that follows the inserted suffix, if any.
+fn following_character(source: &str, slot: &SuffixSlot<'_>) -> Option<char> {
     let removed_end = slot
         .replaced
         .as_ref()
         .map_or(slot.insert_at, |range| range.end.max(slot.insert_at));
-    let followed_by_escape = source
+    source
         .get(removed_end..)
         .and_then(|rest| rest.chars().next())
-        .is_some_and(is_escaping_follower);
-    if ends_with_unpaired_backslash(&inserted) && followed_by_escape {
-        // The suffix's own trailing backslash would escape the punctuation,
-        // closing marker, or line ending that follows it, so pair it the same
-        // way. A last line already at the column limit cannot take the extra
-        // character, so the edit fails closed instead.
-        if last_line_width(&inserted, wrap.width) + wrap.terminal_width() >= WRAP_COLUMNS {
-            return None;
-        }
-        inserted.push('\\');
-    }
-    patched.insert_str(insert_at, &inserted);
-    Some(())
 }
 
 /// Report whether a preceding unpaired backslash would consume `character`.
@@ -139,21 +199,6 @@ pub(super) fn insert_suffix(
 /// paired.
 const fn is_escaping_follower(character: char) -> bool {
     character.is_ascii_punctuation() || matches!(character, '\n' | '\r')
-}
-
-/// Return the display width of the last line in `rendered`.
-///
-/// The first line follows the title text already on it, so its width adds
-/// `first_line_width`; continuation lines carry their own hanging indent.
-fn last_line_width(rendered: &str, first_line_width: usize) -> usize {
-    rendered.rfind(['\n', '\r']).map_or_else(
-        || first_line_width + rendered.chars().count(),
-        |index| {
-            rendered
-                .get(index + 1..)
-                .map_or(0, |line| line.chars().count())
-        },
-    )
 }
 
 /// Where the suffix goes and which title bytes it displaces.
@@ -232,117 +277,6 @@ fn suffix_slot<'source>(
         terminal: source.get(punctuation_start..span.paragraph_end)?,
         replaced: None,
     })
-}
-
-/// Append the suffix words greedily, wrapping at [`WRAP_COLUMNS`].
-///
-/// Returns `None` when a generated break cannot be made safe, so the caller
-/// fails closed rather than changing the rendered title.
-fn wrap_suffix(suffix: &str, wrap: &SuffixWrap<'_>) -> Option<String> {
-    let terminal_width = wrap.terminal_width();
-    let hanging_width = wrap.hanging.chars().count();
-    let words = suffix.split_whitespace().collect::<Vec<_>>();
-    let mut rendered = String::new();
-    let mut width = wrap.width;
-    for (index, word) in words.iter().enumerate() {
-        let is_last = index + 1 == words.len();
-        let tail_width = if is_last { terminal_width } else { 0 };
-        let word_width = word.chars().count();
-        let separator = if index == 0 {
-            usize::from(wrap.leading_space)
-        } else {
-            1
-        };
-        if width + separator + word_width + tail_width <= WRAP_COLUMNS {
-            push_word(&mut rendered, word, separator);
-            width += separator + word_width + tail_width;
-        } else {
-            ensure_word_fits_continuation(hanging_width, word_width, tail_width)?;
-            start_continuation_line(&mut rendered, width, wrap, word)?;
-            width = hanging_width + word_width + tail_width;
-        }
-    }
-    Some(rendered)
-}
-
-/// Require one unbreakable word to fit a fresh continuation line.
-///
-/// The wrapping loop only reaches here when the word cannot stay on the
-/// current line, and a word has no internal break point. A word too wide for
-/// the hanging indent, the terminal punctuation, and the column limit
-/// together would therefore leave the completed title over the limit, so the
-/// caller fails closed instead.
-fn ensure_word_fits_continuation(
-    hanging_width: usize,
-    word_width: usize,
-    tail_width: usize,
-) -> Option<()> {
-    (hanging_width + word_width + tail_width <= WRAP_COLUMNS).then_some(())
-}
-
-/// Append a word to the current line, preceded by `separator` spaces.
-fn push_word(rendered: &mut String, word: &str, separator: usize) {
-    if separator == 1 {
-        rendered.push(' ');
-    }
-    rendered.push_str(word);
-}
-
-/// Start a continuation line at the hanging indent with `word` on it.
-///
-/// A line that would end with an unpaired backslash gets one more backslash so
-/// the literal character survives the break. Returns `None` when the line is
-/// already at the column limit and cannot take that character.
-fn start_continuation_line(
-    rendered: &mut String,
-    width: usize,
-    wrap: &SuffixWrap<'_>,
-    word: &str,
-) -> Option<()> {
-    if !rendered.is_empty() && ends_with_unpaired_backslash(rendered) {
-        if width >= WRAP_COLUMNS {
-            return None;
-        }
-        rendered.push('\\');
-    }
-    rendered.push_str(wrap.line_ending);
-    rendered.push_str(&wrap.hanging);
-    rendered.push_str(word);
-    Some(())
-}
-
-/// Layout inputs for wrapping an inserted suffix.
-struct SuffixWrap<'source> {
-    /// Display width of the title line before the insertion point.
-    width: usize,
-    /// Whether a space must separate the title from the first suffix word.
-    leading_space: bool,
-    /// Title punctuation that stays in the source after the inserted words.
-    ///
-    /// It contributes to the last line's width but is not re-emitted, because
-    /// the original bytes already follow the insertion point.
-    terminal: &'source str,
-    /// Indentation for continuation lines.
-    hanging: String,
-    /// Line ending used by the document.
-    line_ending: &'source str,
-}
-
-impl SuffixWrap<'_> {
-    /// Display width of the title punctuation that follows the suffix.
-    fn terminal_width(&self) -> usize {
-        self.terminal.trim_end_matches([' ', '\t']).chars().count()
-    }
-}
-
-/// Report whether `text` ends with a backslash that is not itself escaped.
-fn ends_with_unpaired_backslash(text: &str) -> bool {
-    let backslashes = text
-        .chars()
-        .rev()
-        .take_while(|character| *character == '\\')
-        .count();
-    !backslashes.is_multiple_of(2)
 }
 
 /// Report whether a suffix ends with an inline marker character.

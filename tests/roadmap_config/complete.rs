@@ -17,6 +17,67 @@ use super::{
     workspace,
 };
 
+/// Configuration files one case writes before running `complete`.
+#[derive(Default)]
+struct ConfigFiles {
+    /// XDG configuration file contents.
+    xdg: Option<&'static str>,
+    /// Local `.mapsplice.toml` contents.
+    local: Option<&'static str>,
+    /// Home dotfile contents, with an empty XDG config directory.
+    home: Option<&'static str>,
+}
+
+/// One completion configuration scenario.
+struct SuffixCase {
+    /// Environment variables set on the child.
+    env: &'static [(&'static str, &'static str)],
+    /// Configuration files written before the run.
+    files: ConfigFiles,
+    /// Extra command-line flags.
+    flags: &'static [&'static str],
+    /// Expected stdout line.
+    expected: &'static str,
+}
+
+impl SuffixCase {
+    /// Build one scenario from its literal parts.
+    const fn new(
+        env: &'static [(&'static str, &'static str)],
+        files: ConfigFiles,
+        flags: &'static [&'static str],
+        expected: &'static str,
+    ) -> Self {
+        Self {
+            env,
+            files,
+            flags,
+            expected,
+        }
+    }
+
+    /// Write the case's configuration files and apply its environment.
+    fn prepare(&self, workspace: &Workspace, invocation: &mut CliInvocation) -> TestResult<()> {
+        for (key, value) in self.env {
+            invocation.set_env(key, *value);
+        }
+        if let Some(contents) = self.files.xdg {
+            let xdg_home = workspace.write_xdg_config(contents)?;
+            invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+        }
+        if let Some(contents) = self.files.local {
+            workspace.write_local_config(contents)?;
+        }
+        if let Some(contents) = self.files.home {
+            let home_dir = workspace.write_home_config(contents)?;
+            let xdg_home = empty_xdg_home(workspace)?;
+            invocation.set_env("HOME", home_dir.as_str());
+            invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+        }
+        Ok(())
+    }
+}
+
 /// Write the standard target and run `complete` for anchor `1.1.1`.
 fn run_complete(
     workspace: &Workspace,
@@ -40,85 +101,66 @@ fn complete_preview(
 }
 
 #[rstest]
-fn complete_suffix_can_default_from_environment(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env");
-
-    let stdout = complete_preview(&test_workspace, &invocation, &[])?;
-
-    assert_contains(&stdout, "- [x] 1.1.1. First task — env.");
-    Ok(())
-}
-
-#[rstest]
-fn complete_suffix_can_default_from_config_file(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    let xdg_home = test_workspace.write_xdg_config("[cmds.complete]\nsuffix = \"— file\"\n")?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
-
-    let stdout = complete_preview(&test_workspace, &invocation, &[])?;
-
-    assert_contains(&stdout, "- [x] 1.1.1. First task — file.");
-    Ok(())
-}
-
-#[rstest]
-fn complete_suffix_home_dotfile_default(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    let home_dir = test_workspace.write_home_config("[cmds.complete]\nsuffix = \"— home\"\n")?;
-    let xdg_home = empty_xdg_home(&test_workspace)?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("HOME", home_dir.as_str());
-    invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
-
-    let stdout = complete_preview(&test_workspace, &invocation, &[])?;
-
-    assert_contains(&stdout, "- [x] 1.1.1. First task — home.");
-    Ok(())
-}
-
-#[rstest]
-fn complete_suffix_local_config_overrides_xdg_config(
+#[case::environment_default(SuffixCase::new(
+    &[("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env")],
+    ConfigFiles::default(),
+    &[],
+    "- [x] 1.1.1. First task — env."
+))]
+#[case::config_file_default(SuffixCase::new(
+    &[],
+    ConfigFiles {
+        xdg: Some("[cmds.complete]\nsuffix = \"— file\"\n"),
+        ..ConfigFiles::default()
+    },
+    &[],
+    "- [x] 1.1.1. First task — file."
+))]
+#[case::home_dotfile_default(SuffixCase::new(
+    &[],
+    ConfigFiles {
+        home: Some("[cmds.complete]\nsuffix = \"— home\"\n"),
+        ..ConfigFiles::default()
+    },
+    &[],
+    "- [x] 1.1.1. First task — home."
+))]
+#[case::local_config_overrides_xdg(SuffixCase::new(
+    &[],
+    ConfigFiles {
+        xdg: Some("[cmds.complete]\nsuffix = \"— xdg\"\n"),
+        local: Some("[cmds.complete]\nsuffix = \"— local\"\n"),
+        home: None,
+    },
+    &[],
+    "- [x] 1.1.1. First task — local."
+))]
+#[case::environment_overrides_local(SuffixCase::new(
+    &[("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env")],
+    ConfigFiles {
+        local: Some("[cmds.complete]\nsuffix = \"— local\"\n"),
+        ..ConfigFiles::default()
+    },
+    &[],
+    "- [x] 1.1.1. First task — env."
+))]
+#[case::cli_flag_overrides_environment(SuffixCase::new(
+    &[("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env")],
+    ConfigFiles::default(),
+    &["--suffix", "— cli"],
+    "- [x] 1.1.1. First task — cli."
+))]
+fn complete_suffix_precedence(
+    #[case] case: SuffixCase,
     workspace: TestResult<Workspace>,
 ) -> TestResult {
     let test_workspace = workspace?;
-    let xdg_home = test_workspace.write_xdg_config("[cmds.complete]\nsuffix = \"— xdg\"\n")?;
-    test_workspace.write_local_config("[cmds.complete]\nsuffix = \"— local\"\n")?;
     let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+    case.prepare(&test_workspace, &mut invocation)?;
 
-    let stdout = complete_preview(&test_workspace, &invocation, &[])?;
+    let stdout = complete_preview(&test_workspace, &invocation, case.flags)?;
 
-    assert_contains(&stdout, "- [x] 1.1.1. First task — local.");
-    Ok(())
-}
-
-#[rstest]
-fn complete_suffix_environment_overrides_local_config(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_local_config("[cmds.complete]\nsuffix = \"— local\"\n")?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env");
-
-    let stdout = complete_preview(&test_workspace, &invocation, &[])?;
-
-    assert_contains(&stdout, "- [x] 1.1.1. First task — env.");
-    Ok(())
-}
-
-#[rstest]
-fn complete_suffix_cli_flag_overrides_environment(workspace: TestResult<Workspace>) -> TestResult {
-    let test_workspace = workspace?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "— env");
-
-    let stdout = complete_preview(&test_workspace, &invocation, &["--suffix", "— cli"])?;
-
-    assert_contains(&stdout, "- [x] 1.1.1. First task — cli.");
+    assert_contains(&stdout, case.expected);
     Ok(())
 }
 
