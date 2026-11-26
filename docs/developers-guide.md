@@ -401,6 +401,15 @@ lockfile error. The fetch deliberately takes no `--target`, so it covers every
 platform the tests might compile for, and it does not honour `TEST_FLAGS`: the
 flags select what the tests run, not what the cache holds.
 
+After the fetch, `make test` pays for the trybuild test's nested build outside
+the timed run: it builds the test binaries with `cargo test --no-run`, then
+runs the `compile_time` test binary once, because a plain `--no-run` leaves
+trybuild's own build tree (`target/tests/trybuild`) empty. Both commands use
+`WARM_FLAGS`, which is `CARGO_FLAGS` without `--all-targets`. `CARGO_FLAGS`
+holds the build shape (packages, features, profile, target); `TEST_FLAGS` only
+selects tests (a name, `--`) and never reaches the warm-up, so a selection
+cannot fail it or select nothing.
+
 Run these gates for Markdown changes:
 
 ```bash

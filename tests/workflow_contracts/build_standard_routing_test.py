@@ -230,6 +230,34 @@ def test_target_selectors_choose_only_one_supported_linux_linker_route(
     assert_development_route(route, uses_pinned_linker=should_use_pinned_linker)
 
 
+def test_the_nested_build_warm_up_runs_first_and_ignores_the_test_selection(
+    tmp_path: Path,
+) -> None:
+    """The warm-up builds, then runs the trybuild binary, before the selected run."""
+    selection = "compile_time_contracts"
+    invocations = execute_make_route(
+        tmp_path,
+        "test",
+        variables={
+            "TEST_CMD": "test",
+            "TEST_FLAGS": f"--workspace --all-features {selection}",
+        },
+    )
+    routes = [
+        invocation.arguments
+        for invocation in invocations
+        if invocation.arguments[:1] == ("test",)
+    ]
+    assert [route[:2] for route in routes] == [
+        ("test", "--no-run"),
+        ("test", "--test"),
+        ("test", "--workspace"),
+    ]
+    assert routes[1][2] == "compile_time"
+    assert selection not in routes[0] + routes[1]
+    assert routes[2][-1] == selection
+
+
 @pytest.mark.parametrize(
     ("goal", "variables", "command"),
     [
@@ -239,7 +267,9 @@ def test_target_selectors_choose_only_one_supported_linux_linker_route(
                 "TEST_CMD": "test",
                 "TEST_FLAGS": "--workspace --target x86_64-pc-windows-gnu",
             },
-            ("test",),
+            # The nested-build warm-up runs `test --no-run` and `test --test`
+            # before the run under test, which is the one that starts `--workspace`.
+            ("test", "--workspace"),
         ),
         (
             "typecheck",

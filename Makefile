@@ -63,6 +63,12 @@ override RUSTDOC_FLAGS := --cfg docsrs -D warnings $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --workspace --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
+# What the nested-build warm-up builds with: CARGO_FLAGS, the build shape every
+# cargo gate here shares (packages, features, profile, target), without
+# `--all-targets`, which would select every test target. Build options belong in
+# CARGO_FLAGS. TEST_FLAGS only selects tests (a name, `--`), and a selection must
+# not reach the warm-up: it would fail it or select nothing.
+WARM_FLAGS ?= $(filter-out --all-targets,$(CARGO_FLAGS))
 NEXTTEST_CMD := nextest run --no-tests pass
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),$(NEXTTEST_CMD),test)
 CARGO_FMT_WORKSPACE_FLAG := $(if $(shell $(CARGO) fmt --help 2>/dev/null | grep -q -- '--workspace' && echo yes),--workspace,--all)
@@ -133,6 +139,11 @@ test: check-build-tools ## Run tests with warnings treated as errors
 		exit 2; \
 	fi
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) fetch --locked
+	# Pay for the nested builds before the timed run: build the test binaries
+	# under the run's own flags, then run the trybuild binary once, because a plain
+	# `--no-run` leaves trybuild's own build tree (<target>/tests/trybuild) empty.
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) test --no-run --all-targets $(WARM_FLAGS) $(BUILD_JOBS)
+	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) test --test compile_time $(WARM_FLAGS) $(BUILD_JOBS)
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_TEST))" RUSTFLAGS="$(GATE_RUSTFLAGS_TEST)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
 ifeq ($(DOC_TEST_TARGETS),true)
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
