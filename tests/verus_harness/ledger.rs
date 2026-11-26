@@ -70,12 +70,9 @@ fn ledger_naming(symbol: &str) -> TestResult<String> {
             let mut cells = line.split('|').map(str::to_owned).collect::<Vec<_>>();
             let should_replace = cells.get(2).is_some_and(|cell| {
                 let header = cell.trim();
-                header != "Executable function"
-                    && !header.chars().all(|character| character == '-')
+                header != "Executable function" && !header.chars().all(|character| character == '-')
             });
-            if should_replace
-                && let Some(cell) = cells.get_mut(2)
-            {
+            if should_replace && let Some(cell) = cells.get_mut(2) {
                 *cell = format!(" `{symbol}` ");
             }
             cells.join("|")

@@ -85,12 +85,10 @@ impl FakeMutationRunner {
 /// observes the mutation the control actually wrote rather than a fixture
 /// guess. `FAKE_MUTATION_MODE` selects the answer:
 ///
-/// - `faithful`: accept the unmutated tree and reject each mutation with the
-///   obligation that mutation violates, reported at the declaration line the
-///   control's attribution window covers.
+/// - `faithful`: accept the unmutated tree and reject each mutation with the obligation that
+///   mutation violates, reported at the declaration line the control's attribution window covers.
 /// - `accepted`: exit 0 for every proof run.
-/// - `unattributed`: reject with the runner's banner but name no kernel
-///   location.
+/// - `unattributed`: reject with the runner's banner but name no kernel location.
 /// - `startup_failure`: fail without the runner's banner.
 ///
 /// The reported line is always the real `fn line_start_offset(` declaration,
