@@ -141,6 +141,11 @@ fn suffix_stays_out_of_inline_code(#[case] case: CompletionCase) { assert_comple
     Some("— done."),
     "- [x] 1.1.1. Is it ready — done?"
 ))]
+#[case::a_punctuation_only_title_keeps_its_terminal(CompletionCase::new(
+    "- [ ] 1.1.1. ?",
+    Some("— done."),
+    "- [x] 1.1.1. — done?"
+))]
 #[case::a_question_mark_survives_a_marker_suffix(CompletionCase::new(
     "- [ ] 1.1.1. Is it ready?",
     Some("**done.**"),

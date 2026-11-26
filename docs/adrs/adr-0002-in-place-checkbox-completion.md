@@ -100,10 +100,14 @@ target, and a suffix present at the title's end; failure returns
 
 `src/roadmap/ops/complete_suffix.rs` owns marker placement. A suffix without
 terminal punctuation is inserted before the title's trailing punctuation run so
-the full stop stays terminal; a suffix that supplies its own punctuation
-replaces that run. The suffix is appended to the title's final line, and only
-its own words wrap, greedily at 80 columns, onto continuation lines indented to
-the title's content column. Line endings follow the document.
+the full stop stays terminal. A suffix that supplies its own punctuation drops
+that punctuation when the title ends with terminal punctuation, leaving the
+title's run in place; `Task.` with `done!` therefore keeps its full stop. A
+punctuated suffix whose punctuation cannot be separated from a literal
+construct, and a marker-ending suffix on a punctuated title with closing
+markers, fail closed. The suffix is appended to the title's final line, and
+only its own words wrap, greedily at 80 columns, onto continuation lines
+indented to the title's content column. Line endings follow the document.
 
 The operation is exposed as `CommandKind::Complete { anchor, suffix }` and
 configured through `--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, and a

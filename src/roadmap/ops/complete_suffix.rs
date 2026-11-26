@@ -266,7 +266,7 @@ fn place_suffix<'source>(
     let punctuation_start = content_end - trailing_punctuation_len(source, content_end);
     let has_title_punctuation = punctuation_start < content_end;
     let text = suffix_text(suffix, has_title_punctuation);
-    if punctuation_start <= number_end {
+    if punctuation_start < number_end {
         return Some(SuffixPlacement {
             slot: SuffixSlot {
                 insert_at: span.paragraph_end,

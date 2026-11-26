@@ -259,7 +259,7 @@ fn complete_preview_reports_the_checked_task_on_stdout_only() -> TestResult {
 fn complete_phase_anchor_has_only_a_stderr_diagnostic_and_fails() -> TestResult {
     let workspace = isolated_workspace()?;
     workspace.directory.write("target.md", TARGET_ROADMAP)?;
-    let output = run_cli(&workspace, &["complete", "target.md", "1"])?;
+    let output = run_cli(&workspace, &["--in-place", "complete", "target.md", "1"])?;
     let stderr = String::from_utf8_lossy(&output.stderr);
     let target = workspace.directory.read_to_string("target.md")?;
 

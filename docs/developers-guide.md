@@ -97,6 +97,16 @@ boundary, and roadmap domain modules:
   and sub-task numbers through their domain constructors.
 - `src/fs.rs` is the capability-oriented filesystem adapter. Filesystem
   failures must surface as `MapspliceError::Io`, not roadmap validation errors.
+- `src/roadmap/model_source_span.rs` defines `ItemSourceSpan`, the retained
+  byte range for an addressed item, and `is_valid_in` rejects a span that does
+  not fit its source. `src/roadmap/model_renumber_plan.rs` defines
+  `RenumberPlan`. `src/roadmap/ops/complete.rs` resolves the target, patches
+  the checkbox byte, and re-parses the result as a post-condition; the sibling
+  `complete_suffix.rs`, `complete_text.rs`, and `complete_wrap.rs` own suffix
+  placement, rendered-text matching, and 80-column wrapping.
+  `complete_text:: RenderedText` and raw source byte offsets remain distinct
+  types. See
+  [design section 12](mapsplice-design.md#12-in-place-checkbox-completion).
 
 [grammar]: mapsplice-design.md#4-the-roadmap-grammar-normative-reference
 
@@ -183,6 +193,11 @@ and captures its exit status, standard output, and standard error. Nothing in
 the test process changes its environment or working directory. Set `RUST_LOG`
 on the invocation to observe the `error_class` tracing field of a failure.
 
+`TaskEntry` and `SubTaskEntry` exclude the retained `source_span` from
+equality, so a completion edit does not change item identity. `source_span()`
+is populated only for items parsed from a target document, not for fragment
+items.
+
 The integration binaries that assert exact deltas of the process-global
 observability counters (`roadmap_ops`, `roadmap_lookup_rendering`, and
 `roadmap_preservation_observability`) mark every test that can write a counter
@@ -261,7 +276,7 @@ text, scoped reference preservation beside mapped `Requires` references, and
 append preservation across generated task-list shapes.
 
 Which answer a reference resolves through is a separate, proven boundary.
-`RenumberPlan::resolve_reference` in `src/roadmap/model.rs` calls
+`RenumberPlan::resolve_reference` in `src/roadmap/model_renumber_plan.rs` calls
 `select_resolution` in `src/roadmap/ops/remap_kernel.rs`, a pure `const fn`
 over two already-computed anchors and a `bool` source flag; it performs no
 lookup and cannot fail. The kernel's body is shared as a `macro_rules!`
