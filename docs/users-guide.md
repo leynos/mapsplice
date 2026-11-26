@@ -234,9 +234,10 @@ The dependant below keeps its clause pointing at `1.1.2`:
 Replacing an item with the identical item is a no-op when rendering would
 otherwise change only line terminators: the command exits successfully, preview
 emits the target's own bytes, and in-place mode leaves the file untouched. A
-no-op therefore keeps CRLF and the document's original final terminator. A
-target whose content the renderer would change is still normalized, because a
-no-op never skips a required formatter normalization.
+no-op therefore keeps the source's line terminators exactly, including CRLF and
+a missing final terminator. A target whose content the renderer would change is
+still normalized, because a no-op never skips a required formatter
+normalization.
 
 Source bytes are preserved only for items the splice does not re-render. The
 addressed item, a parent whose content changed, and headings are emitted
@@ -455,7 +456,8 @@ items the edit preserves and are LF for items rendered canonically. A second
 `mapsplice` render of conformant output does not add another final newline. A
 replacement whose rendered content equals the target's is not emitted as a
 render: preview uses the target's source bytes and in-place mode writes
-nothing, so the original terminators survive.
+nothing, so the original terminators, including a missing final newline,
+survive.
 
 Use in-place mode when the target should be rewritten directly:
 

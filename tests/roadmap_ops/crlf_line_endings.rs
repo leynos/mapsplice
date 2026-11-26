@@ -30,6 +30,16 @@ const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
     "  - Requires 1.1.1.\r\n",
 );
 
+/// A canonical roadmap whose final line has no terminator.
+const TARGET_WITHOUT_FINAL_NEWLINE: &str = concat!(
+    "# Test\n\n",
+    "## 1. Phase\n\n",
+    "### 1.1. Step\n\n",
+    "- [ ] 1.1.1. Prerequisite.\n",
+    "- [ ] 1.1.2. Consumer.\n",
+    "  - Requires 1.1.1.",
+);
+
 /// One target and fragment to splice at an anchor.
 struct Fixture<'a> {
     target: &'a str,
@@ -246,6 +256,33 @@ fn crlf_identical_replace_is_byte_identical(
     )?;
 
     assert_equal(&output, &CRLF_NESTED_BULLET_CONSUMER.to_owned());
+    Ok(())
+}
+
+/// An identical replacement keeps a missing final newline.
+///
+/// A source without a final terminator renders with one, so the no-op check
+/// treats the missing terminator as a line-ending difference. Preview must emit
+/// the source unchanged and in-place must leave the file untouched.
+#[rstest]
+#[case::preview(false)]
+#[case::in_place(true)]
+#[serial_test::serial(observability_metrics)]
+fn identical_replace_preserves_missing_final_newline(
+    workspace: TestResult<Workspace>,
+    #[case] in_place: bool,
+) -> TestResult {
+    let output = replace_output(
+        &workspace?,
+        &Fixture {
+            target: TARGET_WITHOUT_FINAL_NEWLINE,
+            fragment: "- [ ] 1.1.1. Prerequisite.\n",
+            anchor: "1.1.1",
+        },
+        in_place,
+    )?;
+
+    assert_equal(&output, &TARGET_WITHOUT_FINAL_NEWLINE.to_owned());
     Ok(())
 }
 

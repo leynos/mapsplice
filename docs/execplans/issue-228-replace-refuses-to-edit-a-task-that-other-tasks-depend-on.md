@@ -434,16 +434,16 @@ so its higher file counts are not the plan's measurement.
   proof claim honest while the golden, CLI, and property evidence exercises the
   premise and its counterexamples. Date/Author: 2026-11-20, agent.
 - D8. Treat a replacement whose rendered content equals the target's, apart
-  from line terminators, as a no-op at the CLI boundary: preview emits the
-  target's source bytes and in-place mode performs no write. Rationale: the
-  issue requires an identical-item replacement to be a no-op with no diff;
-  re-rendering normalizes CRLF and the final terminator by design, so byte
-  identity is only achievable by not rendering. The check compares the
-  terminator-normalized source with the terminator-normalized normal render, so
-  it is semantic rather than textual: a real edit, a formatter-unstable source,
-  and any content normalization still render. Only `replace` takes this path;
-  other operations keep their canonical rendering. Date/Author: 2026-11-26,
-  agent.
+  from line terminators (including a missing final terminator), as a no-op at
+  the CLI boundary: preview emits the target's source bytes and in-place mode
+  performs no write. Rationale: the issue requires an identical-item
+  replacement to be a no-op with no diff; re-rendering normalizes CRLF and the
+  final terminator by design, so byte identity is only achievable by not
+  rendering. The check compares the terminator-normalized source with the
+  terminator-normalized normal render, so it is semantic rather than textual: a
+  real edit, a formatter-unstable source, and any content normalization still
+  render. Only `replace` takes this path; other operations keep their canonical
+  rendering. Date/Author: 2026-11-26, agent.
 - D7. Rebaseline the size tolerances at delivery. The delivered branch
   contributes 51 non-ExecPlan files and 2,311 net code lines measured from the
   rebase base `3b7b71b`, against the original budgets of 40 files and 900 net

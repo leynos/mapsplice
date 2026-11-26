@@ -191,17 +191,24 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap_inner(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    // A replacement whose render differs from the target only by line
-    // terminators is a no-op. Emitting the target's own bytes keeps an
-    // identical-item replacement byte-identical, including CRLF, where the
-    // render would normalize the terminators. Formatter-unstable content still
-    // renders because its rendered content differs, so the no-op path never
-    // skips a normalization the formatter boundary requires.
+    // A replacement whose render differs from the target only in line
+    // terminators, including a missing final terminator, is a no-op. Emitting
+    // the target's own bytes keeps an identical-item replacement byte-identical
+    // for CRLF input and for input without a final newline, where the render
+    // would normalize the terminators. Formatter-unstable content still renders
+    // because its rendered content differs, so the no-op path never skips a
+    // normalization the formatter boundary requires.
     let (dependency_rewrites, mut preservation_report) =
         apply_command_with_report(&mut roadmap, operation, fragment)?;
     let (rendered, render_report) = render_roadmap_with_report(&roadmap)?;
+    let normalized_source = line_terminators_normalized(&target_text);
+    let source_with_terminator = if normalized_source.ends_with('\n') {
+        normalized_source
+    } else {
+        format!("{normalized_source}\n")
+    };
     let preserves_source = matches!(&operation, RoadmapOperationInner::Replace { .. })
-        && line_terminators_normalized(&target_text) == line_terminators_normalized(&rendered);
+        && source_with_terminator == line_terminators_normalized(&rendered);
     if preserves_source {
         observability::record_dependency_rewrites(dependency_rewrites);
         return Ok(if request.global.in_place {
