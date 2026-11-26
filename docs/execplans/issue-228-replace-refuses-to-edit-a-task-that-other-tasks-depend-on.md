@@ -254,6 +254,16 @@ Stop and report rather than working around a breached tolerance.
       changes, and a CodeScene delta review prompted a duplication refactor;
       the PR records the live head. Verus remains unrunnable here; the ledger
       records the premise as Pending under #160 and #162.
+- [x] (2026-11-26) PR #244 rebased onto `main` at `3b7b71b` and reviewed with
+      CodeScene. The rebase's only textual conflict was the CRLF tests leaving
+      `tests/roadmap_ops/nested_requires.rs`; serial markers now follow main's
+      `observability_metrics` convention. `cs delta` reported four new
+      Code Duplication advisories; `splice_replacement`, a shared step
+      iterator, and a tabled golden case list clear them, and each file scores
+      10.00 under `cs check`. Evidence: all seven gates pass at `bb3dc42`
+      (five from the `-6` logs, `check-fmt` and `lint` from `-7`), including
+      762 nextest tests and 13 doctests. Follow-ups raised as #260 (crate-root
+      test size) and #261 (per-item CRLF preservation).
 
 ## Surprises & discoveries
 
@@ -808,6 +818,11 @@ record aliases. No dependencies are added.
 - 2026-11-20: Delivered as draft PR #244 from `ef46cab`, after the third
   CodeRabbit pass returned no findings and all seven gates passed on that
   commit. No scope or milestone order changed.
+- 2026-11-26: Rebased onto `main` at `3b7b71b` to clear the #231/#251/#252
+  conflict and aligned the test serial markers with main's convention. A
+  CodeScene delta review reported four new Code Duplication advisories; two
+  shared helpers and a tabled golden case list clear them. Raised #260 and #261
+  for the measured follow-ups. No scope or milestone order changed.
 - 2026-11-20: Second and third `EP-M3` review remediation. Qualified every
   promise that a consumer clause is textually unchanged: the identity always
   continues, the text is unchanged only when the number does not move, and
