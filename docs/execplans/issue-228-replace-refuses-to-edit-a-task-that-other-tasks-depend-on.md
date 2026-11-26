@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections `Constraints`,
 `Outcomes & retrospective`, `Conformance basis`, and `Verification plan` must
 be kept up to date as work proceeds.
 
-Status: IN PROGRESS
+Status: COMPLETE
 
 Branch: `issue-228-replace-refuses-to-edit-a-task-that-other-tasks-depend-on`
 
@@ -146,6 +146,16 @@ the plan's original branch point shows why that comparison does not isolate
 this change. The excess comes from fixture directories and coverage the task
 packet requires, not from widening the implementation surface.
 
+The figures come from this command:
+
+```sh
+git diff --numstat 3b7b71b 92b1ba1 -- . ':(exclude)docs/execplans/**'
+```
+
+Additions minus deletions are aggregated by the categories above. GitHub's PR
+file panel uses a two-dot comparison and does not apply the ExecPlan exclusion,
+so its higher file counts are not the plan's measurement.
+
 ## Risks
 
 - Risk: a continuity alias lets a target reference resolve onto a *different*
@@ -272,8 +282,12 @@ packet requires, not from widening the implementation surface.
       iterator, and a tabled golden case list clear them, and each file scores
       10.00 under `cs check`. Evidence: all seven gates pass at `bb3dc42`
       (five from the `-6` logs, `check-fmt` and `lint` from `-7`), including
-      762 nextest tests and 13 doctests. Follow-ups raised as #260 (crate-root
+      767 nextest tests and 13 doctests. Follow-ups raised as #260 (crate-root
       test size) and #261 (per-item CRLF preservation).
+- [x] (2026-11-27) Delivery record reconciled for the ExecPlan assessment:
+      status COMPLETE, delivered candidate `92b1ba1`, 767 nextest tests and 13
+      doctests, tolerance figures restated with the exact measurement command,
+      and the `make all` equivalence recorded.
 - [x] (2026-11-26) Original-issue assessment remediation: an identical-item
       replacement is now a byte-identical no-op through a CLI-boundary
       comparison (D8). Golden cases cover the issue's surviving external
@@ -441,7 +455,13 @@ packet requires, not from widening the implementation surface.
   the property-oracle extension. Reducing the change would drop coverage the
   task packet requires. Rationale: record the measured scope and report it on
   PR #244 rather than silently widening the budget; no source, configuration,
-  dependency, or interface boundary changes. Date/Author: 2026-11-26, agent.
+  dependency, or interface boundary changes. Measurement command:
+
+  ```sh
+  git diff --numstat 3b7b71b 92b1ba1 -- . ':(exclude)docs/execplans/**'
+  ```
+
+  Date/Author: 2026-11-26, agent.
 
 ## Outcomes & retrospective
 
@@ -459,7 +479,7 @@ item's line changed; an identical-item replacement is a byte-for-byte no-op in
 both modes, CRLF included. A changed anchor, a multi-item fragment, a dropped
 descendant, and `delete` still fail closed and leave the target unchanged.
 
-Evidence at the delivered candidate: all seven deterministic gates pass (762
+Evidence at the delivered candidate: all seven deterministic gates pass (767
 nextest tests plus 13 doctests), hosted CI's `build-test` and `verify` pass,
 and CodeScene's delta shows only improvements.
 
@@ -512,7 +532,10 @@ are registered in `tests/roadmap_golden/contracts.rs` or
 `tests/support/`; BDD scenarios live in `tests/features/mapsplice.feature` with
 steps in `tests/steps/cli_steps.rs`. Gates: `make check-fmt`, `make lint`,
 `make test`, `make markdownlint`, `make nixie`, `make spelling`, `make all`, and
-`make verus` / `make verus-selftest` when the prover is installed.
+`make verus` / `make verus-selftest` when the prover is installed. `make all`
+is the union of `check-fmt`, `lint`, `typecheck`, `test`, and `spelling`; each
+was run separately to green on the delivered candidate, so a separate
+`make all` invocation would repeat the same targets without adding coverage.
 
 ## Conformance basis
 
