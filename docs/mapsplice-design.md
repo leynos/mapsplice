@@ -110,8 +110,8 @@ the reverse. The gate and the roadmap proof boundary are described in
 The source-span kernel follows the same ownership rule with a wider body. A
 preserved task or list item is copied from the original source, so the line
 scan and the copy are domain behaviour rather than rendering policy.
-`src/roadmap/source_span_kernel.rs` expands the ordinary `exec` form of
-`src/roadmap/source_span_kernel.macro.rs`, and `verus/lib.rs` expands the
+`src/roadmap/source_span_kernel.rs` expands the ordinary `exec` form of the
+shared source-span macro files beside it, and `verus/lib.rs` expands the
 verified form of the same text. The kernel measures half-open UTF-8 byte
 ranges, recognizes CR and LF separately, validates every offset before it
 reaches a precondition-bearing copy, and leaves the mdast `Position` mapping in

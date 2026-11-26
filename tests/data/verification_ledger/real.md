@@ -81,8 +81,8 @@ gap is preferable to implying a coverage that does not exist.
 ## How the kernels connect to production
 
 `verus/lib.rs` proves the macro-defined bodies in
-`src/roadmap/ops/select_resolution.macro.rs` and
-`src/roadmap/source_span_kernel.macro.rs`. `src/roadmap/ops/remap_kernel.rs` and
+`src/roadmap/ops/select_resolution.macro.rs` and the shared source-span macro
+files beside it. `src/roadmap/ops/remap_kernel.rs` and
 `src/roadmap/source_span_kernel.rs` include the same files and expand the
 `exec` mode, and `verus/lib.rs` expands the `verified` mode. The verified text
 and the compiled text are therefore one artefact per kernel, not two

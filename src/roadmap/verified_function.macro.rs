@@ -18,7 +18,7 @@
 // change to the shipped body and must be reviewed as one.
 //
 // Every caller writes the executable body once, at the invocation site in
-// `source_span_kernel.macro.rs`. `source_span_kernel.rs` includes this file and
+// the source-span macro files. `source_span_kernel.rs` includes this file and
 // invokes the `exec` arm; `verus/lib.rs` includes it and invokes the `verified`
 // arm. The file is domain-owned and the proof reaches into `src/` for it, so
 // production names no proof path.

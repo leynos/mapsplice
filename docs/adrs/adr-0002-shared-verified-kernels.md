@@ -102,11 +102,12 @@ executable slots in the same order.
 ## Decision outcome
 
 `src/roadmap/verified_function.macro.rs` defines `verified_function!` with
-`exec` and `verified` arms. `src/roadmap/source_span_kernel.macro.rs` writes
-each kernel body once at an invocation site, and `source_span_kernel.rs`
-expands the `exec` mode while `verus/lib.rs` expands the `verified` mode. The
-mode is an explicit token, not a `cfg`: both spellings remain visible in one
-file, and a reviewer can compare the executable slots directly.
+`exec` and `verified` arms. `src/roadmap/source_span_kernel.macro.rs` and
+`src/roadmap/task_item_span_kernel.macro.rs` write each kernel body once at an
+invocation site, and `source_span_kernel.rs` expands the `exec` mode while
+`verus/lib.rs` expands the `verified` mode. The mode is an explicit token, not a
+`cfg`: both spellings remain visible in one file, and a reviewer can compare
+the executable slots directly.
 
 The ghost-erasure audit rule follows from the shape. Only the signature's
 executable tokens, `before`, the loop condition, `loop_body`, `loop_step` and

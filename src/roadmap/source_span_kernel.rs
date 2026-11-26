@@ -6,9 +6,10 @@
 //! to be written directly in `super::source_preservation`, where a property
 //! test could sample them and a proof could not reach them.
 //!
-//! This module owns the executable implementation of both. The body is written
-//! once in `source_span_kernel.macro.rs`; this file expands the ordinary Rust
-//! form, and `verus/lib.rs` expands the verified form from the same text. The
+//! This module owns the executable implementation of both. The bodies are
+//! written once in the shared macro files beside this module; this file expands
+//! the ordinary Rust form, and `verus/lib.rs` expands the verified form from the
+//! same text. The
 //! domain owns the kernel and the proof reaches into `src/` for it, so
 //! production names no proof path.
 //!
@@ -25,11 +26,16 @@
 //! each validates its inputs before reaching a precondition-bearing callee.
 
 // The macro definitions live beside this module. `verus/lib.rs` includes the
-// same files and invokes the verified mode, so the two builds expand one text.
+// same files and invokes the verified modes, so the two builds expand one text.
+// The type declarations are invoked by `source_span_kernel!`, so that kernel
+// must expand before the task-item kernel.
 include!("verified_function.macro.rs");
+include!("source_span_types.macro.rs");
 include!("source_span_kernel.macro.rs");
+include!("task_item_span_kernel.macro.rs");
 
 source_span_kernel!(exec);
+task_item_span_kernel!(exec);
 #[cfg(test)]
 mod tests {
     //! Unit and property coverage for the source-span kernel.

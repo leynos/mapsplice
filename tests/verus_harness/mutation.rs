@@ -179,6 +179,13 @@ fn a_faithful_runner_accepts_the_control_and_each_mutation_is_rejected() -> Test
         ),
     )?;
     let invocations = log.text()?;
+    // Check the complete log before filtering: an installation attempt is an
+    // error wherever it appears, not only among the lines that look like proof
+    // runs.
+    require(
+        !invocations.lines().any(|line| line.contains(" install")),
+        format!("the control must install no prover; log was {invocations:?}"),
+    )?;
     let runs = invocations
         .lines()
         .filter(|line| line.starts_with("verus run "))
@@ -193,10 +200,6 @@ fn a_faithful_runner_accepts_the_control_and_each_mutation_is_rejected() -> Test
         require(
             line.contains("--no-install-missing"),
             format!("every control run must forbid installation; log was {invocations:?}"),
-        )?;
-        require(
-            !line.contains(" install"),
-            format!("the control must install no prover; log was {invocations:?}"),
         )?;
     }
     let z3_lines = invocations

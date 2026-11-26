@@ -293,9 +293,9 @@ grammar the rewriter recognizes.
 
 The source-span helpers are a second proven boundary of the same shape, and
 they are the reference for a kernel that needs a loop. They live in
-`src/roadmap/source_span_kernel.rs`, which expands the `exec` mode of
-`source_span_kernel.macro.rs`; `verus/lib.rs` expands the `verified` mode of
-the same file. `original_position_source`, `task_item_sources` and the
+`src/roadmap/source_span_kernel.rs`, which expands the `exec` mode of the
+shared source-span macro files beside it; `verus/lib.rs` expands the `verified`
+mode of the same text. `original_position_source`, `task_item_sources` and the
 line-start adapter in `src/roadmap/source_preservation.rs` call only its total
 entry points, so no caller validates an offset before handing it over.
 

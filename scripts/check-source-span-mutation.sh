@@ -241,29 +241,69 @@ if ! mutate_once "$copied_kernel" "$cr_old" "$cr_new"; then
 fi
 
 target_dir="${CARGO_TARGET_DIR:-$copy/target}"
-(
-    cd "$copy"
-    "$cargo" test --lib \
-        roadmap::source_preservation::tests::task_source_stops_before_the_next_marker_indentation \
-        --target-dir "$target_dir"
-) >"$copy/unit.log" 2>&1 || unit_status=$?
-if [[ "${unit_status:-0}" -eq 0 ]]; then
+
+# Run one selected regression in the copy and capture its output.
+run_regression() {
+    local log=$1
+    shift
+    ( cd "$copy" && "$cargo" test "$@" --target-dir "$target_dir" ) >"$log" 2>&1
+}
+
+unit_filter="roadmap::source_preservation::tests::task_source_stops_before_the_next_marker_indentation"
+append_filter="delete_cr_only_task_does_not_preserve_the_document_prefix"
+
+# The unmutated copy is the runtime control. Both regressions must execute and
+# pass here first; otherwise a startup or compilation failure below could be
+# mistaken for the mutation being detected.
+echo "runtime control: both regressions pass on the unmutated copy"
+if ! run_regression "$copy/unit-control.log" --lib "$unit_filter"; then
+    echo "the unmutated copy fails the CR unit regression" >&2
+    cat "$copy/unit-control.log" >&2
+    exit 1
+fi
+if ! run_regression "$copy/append-control.log" --test roadmap_append_preservation "$append_filter"; then
+    echo "the unmutated copy fails the CR-only append regression" >&2
+    cat "$copy/append-control.log" >&2
+    exit 1
+fi
+
+# A mutated run must fail because its selected test failed, not because Cargo
+# could not start or the crate did not compile. Both markers are required: the
+# test runner's failure line and the regression's own name.
+require_test_failure() {
+    local log=$1 regression=$2
+    if [[ ! -f "$log" ]]; then
+        echo "mutation run produced no log for $regression" >&2
+        return 1
+    fi
+    if ! grep -Fq "test result: FAILED" "$log"; then
+        echo "mutation run did not execute a failing test for $regression" >&2
+        cat "$log" >&2
+        return 1
+    fi
+    if ! grep -Fq "$regression" "$log"; then
+        echo "mutation run did not name $regression as the failing test" >&2
+        cat "$log" >&2
+        return 1
+    fi
+}
+
+unit_status=0
+run_regression "$copy/unit.log" --lib "$unit_filter" || unit_status=$?
+if (( unit_status == 0 )); then
     echo "the CR mutation did not break the CR unit regression" >&2
     cat "$copy/unit.log" >&2
     exit 1
 fi
+require_test_failure "$copy/unit.log" "task_source_stops_before_the_next_marker_indentation"
 
 append_status=0
-(
-    cd "$copy"
-    "$cargo" test --test roadmap_append_preservation \
-        delete_cr_only_task_does_not_preserve_the_document_prefix \
-        --target-dir "$target_dir"
-) >"$copy/append.log" 2>&1 || append_status=$?
+run_regression "$copy/append.log" --test roadmap_append_preservation "$append_filter" || append_status=$?
 if (( append_status == 0 )); then
     echo "the CR mutation did not break the CR-only append regression" >&2
     cat "$copy/append.log" >&2
     exit 1
 fi
+require_test_failure "$copy/append.log" "delete_cr_only_task_does_not_preserve_the_document_prefix"
 
 echo "source-span mutation control passed: verifier and runtime both reject the defect"

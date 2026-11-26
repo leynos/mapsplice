@@ -6,75 +6,22 @@
 // and the mode token selects whether the ordinary compiler or Verus receives
 // them; there is no second implementation to drift.
 //
-// `ByteSpan` measures UTF-8 *byte* offsets. Markdown's `Position` columns are
-// byte columns in markdown 1.0.0, while `source_location.rs` derives scalar
-// columns for its own reporting; this kernel is deliberately byte-based and
-// never treats a byte offset as a display or scalar width.
+// The task-item helpers live in `task_item_span_kernel.macro.rs` because this
+// file, together with the type declarations it invokes, must stay below the
+// repository's 400-line limit. `source_span_kernel!` defines the types first,
+// so invoke it before `task_item_span_kernel!`.
 //
-// The `verified` arm declares the types `pub` because a `pub open spec fn` may
-// not expose a `pub(crate)` datatype. Production re-exports only the total
-// entry points, so the wider declaration does not widen the product's API.
+// Byte offsets are the unit. The scanner recognizes CR and LF separately, and
+// every returned boundary is checked against Rust's UTF-8 character boundaries
+// before a span is copied. Markdown's `Position` columns are byte columns in
+// markdown 1.0.0, while `source_location.rs` derives scalar columns for its own
+// reporting; this kernel is deliberately byte-based.
 //
 // Every literal `fn` declaration is kept on one line of the invocation. This
 // file is scanned textually by `scripts/check-verification-ledger.sh`, and a
 // declaration that survives only as `fn $name` would not satisfy a ledger
 // claim. The scan is textual only; review is what connects the claim to the
 // body.
-/// Emit the span and error types for one build mode.
-macro_rules! byte_span_types {
-    (exec) => {
-        /// A half-open byte range in the roadmap source.
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-        pub(crate) struct ByteSpan {
-            /// The first byte of the span.
-            pub(crate) start: usize,
-            /// The first byte after the span.
-            pub(crate) end: usize,
-        }
-
-        /// Why a requested span cannot name a substring of the source.
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-        pub(crate) enum SpanError {
-            /// The start offset is past the end of the source.
-            StartOutOfBounds,
-            /// The start offset is not on a UTF-8 character boundary.
-            StartNotCharBoundary,
-            /// The end offset is past the end of the source.
-            EndOutOfBounds,
-            /// The end offset is not on a UTF-8 character boundary.
-            EndNotCharBoundary,
-            /// The start offset lies after the end offset.
-            Reversed,
-        }
-    };
-    (verified) => {
-        verus! {
-            /// A half-open byte range in the roadmap source.
-            #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-            pub struct ByteSpan {
-                /// The first byte of the span.
-                pub start: usize,
-                /// The first byte after the span.
-                pub end: usize,
-            }
-
-            /// Why a requested span cannot name a substring of the source.
-            #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-            pub enum SpanError {
-                /// The start offset is past the end of the source.
-                StartOutOfBounds,
-                /// The start offset is not on a UTF-8 character boundary.
-                StartNotCharBoundary,
-                /// The end offset is past the end of the source.
-                EndOutOfBounds,
-                /// The end offset is not on a UTF-8 character boundary.
-                EndNotCharBoundary,
-                /// The start offset lies after the end offset.
-                Reversed,
-            }
-        }
-    };
-}
 
 /// Emit the source-span kernel for one build mode.
 macro_rules! source_span_kernel {
@@ -415,61 +362,6 @@ macro_rules! source_span_kernel {
                 ));
             }
             after { span }
-        }
-
-        verified_function! {
-            $mode
-            /// Map each item's optional start to its validated source span.
-            #[must_use]
-            pub(crate) fn task_item_spans(
-                starts: &[Option<usize>],
-                list_end: Option<usize>,
-                source: &str,
-            ) -> Vec<Option<ByteSpan>>;
-            requires(true);
-            ensures(result =>
-                result@.len() == starts@.len(),
-                spec_all_spans_match(result@, starts@, list_end, source.spec_bytes()),
-            );
-            proof_first {
-            }
-            before {
-                let mut spans = Vec::with_capacity(starts.len());
-                let mut index = 0;
-            }
-            proof_before {
-            }
-            while (index < starts.len())
-            invariant(
-                index <= starts@.len(),
-                spans@.len() == index,
-                spec_all_spans_match(spans@, starts@, list_end, source.spec_bytes()),
-            )
-            decreases(starts.len() - index) {
-                // Capture the item under inspection before advancing, so the
-                // proof slot below can name it. The invariant's post-state is
-                // restored before the appended element is pushed.
-                let position = index;
-                index += 1;
-                let span = task_item_span(starts, list_end, source, position);
-            }
-            proof_loop {
-                assert(position < starts.len());
-                assert(spans@.len() == position);
-                lemma_spans_match_push(
-                    spans@,
-                    starts@,
-                    list_end,
-                    source.spec_bytes(),
-                    span,
-                );
-            }
-            loop_step {
-                spans.push(span);
-            }
-            proof_after {
-            }
-            after { spans }
         }
     };
 }

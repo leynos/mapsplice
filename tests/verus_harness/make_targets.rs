@@ -176,6 +176,13 @@ fn make_verus_mutation_runs_the_control_without_installing() -> TestResult {
     let text = open_dir(log_root)?
         .read_to_string("mutation.log")
         .map_err(|error| format!("read mutation runner log: {error}"))?;
+    // Check the complete log before filtering: an installation attempt is an
+    // error wherever it appears, not only among the lines that look like proof
+    // runs.
+    require(
+        !text.lines().any(|line| line.contains(" install")),
+        format!("the target must install no prover; log was {text:?}"),
+    )?;
     let runs = text
         .lines()
         .filter(|line| line.starts_with("verus run "))
@@ -188,10 +195,6 @@ fn make_verus_mutation_runs_the_control_without_installing() -> TestResult {
         require(
             line.contains("--no-install-missing"),
             format!("every run must forbid installation; log was {text:?}"),
-        )?;
-        require(
-            !line.contains(" install"),
-            format!("the target must install no prover; log was {text:?}"),
         )?;
     }
     require(
