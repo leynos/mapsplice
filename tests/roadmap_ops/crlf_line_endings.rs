@@ -30,6 +30,49 @@ const CRLF_NESTED_BULLET_CONSUMER: &str = concat!(
     "  - Requires 1.1.1.\r\n",
 );
 
+/// One target and fragment to splice at an anchor.
+struct Fixture<'a> {
+    target: &'a str,
+    fragment: &'a str,
+    anchor: &'a str,
+}
+
+/// Run a replace over `fixture` and return the mode's output.
+///
+/// Preview returns standard output; in-place returns the written target. Both
+/// are the command's visible result, so callers compare them the same way.
+fn replace_output(
+    workspace: &Workspace,
+    fixture: &Fixture<'_>,
+    in_place: bool,
+) -> TestResult<String> {
+    workspace.write_target(fixture.target)?;
+    workspace.write_fragment(fixture.fragment)?;
+    let outcome = if in_place {
+        run_from_args([
+            "mapsplice",
+            "--in-place",
+            "replace",
+            workspace.target.as_str(),
+            fixture.anchor,
+            workspace.fragment.as_str(),
+        ])?
+    } else {
+        run_from_args([
+            "mapsplice",
+            "replace",
+            workspace.target.as_str(),
+            fixture.anchor,
+            workspace.fragment.as_str(),
+        ])?
+    };
+    if in_place {
+        Ok(workspace.read_target()?)
+    } else {
+        Ok(outcome.stdout.unwrap_or_default())
+    }
+}
+
 /// A rejected in-place edit must leave a CRLF target byte-identical, carriage returns and all.
 ///
 /// The mode matters: preview never writes the file, so its byte-identity
@@ -75,19 +118,15 @@ fn crlf_rejection_leaves_target_byte_identical(workspace: TestResult<Workspace>)
 fn crlf_in_place_replace_normalizes_only_the_final_terminator(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment("- [x] 1.1.1. Revised prerequisite.\n")?;
-
-    run_from_args([
-        "mapsplice",
-        "--in-place",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let written = test_workspace.read_target()?;
+    let written = replace_output(
+        &workspace?,
+        &Fixture {
+            target: CRLF_NESTED_BULLET_CONSUMER,
+            fragment: "- [x] 1.1.1. Revised prerequisite.\n",
+            anchor: "1.1.1",
+        },
+        true,
+    )?;
 
     assert_contains(&written, "- [ ] 1.1.2. Consumer.\r\n  - Requires 1.1.1.\n");
     assert_contains(&written, "- [x] 1.1.1. Revised prerequisite.\n");
@@ -106,8 +145,7 @@ fn crlf_in_place_replace_normalizes_only_the_final_terminator(
 fn crlf_in_place_replace_keeps_an_interior_clause_terminator(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(concat!(
+    let target = concat!(
         "# Test\r\n\r\n",
         "## 1. Phase\r\n\r\n",
         "### 1.1. Step\r\n\r\n",
@@ -115,18 +153,16 @@ fn crlf_in_place_replace_keeps_an_interior_clause_terminator(
         "- [ ] 1.1.2. Consumer.\r\n",
         "  - Requires 1.1.1.\r\n",
         "- [ ] 1.1.3. Tail task.\r\n",
-    ))?;
-    test_workspace.write_fragment("- [x] 1.1.1. Revised prerequisite.\n")?;
-
-    run_from_args([
-        "mapsplice",
-        "--in-place",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let written = test_workspace.read_target()?;
+    );
+    let written = replace_output(
+        &workspace?,
+        &Fixture {
+            target,
+            fragment: "- [x] 1.1.1. Revised prerequisite.\n",
+            anchor: "1.1.1",
+        },
+        true,
+    )?;
 
     assert_contains(
         &written,
@@ -147,12 +183,11 @@ fn crlf_in_place_replace_keeps_an_interior_clause_terminator(
 /// it still keeps its interior CRLF, which makes this a per-item rule rather
 /// than document-wide normalization.
 #[rstest]
-#[serial_test::serial(cli_env)]
+#[serial_test::serial(observability_metrics)]
 fn crlf_child_replacement_reemits_parent_summary_clause(
     workspace: TestResult<Workspace>,
 ) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(concat!(
+    let target = concat!(
         "# Test\r\n\r\n",
         "## 1. Phase\r\n\r\n",
         "### 1.1. Step\r\n\r\n",
@@ -161,18 +196,16 @@ fn crlf_child_replacement_reemits_parent_summary_clause(
         "  - [ ] 1.1.1.1. Child.\r\n",
         "- [ ] 1.1.2. Prerequisite.\r\n",
         "- [ ] 1.1.3. Tail task.\r\n",
-    ))?;
-    test_workspace.write_fragment("- [x] 1.1.1.1. Revised child.\n")?;
-
-    run_from_args([
-        "mapsplice",
-        "--in-place",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let written = test_workspace.read_target()?;
+    );
+    let written = replace_output(
+        &workspace?,
+        &Fixture {
+            target,
+            fragment: "- [x] 1.1.1.1. Revised child.\n",
+            anchor: "1.1.1.1",
+        },
+        true,
+    )?;
 
     assert_contains(
         &written,
@@ -189,55 +222,30 @@ fn crlf_child_replacement_reemits_parent_summary_clause(
     Ok(())
 }
 
-/// An identical replacement previews the target's own bytes.
+/// An identical replacement returns the target's own bytes in both modes.
 ///
-/// The fragment repeats the addressed task exactly, so the canonical document
-/// does not change. The command must report a no-op rather than re-render:
-/// stdout equals the CRLF target byte-for-byte, including the final terminator.
+/// The fragment repeats the addressed task exactly, so rendering would change
+/// only the terminators. Preview must emit the CRLF target unchanged and
+/// in-place must leave the file untouched, including the final terminator.
 #[rstest]
+#[case::preview(false)]
+#[case::in_place(true)]
 #[serial_test::serial(observability_metrics)]
-fn crlf_identical_replace_preview_is_byte_identical(
+fn crlf_identical_replace_is_byte_identical(
     workspace: TestResult<Workspace>,
+    #[case] in_place: bool,
 ) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment("- [ ] 1.1.1. Prerequisite.\n")?;
-    let original = test_workspace.read_target()?;
+    let output = replace_output(
+        &workspace?,
+        &Fixture {
+            target: CRLF_NESTED_BULLET_CONSUMER,
+            fragment: "- [ ] 1.1.1. Prerequisite.\n",
+            anchor: "1.1.1",
+        },
+        in_place,
+    )?;
 
-    let outcome = run_from_args([
-        "mapsplice",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-    let stdout = outcome.stdout.unwrap_or_default();
-
-    assert_equal(&stdout, &original);
-    Ok(())
-}
-
-/// An identical replacement in place leaves the CRLF target untouched.
-#[rstest]
-#[serial_test::serial(observability_metrics)]
-fn crlf_identical_replace_in_place_leaves_target_byte_identical(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
-    test_workspace.write_fragment("- [ ] 1.1.1. Prerequisite.\n")?;
-    let original = test_workspace.read_target()?;
-
-    run_from_args([
-        "mapsplice",
-        "--in-place",
-        "replace",
-        test_workspace.target.as_str(),
-        "1.1.1",
-        test_workspace.fragment.as_str(),
-    ])?;
-
-    assert_equal(&test_workspace.read_target()?, &original);
+    assert_equal(&output, &CRLF_NESTED_BULLET_CONSUMER.to_owned());
     Ok(())
 }
 
