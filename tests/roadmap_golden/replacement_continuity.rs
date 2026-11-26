@@ -111,6 +111,12 @@ impl Case {
     "1.1.2",
     "replace_depended_task_checks_off"
 ))]
+#[case::identical_preview(Case::success("replace_depended_task_identical_preview", "1.1.2"))]
+#[case::identical_in_place(Case::in_place(
+    "replace_depended_task_identical_in_place",
+    "1.1.2",
+    "replace_depended_task_identical_in_place"
+))]
 #[case::changed_number_preview(Case::failure(
     "replace_depended_task_changed_number_rejected_preview",
     "1.1.2",

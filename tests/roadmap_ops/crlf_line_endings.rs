@@ -189,6 +189,58 @@ fn crlf_child_replacement_reemits_parent_summary_clause(
     Ok(())
 }
 
+/// An identical replacement previews the target's own bytes.
+///
+/// The fragment repeats the addressed task exactly, so the canonical document
+/// does not change. The command must report a no-op rather than re-render:
+/// stdout equals the CRLF target byte-for-byte, including the final terminator.
+#[rstest]
+#[serial_test::serial(observability_metrics)]
+fn crlf_identical_replace_preview_is_byte_identical(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
+    test_workspace.write_fragment("- [ ] 1.1.1. Prerequisite.\n")?;
+    let original = test_workspace.read_target()?;
+
+    let outcome = run_from_args([
+        "mapsplice",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+    let stdout = outcome.stdout.unwrap_or_default();
+
+    assert_equal(&stdout, &original);
+    Ok(())
+}
+
+/// An identical replacement in place leaves the CRLF target untouched.
+#[rstest]
+#[serial_test::serial(observability_metrics)]
+fn crlf_identical_replace_in_place_leaves_target_byte_identical(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(CRLF_NESTED_BULLET_CONSUMER)?;
+    test_workspace.write_fragment("- [ ] 1.1.1. Prerequisite.\n")?;
+    let original = test_workspace.read_target()?;
+
+    run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])?;
+
+    assert_equal(&test_workspace.read_target()?, &original);
+    Ok(())
+}
+
 /// A CRLF target rewrites its nested clause correctly, normalizing line endings.
 ///
 /// The renumbering contract is unchanged by the line-ending convention: the

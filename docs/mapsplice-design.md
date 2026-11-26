@@ -229,7 +229,12 @@ Untouched gate-clean content remains byte-exact.
   numbering, leave the document unchanged (this is F3 viewed from the operation
   side).
 - **C6 — Output modes.** Standard output by default; `--in-place` rewrites the
-  target atomically and only when the operation and its gates succeed.
+  target atomically and only when the operation and its gates succeed. A
+  replacement whose rendered content equals the target's, apart from line
+  terminators, is a no-op: it emits the target's source bytes and performs no
+  in-place write, so an identical-item replacement is byte-identical even for
+  CRLF input. Content the renderer would normalize still renders, preserving
+  the F4 normalization boundary.
 
 ## 7. The dependency-reference model (normative)
 

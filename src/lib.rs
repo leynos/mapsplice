@@ -191,9 +191,26 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap_inner(&target_text)?;
     let fragment = load_fragment(&request)?;
 
+    // A replacement whose render differs from the target only by line
+    // terminators is a no-op. Emitting the target's own bytes keeps an
+    // identical-item replacement byte-identical, including CRLF, where the
+    // render would normalize the terminators. Formatter-unstable content still
+    // renders because its rendered content differs, so the no-op path never
+    // skips a normalization the formatter boundary requires.
     let (dependency_rewrites, mut preservation_report) =
         apply_command_with_report(&mut roadmap, operation, fragment)?;
     let (rendered, render_report) = render_roadmap_with_report(&roadmap)?;
+    let preserves_source = matches!(&operation, RoadmapOperationInner::Replace { .. })
+        && line_terminators_normalized(&target_text) == line_terminators_normalized(&rendered);
+    if preserves_source {
+        observability::record_dependency_rewrites(dependency_rewrites);
+        return Ok(if request.global.in_place {
+            RunOutcome::in_place(request.target)
+        } else {
+            RunOutcome::stdout(target_text)
+        });
+    }
+
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
         observability::record_in_place_rewrite();
@@ -208,6 +225,12 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
         Ok(RunOutcome::stdout(rendered))
     }
 }
+
+/// Normalize CRLF terminators so source can be compared with a rendered document.
+///
+/// Content differences survive this comparison, so a formatter-unstable source
+/// still takes the rendering path; only the terminator style is ignored.
+fn line_terminators_normalized(text: &str) -> String { text.replace("\r\n", "\n") }
 
 /// Complete one roadmap item by patching the target text directly.
 ///
@@ -245,6 +268,7 @@ fn run_complete(
     observability::record_in_place_rewrite();
     Ok(RunOutcome::in_place(target.clone()))
 }
+
 
 /// Load a fragment only for commands that consume one.
 fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment>> {

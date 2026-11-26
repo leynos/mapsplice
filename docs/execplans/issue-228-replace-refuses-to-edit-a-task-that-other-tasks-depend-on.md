@@ -274,6 +274,13 @@ packet requires, not from widening the implementation surface.
       (five from the `-6` logs, `check-fmt` and `lint` from `-7`), including
       762 nextest tests and 13 doctests. Follow-ups raised as #260 (crate-root
       test size) and #261 (per-item CRLF preservation).
+- [x] (2026-11-26) Original-issue assessment remediation: an identical-item
+      replacement is now a byte-identical no-op through a CLI-boundary
+      comparison (D8). Golden cases cover the issue's surviving external
+      dependant in preview and in-place modes, CRLF byte-identity regressions
+      cover both modes, and the guide and design document the rule. The
+      dropped-descendant regression and checking-off example from the ExecPlan
+      assessment are also in place.
 - [x] (2026-11-26) ExecPlan assessment remediation: recorded the measured
       size rebaseline in D7, added
       `dropped_descendant_required_by_consumer_is_rejected`, aligned the
@@ -412,6 +419,17 @@ packet requires, not from widening the implementation surface.
   the theorem past its boundary; recording them under #160 and #162 keeps the
   proof claim honest while the golden, CLI, and property evidence exercises the
   premise and its counterexamples. Date/Author: 2026-11-20, agent.
+- D8. Treat a replacement whose rendered content equals the target's, apart
+  from line terminators, as a no-op at the CLI boundary: preview emits the
+  target's source bytes and in-place mode performs no write. Rationale: the
+  issue requires an identical-item replacement to be a no-op with no diff;
+  re-rendering normalizes CRLF and the final terminator by design, so byte
+  identity is only achievable by not rendering. The check compares the
+  terminator-normalized source with the terminator-normalized normal render, so
+  it is semantic rather than textual: a real edit, a formatter-unstable source,
+  and any content normalization still render. Only `replace` takes this path;
+  other operations keep their canonical rendering. Date/Author: 2026-11-26,
+  agent.
 - D7. Rebaseline the size tolerances at delivery. The delivered branch
   contributes 51 non-ExecPlan files and 2,311 net code lines measured from the
   rebase base `3b7b71b`, against the original budgets of 40 files and 900 net
@@ -437,7 +455,8 @@ case.
 Observed before the change, the issue's reproduction exited non-zero with
 `dangling_dependency` for both a changed and an identical one-item fragment.
 After the change, the same-number replacement exits zero with only the edited
-item's line changed; a changed anchor, a multi-item fragment, a dropped
+item's line changed; an identical-item replacement is a byte-for-byte no-op in
+both modes, CRLF included. A changed anchor, a multi-item fragment, a dropped
 descendant, and `delete` still fail closed and leave the target unchanged.
 
 Evidence at the delivered candidate: all seven deterministic gates pass (762
@@ -568,10 +587,10 @@ occupying the addressed position, when the plan has no other mapping for it.
   identities, and a later operation on the same document resolves every
   reference the committed output contains.
 - `L-in-place`: replacing a task with an identical same-number task produces
-  byte-identical output (modulo the intended edit) for a conformant LF
-  document, because the replacement keeps its number and every consumer keeps
-  its clause. On a CRLF source, headings and every re-rendered item come back
-  with LF; preservation is per item, not document-wide.
+  byte-identical output, for CRLF sources too, because the CLI emits the
+  target's own bytes when the canonical result is unchanged (D8). For a real
+  edit, preservation is per item: the addressed item, a changed parent, and
+  headings render with LF while an unrewritten task keeps its source.
 
 ### Axioms (trusted, not verified here)
 
