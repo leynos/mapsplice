@@ -107,6 +107,20 @@ the reverse. The gate and the roadmap proof boundary are described in
 [developers-guide.md](developers-guide.md) and
 [verification.md](verification.md).
 
+The source-span kernel follows the same ownership rule with a wider body. A
+preserved task or list item is copied from the original source, so the line
+scan and the copy are domain behaviour rather than rendering policy.
+`src/roadmap/source_span_kernel.rs` expands the ordinary `exec` form of
+`src/roadmap/source_span_kernel.macro.rs`, and `verus/lib.rs` expands the
+verified form of the same text. The kernel measures half-open UTF-8 byte
+ranges, recognizes CR and LF separately, validates every offset before it
+reaches a precondition-bearing copy, and leaves the mdast `Position` mapping in
+`src/roadmap/source_preservation.rs`. That split is deliberate: the parser's
+byte offsets are an external contract, so the adapter owns the conversion and
+the kernel owns only the domain question of where a line starts and which bytes
+belong to a span. [ADR 0002](adrs/adr-0002-shared-verified-kernels.md) records
+the splicing mechanism and its measured limits.
+
 The read-only export follows the same boundary. `src/lib.rs` dispatches a
 `CommandKind::Export` request to `src/export_command/mod.rs`, which reads the
 Markdown path and any committed export through an injected UTF-8 reader and

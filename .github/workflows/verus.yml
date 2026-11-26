@@ -44,3 +44,8 @@ jobs:
         run: make verus
       - name: Verify the harness rejects false proofs
         run: make verus-selftest
+      # The shared kernel body is the same text the product compiles. This
+      # control mutates it in a copy and requires both the verifier and the
+      # runtime preservation regressions to reject the defect.
+      - name: Verify a shared-kernel regression is rejected
+        run: make verus-mutation

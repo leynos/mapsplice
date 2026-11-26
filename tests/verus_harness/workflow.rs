@@ -49,6 +49,14 @@ fn workflow_runs_both_the_proof_and_the_non_vacuity_target() -> TestResult {
             "cannot pass as a successful verification",
         )
         .to_owned(),
+    )?;
+    require(
+        has_value(&lines, "run", "make verus-mutation"),
+        concat!(
+            "the workflow must also run the mutation control, so a proof that stopped reaching ",
+            "the shared kernel body cannot pass as a successful verification",
+        )
+        .to_owned(),
     )
 }
 
