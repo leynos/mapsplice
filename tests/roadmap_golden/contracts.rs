@@ -207,7 +207,6 @@ fn f5_append_level_mismatch_failure(workspace: TestResult<GoldenWorkspace>) -> T
     )
 }
 
-
 #[rstest]
 fn f5_render_failure_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
@@ -235,4 +234,4 @@ fn f5_missing_anchor_in_place_failure(workspace: TestResult<GoldenWorkspace>) ->
         }),
     )
 }
-// weave: run 'weave explain tests/roadmap_golden/contracts.rs' for per-hunk detail, 'weave check' to verify your resolution
+// to verify your resolution

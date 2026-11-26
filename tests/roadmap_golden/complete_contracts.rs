@@ -24,7 +24,6 @@ fn workspace() -> TestResult<GoldenWorkspace> {
 #[case::dependency("complete_dependency_preview", "1.1.1", None)]
 #[case::sub_task("complete_sub_task_preview", "1.1.1.1", None)]
 #[case::wrapped_title_suffix("complete_wrapped_title_suffix", "1.1.1", Some("— done"))]
-#[serial_test::serial(cli_env)]
 fn complete_preview_golden_cases(
     workspace: TestResult<GoldenWorkspace>,
     #[case] fixture_name: &'static str,
@@ -45,7 +44,6 @@ fn complete_preview_golden_cases(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn complete_preview_of_a_completed_item_prints_the_original(
     workspace: TestResult<GoldenWorkspace>,
 ) -> TestResult {
@@ -66,7 +64,6 @@ fn complete_preview_of_a_completed_item_prints_the_original(
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn complete_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,
@@ -85,7 +82,6 @@ fn complete_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
 }
 
 #[rstest]
-#[serial_test::serial(cli_env)]
 fn complete_idempotent(workspace: TestResult<GoldenWorkspace>) -> TestResult {
     assert_golden_case(
         &workspace?,

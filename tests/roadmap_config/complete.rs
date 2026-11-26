@@ -140,10 +140,9 @@ fn complete_suffix_empty_environment_overrides_file(
 
     assert_contains(&stdout, "- [x] 1.1.1. First task.");
     if stdout.contains("— file") {
-        return Err(format!(
-            "an empty environment suffix must suppress the file suffix: {stdout}"
-        )
-        .into());
+        return Err(
+            format!("an empty environment suffix must suppress the file suffix: {stdout}").into(),
+        );
     }
     Ok(())
 }
@@ -165,7 +164,9 @@ fn invalid_complete_config_surfaces_configuration_error(
     assert_equal(&outcome.success, &false);
     assert_contains(&outcome.stderr, "mapsplice command failed");
     assert_contains(&outcome.stderr, "\"configuration\"");
-    assert_contains(&outcome.stderr, "broken");
+    // The malformed table header fails before the suffix value is read, so the
+    // diagnostic names the unparsable file rather than the value inside it.
+    assert_contains(&outcome.stderr, "config.toml");
     Ok(())
 }
 

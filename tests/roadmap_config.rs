@@ -185,14 +185,4 @@ fn invalid_insert_config_surfaces_configuration_error(
     Ok(())
 }
 
-
-
-
-
-
-
-
-
-
-
-// weave: run 'weave explain tests/roadmap_config.rs' for per-hunk detail, 'weave check' to verify your resolution
+// your resolution

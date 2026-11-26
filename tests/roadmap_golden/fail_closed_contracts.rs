@@ -183,7 +183,6 @@ impl FailClosedCase {
     None,
     ExpectedError::UnsupportedAnchorLevel
 ))]
-#[serial_test::serial(cli_env)]
 fn f5_in_place_boundary_matrix(
     workspace: TestResult<GoldenWorkspace>,
     #[case] case: FailClosedCase,
