@@ -11,6 +11,7 @@ use rstest::rstest;
 
 use super::{
     assertions::assert_contains,
+    ops_assertions::{assert_dangling_anchor, assert_equal},
     support::{TestResult, Workspace, workspace},
 };
 
@@ -48,6 +49,45 @@ fn step_replacement_retains_a_referenced_task(workspace: TestResult<Workspace>) 
     assert_contains(&stdout, "### 1.1. Revised alpha step");
     assert_contains(&stdout, "- [x] 1.1.1. Revised depended-on task.");
     assert_contains(&stdout, "- [ ] 1.2.1. Consumer. Requires 1.1.1.");
+    Ok(())
+}
+
+/// A parent replacement that drops a required descendant is rejected.
+///
+/// The fragment continues `1.1.1` with one same-anchor task, but it carries no
+/// sub-task, so `1.1.1.1` retires. The consumer still requires that identity,
+/// which must fail closed rather than be redirected to the replacement or left
+/// naming an item that no longer exists.
+#[rstest]
+#[serial_test::serial(observability_metrics)]
+fn dropped_descendant_required_by_consumer_is_rejected(
+    workspace: TestResult<Workspace>,
+) -> TestResult {
+    let test_workspace = workspace?;
+    test_workspace.write_target(concat!(
+        "# Roadmap\n\n",
+        "## 1. Phase\n\n",
+        "### 1.1. Step\n\n",
+        "- [ ] 1.1.1. Parent task.\n",
+        "  - [ ] 1.1.1.1. Required sub-task.\n",
+        "- [ ] 1.1.2. Consumer.\n",
+        "  - Requires 1.1.1.1.\n",
+    ))?;
+    test_workspace.write_fragment("- [ ] 1.1.1. Parent task without its sub-task.\n")?;
+    let original = test_workspace.read_target()?;
+
+    let error = run_from_args([
+        "mapsplice",
+        "--in-place",
+        "replace",
+        test_workspace.target.as_str(),
+        "1.1.1",
+        test_workspace.fragment.as_str(),
+    ])
+    .expect_err("dropping a required descendant must fail the edit");
+
+    assert_dangling_anchor(&error, "1.1.1.1");
+    assert_equal(&test_workspace.read_target()?, &original);
     Ok(())
 }
 

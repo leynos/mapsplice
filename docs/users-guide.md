@@ -218,6 +218,19 @@ Renumbering can still move the item: replacing `1.1.3` in a step that holds only
 `1.1.1` and `1.1.3` gives the replacement `1.1.2`, so the clause is rewritten
 to the new number. It keeps the dependency either way.
 
+For example, checking off a depended-upon task uses a fragment holding only:
+
+```markdown
+- [x] 1.1.2. Depended-upon task.
+```
+
+The dependant below keeps its clause pointing at `1.1.2`:
+
+```markdown
+- [ ] 1.1.3. Dependent task.
+  - Requires 1.1.2.
+```
+
 Source bytes are preserved only for items the splice does not re-render. The
 addressed item, a parent whose content changed, and headings are emitted
 canonically with LF. Replacing a sub-task therefore re-emits a clause in its
