@@ -319,11 +319,12 @@ checked off whatever other tasks depend on it.
 The edit is a source patch, not a re-render: the only bytes that change are the
 addressed item's `- [ ]` marker, which becomes `- [x]`, and the optional done
 marker. When that marker carries its own terminal punctuation, the title's
-punctuation is kept and the marker's is dropped, as described below. Title text
-and wrapping, continuation lines, nested bullets, `Requires` references, and
-every number in the document are otherwise preserved byte-for-byte, and nothing
-is renumbered. The default mode prints the patched roadmap to standard output;
-`--in-place` rewrites the target.
+punctuation is kept and the marker's is dropped where the title has
+punctuation; where it has none, the marker keeps its own, as described below.
+Title text and wrapping, continuation lines, nested bullets, `Requires`
+references, and every number in the document are otherwise preserved
+byte-for-byte, and nothing is renumbered. The default mode prints the patched
+roadmap to standard output; `--in-place` rewrites the target.
 
 A done marker is appended to the end of the item's title, after any wrapped
 title lines and before its nested bullets. Terminal punctuation stays terminal:
@@ -336,12 +337,14 @@ the suffix, so `**Finish the scope.**` becomes `**Finish the scope — done.**`.
 Literal constructs are the exception: the suffix follows a closing backtick or
 a link, so `` `foo` `` becomes `` `foo` — done `` and `[foo](url)` becomes
 `[foo](url) — done`, rather than changing the construct's content. A suffix
-that carries its own terminal punctuation keeps the title's instead, dropping
-its own so the sentence still ends the way the author wrote it:
+that carries its own terminal punctuation keeps the title's where the title has
+one, dropping its own so the sentence still ends the way the author wrote it:
 `--suffix "done."` still gives `1.1.1. Finish the scope done.`, while
-`Is it ready?` gains `done?` rather than `done.` A suffix that itself ends with
-inline markers is placed after the title's closing markers instead, so the two
-spans stay separate: with `--suffix "**done**"`, `**Finish the scope**` becomes
+`Is it ready?` gains `done?` rather than `done.`. When the title has no
+terminal punctuation the suffix keeps its own, so `Finish` with
+`--suffix "done."` becomes `Finish done.` A suffix that itself ends with inline
+markers is placed after the title's closing markers instead, so the two spans
+stay separate: with `--suffix "**done**"`, `**Finish the scope**` becomes
 `**Finish the scope** **done**`. A title without closing markers keeps the
 usual placement, so `Finish the scope.` becomes `Finish the scope **done**.`
 with `--suffix "**done**"`. Two combinations have no placement that keeps both
