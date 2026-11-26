@@ -293,4 +293,3 @@ fn nested_bullet_rewrite_preserves_incidental_numbers_and_code(
     assert_contains(&stdout, "  ```text\n  Requires 1.1.1.\n  ```\n");
     Ok(())
 }
-

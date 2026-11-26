@@ -247,11 +247,13 @@ Stop and report rather than working around a breached tolerance.
       boundaries. Evidence: focused `roadmap_ops` suite passes 31/31.
 - [x] (2026-11-20) `EP-M3` Delivery: branch
       `issue-228-replace-refuses-to-edit-a-task-that-other-tasks-depend-on`
-      pushed over SSH at `ef46cab`, and draft PR
+      pushed over SSH and draft PR
       [#244](https://github.com/leynos/mapsplice/pull/244) opened against
       `main`. CodeRabbit's third pass returned zero findings before delivery.
-      Verus remains unrunnable here; the ledger records the premise as Pending
-      under #160 and #162.
+      The candidate was later rebased onto `main` for the #231/#251/#252
+      changes, and a CodeScene delta review prompted a duplication refactor;
+      the PR records the live head. Verus remains unrunnable here; the ledger
+      records the premise as Pending under #160 and #162.
 
 ## Surprises & discoveries
 

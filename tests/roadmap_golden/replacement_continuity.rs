@@ -11,6 +11,7 @@ use super::{
     golden::{
         ExpectedError,
         FailureOutput,
+        GoldenCase,
         GoldenCommand,
         GoldenFailureSpec,
         GoldenWorkspace,
@@ -25,111 +26,113 @@ use super::{
     workspace,
 };
 
-/// Verify checking off a depended-on task leaves every consumer clause alone.
-#[rstest]
-fn replace_depended_task_checks_off(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "replace_depended_task_checks_off",
-            GoldenCommand::Replace { anchor: "1.1.2" },
-            true,
-        ),
-    )
+/// How a continuity fixture is expected to finish.
+#[derive(Clone, Copy, Debug)]
+enum Outcome {
+    /// Preview succeeds and its stdout matches the case's own expected file.
+    Success,
+    /// In-place succeeds and must reproduce another case's expected file.
+    InPlace { expected_from: &'static str },
+    /// The operation fails and leaves the target as the case records.
+    Failure { output: FailureOutput },
 }
 
-/// Verify the in-place result is the preview result written to the target.
-///
-/// The expected fixture is the preview case's own, so the two modes cannot
-/// drift apart without this case failing.
-#[rstest]
-fn replace_depended_task_checks_off_in_place(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_output_case(
-            "replace_depended_task_checks_off_in_place",
-            GoldenCommand::Replace { anchor: "1.1.2" },
-            true,
-            SuccessOutput::InPlaceSuccess {
-                expected: golden_fixture("replace_depended_task_checks_off", "expected.md"),
-            },
-        ),
-    )
+/// One named golden fixture and the outcome its files record.
+#[derive(Clone, Copy, Debug)]
+struct Case {
+    name: &'static str,
+    anchor: &'static str,
+    outcome: Outcome,
 }
 
-/// Verify a changed fragment number still retires the identity in preview.
+impl Case {
+    /// A preview success whose expected file sits beside its other fixtures.
+    const fn success(name: &'static str, anchor: &'static str) -> Self {
+        Self {
+            name,
+            anchor,
+            outcome: Outcome::Success,
+        }
+    }
+
+    /// An in-place success that must equal its preview sibling's output.
+    const fn in_place(
+        name: &'static str,
+        anchor: &'static str,
+        expected_from: &'static str,
+    ) -> Self {
+        Self {
+            name,
+            anchor,
+            outcome: Outcome::InPlace { expected_from },
+        }
+    }
+
+    /// A dangling-dependency rejection with the stated target outcome.
+    const fn failure(name: &'static str, anchor: &'static str, output: FailureOutput) -> Self {
+        Self {
+            name,
+            anchor,
+            outcome: Outcome::Failure { output },
+        }
+    }
+
+    /// Build the runner case this fixture describes.
+    fn spec(self) -> GoldenCase {
+        let command = GoldenCommand::Replace {
+            anchor: self.anchor,
+        };
+        match self.outcome {
+            Outcome::Success => golden_success_case(self.name, command, true),
+            Outcome::InPlace { expected_from } => golden_success_output_case(
+                self.name,
+                command,
+                true,
+                SuccessOutput::InPlaceSuccess {
+                    expected: golden_fixture(expected_from, "expected.md"),
+                },
+            ),
+            Outcome::Failure { output } => golden_failure_case(GoldenFailureSpec {
+                name: self.name,
+                command,
+                fragment: Some(golden_fixture(self.name, "fragment.md")),
+                error: ExpectedError::DanglingDependency,
+                output,
+            }),
+        }
+    }
+}
+
+/// Verify every continuity fixture against its recorded golden outcome.
 #[rstest]
-fn replace_depended_task_changed_number_rejected_preview(
+#[case::checks_off(Case::success("replace_depended_task_checks_off", "1.1.2"))]
+#[case::checks_off_in_place(Case::in_place(
+    "replace_depended_task_checks_off_in_place",
+    "1.1.2",
+    "replace_depended_task_checks_off"
+))]
+#[case::changed_number_preview(Case::failure(
+    "replace_depended_task_changed_number_rejected_preview",
+    "1.1.2",
+    FailureOutput::TargetUnchanged
+))]
+#[case::changed_number_in_place(Case::failure(
+    "replace_depended_task_changed_number_rejected_in_place",
+    "1.1.2",
+    FailureOutput::InPlaceTargetUnchanged
+))]
+#[case::dropped_anchor_multi_item(Case::failure(
+    "replace_depended_task_dropped_anchor_multi_item",
+    "1.1.2",
+    FailureOutput::TargetUnchanged
+))]
+#[case::retains_referenced_descendant(Case::success(
+    "replace_retains_referenced_descendant",
+    "1.1"
+))]
+fn replacement_continuity_golden_cases(
     workspace: TestResult<GoldenWorkspace>,
+    #[case] case: Case,
 ) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_failure_case(GoldenFailureSpec {
-            name: "replace_depended_task_changed_number_rejected_preview",
-            command: GoldenCommand::Replace { anchor: "1.1.2" },
-            fragment: Some(golden_fixture(
-                "replace_depended_task_changed_number_rejected_preview",
-                "fragment.md",
-            )),
-            error: ExpectedError::DanglingDependency,
-            output: FailureOutput::TargetUnchanged,
-        }),
-    )
-}
-
-/// Verify the same rejection in place leaves the target byte-identical.
-#[rstest]
-fn replace_depended_task_changed_number_rejected_in_place(
-    workspace: TestResult<GoldenWorkspace>,
-) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_failure_case(GoldenFailureSpec {
-            name: "replace_depended_task_changed_number_rejected_in_place",
-            command: GoldenCommand::Replace { anchor: "1.1.2" },
-            fragment: Some(golden_fixture(
-                "replace_depended_task_changed_number_rejected_in_place",
-                "fragment.md",
-            )),
-            error: ExpectedError::DanglingDependency,
-            output: FailureOutput::InPlaceTargetUnchanged,
-        }),
-    )
-}
-
-/// Verify a multi-item replacement without the addressed number is rejected.
-#[rstest]
-fn replace_depended_task_dropped_anchor_multi_item(
-    workspace: TestResult<GoldenWorkspace>,
-) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_failure_case(GoldenFailureSpec {
-            name: "replace_depended_task_dropped_anchor_multi_item",
-            command: GoldenCommand::Replace { anchor: "1.1.2" },
-            fragment: Some(golden_fixture(
-                "replace_depended_task_dropped_anchor_multi_item",
-                "fragment.md",
-            )),
-            error: ExpectedError::DanglingDependency,
-            output: FailureOutput::TargetUnchanged,
-        }),
-    )
-}
-
-/// Verify a uniquely paired descendant keeps its external consumer resolving.
-///
-/// Replacing step `1.1` with a step holding only task `1.1.2` continues that
-/// task, which lands at `1.1.1`. The consumer in step `1.2` must follow the
-/// task to its new number rather than be rejected or left naming the old one.
-#[rstest]
-fn replace_retains_referenced_descendant(workspace: TestResult<GoldenWorkspace>) -> TestResult {
-    assert_golden_case(
-        &workspace?,
-        golden_success_case(
-            "replace_retains_referenced_descendant",
-            GoldenCommand::Replace { anchor: "1.1" },
-            true,
-        ),
-    )
+    assert_golden_case(&workspace?, case.spec())
 }

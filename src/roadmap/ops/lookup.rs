@@ -37,12 +37,15 @@ pub(super) fn find_phase(roadmap: &RoadmapDocument, target: PhaseNumber) -> Resu
         })
 }
 
+/// Iterate over every step in document order.
+fn steps(roadmap: &RoadmapDocument) -> impl Iterator<Item = &StepSection> {
+    roadmap.phases.iter().flat_map(|phase| &phase.steps)
+}
+
 /// Borrow a numbered step, reporting a missing anchor.
 pub(super) fn find_step(roadmap: &RoadmapDocument, target: StepNumber) -> Result<&StepSection> {
-    roadmap
-        .phases
-        .iter()
-        .find_map(|phase| phase.steps.iter().find(|step| step.number == target))
+    steps(roadmap)
+        .find(|step| step.number == target)
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.into(),
         })
@@ -50,11 +53,9 @@ pub(super) fn find_step(roadmap: &RoadmapDocument, target: StepNumber) -> Result
 
 /// Borrow a numbered task, reporting a missing anchor.
 pub(super) fn find_task(roadmap: &RoadmapDocument, target: TaskNumber) -> Result<&TaskEntry> {
-    roadmap
-        .phases
-        .iter()
-        .flat_map(|phase| &phase.steps)
-        .find_map(|step| step.tasks().iter().find(|task| task.number() == target))
+    steps(roadmap)
+        .flat_map(StepSection::tasks)
+        .find(|task| task.number() == target)
         .ok_or(MapspliceError::AnchorNotFound {
             anchor: target.into(),
         })
@@ -65,10 +66,7 @@ pub(super) fn find_sub_task(
     roadmap: &RoadmapDocument,
     target: SubTaskNumber,
 ) -> Result<&SubTaskEntry> {
-    roadmap
-        .phases
-        .iter()
-        .flat_map(|phase| &phase.steps)
+    steps(roadmap)
         .flat_map(StepSection::tasks)
         .find_map(|task| {
             task.sub_tasks()

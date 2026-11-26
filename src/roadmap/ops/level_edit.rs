@@ -44,6 +44,23 @@ pub(super) fn delete_task(roadmap: &mut RoadmapDocument, target: TaskNumber) -> 
     Ok(())
 }
 
+/// Splice `replacements` over the addressed slot and describe the outcome.
+///
+/// The position describes the slot before the splice; the returned
+/// [`Replacement`] reports how many items now occupy it, which is what
+/// descendant pairing needs. The count is read before the splice consumes the
+/// vector.
+fn splice_replacement<T>(
+    collection: &mut Vec<T>,
+    index: usize,
+    replacements: Vec<T>,
+    position: ItemPosition,
+) -> Replacement {
+    let count = replacements.len();
+    collection.splice(index..=index, replacements);
+    Replacement::new(position, count)
+}
+
 /// Replace one phase with the fragment's phases.
 pub(super) fn replace_phase(
     roadmap: &mut RoadmapDocument,
@@ -51,9 +68,12 @@ pub(super) fn replace_phase(
     phases: Vec<PhaseSection>,
 ) -> Result<Replacement> {
     let index = find_phase_index(roadmap, target)?;
-    let count = phases.len();
-    roadmap.phases.splice(index..=index, phases);
-    Ok(Replacement::new(ItemPosition::Phase(index), count))
+    Ok(splice_replacement(
+        &mut roadmap.phases,
+        index,
+        phases,
+        ItemPosition::Phase(index),
+    ))
 }
 
 /// Replace one step with the fragment's steps.
@@ -63,14 +83,14 @@ pub(super) fn replace_step(
     steps: Vec<StepSection>,
 ) -> Result<Replacement> {
     let (phase_index, phase, step_index) = find_step_parent_mut(roadmap, target)?;
-    let count = steps.len();
-    phase.steps.splice(step_index..=step_index, steps);
-    Ok(Replacement::new(
+    Ok(splice_replacement(
+        &mut phase.steps,
+        step_index,
+        steps,
         ItemPosition::Step {
             phase: phase_index,
             step: step_index,
         },
-        count,
     ))
 }
 
@@ -81,16 +101,16 @@ pub(super) fn replace_task(
     tasks: Vec<TaskEntry>,
 ) -> Result<Replacement> {
     let (phase_index, step_index, step, task_index) = find_task_parent_mut(roadmap, target)?;
-    let count = tasks.len();
     step.clear_task_list_source();
-    step.tasks.splice(task_index..=task_index, tasks);
-    Ok(Replacement::new(
+    Ok(splice_replacement(
+        &mut step.tasks,
+        task_index,
+        tasks,
         ItemPosition::Task {
             phase: phase_index,
             step: step_index,
             task: task_index,
         },
-        count,
     ))
 }
 
