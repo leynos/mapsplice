@@ -239,7 +239,9 @@ def test_target_selectors_choose_only_one_supported_linux_linker_route(
                 "TEST_CMD": "test",
                 "TEST_FLAGS": "--workspace --target x86_64-pc-windows-gnu",
             },
-            ("test",),
+            # The nested-build warm-up runs `test --no-run` and `test --test`
+            # before the run under test, which is the one that starts `--workspace`.
+            ("test", "--workspace"),
         ),
         (
             "typecheck",
