@@ -10,6 +10,7 @@ pub(crate) mod preservation_events;
 mod render;
 pub(crate) mod source_location;
 pub(crate) mod source_preservation;
+mod source_span_kernel;
 mod step_section;
 pub(crate) mod sub_task_numbering;
 

@@ -1,10 +1,15 @@
 //! Core library for the `mapsplice` roadmap splicing CLI.
 
 mod cli;
+
 mod error;
+
 mod export_command;
+
 mod fs;
+
 pub mod observability;
+
 mod roadmap;
 
 use camino::Utf8PathBuf;
@@ -365,7 +370,6 @@ pub use roadmap::{
     render_roadmap,
 };
 
-#[cfg(test)]
 #[doc(hidden)]
 pub mod doctest_support {
     //! Hidden helpers used by documentation examples.

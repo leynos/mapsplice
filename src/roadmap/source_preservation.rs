@@ -2,8 +2,10 @@
 
 use markdown::{
     mdast::{List, ListItem, Node},
-    unist::{Point, Position},
+    unist::Position,
 };
+
+use super::source_span_kernel::{extract_line_span, extract_span, task_item_spans};
 
 /// Copy source for an unchanged node, preserving leading indentation.
 ///
@@ -14,14 +16,8 @@ use markdown::{
 /// # Examples
 ///
 /// ```rust
+/// use mapsplice::doctest_support::original_node_source;
 /// use markdown::{ParseOptions, mdast::Node, to_mdast};
-/// #
-/// # fn original_node_source(node: &Node, source: &str) -> Option<String> {
-/// #     let position = node.position()?;
-/// #     let prefix = source.get(..position.start.offset)?;
-/// #     let start = prefix.rfind('\n').map_or(0, |index| index + 1);
-/// #     source.get(start..position.end.offset).map(str::to_owned)
-/// # }
 ///
 /// let source = "  - [ ] 1.1.1. Nested task.\n";
 /// let tree = to_mdast(source, &ParseOptions::gfm())?;
@@ -44,18 +40,7 @@ pub fn original_node_source(node: &Node, source: &str) -> Option<String> {
 /// Copy source for an unchanged span, preserving leading indentation.
 #[must_use]
 pub(crate) fn original_position_source(position: &Position, source: &str) -> Option<String> {
-    let prefix = source.get(..position.start.offset)?;
-    let start = prefix.rfind(['\r', '\n']).map_or(0, |index| index + 1);
-    source.get(start..position.end.offset).map(str::to_owned)
-}
-
-/// Return a position point at the beginning of its source line.
-fn line_start(position: &Position, source: &str) -> Option<Point> {
-    let mut start = position.start.clone();
-    let prefix = source.get(..start.offset)?;
-    start.offset = prefix.rfind(['\r', '\n']).map_or(0, |index| index + 1);
-    start.column = 1;
-    Some(start)
+    extract_line_span(source, position.start.offset, position.end.offset).ok()
 }
 
 /// Capture each top-level list item's original source through the next item.
@@ -65,24 +50,14 @@ pub(crate) fn task_item_sources(
     items: &[&ListItem],
     source: &str,
 ) -> Vec<Option<String>> {
-    items
+    let starts = items
         .iter()
-        .enumerate()
-        .map(|(index, item)| {
-            let item_position = item.position.as_ref()?;
-            let end = items
-                .get(index + 1)
-                .and_then(|next| next.position.as_ref())
-                .and_then(|position| line_start(position, source))
-                .or_else(|| list.position.as_ref().map(|position| position.end.clone()))?;
-            original_position_source(
-                &Position {
-                    start: item_position.start.clone(),
-                    end,
-                },
-                source,
-            )
-        })
+        .map(|item| item.position.as_ref().map(|position| position.start.offset))
+        .collect::<Vec<_>>();
+    let list_end = list.position.as_ref().map(|position| position.end.offset);
+    task_item_spans(&starts, list_end, source)
+        .into_iter()
+        .map(|candidate| candidate.and_then(|span| extract_span(source, span)))
         .collect()
 }
 
@@ -91,6 +66,7 @@ mod tests {
     //! Unit tests for exact source-span extraction.
 
     use markdown::{ParseOptions, mdast::Node, to_mdast};
+    use rstest::rstest;
 
     use super::{original_node_source, task_item_sources};
 
@@ -105,7 +81,8 @@ mod tests {
 
         assert_eq!(
             original_node_source(node, source),
-            Some("  - [ ] 1.1.1. Nested task.".to_owned())
+            Some("  - [ ] 1.1.1. Nested task.".to_owned()),
+            "a preserved node must keep its leading indentation"
         );
     }
 
@@ -116,12 +93,15 @@ mod tests {
             position: None,
         });
 
-        assert_eq!(original_node_source(&node, "No position"), None);
+        assert_eq!(
+            original_node_source(&node, "No position"),
+            None,
+            "an unpositioned node has no source to copy"
+        );
     }
 
-    #[test]
-    fn task_source_stops_before_the_next_marker_indentation() {
-        let source = "  - [ ] 1.1.1. First task.\n  - [ ] 1.1.2. Second task.\n";
+    /// Parse a two-item list and return the item sources.
+    fn two_item_sources(source: &str) -> Vec<Option<String>> {
         let tree = to_mdast(source, &ParseOptions::gfm()).expect("source should parse");
         let Node::Root(root) = &tree else {
             panic!("markdown documents parse into root nodes");
@@ -137,13 +117,34 @@ mod tests {
                 _ => None,
             })
             .collect::<Vec<_>>();
+        task_item_sources(list, &items, source)
+    }
 
+    #[rstest]
+    #[case::lf(
+        "  - [ ] 1.1.1. First task.\n  - [ ] 1.1.2. Second task.\n",
+        &["  - [ ] 1.1.1. First task.\n", "  - [ ] 1.1.2. Second task."],
+    )]
+    #[case::crlf(
+        "  - [ ] 1.1.1. First task.\r\n  - [ ] 1.1.2. Second task.\r\n",
+        &["  - [ ] 1.1.1. First task.\r\n", "  - [ ] 1.1.2. Second task."],
+    )]
+    #[case::cr(
+        "  - [ ] 1.1.1. First task.\r  - [ ] 1.1.2. Second task.\r",
+        &["  - [ ] 1.1.1. First task.\r", "  - [ ] 1.1.2. Second task."],
+    )]
+    fn task_source_stops_before_the_next_marker_indentation(
+        #[case] source: &str,
+        #[case] expected: &[&str],
+    ) {
+        let expected_sources = expected
+            .iter()
+            .map(|text| Some((*text).to_owned()))
+            .collect::<Vec<_>>();
         assert_eq!(
-            task_item_sources(list, &items, source),
-            vec![
-                Some("  - [ ] 1.1.1. First task.\n".to_owned()),
-                Some("  - [ ] 1.1.2. Second task.".to_owned()),
-            ]
+            two_item_sources(source),
+            expected_sources,
+            "each item's source must run to the next item's line start for every line ending"
         );
     }
 }
