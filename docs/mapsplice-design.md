@@ -425,28 +425,30 @@ renders as, so it stays last after the inserted words. The title's punctuation
 is authoritative: a suffix carrying its own terminal punctuation has that
 punctuation dropped when the title supplies one, so `Is it ready?` gains
 `— done?` rather than losing the question mark, and an encoded reference stays
-in place. An escaped ampersand keeps the reference literal. Inline HTML
-contributes a word boundary only when it renders a break, meaning an element
-whose whole tag name is `br`, so `un<span></span>done` and
-`un<br-widget></br-widget>done` do not satisfy a `done` suffix while
-`un<br>done` does. The operations modules keep the two text domains in distinct
-types: `complete_text::RenderedText` is the collapsed text a reader sees, while
-raw Markdown stays a source string whose byte offsets drive placement, and
-`complete_wrap` owns the 80-column refill, hanging-indent, and wrap-point
-backslash rules. When a generated break would follow an unpaired backslash,
-whether it ends the title or an inserted suffix word, the break is paired with
-one more backslash so the literal character survives. A backslash ending the
-suffix itself is paired the same way before the terminal punctuation, closing
-marker, or line ending that would otherwise consume it, and stays single at the
-end of the document, where nothing follows. A line already at the width limit,
-or an unbreakable suffix word that cannot fit a fresh continuation line, fails
-closed instead. Every other byte — title wrapping, continuation lines, nested
-bullets, `Requires` references, and all numbering — is retained, which
-satisfies F1 and F2 without invoking the renderer at all. Section 5's
-*gate-clean* caveat does not arise from syntax, because no unstable syntax is
-normalized. It still bounds line width: an input paragraph that is already
-wider than 80 columns stays that wide, because completion never reflows
-existing title text.
+in place. A punctuation run that cannot be separated from a literal construct,
+and a marker run that cannot be separated from the title's closing run without
+displacing that punctuation, fail closed rather than rewriting the title. An
+escaped ampersand keeps the reference literal. Inline HTML contributes a word
+boundary only when it renders a break, meaning an element whose whole tag name
+is `br`, so `un<span></span>done` and `un<br-widget></br-widget>done` do not
+satisfy a `done` suffix while `un<br>done` does. The operations modules keep
+the two text domains in distinct types: `complete_text::RenderedText` is the
+collapsed text a reader sees, while raw Markdown stays a source string whose
+byte offsets drive placement, and `complete_wrap` owns the 80-column refill,
+hanging-indent, and wrap-point backslash rules. When a generated break would
+follow an unpaired backslash, whether it ends the title or an inserted suffix
+word, the break is paired with one more backslash so the literal character
+survives. A backslash ending the suffix itself is paired the same way before
+the terminal punctuation, closing marker, or line ending that would otherwise
+consume it, and stays single at the end of the document, where nothing follows.
+A line already at the width limit, or an unbreakable suffix word that cannot
+fit a fresh continuation line, fails closed instead. Every other byte — title
+wrapping, continuation lines, nested bullets, `Requires` references, and all
+numbering — is retained, which satisfies F1 and F2 without invoking the
+renderer at all. Section 5's *gate-clean* caveat does not arise from syntax,
+because no unstable syntax is normalized. It still bounds line width: an input
+paragraph that is already wider than 80 columns stays that wide, because
+completion never reflows existing title text.
 
 The patched text is re-parsed and compared with the original before it is
 returned or written: the anchor set must be unchanged, the addressed item must

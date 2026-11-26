@@ -169,6 +169,8 @@ fn unsafe_suffix_layouts_fail_closed() {
     let near_limit = completion_source(&format!("- [ ] 1.1.1. {}", "a".repeat(61)));
     let overlong_word = "a".repeat(75);
     let short_title = completion_source("- [ ] 1.1.1. Finish the scope");
+    let punctuated_title = completion_source("- [ ] 1.1.1. Finish the scope.");
+    let punctuated_marked_title = completion_source("- [ ] 1.1.1. **Finish the scope.**");
 
     for (source, suffix, reason) in [
         (near_limit, "Task\\ done", "a line at the column limit"),
@@ -176,6 +178,16 @@ fn unsafe_suffix_layouts_fail_closed() {
             short_title,
             overlong_word.as_str(),
             "an unbreakable overlong word",
+        ),
+        (
+            punctuated_title,
+            "[done.](https://example.org)",
+            "a punctuated link suffix",
+        ),
+        (
+            punctuated_marked_title,
+            "**done.**",
+            "a marker suffix on a punctuated marked title",
         ),
     ] {
         let error = complete_ok(&source, "1.1.1", Some(suffix))

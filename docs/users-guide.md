@@ -341,31 +341,34 @@ its own so the sentence still ends the way the author wrote it:
 `--suffix "done."` still gives `1.1.1. Finish the scope done.`, while
 `Is it ready?` gains `done?` rather than `done.` A suffix that itself ends with
 inline markers is placed after the title's closing markers instead, so the two
-spans stay separate: with `--suffix "**done.**"`, `**Finish the scope.**`
-becomes `**Finish the scope.** **done**`. A title without closing markers keeps
-the usual placement, so `Finish the scope.` becomes
-`Finish the scope **done**.` with `--suffix "**done**"`. The suffix is inline
-title text, so a leading `#` or list marker is inserted literally rather than
-being read as block syntax. When the suffix would push the title's last line
-past 80 columns, only the suffix words move onto continuation lines indented to
-the title's content column; no existing title line is joined or split. If a
-line would end with a literal backslash where the suffix wraps, whether that
-backslash ends the title or a suffix word, the inserted break is preceded by
-one additional backslash so the original character stays literal. A suffix that
-itself ends with a literal backslash is paired the same way before the
-punctuation, closing marker, or line ending that follows it; nothing follows at
-the very end of a document, so no pairing is needed there. A line already at
-the column limit cannot take the extra character, and completion then fails
-rather than changing the title. For the same reason, a suffix word that cannot
-fit even on a fresh continuation line is rejected rather than written past the
-limit. Provided the title's existing wrapping already satisfies
-`make check-fmt`, completion keeps the title formatter-stable: the inserted
-break follows the formatter's own 80-column reflow, so `make fmt` makes no
-further change and `make check-fmt` still passes. The suffix is configured by
-`--suffix`, `MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
-[Complete `suffix`](#complete-suffix));
-it is trimmed, an empty value selects no marker, and a value containing a line
-break is rejected.
+spans stay separate: with `--suffix "**done**"`, `**Finish the scope**` becomes
+`**Finish the scope** **done**`. A title without closing markers keeps the
+usual placement, so `Finish the scope.` becomes `Finish the scope **done**.`
+with `--suffix "**done**"`. Two combinations have no placement that keeps both
+the title's bytes and its terminal punctuation intact, so they fail with an
+unsafe-edit error instead of rewriting the title: a marker-ending suffix on a
+punctuated title that ends with closing markers, and a punctuated suffix whose
+punctuation sits inside a link or code span. The suffix is inline title text,
+so a leading `#` or list marker is inserted literally rather than being read as
+block syntax. When the suffix would push the title's last line past 80 columns,
+only the suffix words move onto continuation lines indented to the title's
+content column; no existing title line is joined or split. If a line would end
+with a literal backslash where the suffix wraps, whether that backslash ends
+the title or a suffix word, the inserted break is preceded by one additional
+backslash so the original character stays literal. A suffix that itself ends
+with a literal backslash is paired the same way before the punctuation, closing
+marker, or line ending that follows it; nothing follows at the very end of a
+document, so no pairing is needed there. A line already at the column limit
+cannot take the extra character, and completion then fails rather than changing
+the title. For the same reason, a suffix word that cannot fit even on a fresh
+continuation line is rejected rather than written past the limit. Provided the
+title's existing wrapping already satisfies `make check-fmt`, completion keeps
+the title formatter-stable: the inserted break follows the formatter's own
+80-column reflow, so `make fmt` makes no further change and `make check-fmt`
+still passes. The suffix is configured by `--suffix`,
+`MAPSPLICE_CMDS_COMPLETE_SUFFIX`, or a `[cmds.complete]` table (see
+[Complete `suffix`](#complete-suffix)); it is trimmed, an empty value selects
+no marker, and a value containing a line break is rejected.
 
 Completing an item that is already `- [x]` changes nothing: no byte of the
 title is rewritten and no done marker is added, even when one is configured and

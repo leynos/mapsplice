@@ -19,26 +19,87 @@ fn workspace() -> TestResult<GoldenWorkspace> {
     Ok(workspace)
 }
 
+/// One completion golden scenario.
+struct CompleteCase {
+    /// Fixture directory holding `target.md` and `expected.md`.
+    fixture: &'static str,
+    /// Anchor to complete.
+    anchor: &'static str,
+    /// Configured suffix.
+    suffix: Option<&'static str>,
+    /// Rewrite the target instead of printing the preview.
+    in_place: bool,
+}
+
 #[rstest]
-#[case::task("complete_task_preview", "1.1.1", None)]
-#[case::dependency("complete_dependency_preview", "1.1.1", None)]
-#[case::sub_task("complete_sub_task_preview", "1.1.1.1", None)]
-#[case::wrapped_title_suffix("complete_wrapped_title_suffix", "1.1.1", Some("— done"))]
-fn complete_preview_golden_cases(
+#[case::task_preview(CompleteCase {
+    fixture: "complete_task_preview",
+    anchor: "1.1.1",
+    suffix: None,
+    in_place: false,
+})]
+#[case::task_in_place(CompleteCase {
+    fixture: "complete_task_preview",
+    anchor: "1.1.1",
+    suffix: None,
+    in_place: true,
+})]
+#[case::dependency_preview(CompleteCase {
+    fixture: "complete_dependency_preview",
+    anchor: "1.1.1",
+    suffix: None,
+    in_place: false,
+})]
+#[case::dependency_in_place(CompleteCase {
+    fixture: "complete_dependency_preview",
+    anchor: "1.1.1",
+    suffix: None,
+    in_place: true,
+})]
+#[case::sub_task_preview(CompleteCase {
+    fixture: "complete_sub_task_preview",
+    anchor: "1.1.1.1",
+    suffix: None,
+    in_place: false,
+})]
+#[case::sub_task_in_place(CompleteCase {
+    fixture: "complete_sub_task_preview",
+    anchor: "1.1.1.1",
+    suffix: None,
+    in_place: true,
+})]
+#[case::wrapped_title_preview(CompleteCase {
+    fixture: "complete_wrapped_title_suffix",
+    anchor: "1.1.1",
+    suffix: Some("— done"),
+    in_place: false,
+})]
+#[case::wrapped_title_in_place(CompleteCase {
+    fixture: "complete_wrapped_title_suffix",
+    anchor: "1.1.1",
+    suffix: Some("— done"),
+    in_place: true,
+})]
+fn complete_golden_cases(
     workspace: TestResult<GoldenWorkspace>,
-    #[case] fixture_name: &'static str,
-    #[case] anchor: &'static str,
-    #[case] suffix: Option<&'static str>,
+    #[case] case: CompleteCase,
 ) -> TestResult {
+    let expected = golden_fixture(case.fixture, "expected.md");
+    let output = if case.in_place {
+        SuccessOutput::InPlaceSuccess { expected }
+    } else {
+        SuccessOutput::StdoutTargetUnchanged { expected }
+    };
     assert_golden_case(
         &workspace?,
         golden_success_output_case(
-            fixture_name,
-            GoldenCommand::Complete { anchor, suffix },
-            false,
-            SuccessOutput::StdoutTargetUnchanged {
-                expected: golden_fixture(fixture_name, "expected.md"),
+            case.fixture,
+            GoldenCommand::Complete {
+                anchor: case.anchor,
+                suffix: case.suffix,
             },
+            false,
+            output,
         ),
     )
 }

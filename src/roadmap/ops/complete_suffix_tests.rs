@@ -20,6 +20,11 @@ use super::test_support::{CompletionCase, assert_completion_case, complete_ok, c
     Some("— done"),
     "- [x] 1.1.1. Finish the scope — done."
 ))]
+#[case::suffix_keeps_its_punctuation_when_the_title_has_none(CompletionCase::new(
+    "- [ ] 1.1.1. Finish",
+    Some("— done."),
+    "- [x] 1.1.1. Finish — done."
+))]
 #[case::suffix_word_inside_a_longer_word_does_not_match(CompletionCase::new(
     "- [ ] 1.1.1. Get it undone.",
     Some("done"),
@@ -73,11 +78,6 @@ fn suffix_placement(#[case] case: CompletionCase) { assert_completion_case(&case
     Some("done."),
     "- [x] 1.1.1. **Finish the scope done.**"
 ))]
-#[case::punctuated_marker_suffix_follows_closing_markers(CompletionCase::new(
-    "- [ ] 1.1.1. **Finish the scope.**",
-    Some("**done.**"),
-    "- [x] 1.1.1. **Finish the scope.** **done**"
-))]
 #[case::unpunctuated_marker_suffix_follows_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope**",
     Some("**done**"),
@@ -130,11 +130,6 @@ fn suffix_stays_out_of_inline_code(#[case] case: CompletionCase) { assert_comple
     "- [ ] 1.1.1. Finish the scope\\…",
     Some("— done"),
     "- [x] 1.1.1. Finish the scope\\ — done…"
-))]
-#[case::a_link_suffix_replaces_the_title_punctuation(CompletionCase::new(
-    "- [ ] 1.1.1. Finish the scope.",
-    Some("[done.](https://example.org)"),
-    "- [x] 1.1.1. Finish the scope [done.](https://example.org)"
 ))]
 #[case::an_unpunctuated_link_suffix_keeps_the_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",

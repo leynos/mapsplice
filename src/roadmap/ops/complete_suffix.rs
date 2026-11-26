@@ -11,8 +11,6 @@
 //! return `None` rather than construct a diagnostic when an offset does not
 //! fit, leaving the caller to report fail-closed completion errors.
 
-use std::ops::Range;
-
 pub(super) use super::complete_text::title_has_suffix;
 use super::{
     super::model::ItemSourceSpan,
@@ -49,95 +47,56 @@ pub(super) fn normalize_suffix(suffix: Option<&str>) -> Option<String> {
 
 /// Insert the done suffix into the addressed title in the patched text.
 ///
-/// Returns `None` when the retained span does not fit the source or a pairing
-/// character cannot fit, which the caller reports as an unsafe edit. The suffix
-/// is placed before the title's terminal sentence punctuation so
-/// `… scope — done.` replaces `… scope.`; a suffix carrying its own punctuation
-/// replaces the title's run instead. A suffix that ends with an inline marker
-/// follows the title's closing markers, and the width of any replaced
-/// punctuation is credited back to the line. A backslash that would otherwise
-/// escape the punctuation, marker, or line ending after the inserted words is
-/// paired so the author's literal backslash survives.
+/// Returns `None` when the retained span does not fit the source or the suffix
+/// cannot be placed without rewriting the title's punctuation, which the caller
+/// reports as an unsafe edit. The title's terminal sentence punctuation is
+/// authoritative: a suffix whose own punctuation can be removed is inserted
+/// before that run, so `… scope.` becomes `… scope — done.` and
+/// `Is it ready?` becomes `Is it ready — done?`. A suffix keeps its own
+/// punctuation when the title has none. A suffix that ends with an inline
+/// marker follows the title's closing markers, and a backslash that would
+/// otherwise escape the punctuation, marker, or line ending after the inserted
+/// words is paired so the author's literal backslash survives.
 pub(super) fn insert_suffix(
     patched: &mut String,
     source: &str,
     span: ItemSourceSpan,
     suffix: &str,
 ) -> Option<()> {
-    let text = suffix_text(suffix);
-    let slot = suffix_slot(source, span, suffix, &text)?;
-    let layout = SuffixLayout::new(source, span, &slot);
-    remove_replaced(patched, source, slot.replaced.as_ref())?;
-    let insert_at = slot.insert_at.checked_sub(layout.removed_before)?;
+    let placement = place_suffix(source, span, suffix)?;
+    let wrap = suffix_wrap(source, span, &placement.slot);
+    let insert_at = placement.slot.insert_at;
     if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    let mut inserted = wrap_suffix(&text.text, &layout.wrap)?;
-    pair_leading_backslash(&mut inserted, source, &slot, &layout.wrap)?;
-    pair_trailing_backslash(&mut inserted, source, &slot, &layout.wrap)?;
+    let mut inserted = wrap_suffix(&placement.text.text, &wrap)?;
+    pair_leading_backslash(&mut inserted, source, &placement.slot, &wrap)?;
+    pair_trailing_backslash(&mut inserted, source, &placement.slot, &wrap)?;
     patched.insert_str(insert_at, &inserted);
     Some(())
 }
 
-/// Computed layout state for one suffix insertion.
-struct SuffixLayout<'source> {
-    /// Bytes removed before the insertion point, which shift its patched offset.
-    removed_before: usize,
-    /// Wrapping inputs for the inserted words.
-    wrap: SuffixWrap<'source>,
-}
-
-impl<'source> SuffixLayout<'source> {
-    /// Measure the title line and the bytes the chosen slot displaces.
-    fn new(source: &'source str, span: ItemSourceSpan, slot: &SuffixSlot<'source>) -> Self {
-        // Only punctuation before the insertion point shifts its patched
-        // offset and frees width on the last line. Punctuation at the
-        // insertion point is removed ahead of the suffix, so both stay put.
-        let removed_before = slot.replaced.as_ref().map_or(0, |range| {
-            range.end.min(slot.insert_at) - range.start.min(slot.insert_at)
-        });
-        let removed_width = slot.replaced.as_ref().map_or(0, |range| {
-            source
-                .get(range.start..range.end.min(slot.insert_at))
-                .map_or(0, |removed| removed.chars().count())
-        });
-        let line_start = source
+/// Build the wrapping inputs for the chosen suffix placement.
+fn suffix_wrap<'source>(
+    source: &'source str,
+    span: ItemSourceSpan,
+    slot: &SuffixSlot<'source>,
+) -> SuffixWrap<'source> {
+    let line_start = source
+        .get(..slot.insert_at)
+        .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
+        .unwrap_or(0);
+    SuffixWrap {
+        width: source
+            .get(line_start..slot.insert_at)
+            .map_or(0, |line| line.chars().count()),
+        leading_space: !source
             .get(..slot.insert_at)
-            .and_then(|prefix| prefix.rfind(['\n', '\r']).map(|index| index + 1))
-            .unwrap_or(0);
-        let wrap = SuffixWrap {
-            width: source
-                .get(line_start..slot.insert_at)
-                .map_or(0, |line| line.chars().count())
-                .saturating_sub(removed_width),
-            leading_space: !source
-                .get(..slot.insert_at)
-                .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
-            terminal: slot.terminal,
-            hanging: " ".repeat(title_column(source, span.title_start)),
-            line_ending: detect_line_ending(source),
-        };
-        Self {
-            removed_before,
-            wrap,
-        }
+            .is_some_and(|prefix| prefix.ends_with([' ', '\t'])),
+        terminal: slot.terminal,
+        hanging: " ".repeat(title_column(source, span.title_start)),
+        line_ending: detect_line_ending(source),
     }
-}
-
-/// Delete the title bytes the suffix displaces from the patched text.
-fn remove_replaced(
-    patched: &mut String,
-    source: &str,
-    replaced: Option<&Range<usize>>,
-) -> Option<()> {
-    let Some(range) = replaced else {
-        return Some(());
-    };
-    if !source.is_char_boundary(range.end) {
-        return None;
-    }
-    patched.replace_range(range.clone(), "");
-    Some(())
 }
 
 /// Pair a backslash that would otherwise escape the inserted line break.
@@ -189,12 +148,8 @@ fn pair_trailing_backslash(
 
 /// Return the source character that follows the inserted suffix, if any.
 fn following_character(source: &str, slot: &SuffixSlot<'_>) -> Option<char> {
-    let removed_end = slot
-        .replaced
-        .as_ref()
-        .map_or(slot.insert_at, |range| range.end.max(slot.insert_at));
     source
-        .get(removed_end..)
+        .get(slot.insert_at..)
         .and_then(|rest| rest.chars().next())
 }
 
@@ -216,15 +171,23 @@ struct SuffixText {
     stripped: bool,
 }
 
-/// Remove terminal punctuation the title already supplies from the suffix.
+/// Return the suffix text to insert.
 ///
-/// Closing emphasis, strong, and strike markers stay in place, so `**done.**`
+/// With `strip` set, the suffix's terminal punctuation is removed when it
+/// precedes only closing emphasis, strong, or strike markers, so `**done.**`
 /// becomes `**done**` and a plain `— done.` becomes `— done`. A suffix whose
 /// punctuation is not at the end (a link label, for example) or that ends in a
 /// code span keeps its bytes, because removing punctuation there would change
-/// the construct's literal content.
-fn suffix_text(suffix: &str) -> SuffixText {
+/// the construct's literal content. Without `strip`, the suffix keeps its
+/// punctuation because the title supplies none.
+fn suffix_text(suffix: &str, strip: bool) -> SuffixText {
     let trimmed = suffix.trim_end();
+    if !strip {
+        return SuffixText {
+            text: trimmed.to_owned(),
+            stripped: false,
+        };
+    }
     let mut marker_start = trimmed.len();
     while let Some(character) = trimmed
         .get(..marker_start)
@@ -257,14 +220,20 @@ fn suffix_text(suffix: &str) -> SuffixText {
     }
 }
 
-/// Where the suffix goes and which title bytes it displaces.
+/// Where the suffix goes.
 struct SuffixSlot<'source> {
     /// Byte offset at which the suffix words begin.
     insert_at: usize,
     /// Title bytes that follow the suffix and count toward the last width.
     terminal: &'source str,
-    /// Existing title punctuation the suffix replaces, if any.
-    replaced: Option<Range<usize>>,
+}
+
+/// Chosen insertion point and the text to insert there.
+struct SuffixPlacement<'source> {
+    /// Placement within the title.
+    slot: SuffixSlot<'source>,
+    /// Text to insert.
+    text: SuffixText,
 }
 
 /// Choose the insertion point relative to the title's final content.
@@ -272,21 +241,22 @@ struct SuffixSlot<'source> {
 /// The parser reports where the title's inline content ends, before closing
 /// emphasis, strong, and strike markers so terminal punctuation remains
 /// terminal inside them, as in `**Finish the scope — done.**`, but after
-/// literal constructs such as inline code and links. When the title ends with
-/// closing markers and the suffix itself ends with an inline marker, the suffix
-/// is placed after those markers instead, because joining two marker runs would
-/// make the result ambiguous. A title without closing markers keeps the usual
-/// placement, so terminal punctuation stays last.
+/// literal constructs such as inline code and links. A suffix that ends with an
+/// inline marker follows a title's closing markers, because joining two marker
+/// runs would make the result ambiguous.
 ///
-/// The numbered prefix contains no whitespace, so the first whitespace in the
-/// source paragraph ends it whatever the separator's spelling. A separator
-/// written as an entity such as `&#46;` has no literal `. ` to search for.
-fn suffix_slot<'source>(
+/// When the title has terminal punctuation, that run stays in place. A suffix
+/// whose own punctuation cannot be removed, or whose marker run cannot be
+/// separated from the title's closing run without displacing the punctuation,
+/// has no safe placement and fails closed. The numbered prefix contains no
+/// whitespace, so the first whitespace in the source paragraph ends it whatever
+/// the separator's spelling; a separator written as an entity such as `&#46;`
+/// has no literal `. ` to search for.
+fn place_suffix<'source>(
     source: &'source str,
     span: ItemSourceSpan,
     suffix: &str,
-    text: &SuffixText,
-) -> Option<SuffixSlot<'source>> {
+) -> Option<SuffixPlacement<'source>> {
     let raw = source.get(span.title_start..span.paragraph_end)?;
     let number_end = raw
         .find([' ', '\t'])
@@ -294,53 +264,69 @@ fn suffix_slot<'source>(
     let trimmed_end = span.title_start + raw.trim_end_matches([' ', '\t']).len();
     let content_end = span.title_content_end.min(trimmed_end);
     let punctuation_start = content_end - trailing_punctuation_len(source, content_end);
+    let has_title_punctuation = punctuation_start < content_end;
+    let text = suffix_text(suffix, has_title_punctuation);
     if punctuation_start <= number_end {
-        return Some(SuffixSlot {
-            insert_at: span.paragraph_end,
-            terminal: "",
-            replaced: None,
+        return Some(SuffixPlacement {
+            slot: SuffixSlot {
+                insert_at: span.paragraph_end,
+                terminal: "",
+            },
+            text,
         });
     }
-    // The title's own punctuation is authoritative: a suffix whose terminal
-    // punctuation was removed is inserted before that run and leaves it in
-    // place, so `Is it ready?` gains `— done?` rather than losing the question
-    // mark.
-    let keeps_title_punctuation = text.stripped && punctuation_start < content_end;
     // Decorations such as links end with syntax characters, so punctuation is
     // classified from the text a reader sees, not from the suffix's spelling.
-    let supplies_punctuation =
-        !keeps_title_punctuation && suffix_supplies_punctuation(&plain_suffix_text(suffix));
-    if suffix_ends_with_marker(&text.text) && content_end < trimmed_end {
+    let supplies_punctuation = suffix_supplies_punctuation(&plain_suffix_text(suffix));
+    if has_title_punctuation {
+        // The title's bytes stay in place, so a suffix whose own punctuation
+        // cannot be removed has no safe placement: replacing the title's
+        // terminal character would rewrite the author's sentence.
+        if punctuation_is_fixed(supplies_punctuation, &text) {
+            return None;
+        }
+        // A marker-ending suffix cannot touch the title's closing markers, and
+        // following them would leave the title's punctuation before the suffix.
+        if follows_closing_markers(&text, content_end, trimmed_end) {
+            return None;
+        }
+        return Some(SuffixPlacement {
+            slot: SuffixSlot {
+                insert_at: punctuation_start,
+                terminal: source.get(punctuation_start..span.paragraph_end)?,
+            },
+            text,
+        });
+    }
+    if follows_closing_markers(&text, content_end, trimmed_end) {
         // Placing marker-wrapped words directly before the title's closing
         // markers would merge both runs into one delimiter sequence, so such a
-        // suffix follows the closing markers instead. Punctuation it supplies
-        // still replaces the title's trailing run. A title whose content runs
-        // to its end has no closing run, so the marker suffix keeps the usual
-        // placement before terminal punctuation.
-        let replaced = (supplies_punctuation && punctuation_start < content_end)
-            .then_some(punctuation_start..content_end);
-        return Some(SuffixSlot {
-            insert_at: span.paragraph_end,
-            terminal: "",
-            replaced,
+        // suffix follows the closing markers instead.
+        return Some(SuffixPlacement {
+            slot: SuffixSlot {
+                insert_at: span.paragraph_end,
+                terminal: "",
+            },
+            text,
         });
     }
-    if supplies_punctuation {
-        let replaced = (punctuation_start < content_end).then_some(punctuation_start..content_end);
-        return Some(SuffixSlot {
-            insert_at: punctuation_start,
-            // Any closing inline markers survive the punctuation removal and
-            // still count toward the last line's width.
+    Some(SuffixPlacement {
+        slot: SuffixSlot {
+            insert_at: content_end,
             terminal: source.get(content_end..span.paragraph_end)?,
-            replaced,
-        });
-    }
-    Some(SuffixSlot {
-        insert_at: punctuation_start,
-        // The title's punctuation run and any closing markers stay in place.
-        terminal: source.get(punctuation_start..span.paragraph_end)?,
-        replaced: None,
+        },
+        text,
     })
+}
+
+/// Report whether the suffix must follow the title's closing marker run.
+fn follows_closing_markers(text: &SuffixText, content_end: usize, trimmed_end: usize) -> bool {
+    content_end < trimmed_end && suffix_ends_with_marker(&text.text)
+}
+
+/// Report whether the suffix's punctuation cannot be separated from its construct.
+const fn punctuation_is_fixed(supplies_punctuation: bool, text: &SuffixText) -> bool {
+    supplies_punctuation && !text.stripped
 }
 
 /// Report whether a suffix ends with an inline marker character.

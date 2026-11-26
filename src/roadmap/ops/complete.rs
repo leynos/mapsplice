@@ -120,8 +120,12 @@ pub(crate) fn complete_item(
     let mut patched = source.to_owned();
     patched.replace_range(marker..=marker, "x");
     if let Some(text) = suffix_to_insert {
-        insert_suffix(&mut patched, source, span, text)
-            .ok_or_else(|| unsafe_edit(anchor, "the title span cannot hold the done suffix"))?;
+        insert_suffix(&mut patched, source, span, text).ok_or_else(|| {
+            unsafe_edit(
+                anchor,
+                "the suffix cannot be placed without rewriting the title",
+            )
+        })?;
     }
     validate_patch(&patched, roadmap, anchor, normalized_suffix.as_deref())?;
     Ok(patched)
