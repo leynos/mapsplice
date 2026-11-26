@@ -45,6 +45,16 @@ use super::test_support::{CompletionCase, assert_completion_case, complete_ok, c
     Some("build*"),
     "- [x] 1.1.1. Remove every artefact named build*"
 ))]
+#[case::existing_suffix_with_other_punctuation_is_not_duplicated(CompletionCase::new(
+    "- [ ] 1.1.1. Finish — done!",
+    Some("— done."),
+    "- [x] 1.1.1. Finish — done!"
+))]
+#[case::existing_marker_suffix_with_other_punctuation_is_not_duplicated(CompletionCase::new(
+    "- [ ] 1.1.1. **Finish — done!**",
+    Some("**done.**"),
+    "- [x] 1.1.1. **Finish — done!**"
+))]
 fn suffix_placement(#[case] case: CompletionCase) { assert_completion_case(&case); }
 
 #[rstest]
@@ -63,10 +73,10 @@ fn suffix_placement(#[case] case: CompletionCase) { assert_completion_case(&case
     Some("done."),
     "- [x] 1.1.1. **Finish the scope done.**"
 ))]
-#[case::marker_suffix_follows_closing_markers(CompletionCase::new(
+#[case::punctuated_marker_suffix_follows_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope.**",
     Some("**done.**"),
-    "- [x] 1.1.1. **Finish the scope** **done.**"
+    "- [x] 1.1.1. **Finish the scope.** **done**"
 ))]
 #[case::unpunctuated_marker_suffix_follows_closing_markers(CompletionCase::new(
     "- [ ] 1.1.1. **Finish the scope**",
@@ -78,10 +88,10 @@ fn suffix_placement(#[case] case: CompletionCase) { assert_completion_case(&case
     Some("**done**"),
     "- [x] 1.1.1. Finish the scope **done**."
 ))]
-#[case::punctuated_marker_suffix_replaces_plain_punctuation(CompletionCase::new(
+#[case::punctuated_marker_suffix_keeps_plain_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("**done.**"),
-    "- [x] 1.1.1. Finish the scope **done.**"
+    "- [x] 1.1.1. Finish the scope **done**."
 ))]
 fn suffix_around_closing_inline_markers(#[case] case: CompletionCase) {
     assert_completion_case(&case);
@@ -101,10 +111,10 @@ fn suffix_around_closing_inline_markers(#[case] case: CompletionCase) {
 fn suffix_stays_out_of_inline_code(#[case] case: CompletionCase) { assert_completion_case(&case); }
 
 #[rstest]
-#[case::formatted_punctuated_suffix_replaces_title_punctuation(CompletionCase::new(
+#[case::formatted_punctuated_suffix_keeps_title_punctuation(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope.",
     Some("**done.**"),
-    "- [x] 1.1.1. Finish the scope **done.**"
+    "- [x] 1.1.1. Finish the scope **done**."
 ))]
 #[case::escaped_full_stop_is_title_content(CompletionCase::new(
     "- [ ] 1.1.1. Match the literal scope\\.",
@@ -130,6 +140,16 @@ fn suffix_stays_out_of_inline_code(#[case] case: CompletionCase) { assert_comple
     "- [ ] 1.1.1. Finish the scope.",
     Some("[done](https://example.org)"),
     "- [x] 1.1.1. Finish the scope [done](https://example.org)."
+))]
+#[case::a_question_mark_survives_a_punctuated_suffix(CompletionCase::new(
+    "- [ ] 1.1.1. Is it ready?",
+    Some("— done."),
+    "- [x] 1.1.1. Is it ready — done?"
+))]
+#[case::a_question_mark_survives_a_marker_suffix(CompletionCase::new(
+    "- [ ] 1.1.1. Is it ready?",
+    Some("**done.**"),
+    "- [x] 1.1.1. Is it ready **done**?"
 ))]
 fn punctuation_handling_respects_formatting_and_escapes(#[case] case: CompletionCase) {
     assert_completion_case(&case);
@@ -217,16 +237,20 @@ fn a_punctuated_suffix_inside_markers_wraps_within_eighty_columns() {
 }
 
 #[test]
-fn a_marker_suffix_reuses_the_width_of_replaced_punctuation() {
+fn a_marker_suffix_keeps_the_title_punctuation_within_eighty_columns() {
     let content = "a".repeat(57);
     let item = format!("- [ ] 1.1.1. {content}.");
-    let expected = format!("- [x] 1.1.1. {content} **done.**");
+    let expected = format!("- [x] 1.1.1. {content} **done**.");
 
     assert_eq!(
         complete_ok(&completion_source(&item), "1.1.1", Some("**done.**"))
             .expect("fixture completion should succeed"),
         completion_source(&expected),
-        "the replaced full stop should free the column the suffix needs"
+        "the suffix core and the kept full stop should fit one line"
+    );
+    assert!(
+        expected.chars().count() <= 80,
+        "the fixture should stay within 80 columns: {expected}"
     );
 }
 

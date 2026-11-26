@@ -189,14 +189,45 @@ fn complete_suffix_empty_environment_overrides_file(
     Ok(())
 }
 
+/// One invalid completion configuration.
+struct InvalidConfigCase {
+    /// XDG configuration file contents, when the case uses a file.
+    file: Option<&'static str>,
+    /// Environment value, when the case uses one.
+    environment: Option<&'static str>,
+    /// Extra stderr fragment beyond the configuration class.
+    detail: Option<&'static str>,
+}
+
 #[rstest]
+#[case::a_malformed_file(InvalidConfigCase {
+    file: Some("[cmds.complete\nsuffix = \"— broken\"\n"),
+    environment: None,
+    detail: Some("config.toml"),
+})]
+#[case::a_multiline_environment_value(InvalidConfigCase {
+    file: None,
+    environment: Some("done\nagain"),
+    detail: None,
+})]
+#[case::a_non_string_file_value(InvalidConfigCase {
+    file: Some("[cmds.complete]\nsuffix = 7\n"),
+    environment: None,
+    detail: None,
+})]
 fn invalid_complete_config_surfaces_configuration_error(
+    #[case] case: InvalidConfigCase,
     workspace: TestResult<Workspace>,
 ) -> TestResult {
     let test_workspace = workspace?;
-    let xdg_home = test_workspace.write_xdg_config("[cmds.complete\nsuffix = \"— broken\"\n")?;
     let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+    if let Some(contents) = case.file {
+        let xdg_home = test_workspace.write_xdg_config(contents)?;
+        invocation.set_env("XDG_CONFIG_HOME", xdg_home.as_str());
+    }
+    if let Some(value) = case.environment {
+        invocation.set_env("MAPSPLICE_CMDS_COMPLETE_SUFFIX", value);
+    }
     // The child reports `MapspliceError::class()` as a tracing field, which is
     // how a process boundary exposes the typed `Configuration` variant.
     invocation.set_env("RUST_LOG", "error");
@@ -206,25 +237,8 @@ fn invalid_complete_config_surfaces_configuration_error(
     assert_equal(&outcome.success, &false);
     assert_contains(&outcome.stderr, "mapsplice command failed");
     assert_contains(&outcome.stderr, "\"configuration\"");
-    // The malformed table header fails before the suffix value is read, so the
-    // diagnostic names the unparsable file rather than the value inside it.
-    assert_contains(&outcome.stderr, "config.toml");
-    Ok(())
-}
-
-#[rstest]
-fn multiline_complete_suffix_surfaces_configuration_error(
-    workspace: TestResult<Workspace>,
-) -> TestResult {
-    let test_workspace = workspace?;
-    let mut invocation = test_workspace.invocation()?;
-    invocation.set_env("MAPSPLICE_CMDS_COMPLETE_SUFFIX", "done\nagain");
-    invocation.set_env("RUST_LOG", "error");
-
-    let outcome = run_complete(&test_workspace, &invocation, &[])?;
-
-    assert_equal(&outcome.success, &false);
-    assert_contains(&outcome.stderr, "mapsplice command failed");
-    assert_contains(&outcome.stderr, "\"configuration\"");
+    if let Some(detail) = case.detail {
+        assert_contains(&outcome.stderr, detail);
+    }
     Ok(())
 }

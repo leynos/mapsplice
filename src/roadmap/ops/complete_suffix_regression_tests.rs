@@ -221,10 +221,10 @@ fn a_suffix_word_that_exactly_fills_a_continuation_line_is_allowed() {
     Some("— done"),
     "- [x] 1.1.1. Finish the scope — done&hellip;"
 ))]
-#[case::a_punctuated_suffix_replaces_an_encoded_full_stop(CompletionCase::new(
+#[case::a_punctuated_suffix_keeps_an_encoded_full_stop(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope&#46;",
     Some("— done."),
-    "- [x] 1.1.1. Finish the scope — done."
+    "- [x] 1.1.1. Finish the scope — done&#46;"
 ))]
 #[case::an_escaped_reference_is_literal_text(CompletionCase::new(
     "- [ ] 1.1.1. Finish the scope\\&#46;",

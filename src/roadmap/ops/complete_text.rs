@@ -172,17 +172,31 @@ fn node_text(node: &Node) -> Option<&str> {
     }
 }
 
-/// Match `suffix` at the end of `text`, ignoring terminal punctuation it precedes.
+/// Match `suffix` at the end of `text`, ignoring terminal punctuation.
+///
+/// The title's punctuation is authoritative, so a suffix is already present
+/// whichever sentence punctuation ends the title: `Finish — done!` satisfies
+/// the configured `— done.`. A suffix that is only punctuation cannot be
+/// reduced to a core, so it matches the title ending literally.
 fn suffix_matches(text: &RenderedText, suffix: &RenderedText) -> bool {
-    if suffix_supplies_punctuation(suffix) {
-        ends_at_word_boundary(text, suffix)
-    } else {
-        let without_terminal = text
+    let text_core = text
+        .as_str()
+        .trim_end_matches(is_terminal_punctuation)
+        .trim_end();
+    let suffix_core = suffix
+        .as_str()
+        .trim_end_matches(is_terminal_punctuation)
+        .trim_end();
+    if suffix_core.is_empty() {
+        return text
             .as_str()
-            .trim_end_matches(is_terminal_punctuation)
-            .trim_end();
-        ends_at_word_boundary(&RenderedText::new(without_terminal), suffix)
+            .trim_end()
+            .ends_with(suffix.as_str().trim_end());
     }
+    ends_at_word_boundary(
+        &RenderedText::new(text_core),
+        &RenderedText::new(suffix_core),
+    )
 }
 
 /// Match a suffix at the end of `text`, honouring word boundaries.

@@ -165,6 +165,24 @@ impl FailClosedCase {
     None,
     ExpectedError::MissingAnchor
 ))]
+#[case::f5_complete_malformed_target_in_place(FailClosedCase::new(
+    "f5_complete_malformed_target_in_place",
+    GoldenCommand::Complete {
+        anchor: "1.1.1",
+        suffix: Some("— done"),
+    },
+    None,
+    ExpectedError::InvalidRoadmap
+))]
+#[case::f7_complete_missing_sub_task_anchor_in_place(FailClosedCase::new(
+    "f7_complete_missing_sub_task_anchor_in_place",
+    GoldenCommand::Complete {
+        anchor: "1.1.1.9",
+        suffix: None,
+    },
+    None,
+    ExpectedError::MissingAnchor
+))]
 #[case::f7_complete_phase_anchor_in_place(FailClosedCase::new(
     "f7_complete_phase_anchor_in_place",
     GoldenCommand::Complete {

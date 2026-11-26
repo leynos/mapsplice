@@ -421,8 +421,11 @@ list marker stays literal text instead of being read as block syntax, a suffix
 carrying a literal marker still matches itself, and punctuation separates a
 suffix word just as whitespace does. Terminal punctuation written as a
 character reference such as `&#46;` or `&hellip;` is classified by what it
-renders as, so it stays last after the inserted words and a punctuated suffix
-replaces it; an escaped ampersand keeps the reference literal. Inline HTML
+renders as, so it stays last after the inserted words. The title's punctuation
+is authoritative: a suffix carrying its own terminal punctuation has that
+punctuation dropped when the title supplies one, so `Is it ready?` gains
+`— done?` rather than losing the question mark, and an encoded reference stays
+in place. An escaped ampersand keeps the reference literal. Inline HTML
 contributes a word boundary only when it renders a break, meaning an element
 whose whole tag name is `br`, so `un<span></span>done` and
 `un<br-widget></br-widget>done` do not satisfy a `done` suffix while

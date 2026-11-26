@@ -29,6 +29,12 @@ use super::{
 /// Characters that open or close inline emphasis, strong, code, or strike spans.
 const INLINE_MARKERS: [char; 4] = ['*', '_', '`', '~'];
 
+/// Closing markers that may follow punctuation the title already supplies.
+///
+/// A backtick is excluded because stripping punctuation inside a code span
+/// would change the construct's literal content.
+const STRIPPABLE_MARKERS: [char; 3] = ['*', '_', '~'];
+
 /// Collapse the configured suffix into the single-line words that are inserted.
 ///
 /// A suffix that is empty or only whitespace selects the default of no suffix.
@@ -58,14 +64,15 @@ pub(super) fn insert_suffix(
     span: ItemSourceSpan,
     suffix: &str,
 ) -> Option<()> {
-    let slot = suffix_slot(source, span, suffix)?;
+    let text = suffix_text(suffix);
+    let slot = suffix_slot(source, span, suffix, &text)?;
     let layout = SuffixLayout::new(source, span, &slot);
     remove_replaced(patched, source, slot.replaced.as_ref())?;
     let insert_at = slot.insert_at.checked_sub(layout.removed_before)?;
     if !patched.is_char_boundary(insert_at) {
         return None;
     }
-    let mut inserted = wrap_suffix(suffix, &layout.wrap)?;
+    let mut inserted = wrap_suffix(&text.text, &layout.wrap)?;
     pair_leading_backslash(&mut inserted, source, &slot, &layout.wrap)?;
     pair_trailing_backslash(&mut inserted, source, &slot, &layout.wrap)?;
     patched.insert_str(insert_at, &inserted);
@@ -201,6 +208,55 @@ const fn is_escaping_follower(character: char) -> bool {
     character.is_ascii_punctuation() || matches!(character, '\n' | '\r')
 }
 
+/// Text actually inserted for the configured suffix.
+struct SuffixText {
+    /// Suffix words with punctuation the title already supplies removed.
+    text: String,
+    /// Whether a terminal punctuation run was removed.
+    stripped: bool,
+}
+
+/// Remove terminal punctuation the title already supplies from the suffix.
+///
+/// Closing emphasis, strong, and strike markers stay in place, so `**done.**`
+/// becomes `**done**` and a plain `— done.` becomes `— done`. A suffix whose
+/// punctuation is not at the end (a link label, for example) or that ends in a
+/// code span keeps its bytes, because removing punctuation there would change
+/// the construct's literal content.
+fn suffix_text(suffix: &str) -> SuffixText {
+    let trimmed = suffix.trim_end();
+    let mut marker_start = trimmed.len();
+    while let Some(character) = trimmed
+        .get(..marker_start)
+        .and_then(|text| text.chars().next_back())
+    {
+        if !STRIPPABLE_MARKERS.contains(&character) {
+            break;
+        }
+        marker_start -= character.len_utf8();
+    }
+    let punctuation = trailing_punctuation_len(trimmed, marker_start);
+    if punctuation == 0 {
+        return SuffixText {
+            text: trimmed.to_owned(),
+            stripped: false,
+        };
+    }
+    let core = trimmed
+        .get(..marker_start - punctuation)
+        .zip(trimmed.get(marker_start..));
+    let Some((head, tail)) = core else {
+        return SuffixText {
+            text: trimmed.to_owned(),
+            stripped: false,
+        };
+    };
+    SuffixText {
+        text: format!("{head}{tail}"),
+        stripped: true,
+    }
+}
+
 /// Where the suffix goes and which title bytes it displaces.
 struct SuffixSlot<'source> {
     /// Byte offset at which the suffix words begin.
@@ -229,6 +285,7 @@ fn suffix_slot<'source>(
     source: &'source str,
     span: ItemSourceSpan,
     suffix: &str,
+    text: &SuffixText,
 ) -> Option<SuffixSlot<'source>> {
     let raw = source.get(span.title_start..span.paragraph_end)?;
     let number_end = raw
@@ -244,10 +301,16 @@ fn suffix_slot<'source>(
             replaced: None,
         });
     }
+    // The title's own punctuation is authoritative: a suffix whose terminal
+    // punctuation was removed is inserted before that run and leaves it in
+    // place, so `Is it ready?` gains `— done?` rather than losing the question
+    // mark.
+    let keeps_title_punctuation = text.stripped && punctuation_start < content_end;
     // Decorations such as links end with syntax characters, so punctuation is
     // classified from the text a reader sees, not from the suffix's spelling.
-    let supplies_punctuation = suffix_supplies_punctuation(&plain_suffix_text(suffix));
-    if suffix_ends_with_marker(suffix) && content_end < trimmed_end {
+    let supplies_punctuation =
+        !keeps_title_punctuation && suffix_supplies_punctuation(&plain_suffix_text(suffix));
+    if suffix_ends_with_marker(&text.text) && content_end < trimmed_end {
         // Placing marker-wrapped words directly before the title's closing
         // markers would merge both runs into one delimiter sequence, so such a
         // suffix follows the closing markers instead. Punctuation it supplies
@@ -274,6 +337,7 @@ fn suffix_slot<'source>(
     }
     Some(SuffixSlot {
         insert_at: punctuation_start,
+        // The title's punctuation run and any closing markers stay in place.
         terminal: source.get(punctuation_start..span.paragraph_end)?,
         replaced: None,
     })
