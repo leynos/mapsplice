@@ -23,11 +23,13 @@ the production function.
 
 _Table 1: The verification claim ledger._
 
-Each row is discharged by a theorem in `verus/lib.rs`, which runs under
-`make verus`. The titles above name the obligation; the theorem's comment in
-that file states its premise. `make verus-selftest` runs `verus/smoke.rs`,
-whose assertion is deliberately unprovable, and fails unless Verus rejects it —
-so a run in which the verifier never started cannot pass as a successful one.
+Each row is discharged by the executable function's own `ensures` clause in the
+verified expansion, supported by the named lemmas in `verus/lib.rs` or in the
+included `verus/source_span_proofs.rs`, all of which run under `make verus`.
+The titles above name the obligation; the specification comment in the proof
+states its premise. `make verus-selftest` runs `verus/smoke.rs`, whose
+assertion is deliberately unprovable, and fails unless Verus rejects it — so a
+run in which the verifier never started cannot pass as a successful one.
 `scripts/check-verification-ledger.sh`, wired into `make lint`, fails when a
 claim names a function that no longer exists in `src/`.
 
@@ -72,6 +74,41 @@ paragraph happens to wrap.
 Markdown parser supplies [`Position`] values. Mapping a parser's byte column to
 a scalar column happens in `src/roadmap/source_location.rs`, and the parser's
 own offset consistency is an external contract. Neither is proved here.
+
+### Adapter obligations
+
+These relations are owned outside the proof. They are recorded separately from
+defects already demonstrated by a test, so a later change can tell a missing
+proof from a missing test.
+
+- **Parser byte-offset consistency.** Every `Position` offset the adapter reads
+  is assumed to index the same source the kernel receives. The parser's
+  guarantee is external; the kernel proves only what follows from the offset
+  and the source bytes.
+- **Synthetic body-list positions.** `push_body_list_run` in
+  `src/roadmap/parse/nested_task_list.rs` builds a `Position` spanning the
+  first to last item of a nested body list before the list reaches
+  preservation. The relation between that synthesized span and the original
+  source is parser- and adapter-owned.
+- **Neighbour fallback.** `task_item_spans` owns the decision to use the next
+  item's checked line start or fall back to `list_end` when the next position
+  is absent or invalid. The adapter must supply `list.position.end.offset` as
+  that fallback; it is not derived by the kernel.
+- **Whole-list cache.** `TaskEntry::task_list_source` is populated in
+  `src/roadmap/parse/step_accumulator.rs` through `original_position_source`,
+  not through `task_item_sources`, and it has no target-only guard. Agreement
+  with the per-item route is an adapter property, not a kernel theorem.
+- **Sub-task extraction.** `src/roadmap/parse/task_item.rs` extracts sub-task
+  body sources through `original_position_source` without the neighbour
+  relation. The kernel proves the extraction, not the sub-task boundary.
+- **CR-aware extraction and `str::lines()`.** The kernel treats a bare CR as a
+  line terminator. `formatter_fallback_reason` in
+  `src/roadmap/render_preservation.rs` scans `str::lines()`, which treats LF
+  and CRLF as line endings but not a bare CR. The two policies are not proved
+  equivalent; the CR-only append regression pins the end-to-end behaviour.
+- **Scalar columns.** `src/roadmap/source_location.rs` derives scalar columns
+  from a parser byte column. The kernel's `ByteSpan` measures bytes only and
+  provides no scalar width.
 
 Extracting the recognizer into a provable kernel is not attempted here, and
 would be a substantial piece of work: it consumes mdast nodes and byte strings

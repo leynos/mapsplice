@@ -168,49 +168,30 @@ proof fn target_text_keeps_its_source_local_mapping<T>(
 // directly.
 
 // ---------------------------------------------------------------------------
-// A source-span obligation is deliberately absent
+// The source-span obligation is now present
 // ---------------------------------------------------------------------------
 //
-// An earlier draft carried `resolution_is_a_function_of_its_inputs`, which took
-// two triples with pairwise-equal inputs and concluded equality of results. It
-// was removed because it could not fail. It is congruence over a pure `spec fn`
-// and is therefore discharged from the signature alone: no defect in the kernel
-// can make it false. The defect battery recorded in `docs/verification.md`
-// demonstrates that rather than assuming it, and the vacuity of both removed
-// theorems is why this file proves three obligations and not five.
+// An earlier revision recorded that no source-span theorem existed. Production
+// called `original_position_source`, which used `str::get(..offset)`, and the
+// formulations tried against the then-pinned verifier did not reach it. The
+// whole-function splice in `verified_function.macro.rs` removed that blocker:
+// the executable scan, validation and copy are expanded by both the product
+// and this proof, so they are inside the proof boundary.
 //
-// The property it was meant to capture is real — resolution must not vary with
-// hidden state such as map iteration order — but it is a property of the
-// *caller*. `RenumberPlan::resolve_reference` is what reads the maps; the
-// kernel receives two already-resolved anchors and has no state to vary with.
-// Would the kernel's reference transparency be worth proving, the missing piece
-// is a functional-correctness theorem connecting its output to the resolved
-// anchors, not a determinism statement about a total function of its arguments.
+// The source-span specifications, lemmas and verified expansion live in
+// `source_span_proofs.rs`, included below. `docs/verification.md` retains the
+// historical formulation table, records the current-pin outcomes, and names
+// the vstd contracts the proof trusts.
 //
-// Source-span preservation itself is a property of the renderer, which writes
-// output by copying preserved spans. It is not a property of this kernel, and
-// no theorem here would be evidence for it. It is covered by the golden
-// fixtures and the in-place byte-identity assertions in `tests/` instead, and
-// `docs/verification.md` records the boundary.
-//
-// The boundary is recorded as a set of tested formulations rather than as an
-// impossibility, and the distinction is deliberate. `original_position_source`
-// in `src/roadmap/source_preservation.rs` is the production function that would
-// carry the obligation, and it calls `str::get(..offset)`, rejected by Verus as
-// unsupported, over a `RangeTo`, rejected against the pinned release in turn. A
-// byte-slice restatement does verify, but it would be a second implementation
-// rather than the function production compiles, which #85 rules out. A
-// restatement that production actually called would change that assessment.
-//
-// The splice convention above was probed as the route past this and does not
-// reach it. Text shared with `src/` must parse as ordinary Rust, while the scan
-// needs an `invariant` clause to verify, so the two blocks are not independently
-// composable. Both spellings of annotation-parameterized sharing were tried —
-// tokens passed as a macro parameter, and the annotation supplied by a second
-// macro wrapping a shared body — and both fail identically, because the parser
-// rejects `invariant` inside a macro expansion before expansion happens.
-// `docs/verification.md` carries the table of formulations and outcomes, so the
-// next reader can extend the list rather than re-derive it.
+// The earlier `resolution_is_a_function_of_its_inputs` note stays relevant to
+// the selector: it was removed because it could not fail. It was congruence
+// over a pure spec fn and is discharged from the signature alone, so no kernel
+// defect could falsify it. The property it meant to capture is real —
+// resolution must not vary with hidden state such as map iteration order — but
+// that is a property of `RenumberPlan::resolve_reference`, which reads the
+// maps; the kernel receives two already-resolved anchors. The source-span
+// obligations are a different shape: they constrain executable text and are
+// exercised by `make verus-mutation`.
 
 /// Fragment text does consult the cross-source fallback.
 ///

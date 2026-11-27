@@ -119,7 +119,10 @@ changes neither executable expansion.
 ### Measured toolchain gate
 
 The arrangement was measured before production changed, on x86-64 Linux with
-`make`, `uvx`, `rustup`, `curl`, `unzip` and `sha256sum`:
+`make`, `uvx`, `rustup`, `curl`, `unzip` and `sha256sum`. The feasibility
+measurements below were taken on `nightly-2026-11-25`, the Cargo pin at the
+time; the branch was later rebased onto `nightly-2026-11-26`, and the proof and
+kernel were re-verified on that pin before publication.
 
 ```sh
 make verus-install
@@ -225,9 +228,10 @@ builds with through `rustup`.
   (`tools/verus/SHA256SUMS`).
 - Verus runner: `592558f7183b554fc749696246984c5d7300d029`
   (`tools/rust-prover-tools/REF`).
-- Cargo toolchain: `nightly-2026-11-25` (`rust-toolchain.toml`). The Verus
-  binary builds with its own bundled toolchain, reported as
-  `1.98.0-x86_64-unknown-linux-gnu`.
+- Cargo toolchain: `nightly-2026-11-25` during the feasibility experiment;
+  `nightly-2026-11-26` at the assessed head after rebasing onto `main`
+  (`rust-toolchain.toml`). The Verus binary builds with its own bundled
+  toolchain, reported as `1.98.0-x86_64-unknown-linux-gnu`.
 - CI installer action: `a0519a1476ab769ca7b8badfa794f3751213f1ea`
   (`install-prover-tools` in `.github/workflows/verus.yml`).
 

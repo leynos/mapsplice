@@ -245,6 +245,7 @@ run_regression() {
 
 unit_filter="roadmap::source_preservation::tests::task_source_stops_before_the_next_marker_indentation"
 append_filter="delete_cr_only_task_does_not_preserve_the_document_prefix"
+extraction_filter="roadmap::source_span_kernel::tests::extraction_widens_to_the_line_start"
 
 # The unmutated copy is the runtime control. Both regressions must execute and
 # pass here first; otherwise a startup or compilation failure below could be
@@ -258,6 +259,11 @@ fi
 if ! run_regression "$copy/append-control.log" --test roadmap_append_preservation "$append_filter"; then
     echo "the unmutated copy fails the CR-only append regression" >&2
     cat "$copy/append-control.log" >&2
+    exit 1
+fi
+if ! run_regression "$copy/extraction-control.log" --lib "$extraction_filter"; then
+    echo "the unmutated copy fails the extraction regression" >&2
+    cat "$copy/extraction-control.log" >&2
     exit 1
 fi
 
@@ -306,4 +312,22 @@ if (( append_status == 0 )); then
 fi
 require_test_failure "$copy/append.log" "delete_cr_only_task_does_not_preserve_the_document_prefix"
 
-echo "source-span mutation control passed: verifier and runtime both reject the defect"
+# The return mutation is the one whose Verus rejection is a postcondition
+# failure, so it is the mutation that needs its own runtime observation. The
+# extraction test sees the copied text start one byte past the line start.
+restore_kernel
+echo "runtime: the return mutation breaks the extraction regression"
+if ! mutate_once "$copied_kernel" "$return_old" "$return_new"; then
+    echo "the return mutation matched no unique source text" >&2
+    exit 2
+fi
+extraction_status=0
+run_regression "$copy/extraction.log" --lib "$extraction_filter" || extraction_status=$?
+if (( extraction_status == 0 )); then
+    echo "the return mutation did not break the extraction regression" >&2
+    cat "$copy/extraction.log" >&2
+    exit 1
+fi
+require_test_failure "$copy/extraction.log" "extraction_widens_to_the_line_start"
+
+echo "source-span mutation control passed: verifier and runtime both reject both defects"
