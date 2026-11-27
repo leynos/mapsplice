@@ -1,0 +1,16 @@
+error: no rules expected `before`
+  --> tests/ui/verified_function_malformed.rs:10:5
+   |
+10 |     before {
+   |     ^^^^^^ no rules expected this token in macro call
+   |
+  ::: tests/ui/../../src/roadmap/verified_function.macro.rs
+   |
+   | macro_rules! verified_function {
+   | ------------------------------ when calling this macro
+   |
+note: while trying to match `proof_first`
+  --> tests/ui/../../src/roadmap/verified_function.macro.rs
+   |
+   |         proof_first { $($proof_first:tt)* }
+   |         ^^^^^^^^^^^

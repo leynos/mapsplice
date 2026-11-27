@@ -291,6 +291,14 @@ compiler; `verus/lib.rs` documents that convention, and
 [mapsplice-design.md](mapsplice-design.md) records the dependency-clause
 grammar the rewriter recognizes.
 
+The source-span helpers are a second proven boundary of the same shape, and
+they are the reference for a kernel that needs a loop. They live in
+`src/roadmap/source_span_kernel.rs`, which expands the `exec` mode of the
+shared source-span macro files beside it; `verus/lib.rs` expands the `verified`
+mode of the same text. `original_position_source`, `task_item_sources` and the
+line-start adapter in `src/roadmap/source_preservation.rs` call only its total
+entry points, so no caller validates an offset before handing it over.
+
 `TaskEntry::body_children_mut` in `src/roadmap/model_task_entry.rs` is what
 lets a rewrite reach a `Requires` clause in a nested task-body bullet: it
 exposes the task's structural child sequence, which is where the parser drains
@@ -468,10 +476,85 @@ executable-function cell reads `Pending` is exempt, because it declares work
 that has not landed rather than asserting a result.
 
 Proofs complement the property and end-to-end tests rather than replacing them.
-The kernel's trusted boundary and the obligations that were deliberately left
+Each kernel's trusted boundary and the obligations that were deliberately left
 unproved are recorded in [verification.md](verification.md); the Markdown
 clause recognizer is outside every proof, which is why the CLI regressions and
 golden fixtures carry that part of the contract.
+
+### 8.1.1 Writing a shared kernel
+
+A kernel body that needs a loop invariant cannot share only its body: the
+ordinary parser rejects `invariant` before Verus can see it. The unit of
+sharing is therefore the whole function.
+[ADR 0002](adrs/adr-0002-shared-verified-kernels.md) records the measurements
+behind that choice.
+
+Write the body once, inside a `macro_rules!` invocation that calls
+`verified_function!` with a `$mode` parameter:
+
+- The `exec` arm emits the attributes, signature, `before`, the loop,
+  `loop_step` and `after`. Nothing else.
+- The `verified` arm emits the same executable slots plus `requires`,
+  `ensures`, the loop `invariant` and `decreases`, and the `proof_first`,
+  `proof_before`, `proof_loop` and `proof_after` blocks, wrapped in `verus!`.
+
+Ghost code must not change an executable branch, argument, conversion, binding,
+return value or effect. Only an executable slot may carry behaviour, and a slot
+that both arms emit is a change to the shipped body. Audit a new kernel by
+reading the two arms against each other, not by assuming the shared text
+implies shared semantics.
+
+Practical rules:
+
+- Keep literal `fn` declarations on one line of the invocation.
+  `scripts/check-verification-ledger.sh` matches a line-initial declaration,
+  and a name that exists only as `fn $name` satisfies no claim.
+- Keep functions with `requires` private, and export only total entry points
+  that validate their inputs first. A caller-established precondition that the
+  product does not establish makes the proof a statement about dead code.
+- Prefer a checked accessor when vstd specifies one: the task-item slice reads
+  use `get`, whose contract states the in-range value under the caller's bound,
+  so they need no suppression. Use one targeted
+  `#[expect(clippy::lint, reason = "...")]` only where the checked form would
+  change the executable shape the proof is about, and name the proof in the
+  reason. Do not silence the lint at module scope.
+- Prefer a small kernel to a clever one. The whole body is opaque to
+  Whitaker's `bumpy_road_function` because it arrives as a macro expansion, so
+  a nested conditional there is unreviewed by that lint; small functions and
+  review are the compensating controls.
+- The macro contract has a compile-time check.
+  `tests/ui/verified_function_exec.rs` includes the real macro file, invokes the
+  `exec` arm with every proof slot present, and must compile;
+  `tests/ui/verified_function_malformed.rs` omits a slot and must fail. Neither
+  fixture exports the macro as public API.
+- Specifications are written against `Seq<u8>` and vstd's `str` contracts.
+  Check what vstd actually specifies before choosing a call: `str::split_at`,
+  `str::to_owned`, `str::as_bytes`, `str::len` and `str::is_char_boundary` are
+  specified, `str::get` is not, and `String::from_utf8` is not.
+
+Run the verification targets in this order:
+
+```sh
+make verus-install
+make verus
+make verus-selftest
+make verus-mutation
+```
+
+`make verus-mutation` is the negative control. It copies the tracked tree,
+removes the CR test from the shared scan, and requires the verifier to
+attribute a loop-invariant failure to `line_start_offset`; it then changes the
+returned index and requires a postcondition failure attributed to the same
+function. The runtime mapping follows the same split: the CR mutation is
+observed by the CR-only unit and append regressions, and the return mutation by
+the extraction regression, each after passing on the unmutated copy. A passing
+proof with a failing control means the proof stopped reaching the shared body.
+
+When editing `docs/verification.md`, keep the claim table's second column on a
+real symbol or the word `Pending`. `mdtablefix --wrap` re-wraps pipe tables,
+and a multi-line cell in the executable-function column breaks the checker's
+field-count assumption. Write a prose list instead when a row would need to
+name several things.
 
 ### 8.2 The domain-purity gate
 

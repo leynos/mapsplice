@@ -31,25 +31,55 @@ const LEDGER_DIAGNOSTIC: &str = "verification ledger names missing symbol:";
 /// two carry different text; conflating them sends an operator to `src/` to
 /// look for a function whose name was never well formed.
 const MALFORMED_DIAGNOSTIC: &str = "verification ledger names malformed symbol:";
-/// The ledger's executable-function column, as the fixture spells it.
-const KERNEL_COLUMN: &str = "| `select_resolution` |";
+/// The ledger's executable-function cell, as the fixture spells it.
+///
+/// `mdtablefix --wrap` pads a cell to its column width, so the text carries
+/// trailing spaces and the marker is the cell's content rather than a literal
+/// run of spaces.
+const KERNEL_COLUMN: &str = "| `select_resolution`";
 const EMPTY_LEDGER_DIAGNOSTIC: &str = "verification ledger states no verifiable claims";
 
-/// Render the real ledger with its kernel column replaced by `symbol`.
+/// Render the real ledger with every claim's executable-function cell replaced
+/// by `symbol`.
+///
+/// The shipped ledger names several kernels, so a fixture that replaced only
+/// the selector's cell would make every other row fail for a declaration the
+/// test never meant to discuss. Replacing every unindented claim-table cell
+/// keeps the fixture about the checker's parsing: one symbol, one declaration.
+///
+/// Indented tables are historical formulation tables, not claims, and the
+/// checker ignores them because their lines do not begin with a pipe. They are
+/// left untouched for the same reason.
 ///
 /// # Errors
 ///
-/// Returns an error when the fixture no longer carries the kernel column, so a
-/// rejection case cannot pass because the substitution silently did nothing.
+/// Returns an error when the fixture no longer carries the selector column, so
+/// a rejection case cannot pass because the substitution silently did nothing.
 fn ledger_naming(symbol: &str) -> TestResult<String> {
     let ledger = fixture_text("real", "md")?;
     if !ledger.contains(KERNEL_COLUMN) {
         return Err("the ledger fixture no longer contains the kernel column".into());
     }
-    // A substitution that is the identity — `symbol` naming the kernel itself —
-    // is the case that puts the claim and the declaration in agreement, so it is
-    // expressed here rather than special-cased by the caller.
-    Ok(ledger.replace(KERNEL_COLUMN, &format!("| `{symbol}` |")))
+
+    let rendered = ledger
+        .lines()
+        .map(|line| {
+            if !line.starts_with('|') {
+                return line.to_owned();
+            }
+            let mut cells = line.split('|').map(str::to_owned).collect::<Vec<_>>();
+            let should_replace = cells.get(2).is_some_and(|cell| {
+                let header = cell.trim();
+                header != "Executable function" && !header.chars().all(|character| character == '-')
+            });
+            if should_replace && let Some(cell) = cells.get_mut(2) {
+                *cell = format!(" `{symbol}` ");
+            }
+            cells.join("|")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(format!("{rendered}\n"))
 }
 
 /// Build a fixture from a symbol name and the source file that should satisfy it.
@@ -127,13 +157,26 @@ fn the_fixture_is_a_copy_of_the_real_ledger() -> TestResult {
 #[case::declared_with_generics("pub const fn select_resolution<T: Copy>(a: u8) -> u8 { a }", true)]
 #[case::declared_with_indentation("    fn select_resolution() {}", true)]
 #[case::declared_with_async("pub async fn select_resolution() {}", true)]
+#[case::literal_inside_a_macro_invocation(
+    "verified_function! {\n    fn select_resolution() {}\n}",
+    true
+)]
+/// The kernel declarations live inside a macro invocation, and the checker
+/// sees them as line-initial text. That is deliberate: the ledger check proves
+/// the claim and the declaration agree textually, not that the declaration
+/// expands into a callable function. Reaching that stronger claim is the
+/// splice convention's job, recorded in the ledger and the ADR.
 fn ledger_check_accepts_only_a_real_declaration(
     #[case] source: &str,
     #[case] should_accept: bool,
     #[from(real_ledger)] real_ledger: TestResult<LedgerFixture>,
 ) -> TestResult {
-    let (ledger, _) = real_ledger?;
-    let directory = materialize(&(ledger, source.to_owned()))?;
+    // Every claim names the same symbol, so the one declaration under test is
+    // the only thing that can satisfy or fail the table. Without this the
+    // fixture would keep the shipped ledger's other kernel names and fail for
+    // declarations the case never mentions.
+    let (..) = real_ledger?;
+    let directory = materialize(&(ledger_naming("select_resolution")?, source.to_owned()))?;
     let output = run_ledger_check(utf8(directory.path())?)?;
 
     require(

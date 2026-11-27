@@ -17,6 +17,8 @@
 mod ledger;
 #[path = "verus_harness/make_targets.rs"]
 mod make_targets;
+#[path = "verus_harness/mutation.rs"]
+mod mutation;
 #[path = "support/prover_harness.rs"]
 mod prover_harness;
 #[path = "verus_harness/workflow.rs"]

@@ -3,7 +3,7 @@
 	spelling interrogate install-build-tools check-build-tools check-ripgrep \
 	check-markdown-tools check-verification-ledger check-domain-purity \
 	check-prover-tools \
-	verus-install verus verus-selftest
+	verus-install verus verus-selftest verus-mutation
 
 # A composite gate must not overlap its Cargo invocations under `make -j`.
 .NOTPARALLEL:
@@ -268,6 +268,16 @@ verus-install: check-prover-tools ## Install the pinned Verus release and Z3 sol
 
 verus: check-prover-tools ## Verify the production-used Verus proof entry point
 	$(VERUS_RUN) --proof-file verus/lib.rs
+
+# The control mutates only the shared executable kernel text in a temporary
+# copy of the tracked tree and requires the verifier, then the runtime
+# regressions, to reject it. It installs no prover, like the targets above, and
+# it is deliberately not a dependency of `make verus`: a full run needs a Cargo
+# build as well as a verifier, so CI and the harness tests invoke it explicitly.
+VERUS_MUTATION_FLAGS ?=
+verus-mutation: check-prover-tools ## Confirm a shared-kernel regression is rejected
+	@VERUS_RUN='$(VERUS_RUN)' CARGO='$(CARGO)' \
+		bash scripts/check-source-span-mutation.sh $(VERUS_MUTATION_FLAGS)
 
 verus-selftest: check-prover-tools ## Confirm Verus rejects the deliberately false smoke proof
 	@output="$$(mktemp)"; \

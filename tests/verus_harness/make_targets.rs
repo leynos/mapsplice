@@ -16,7 +16,15 @@ use std::process::Command;
 
 use rstest::rstest;
 
-use crate::prover_harness::{TestResult, fake_prover_tools, manifest_dir, read_repo_file};
+use crate::prover_harness::{
+    TestResult,
+    fake_mutation_runner,
+    fake_prover_tools,
+    manifest_dir,
+    open_dir,
+    read_repo_file,
+    utf8,
+};
 
 /// Return an error when `condition` does not hold.
 fn require(condition: bool, reason: String) -> TestResult {
@@ -120,6 +128,7 @@ fn verus_targets_are_declared_and_phony() -> TestResult {
     for target in [
         "verus",
         "verus-selftest",
+        "verus-mutation",
         "verus-install",
         "check-prover-tools",
         "check-verification-ledger",
@@ -137,6 +146,63 @@ fn verus_targets_are_declared_and_phony() -> TestResult {
         )?;
     }
     Ok(())
+}
+
+#[test]
+fn make_verus_mutation_runs_the_control_without_installing() -> TestResult {
+    let runner = fake_mutation_runner()?;
+    let log_directory = tempfile::TempDir::new()
+        .map_err(|error| format!("create mutation log scratch: {error}"))?;
+    let log_root = utf8(log_directory.path())?;
+    let log = log_root.join("mutation.log");
+    let output = Command::new("make")
+        .arg("--no-print-directory")
+        .arg("verus-mutation")
+        .arg("VERUS_MUTATION_FLAGS=--verus-only")
+        .current_dir(manifest_dir())
+        .env("PROVER_TOOLS", runner.path())
+        .env("FAKE_MUTATION_MODE", "faithful")
+        .env("FAKE_MUTATION_LOG", &log)
+        .output()
+        .map_err(|error| format!("run make verus-mutation: {error}"))?;
+    require(
+        output.status.success(),
+        format!(
+            "make verus-mutation should succeed, exited {}; stderr was {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ),
+    )?;
+    let text = open_dir(log_root)?
+        .read_to_string("mutation.log")
+        .map_err(|error| format!("read mutation runner log: {error}"))?;
+    // Check the complete log before filtering: an installation attempt is an
+    // error wherever it appears, not only among the lines that look like proof
+    // runs.
+    require(
+        !text.lines().any(|line| line.contains(" install")),
+        format!("the target must install no prover; log was {text:?}"),
+    )?;
+    let runs = text
+        .lines()
+        .filter(|line| line.starts_with("verus run "))
+        .collect::<Vec<_>>();
+    require(
+        runs.len() == 3,
+        format!("the target must run the control and both mutations; log was {text:?}"),
+    )?;
+    for line in &runs {
+        require(
+            line.contains("--no-install-missing"),
+            format!("every run must forbid installation; log was {text:?}"),
+        )?;
+    }
+    require(
+        text.lines()
+            .filter(|line| line.starts_with("VERUS_Z3_PATH="))
+            .all(|line| line.ends_with("/.verus/z3/z3")),
+        format!("every run must receive the configured solver; log was {text:?}"),
+    )
 }
 
 #[test]

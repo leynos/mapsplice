@@ -67,6 +67,56 @@ pub fn read_repo_file(path: &str) -> TestResult<String> {
         .map_err(|error| format!("read {path}: {error}").into())
 }
 
+/// A fake `prover-tools` runner for the mutation control.
+pub struct FakeMutationRunner {
+    _directory: TempDir,
+    path: Utf8PathBuf,
+}
+
+impl FakeMutationRunner {
+    /// The fake runner's path, for `VERUS_RUN`.
+    #[must_use]
+    pub fn path(&self) -> &Utf8Path { &self.path }
+}
+
+/// The fake mutation runner's script.
+///
+/// The runner derives the copied kernel from the proof file it is given, so it
+/// observes the mutation the control actually wrote rather than a fixture
+/// guess. `FAKE_MUTATION_MODE` selects the answer:
+///
+/// - `faithful`: accept the unmutated tree and reject each mutation with the obligation that
+///   mutation violates, reported at the declaration line the control's attribution window covers.
+/// - `accepted`: exit 0 for every proof run.
+/// - `unattributed`: reject with the runner's banner but name no kernel location.
+/// - `startup_failure`: fail without the runner's banner.
+///
+/// The reported line is always the real `fn line_start_offset(` declaration,
+/// so the only variable under test is the mode, not the fixture's arithmetic.
+const MUTATION_RUNNER: &str = include_str!("../data/verus_harness/mutation_runner.sh");
+
+/// Create a fake runner that answers the mutation control's proof runs.
+///
+/// # Errors
+///
+/// Returns an error when the scratch directory cannot be populated.
+pub fn fake_mutation_runner() -> TestResult<FakeMutationRunner> {
+    let directory = TempDir::new().map_err(|error| format!("create scratch: {error}"))?;
+    let root = utf8(directory.path())?;
+    let handle = open_dir(root)?;
+    let path = root.join("prover-tools");
+    handle
+        .write("prover-tools", MUTATION_RUNNER)
+        .map_err(|error| format!("write fake mutation runner: {error}"))?;
+    handle
+        .set_permissions("prover-tools", Permissions::from_mode(0o755))
+        .map_err(|error| format!("make fake mutation runner executable: {error}"))?;
+    Ok(FakeMutationRunner {
+        _directory: directory,
+        path,
+    })
+}
+
 /// Path to the verification-ledger checker under test.
 #[must_use]
 pub fn ledger_script_path() -> Utf8PathBuf {

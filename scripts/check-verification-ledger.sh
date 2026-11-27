@@ -14,9 +14,12 @@
 # doc comment or a commented-out line does not satisfy a claim. That is the
 # realistic drift this guards: renaming a kernel leaves prose references behind.
 # What it does not do is mask string literals, so a claim name occurring only
-# inside a line-initial string literal would still match. The check is
-# necessary rather than sufficient, and the ledger's policy section says why
-# the proofs themselves, not this script, are the evidence.
+# inside a line-initial string literal would still match. It also accepts a
+# literal declaration inside a macro invocation, which is how the shared
+# kernels are written; the match is textual and does not establish that the
+# invocation expands into a function. The check is necessary rather than
+# sufficient, and the ledger's policy section says why the proofs themselves,
+# not this script, are the evidence.
 #
 # Usage: check-verification-ledger.sh [SCAN_DIR]
 #
