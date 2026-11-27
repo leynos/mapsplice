@@ -276,7 +276,6 @@ fn run_complete(
     Ok(RunOutcome::in_place(target.clone()))
 }
 
-
 /// Load a fragment only for commands that consume one.
 fn load_fragment(request: &CliRequest) -> Result<Option<roadmap::RoadmapFragment>> {
     match request.command.fragment_path() {
