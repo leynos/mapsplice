@@ -277,9 +277,10 @@ so its higher file counts are not the plan's measurement.
       changes, and a CodeScene delta review prompted a duplication refactor;
       the PR records the live head. Verus remains unrunnable here; the ledger
       records the premise as Pending under #160 and #162.
-- [x] (2026-11-26) PR #244 rebased onto `main` three times: `3b7b71b`
-      (#231/#251/#252), `05937ab` (#243 `complete`), and `6794109` (#263
-      source-span verification). Conflicts were the CRLF tests, the model's
+- [x] (2026-11-26) PR #244 rebased onto `main` four times: `3b7b71b`
+      (#231/#251/#252), `05937ab` (#243 `complete`), `6794109` (#263
+      source-span verification), and `cd61439` (#264 ADR renumber, which
+      replayed cleanly). Conflicts were the CRLF tests, the model's
       renumber-plan path, the ops module, design C1/C2, and the verification
       ledger; the ledger's continuity row and premise paragraph were merged
       with #263's new source-span rows. `model_reanchor.rs` keeps the model
@@ -919,6 +920,9 @@ record aliases. No dependencies are added.
 - 2026-11-20: Delivered as draft PR #244 from `ef46cab`, after the third
   CodeRabbit pass returned no findings and all seven gates passed on that
   commit. No scope or milestone order changed.
+- 2026-11-27: Rebased a fourth time onto `main` at `cd61439` after #264
+  renumbered the shared-kernel ADR; the replay was conflict-free and changed no
+  candidate content. No scope or milestone order changed.
 - 2026-11-27: Rebased a third time onto `main` at `6794109` after #263 added
   the source-span verification ledger; merged its rows with the continuity
   Pending row and restated the 907-test figures. No scope or milestone order
