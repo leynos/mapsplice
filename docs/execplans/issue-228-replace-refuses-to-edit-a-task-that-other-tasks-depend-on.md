@@ -139,17 +139,18 @@ outside `docs/execplans/`.
 
 Stop and report rather than working around a breached tolerance.
 
-Measured at delivery against `3b7b71b`: 51 non-ExecPlan files, 2,311 net code
-lines, 70 net documentation lines, and no configuration change. The file and
-code budgets are exceeded; D7 records the rebaseline and the measurement from
-the plan's original branch point shows why that comparison does not isolate
-this change. The excess comes from fixture directories and coverage the task
-packet requires, not from widening the implementation surface.
+Measured at delivery against `05937ab`: 60 non-ExecPlan files, 2,496 net code
+lines, 101 net documentation lines, and no configuration change. The file and
+code budgets are exceeded; D7 records the rebaseline. Measuring from the plan's
+original branch point would also count the upstream commits the rebase
+absorbed, so that comparison does not isolate this change. The excess comes
+from fixture directories and coverage the task packet requires, not from
+widening the implementation surface.
 
 The figures come from this command:
 
 ```sh
-git diff --numstat 3b7b71b 92b1ba1 -- . ':(exclude)docs/execplans/**'
+git diff --numstat 05937ab 3a6035a -- . ':(exclude)docs/execplans/**'
 ```
 
 Additions minus deletions are aggregated by the categories above. GitHub's PR
@@ -274,18 +275,18 @@ so its higher file counts are not the plan's measurement.
       changes, and a CodeScene delta review prompted a duplication refactor;
       the PR records the live head. Verus remains unrunnable here; the ledger
       records the premise as Pending under #160 and #162.
-- [x] (2026-11-26) PR #244 rebased onto `main` at `3b7b71b` and reviewed with
-      CodeScene. The rebase's only textual conflict was the CRLF tests leaving
-      `tests/roadmap_ops/nested_requires.rs`; serial markers now follow main's
-      `observability_metrics` convention. `cs delta` reported four new
-      Code Duplication advisories; `splice_replacement`, a shared step
-      iterator, and a tabled golden case list clear them, and each file scores
-      10.00 under `cs check`. Evidence: all seven gates pass at `bb3dc42`
-      (five from the `-6` logs, `check-fmt` and `lint` from `-7`), including
-      767 nextest tests and 13 doctests. Follow-ups raised as #260 (crate-root
-      test size) and #261 (per-item CRLF preservation).
+- [x] (2026-11-26) PR #244 rebased onto `main`, first at `3b7b71b` and then at
+      `05937ab` after #243 added the `complete` command. The conflicts were the
+      CRLF tests, the model's renumber-plan path, the ops module, and the
+      design's C1/C2; `model_reanchor.rs` keeps the model under Whitaker's
+      module limit. `cs delta` advisories were cleared by `splice_replacement`,
+      a shared step iterator, the extracted no-op predicate, a sub-task
+      mutation helper, and tabled regressions. Evidence: all seven gates pass
+      at `3a6035a`, including 878 nextest tests and 13 doctests. Follow-ups
+      raised as #260 (crate-root test size) and #261 (per-item CRLF
+      preservation).
 - [x] (2026-11-27) Delivery record reconciled for the ExecPlan assessment:
-      status COMPLETE, delivered candidate `92b1ba1`, 767 nextest tests and 13
+      status COMPLETE, delivered candidate `3a6035a`, 878 nextest tests and 13
       doctests, tolerance figures restated with the exact measurement command,
       and the `make all` equivalence recorded.
 - [x] (2026-11-26) Original-issue assessment remediation: an identical-item
@@ -445,11 +446,10 @@ so its higher file counts are not the plan's measurement.
   render. Only `replace` takes this path; other operations keep their canonical
   rendering. Date/Author: 2026-11-26, agent.
 - D7. Rebaseline the size tolerances at delivery. The delivered branch
-  contributes 51 non-ExecPlan files and 2,311 net code lines measured from the
-  rebase base `3b7b71b`, against the original budgets of 40 files and 900 net
-  code lines. Measured from the plan's original branch point `622b71d` the same
-  diff reports 94 files and 2,221 net code lines because it also contains the
-  upstream commits the rebase absorbed, so that comparison does not isolate
+  contributes 60 non-ExecPlan files and 2,496 net code lines measured from the
+  rebase base `05937ab`, against the original budgets of 40 files and 900 net
+  code lines. Measuring from the plan's original branch point would also count
+  the upstream commits the rebase absorbed, so that comparison does not isolate
   this change. The excess is mostly golden fixture directories (target,
   fragment, and expected files per case), pairwise continuity regressions, and
   the property-oracle extension. Reducing the change would drop coverage the
@@ -458,7 +458,7 @@ so its higher file counts are not the plan's measurement.
   dependency, or interface boundary changes. Measurement command:
 
   ```sh
-  git diff --numstat 3b7b71b 92b1ba1 -- . ':(exclude)docs/execplans/**'
+  git diff --numstat 05937ab 3a6035a -- . ':(exclude)docs/execplans/**'
   ```
 
   Date/Author: 2026-11-26, agent.
@@ -479,7 +479,7 @@ item's line changed; an identical-item replacement is a byte-for-byte no-op in
 both modes, CRLF included. A changed anchor, a multi-item fragment, a dropped
 descendant, and `delete` still fail closed and leave the target unchanged.
 
-Evidence at the delivered candidate: all seven deterministic gates pass (767
+Evidence at the delivered candidate: all seven deterministic gates pass (878
 nextest tests plus 13 doctests), hosted CI's `build-test` and `verify` pass,
 and CodeScene's delta shows only improvements.
 
@@ -910,6 +910,11 @@ record aliases. No dependencies are added.
 - 2026-11-20: Delivered as draft PR #244 from `ef46cab`, after the third
   CodeRabbit pass returned no findings and all seven gates passed on that
   commit. No scope or milestone order changed.
+- 2026-11-27: Rebased again onto `main` at `05937ab` after #243 added the
+  `complete` command; resolved the model renumber-plan path, ops module, and
+  design C1/C2 conflicts, and split re-anchoring into `model_reanchor.rs`. The
+  delivery figures and test counts were restated for that base. No scope or
+  milestone order changed.
 - 2026-11-26: Rebased onto `main` at `3b7b71b` to clear the #231/#251/#252
   conflict and aligned the test serial markers with main's convention. A
   CodeScene delta review reported four new Code Duplication advisories; two
