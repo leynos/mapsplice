@@ -8,6 +8,8 @@ mod export_command;
 
 mod fs;
 
+mod noop;
+
 pub mod observability;
 
 mod roadmap;
@@ -15,6 +17,7 @@ mod roadmap;
 use camino::Utf8PathBuf;
 pub use error::{ExportError, MapspliceError, Result, SourceLocation};
 use fs::{read_utf8, rewrite_utf8};
+use noop::replacement_is_noop;
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,
     apply_command_with_report,
@@ -194,6 +197,15 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let (dependency_rewrites, mut preservation_report) =
         apply_command_with_report(&mut roadmap, operation, fragment)?;
     let (rendered, render_report) = render_roadmap_with_report(&roadmap)?;
+    if replacement_is_noop(&operation, &target_text, &rendered) {
+        observability::record_dependency_rewrites(dependency_rewrites);
+        return Ok(if request.global.in_place {
+            RunOutcome::in_place(request.target)
+        } else {
+            RunOutcome::stdout(target_text)
+        });
+    }
+
     if request.global.in_place {
         rewrite_utf8(&request.target, &rendered)?;
         observability::record_in_place_rewrite();

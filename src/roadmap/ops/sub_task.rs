@@ -1,6 +1,9 @@
 //! Addendum sub-task splice helpers.
 
-use super::find_task_parent_mut;
+use super::{
+    continuity::{ContinuityPlan, ItemPosition, Replacement, RetiredSubtree, continuity_for},
+    lookup::{find_sub_task, find_task_parent_mut},
+};
 use crate::{
     error::{MapspliceError, Result},
     roadmap::{
@@ -30,21 +33,9 @@ pub(super) fn insert_sub_tasks(
     report: &mut PreservationReport,
 ) -> Result<()> {
     let SubTaskInsertion { after, sub_tasks } = insertion;
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    {
-        let task = step
-            .tasks
-            .get_mut(task_index)
-            .ok_or(MapspliceError::AnchorNotFound {
-                anchor: target.task_number().into(),
-            })?;
-        let target_identity = sub_task_identity(task, sub_task_index)?;
-        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        if task.insert_sub_tasks(splice, after, sub_tasks) {
-            report.record_invalidation(PreservationInvalidationReason::ChildMutation);
-        }
-    }
-    step.clear_task_list_source();
+    mutate_addressed_sub_task(roadmap, target, report, |task, splice| {
+        task.insert_sub_tasks(splice, after, sub_tasks)
+    })?;
     Ok(())
 }
 
@@ -57,21 +48,9 @@ pub(super) fn delete_sub_task(
     target: SubTaskNumber,
     report: &mut PreservationReport,
 ) -> Result<()> {
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
-    {
-        let task = step
-            .tasks
-            .get_mut(task_index)
-            .ok_or(MapspliceError::AnchorNotFound {
-                anchor: target.task_number().into(),
-            })?;
-        let target_identity = sub_task_identity(task, sub_task_index)?;
-        let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        if task.delete_sub_task(splice) {
-            report.record_invalidation(PreservationInvalidationReason::ChildMutation);
-        }
-    }
-    step.clear_task_list_source();
+    mutate_addressed_sub_task(roadmap, target, report, |task, splice| {
+        task.delete_sub_task(splice)
+    })?;
     Ok(())
 }
 
@@ -84,8 +63,36 @@ pub(super) fn replace_sub_task(
     target: SubTaskNumber,
     sub_tasks: Vec<SubTaskEntry>,
     report: &mut PreservationReport,
-) -> Result<()> {
-    let (step, task_index, sub_task_index) = find_sub_task_parent_mut(roadmap, target)?;
+) -> Result<Replacement> {
+    let count = sub_tasks.len();
+    let (phase_index, step_index, task_index, sub_task_index) =
+        mutate_addressed_sub_task(roadmap, target, report, |task, splice| {
+            task.replace_sub_task(splice, sub_tasks)
+        })?;
+    Ok(Replacement::new(
+        ItemPosition::SubTask {
+            phase: phase_index,
+            step: step_index,
+            task: task_index,
+            sub_task: sub_task_index,
+        },
+        count,
+    ))
+}
+
+/// Apply `mutate` to the addressed sub-task and return its parent indices.
+///
+/// Reports a source invalidation when the mutation changed preserved content
+/// and always clears the parent's task-list source, because its child sequence
+/// moved.
+fn mutate_addressed_sub_task(
+    roadmap: &mut RoadmapDocument,
+    target: SubTaskNumber,
+    report: &mut PreservationReport,
+    mutate: impl FnOnce(&mut TaskEntry, SubTaskSplice) -> bool,
+) -> Result<(usize, usize, usize, usize)> {
+    let (phase_index, step_index, step, task_index, sub_task_index) =
+        find_sub_task_parent_mut(roadmap, target)?;
     {
         let task = step
             .tasks
@@ -95,32 +102,46 @@ pub(super) fn replace_sub_task(
             })?;
         let target_identity = sub_task_identity(task, sub_task_index)?;
         let splice = find_sub_task_splice(task, sub_task_index, target_identity)?;
-        if task.replace_sub_task(splice, sub_tasks) {
+        if mutate(task, splice) {
             report.record_invalidation(PreservationInvalidationReason::ChildMutation);
         }
     }
     step.clear_task_list_source();
-    Ok(())
+    Ok((phase_index, step_index, task_index, sub_task_index))
+}
+
+/// Replace one sub-task and continue the identities that stay in place.
+pub(super) fn replace_sub_task_with_continuity(
+    roadmap: &mut RoadmapDocument,
+    target: SubTaskNumber,
+    sub_tasks: Vec<SubTaskEntry>,
+    report: &mut PreservationReport,
+) -> Result<ContinuityPlan> {
+    let retired = RetiredSubtree::sub_task(find_sub_task(roadmap, target)?);
+    let replacement = replace_sub_task(roadmap, target, sub_tasks, report)?;
+    Ok(continuity_for(roadmap, &retired, replacement))
 }
 
 /// Find the owning step and indices of an addressed sub-task.
 fn find_sub_task_parent_mut(
     roadmap: &mut RoadmapDocument,
     target: SubTaskNumber,
-) -> Result<(&mut StepSection, usize, usize)> {
-    let (step, task_index) = find_task_parent_mut(roadmap, target.task_number())?;
-    let task = step
-        .tasks
-        .get(task_index)
-        .ok_or(MapspliceError::AnchorNotFound {
-            anchor: target.task_number().into(),
-        })?;
-    let sub_task_index =
+) -> Result<(usize, usize, &mut StepSection, usize, usize)> {
+    let (phase_index, step_index, step, task_index) =
+        find_task_parent_mut(roadmap, target.task_number())?;
+    let sub_task_index = {
+        let task = step
+            .tasks
+            .get(task_index)
+            .ok_or(MapspliceError::AnchorNotFound {
+                anchor: target.task_number().into(),
+            })?;
         task.find_sub_task_index(target)
             .ok_or(MapspliceError::AnchorNotFound {
                 anchor: target.into(),
-            })?;
-    Ok((step, task_index, sub_task_index))
+            })?
+    };
+    Ok((phase_index, step_index, step, task_index, sub_task_index))
 }
 
 /// Resolve a sub-task identity from its index in the parent task.
@@ -197,74 +218,67 @@ mod tests {
         "  - [ ] 1.1.1.2. Replacement sub-task B.\n",
     );
 
-    #[rstest]
-    #[case::before_first(
-        "1.1.1.1",
-        false,
-        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"]
-    )]
-    #[case::after_last(
-        "1.1.1.3",
-        true,
-        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"]
-    )]
-    fn sub_task_insert_keeps_structural_and_child_vectors_aligned(
-        #[case] target: &str,
-        #[case] after: bool,
-        #[case] expected_numbers: &[&str],
-    ) {
-        let mut roadmap =
-            parse_roadmap(ROADMAP_WITH_THREE_SUB_TASKS).expect("sub-task roadmap should parse");
-        let anchor = parse_anchor(target).expect("sub-task anchor should parse");
-        let fragment =
-            parse_fragment(ONE_SUB_TASK_FRAGMENT).expect("sub-task fragment should parse");
+    /// The mutation a vector-alignment case applies.
+    #[derive(Clone, Copy, Debug)]
+    enum Mutation {
+        Insert { anchor: &'static str, after: bool },
+        Replace { anchor: &'static str },
+    }
 
-        apply_command(
-            &mut roadmap,
-            RoadmapOperation::Insert { anchor, after },
-            Some(fragment),
-        )
-        .expect("sub-task insert should succeed");
-
-        let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
-        assert_sub_task_numbers(task, expected_numbers);
-        assert_sub_task_child_identity_alignment(task);
+    /// One sub-task mutation and the vectors it must keep aligned.
+    #[derive(Clone, Copy, Debug)]
+    struct Case {
+        mutation: Mutation,
+        fragment: &'static str,
+        numbers: &'static [&'static str],
+        checked: &'static [bool],
     }
 
     #[rstest]
-    #[case::replace_first(
-        "1.1.1.1",
-        ONE_REPLACEMENT_SUB_TASK_FRAGMENT,
-        &["1.1.1.1", "1.1.1.2", "1.1.1.3"],
-        &[true, true, false]
-    )]
-    #[case::replace_last_with_multiple(
-        "1.1.1.3",
-        TWO_REPLACEMENT_SUB_TASK_FRAGMENT,
-        &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"],
-        &[false, true, true, false]
-    )]
-    fn sub_task_replace_keeps_structural_and_child_vectors_aligned(
-        #[case] target: &str,
-        #[case] fragment_source: &str,
-        #[case] expected_numbers: &[&str],
-        #[case] expected_checked: &[bool],
-    ) {
+    #[case::insert_before_first(Case {
+        mutation: Mutation::Insert { anchor: "1.1.1.1", after: false },
+        fragment: ONE_SUB_TASK_FRAGMENT,
+        numbers: &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"],
+        checked: &[false, false, true, false],
+    })]
+    #[case::insert_after_last(Case {
+        mutation: Mutation::Insert { anchor: "1.1.1.3", after: true },
+        fragment: ONE_SUB_TASK_FRAGMENT,
+        numbers: &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"],
+        checked: &[false, true, false, false],
+    })]
+    #[case::replace_first(Case {
+        mutation: Mutation::Replace { anchor: "1.1.1.1" },
+        fragment: ONE_REPLACEMENT_SUB_TASK_FRAGMENT,
+        numbers: &["1.1.1.1", "1.1.1.2", "1.1.1.3"],
+        checked: &[true, true, false],
+    })]
+    #[case::replace_last_with_multiple(Case {
+        mutation: Mutation::Replace { anchor: "1.1.1.3" },
+        fragment: TWO_REPLACEMENT_SUB_TASK_FRAGMENT,
+        numbers: &["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4"],
+        checked: &[false, true, true, false],
+    })]
+    fn sub_task_mutations_keep_structural_and_child_vectors_aligned(#[case] case: Case) {
         let mut roadmap =
             parse_roadmap(ROADMAP_WITH_THREE_SUB_TASKS).expect("sub-task roadmap should parse");
-        let anchor = parse_anchor(target).expect("sub-task anchor should parse");
-        let fragment = parse_fragment(fragment_source).expect("sub-task fragment should parse");
+        let fragment = parse_fragment(case.fragment).expect("sub-task fragment should parse");
+        let operation = match case.mutation {
+            Mutation::Insert { anchor, after } => RoadmapOperation::Insert {
+                anchor: parse_anchor(anchor).expect("sub-task anchor should parse"),
+                after,
+            },
+            Mutation::Replace { anchor } => RoadmapOperation::Replace {
+                anchor: parse_anchor(anchor).expect("sub-task anchor should parse"),
+            },
+        };
 
-        apply_command(
-            &mut roadmap,
-            RoadmapOperation::Replace { anchor },
-            Some(fragment),
-        )
-        .expect("sub-task replace should succeed");
+        apply_command(&mut roadmap, operation, Some(fragment))
+            .expect("sub-task mutation should succeed");
 
         let task = parent_task(&roadmap).expect("roadmap should keep the parent task");
-        assert_sub_task_numbers(task, expected_numbers);
-        assert_sub_task_checked_states(task, expected_checked);
+        assert_sub_task_numbers(task, case.numbers);
+        assert_sub_task_checked_states(task, case.checked);
         assert_sub_task_child_identity_alignment(task);
     }
 

@@ -8,6 +8,7 @@ mod ops;
 mod parse;
 pub(crate) mod preservation_events;
 mod render;
+mod renumber_plan;
 pub(crate) mod source_location;
 pub(crate) mod source_preservation;
 mod source_span_kernel;

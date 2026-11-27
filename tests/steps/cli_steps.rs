@@ -39,7 +39,7 @@ impl CliState {
         Ok(())
     }
 
-    fn write_fragment(&self, contents: &str) -> TestResult {
+    pub(crate) fn write_fragment(&self, contents: &str) -> TestResult {
         self.workspace.write_fragment(contents)
     }
 
@@ -47,7 +47,7 @@ impl CliState {
 
     pub(crate) const fn target_path(&self) -> &Utf8PathBuf { &self.workspace.target }
 
-    const fn fragment_path(&self) -> &Utf8PathBuf { &self.workspace.fragment }
+    pub(crate) const fn fragment_path(&self) -> &Utf8PathBuf { &self.workspace.fragment }
 
     pub(crate) fn run<I, S>(&mut self, args: I) -> TestResult
     where

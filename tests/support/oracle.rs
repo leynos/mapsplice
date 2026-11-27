@@ -62,7 +62,19 @@ pub(crate) enum Edit {
         task: usize,
     },
     /// Replace the addressed target task with the fragment tasks.
+    ///
+    /// The generated fragment holds two tasks, so the addressed identity is
+    /// retired even though the second fragment task may reuse its number.
     ReplaceTask {
+        /// Target task index, in generated source order.
+        task: usize,
+    },
+    /// Replace the addressed target task with one task carrying its own anchor.
+    ///
+    /// The generated fragment reproduces the addressed task exactly, sub-tasks
+    /// and clauses included. The splice therefore edits the item in place: the
+    /// identity never goes away, so no clause may dangle.
+    ReplaceTaskInPlace {
         /// Target task index, in generated source order.
         task: usize,
     },
@@ -78,26 +90,40 @@ pub(crate) enum Edit {
     },
 }
 
+/// Number of edit kinds [`Edit::from_selector`] divides the selector space by.
+const EDIT_KINDS: usize = 6;
+
 impl Edit {
     /// Convert a generated selector into a structural edit over the model.
+    ///
+    /// The remainder chooses the edit kind and the quotient chooses the
+    /// addressed position. Deriving both from one remainder would couple them:
+    /// with six kinds, a task index read from the remainder reaches only the
+    /// positions congruent to that kind, so some edits would never address
+    /// their tail. The quotient spans every position of every range over the
+    /// `u8` selector space.
     #[must_use]
     pub fn from_selector(selector: u8) -> Self {
         let index = usize::from(selector);
-        match selector.rem_euclid(5) {
+        let position = index.div_euclid(EDIT_KINDS);
+        match index.rem_euclid(EDIT_KINDS) {
             0 => Self::InsertTasksBefore {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             1 => Self::DeleteTask {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             2 => Self::ReplaceTask {
-                task: index.rem_euclid(TASK_COUNT),
+                task: position.rem_euclid(TASK_COUNT),
             },
             3 => Self::DeleteStep {
-                step: index.rem_euclid(STEP_COUNT),
+                step: position.rem_euclid(STEP_COUNT),
             },
-            _ => Self::DeletePhase {
-                phase: index.rem_euclid(PHASE_COUNT),
+            4 => Self::DeletePhase {
+                phase: position.rem_euclid(PHASE_COUNT),
+            },
+            _ => Self::ReplaceTaskInPlace {
+                task: position.rem_euclid(TASK_COUNT),
             },
         }
     }
@@ -108,7 +134,8 @@ impl Edit {
         match self {
             Self::InsertTasksBefore { task }
             | Self::DeleteTask { task }
-            | Self::ReplaceTask { task } => old_anchor(ItemId::new(Level::Task, task)),
+            | Self::ReplaceTask { task }
+            | Self::ReplaceTaskInPlace { task } => old_anchor(ItemId::new(Level::Task, task)),
             Self::DeleteStep { step } => old_anchor(ItemId::new(Level::Step, step)),
             Self::DeletePhase { phase } => old_anchor(ItemId::new(Level::Phase, phase)),
         }
@@ -206,5 +233,79 @@ pub(crate) fn expectation_for(model: &Model, edit: Edit) -> Expectation {
         anchors,
         rewritten,
         retired,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests for the selector vocabulary the property suite draws from.
+
+    use super::{Edit, PHASE_COUNT, STEP_COUNT, TASK_COUNT};
+
+    /// Every variant is reachable, including both replacement forms.
+    ///
+    /// The property draws its edit selector from an arbitrary byte, so a
+    /// variant the selector space cannot reach would make its half of the
+    /// contract unreachable rather than merely rare.
+    #[test]
+    fn the_selector_space_reaches_every_edit_variant() {
+        let edits = (0..6).map(Edit::from_selector).collect::<Vec<_>>();
+
+        for (selector, expected) in [
+            (0, Edit::InsertTasksBefore { task: 0 }),
+            (1, Edit::DeleteTask { task: 0 }),
+            (2, Edit::ReplaceTask { task: 0 }),
+            (3, Edit::DeleteStep { step: 0 }),
+            (4, Edit::DeletePhase { phase: 0 }),
+            (5, Edit::ReplaceTaskInPlace { task: 0 }),
+        ] {
+            assert!(
+                edits.contains(&expected),
+                "selector {selector} should reach {expected:?}, got {edits:?}"
+            );
+        }
+    }
+
+    /// Every kind reaches every position it is able to address.
+    ///
+    /// The kind and the position are drawn from different parts of the
+    /// selector. Sharing one remainder ties each kind to the positions
+    /// congruent to it: with six kinds and twelve tasks, a task edit would
+    /// only ever reach two of the twelve, and the tail of the model would
+    /// never be edited. The quotient covers the whole `u8` space, so this
+    /// asserts the complete cross product rather than a sample.
+    #[test]
+    fn every_edit_kind_reaches_every_position() {
+        let edits = (0..=u8::MAX).map(Edit::from_selector).collect::<Vec<_>>();
+        let expected = (0..TASK_COUNT)
+            .flat_map(|task| {
+                [
+                    Edit::InsertTasksBefore { task },
+                    Edit::DeleteTask { task },
+                    Edit::ReplaceTask { task },
+                    Edit::ReplaceTaskInPlace { task },
+                ]
+            })
+            .chain((0..STEP_COUNT).map(|step| Edit::DeleteStep { step }))
+            .chain((0..PHASE_COUNT).map(|phase| Edit::DeletePhase { phase }));
+
+        for edit in expected {
+            assert!(
+                edits.contains(&edit),
+                "the selector space should reach {edit:?}"
+            );
+        }
+    }
+
+    /// The in-place edit addresses the same pre-edit anchor as a retirement.
+    #[test]
+    fn the_in_place_edit_addresses_the_old_anchor() {
+        let edit = Edit::ReplaceTaskInPlace { task: 5 };
+
+        assert_eq!(
+            edit.anchor(),
+            "1.2.3",
+            "task 5 is the third task of step 1.2, and that is the number the fragment must carry"
+        );
     }
 }

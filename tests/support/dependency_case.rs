@@ -87,9 +87,9 @@ pub fn build_case(
         shape_options & !Shape::CRLF
     };
     let shape = Shape { options };
-    let generated =
-        generate(step_selectors, shape).map_err(|error| TestCaseError::fail(error.to_string()))?;
     let edit = Edit::from_selector(edit_selector);
+    let generated = generate(step_selectors, shape, edit)
+        .map_err(|error| TestCaseError::fail(error.to_string()))?;
     let expectation = expectation_for(&generated.model, edit);
     Ok(Case {
         edit,
@@ -135,7 +135,7 @@ pub fn run_case(workspace: &Workspace, case: &Case, mode: Mode) -> Result<String
             args.push(case.edit.anchor());
             args.push(workspace.fragment.to_string());
         }
-        Edit::ReplaceTask { .. } => {
+        Edit::ReplaceTask { .. } | Edit::ReplaceTaskInPlace { .. } => {
             args.push("replace".to_owned());
             args.push(workspace.target.to_string());
             args.push(case.edit.anchor());
