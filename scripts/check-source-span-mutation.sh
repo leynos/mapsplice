@@ -6,8 +6,10 @@
 # control mutates only the executable text in a temporary copy of the tracked
 # tree, leaves the specification alone, and requires the verifier to attribute
 # a failure to `line_start_offset`. It then mutates the same body again and
-# requires the two runtime preservation tests to fail, so the proof and the
-# product are both shown to be sensitive to the defect.
+# requires the runtime preservation tests to fail: the CR mutation is observed
+# by the CR-only unit and append regressions, and the return mutation by the
+# extraction regression. The proof and the product are therefore both shown to
+# be sensitive to each defect.
 #
 # Two mutations are used because they exercise different obligations:
 #
@@ -247,10 +249,10 @@ unit_filter="roadmap::source_preservation::tests::task_source_stops_before_the_n
 append_filter="delete_cr_only_task_does_not_preserve_the_document_prefix"
 extraction_filter="roadmap::source_span_kernel::tests::extraction_widens_to_the_line_start"
 
-# The unmutated copy is the runtime control. Both regressions must execute and
-# pass here first; otherwise a startup or compilation failure below could be
+# The unmutated copy is the runtime control. All three regressions must execute
+# and pass here first; otherwise a startup or compilation failure below could be
 # mistaken for the mutation being detected.
-echo "runtime control: both regressions pass on the unmutated copy"
+echo "runtime control: all three regressions pass on the unmutated copy"
 if ! run_regression "$copy/unit-control.log" --lib "$unit_filter"; then
     echo "the unmutated copy fails the CR unit regression" >&2
     cat "$copy/unit-control.log" >&2
