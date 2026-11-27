@@ -363,5 +363,3 @@ fn validate_fragment_level(anchor: RoadmapAnchor, found: RoadmapItemLevel) -> Re
         })
     }
 }
-// weave: run 'weave explain src/roadmap/ops/mod.rs' for per-hunk detail, 'weave check' to verify
-// your resolution

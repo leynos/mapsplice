@@ -285,6 +285,11 @@ so its higher file counts are not the plan's measurement.
       at `3a6035a`, including 878 nextest tests and 13 doctests. Follow-ups
       raised as #260 (crate-root test size) and #261 (per-item CRLF
       preservation).
+- [x] (2026-11-27) Size and delivery reconciliation: no-op detection moved to
+      `src/noop.rs`, leaving `src/lib.rs` at 391 lines, and
+      `tests/roadmap_ops.rs` is back to its pre-existing 419 lines by declaring
+      the retained-descendant module from `nested_requires`. The PR description
+      reports the 878-test count. `cs delta 05937ab` reports only improvements.
 - [x] (2026-11-27) Delivery record reconciled for the ExecPlan assessment:
       status COMPLETE, delivered candidate `3a6035a`, 878 nextest tests and 13
       doctests, tolerance figures restated with the exact measurement command,

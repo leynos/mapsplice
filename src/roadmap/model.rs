@@ -371,4 +371,3 @@ impl RoadmapFragment {
 /// Return the fragment level without consuming the fragment.
 #[must_use]
 pub const fn fragment_level(fragment: &RoadmapFragment) -> RoadmapItemLevel { fragment.level() }
-// weave: run 'weave explain src/roadmap/model.rs' for per-hunk detail, 'weave check' to verify your resolution

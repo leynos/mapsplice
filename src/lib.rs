@@ -8,6 +8,8 @@ mod export_command;
 
 mod fs;
 
+mod noop;
+
 pub mod observability;
 
 mod roadmap;
@@ -15,6 +17,7 @@ mod roadmap;
 use camino::Utf8PathBuf;
 pub use error::{ExportError, MapspliceError, Result, SourceLocation};
 use fs::{read_utf8, rewrite_utf8};
+use noop::replacement_is_noop;
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,
     apply_command_with_report,
@@ -217,35 +220,6 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
         Ok(RunOutcome::stdout(rendered))
     }
 }
-
-/// Return whether a replacement changes only line terminators.
-///
-/// A missing final terminator counts as a terminator difference: the render
-/// adds one, but emitting the target's own bytes is still byte-identical.
-/// Content the renderer would normalize makes the comparison fail, so the
-/// no-op path never skips a required formatter normalization.
-fn replacement_is_noop(
-    operation: &RoadmapOperationInner,
-    target_text: &str,
-    rendered: &str,
-) -> bool {
-    if !matches!(operation, RoadmapOperationInner::Replace { .. }) {
-        return false;
-    }
-    let normalized_source = line_terminators_normalized(target_text);
-    let source_with_terminator = if normalized_source.ends_with('\n') {
-        normalized_source
-    } else {
-        format!("{normalized_source}\n")
-    };
-    source_with_terminator == line_terminators_normalized(rendered)
-}
-
-/// Normalize CRLF terminators so source can be compared with a rendered document.
-///
-/// Content differences survive this comparison, so a formatter-unstable source
-/// still takes the rendering path; only the terminator style is ignored.
-fn line_terminators_normalized(text: &str) -> String { text.replace("\r\n", "\n") }
 
 /// Complete one roadmap item by patching the target text directly.
 ///

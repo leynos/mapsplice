@@ -16,6 +16,11 @@ use rstest::rstest;
 #[path = "crlf_line_endings.rs"]
 mod crlf_line_endings;
 
+// Retained-descendant replacement regressions are declared here for the same
+// reason as the CRLF module: the crate root is already at its size limit.
+#[path = "retained_descendants.rs"]
+mod retained_descendants;
+
 use super::{
     assert_equal,
     assertions::assert_contains,
