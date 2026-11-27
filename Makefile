@@ -159,7 +159,7 @@ target/release/$(TARGET): ## Build the production binary with LLVM
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(RUST_FLAGS))" RUSTFLAGS="$(RUST_FLAGS)" CARGO_PROFILE_RELEASE_CODEGEN_BACKEND=llvm \
 		$(CARGO) build $(BUILD_JOBS) --release --bin $(TARGET)
 
-lint: check-verification-ledger check-domain-purity lint-clippy lint-whitaker ## Run Clippy, then the Whitaker Dylint suite
+lint: check-verification-ledger check-domain-purity lint-clippy lint-whitaker yamllint actionlint ## Run Clippy, then the Whitaker Dylint suite
 
 lint-clippy: check-build-tools ## Check Rust documentation and run Clippy
 	CARGO_ENCODED_RUSTFLAGS="$(call append_filtered_encoded_rust_flags,$(GATE_RUSTFLAGS_BASE))" RUSTFLAGS="$(GATE_RUSTFLAGS_BASE)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --workspace --no-deps
@@ -306,3 +306,18 @@ nixie: ## Validate Mermaid diagrams
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
+
+YAMLLINT ?= yamllint
+ACTIONLINT ?= actionlint
+
+.PHONY: yamllint actionlint
+
+# yamllint reads `.yamllint.yml`, which extends `.yamllint-estate.yml`, and
+# resolves that path against the current directory, so run it from the root.
+yamllint: SHELL := bash
+yamllint: .SHELLFLAGS := -eo pipefail -c
+yamllint: ## Lint every tracked YAML file strictly
+	git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+
+actionlint: ## Lint the GitHub Actions workflows (and their shell scripts when ShellCheck is on PATH)
+	$(ACTIONLINT)
