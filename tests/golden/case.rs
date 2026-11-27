@@ -34,6 +34,11 @@ pub(crate) enum GoldenCommand {
     Delete { anchor: &'static str },
     /// Replace the addressed roadmap item with the fragment.
     Replace { anchor: &'static str },
+    /// Mark the addressed item as done without a fragment.
+    Complete {
+        anchor: &'static str,
+        suffix: Option<&'static str>,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -60,6 +65,8 @@ pub(crate) enum SuccessOutput {
     StdoutTargetUnchanged { expected: FixturePath },
     /// Assert in-place mode writes the expected fixture to the target with no stdout.
     InPlaceSuccess { expected: FixturePath },
+    /// Assert an in-place success and that a second identical run changes nothing.
+    InPlaceIdempotent { expected: FixturePath },
     /// Assert command stdout reproduces the original target exactly.
     OriginalTargetStdout,
 }
@@ -84,6 +91,10 @@ pub(crate) enum ExpectedError {
     LevelMismatch,
     /// Expect a missing-anchor diagnostic.
     MissingAnchor,
+    /// Expect a completion rejection for an anchor without a checkbox.
+    UnsupportedAnchorLevel,
+    /// Expect a fail-closed completion edit diagnostic.
+    UnsafeCompletionEdit,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -122,7 +133,8 @@ impl GoldenExpectation {
         matches!(
             self,
             Self::Success {
-                output: SuccessOutput::InPlaceSuccess { .. },
+                output: SuccessOutput::InPlaceSuccess { .. }
+                    | SuccessOutput::InPlaceIdempotent { .. },
             } | Self::Failure {
                 output: FailureOutput::InPlaceTargetUnchanged,
                 ..

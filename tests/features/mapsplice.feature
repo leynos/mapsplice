@@ -122,3 +122,37 @@ Feature: Mapsplice roadmap editing
     Then the command fails
     And stderr names the changed checkbox state
     And the roadmap and export files remain unchanged by the command
+
+  Scenario: Complete ticks a task in the preview without touching the file
+    Given the target roadmap with one step and two tasks
+    When I complete task 1.1.1
+    Then the command succeeds
+    And stdout ticks task 1.1.1 and leaves the other task open
+    And the target file remains unchanged
+
+  Scenario: Complete in place adds the done marker before terminal punctuation
+    Given the target roadmap with one step and two tasks
+    When I complete task 1.1.1 in place with the done marker
+    Then the command succeeds
+    And stdout is empty
+    And the target file ticks task 1.1.1 and marks it done before the full stop
+
+  Scenario: Completing an already completed task changes nothing
+    Given the target roadmap with a completed task
+    When I complete task 1.1.1 in place with the done marker
+    Then the command succeeds
+    And stdout is empty
+    And the target file remains unchanged
+
+  Scenario: Previewing an already completed task prints the unchanged roadmap
+    Given the target roadmap with a completed task
+    When I complete task 1.1.1
+    Then the command succeeds
+    And stdout prints the completed task 1.1.1 and leaves the other task open
+    And the target file remains unchanged
+
+  Scenario: Complete rejects a step anchor because a step has no checkbox
+    Given the target roadmap with one step and two tasks
+    When I try to complete step 1.1
+    Then the command fails
+    And stderr mentions that anchor 1.1 has no checkbox

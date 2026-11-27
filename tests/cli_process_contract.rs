@@ -237,6 +237,49 @@ fn ordinary_command_failure_has_only_a_stderr_diagnostic_and_fails() -> TestResu
 }
 
 #[test]
+fn complete_preview_reports_the_checked_task_on_stdout_only() -> TestResult {
+    let workspace = isolated_workspace()?;
+    workspace.directory.write("target.md", TARGET_ROADMAP)?;
+    let output = run_cli(&workspace, &["complete", "target.md", "1.1.1"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    verify_exit_code(&output, 0, "complete preview")?;
+    verify(
+        stdout.contains("- [x] 1.1.1. First task."),
+        format!("complete preview stdout was {stdout:?}"),
+    )?;
+    verify(
+        output.stderr.is_empty(),
+        format!("complete preview stderr was {:?}", output.stderr),
+    )?;
+    Ok(())
+}
+
+#[test]
+fn complete_phase_anchor_has_only_a_stderr_diagnostic_and_fails() -> TestResult {
+    let workspace = isolated_workspace()?;
+    workspace.directory.write("target.md", TARGET_ROADMAP)?;
+    let output = run_cli(&workspace, &["--in-place", "complete", "target.md", "1"])?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let target = workspace.directory.read_to_string("target.md")?;
+
+    verify_exit_code(&output, 1, "complete phase-anchor command")?;
+    verify(
+        output.stdout.is_empty(),
+        "failed complete command wrote stdout",
+    )?;
+    verify(
+        stderr.contains("only tasks and addendum sub-tasks have checkboxes"),
+        format!("complete diagnostic was {stderr:?}"),
+    )?;
+    verify(
+        target == TARGET_ROADMAP,
+        "failed complete command rewrote the target",
+    )?;
+    Ok(())
+}
+
+#[test]
 fn non_broken_pipe_write_failures_are_reported_and_fail() -> TestResult {
     let cases = [
         FullDeviceCase {

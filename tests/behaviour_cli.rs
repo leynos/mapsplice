@@ -170,3 +170,54 @@ fn export_check_reports_checkbox_drift(
     let _ = cli_state?;
     Ok(())
 }
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Complete ticks a task in the preview without touching the file"
+)]
+fn complete_ticks_task_in_preview(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Complete in place adds the done marker before terminal punctuation"
+)]
+fn complete_in_place_adds_done_marker(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Completing an already completed task changes nothing"
+)]
+fn completing_completed_task_changes_nothing(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Previewing an already completed task prints the unchanged roadmap"
+)]
+fn previewing_completed_task_prints_the_roadmap(
+    cli_state: CliFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}
+
+#[scenario(
+    path = "tests/features/mapsplice.feature",
+    name = "Complete rejects a step anchor because a step has no checkbox"
+)]
+fn complete_rejects_step_anchor(cli_state: CliFixture) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = cli_state?;
+    Ok(())
+}

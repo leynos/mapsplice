@@ -84,6 +84,27 @@ pub enum MapspliceError {
         anchor: RoadmapAnchor,
     },
 
+    /// The addressed anchor names a roadmap level without a checkbox.
+    #[error(
+        "cannot complete {level} anchor `{anchor}`: only tasks and addendum sub-tasks have \
+         checkboxes"
+    )]
+    UnsupportedAnchorLevel {
+        /// Anchor that was addressed.
+        anchor: RoadmapAnchor,
+        /// Level of that anchor.
+        level: RoadmapItemLevel,
+    },
+
+    /// A completion edit could not be applied without risking source corruption.
+    #[error("cannot complete item `{anchor}` safely: {reason}")]
+    UnsafeCompletionEdit {
+        /// Anchor that was addressed.
+        anchor: RoadmapAnchor,
+        /// Why the edit was rejected.
+        reason: String,
+    },
+
     /// A dependency clause references an anchor that no longer exists.
     #[error("{prefix}dependency anchor `{anchor}` was not found in the target roadmap", prefix = location.map_or_else(String::new, |source_location| format!("{source_location}: ")))]
     DanglingDependency {
@@ -140,6 +161,8 @@ impl MapspliceError {
             Self::MissingFragment { .. } => "missing_fragment",
             Self::UnexpectedFragment { .. } => "unexpected_fragment",
             Self::AnchorNotFound { .. } => "anchor_not_found",
+            Self::UnsupportedAnchorLevel { .. } => "unsupported_anchor_level",
+            Self::UnsafeCompletionEdit { .. } => "unsafe_completion_edit",
             Self::DanglingDependency { .. } => "dangling_dependency",
             Self::Export(error) => error.class(),
             Self::Markdown { .. } => "markdown",

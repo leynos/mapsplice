@@ -49,6 +49,10 @@ fn main() {
     );
     let anchor: RoadmapAnchor = parse_anchor("1.2.3").expect("anchor should parse");
     let _command = CommandKind::Delete { anchor };
+    let _complete = CommandKind::Complete {
+        anchor,
+        suffix: Some("— done".to_owned()),
+    };
     let _export = CommandKind::Export {
         format: ExportFormat::Json,
         check: None,

@@ -16,7 +16,8 @@ ______________________________________________________________________
 ## Why mapsplice?
 
 - **Make roadmap edits mechanical**: Insert, replace, or delete sections
-  without manually renumbering the rest of the document.
+  without manually renumbering the rest of the document, and check finished
+  work off in place without touching a byte of surrounding prose.
 - **Keep dependency prose in sync**: References such as `Requires 8.2.3.` get
   rewritten when the target item moves.
 - **Stay review-friendly**: The default mode writes the rewritten roadmap to
@@ -99,7 +100,9 @@ ______________________________________________________________________
 
 - Parse roadmap phases from level-2 headings, steps from level-3 headings, and
   tasks from numbered Markdown list items.
-- Support `append`, `insert`, `delete`, and `replace` operations.
+- Support `append`, `insert`, `delete`, `replace`, and `complete` operations.
+- Complete one task or addendum sub-task in place, optionally adding a
+  configurable done marker, with no fragment file and no renumbering.
 - Enforce strict level matching so a task fragment cannot be inserted where a
   phase belongs.
 - Renumber downstream phases, steps, and tasks after every structural edit.
@@ -114,8 +117,8 @@ ______________________________________________________________________
 
 - [Users' Guide](docs/users-guide.md) — command semantics, worked examples,
   roadmap format rules, and compatibility and migration notes
-- [Migration notes for 0.2.0](docs/migrations/0.2.0.md) — unreleased CLI help
-  presentation and diagnostic logging changes
+- [Migration notes for 0.2.0](docs/migrations/0.2.0.md) — the `complete`
+  command, unreleased CLI help presentation, and diagnostic logging changes
 - [Developers' Guide](docs/developers-guide.md) — APIs, architecture,
   observability, and verification layers
 - [Implementation plan](docs/execplans/initial-tool.md) — design decisions and

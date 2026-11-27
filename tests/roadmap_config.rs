@@ -5,6 +5,7 @@
 
 #[path = "support/assertions.rs"]
 mod assertions;
+
 #[path = "support/config.rs"]
 mod support;
 
@@ -157,6 +158,9 @@ fn insert_after_cli_flag_overrides_env_false(workspace: TestResult<Workspace>) -
     Ok(())
 }
 
+#[path = "roadmap_config/complete.rs"]
+mod complete;
+
 #[path = "roadmap_config/in_place.rs"]
 mod in_place;
 
@@ -180,3 +184,5 @@ fn invalid_insert_config_surfaces_configuration_error(
     assert_contains(&outcome.stderr, "later");
     Ok(())
 }
+
+// your resolution

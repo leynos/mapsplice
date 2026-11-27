@@ -43,7 +43,10 @@ boundary, and roadmap domain modules:
   and optional fragment, translate CLI commands into roadmap operations, render
   the result, and perform in-place writes.
 - `src/cli.rs` is the command-line and `ortho-config` adapter. It exposes
-  `CommandKind`, `GlobalOptions`, and `CliRequest`.
+  `CommandKind`, `GlobalOptions`, and `CliRequest`. The `insert`, `complete`,
+  and `export` argument types and their configuration merges live in the sibling
+  `src/cli_insert.rs`, `src/cli_complete.rs`, and `src/cli_export.rs` modules;
+  `AppendArgs`, `DeleteArgs`, and `ReplaceArgs` remain in `src/cli.rs`.
 - `src/roadmap` owns domain parsing, mutation, renumbering, and rendering.
   `RoadmapOperation` is the domain command type; CLI command enums must be
   translated before entering `roadmap::ops`.
@@ -94,6 +97,16 @@ boundary, and roadmap domain modules:
   and sub-task numbers through their domain constructors.
 - `src/fs.rs` is the capability-oriented filesystem adapter. Filesystem
   failures must surface as `MapspliceError::Io`, not roadmap validation errors.
+- `src/roadmap/model_source_span.rs` defines `ItemSourceSpan`, the retained
+  byte range for an addressed item, and `is_valid_in` rejects a span that does
+  not fit its source. `src/roadmap/model_renumber_plan.rs` defines
+  `RenumberPlan`. `src/roadmap/ops/complete.rs` resolves the target, patches
+  the checkbox byte, and re-parses the result as a post-condition; the sibling
+  `complete_suffix.rs`, `complete_text.rs`, and `complete_wrap.rs` own suffix
+  placement, rendered-text matching, and 80-column wrapping.
+  `complete_text:: RenderedText` and raw source byte offsets remain distinct
+  types. See
+  [design section 12](mapsplice-design.md#12-in-place-checkbox-completion).
 
 [grammar]: mapsplice-design.md#4-the-roadmap-grammar-normative-reference
 
@@ -134,10 +147,11 @@ only at external process boundaries.
 
 `MapspliceError` is the crate-level command error. Domain modules under
 `src/roadmap` construct only roadmap variants such as `InvalidRoadmap`,
-`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, and `DanglingDependency`;
-`ExportError` variants are constructed only in `src/export_command`, and `Io`
-variants only in `src/fs`. One public enum keeps command callers on a single
-error type while each boundary still owns the errors it can raise.
+`InvalidAnchor`, `LevelMismatch`, `AnchorNotFound`, `DanglingDependency`,
+`UnsupportedAnchorLevel`, and `UnsafeCompletionEdit`; `ExportError` variants
+are constructed only in `src/export_command`, and `Io` variants only in
+`src/fs`. One public enum keeps command callers on a single error type while
+each boundary still owns the errors it can raise.
 
 ## 4. Roadmap export schema changes
 
@@ -151,14 +165,18 @@ pre-commit quality gates must pass before the change is reviewed.
 
 ## 5. Configuration behaviour
 
-Configuration behaviour has two current owners:
+Configuration behaviour has three current owners:
 
 - `src/cli_config.rs` owns global `in_place` discovery and parsing. It reads
   `$XDG_CONFIG_HOME/mapsplice/config.toml` and local `./.mapsplice.toml`,
   applies `MAPSPLICE_IN_PLACE`, then lets `--in-place` / `-i` force `true`.
-- `src/cli.rs::InsertConfig` owns the insert command's `after` option. It
+- `src/cli_insert.rs::InsertConfig` owns the insert command's `after` option. It
   removes Clap's implicit `false` value when `--after` is absent, then merges
   defaults through `ortho_config::load_and_merge_subcommand_for`.
+- `src/cli_complete.rs::CompleteConfig` owns the complete command's `suffix`
+  option. It merges defaults the same way, then rejects embedded line breaks
+  and treats blank input as no suffix, because the patcher inserts the text
+  inside a single Markdown paragraph.
 - Required values such as target paths, anchors, and fragment paths remain
   command-line arguments.
 
@@ -174,6 +192,11 @@ the working directory. `set_env` adds variables, and `run` executes the binary
 and captures its exit status, standard output, and standard error. Nothing in
 the test process changes its environment or working directory. Set `RUST_LOG`
 on the invocation to observe the `error_class` tracing field of a failure.
+
+`TaskEntry` and `SubTaskEntry` exclude the retained `source_span` from
+equality, so a completion edit does not change item identity. `source_span()`
+is populated only for items parsed from a target document, not for fragment
+items.
 
 The integration binaries that assert exact deltas of the process-global
 observability counters (`roadmap_ops`, `roadmap_lookup_rendering`, and
@@ -253,7 +276,7 @@ text, scoped reference preservation beside mapped `Requires` references, and
 append preservation across generated task-list shapes.
 
 Which answer a reference resolves through is a separate, proven boundary.
-`RenumberPlan::resolve_reference` in `src/roadmap/model.rs` calls
+`RenumberPlan::resolve_reference` in `src/roadmap/model_renumber_plan.rs` calls
 `select_resolution` in `src/roadmap/ops/remap_kernel.rs`, a pure `const fn`
 over two already-computed anchors and a `bool` source flag; it performs no
 lookup and cannot fail. The kernel's body is shared as a `macro_rules!`

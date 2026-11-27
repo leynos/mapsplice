@@ -29,7 +29,10 @@ pub(crate) fn assert_success(assertion: &SuccessAssertion<'_>) -> TestResult {
         SuccessOutput::StdoutTargetUnchanged { expected } => {
             assert_stdout_target_unchanged(assertion, expected)
         }
-        SuccessOutput::InPlaceSuccess { expected } => assert_in_place_success(assertion, expected),
+        SuccessOutput::InPlaceSuccess { expected }
+        | SuccessOutput::InPlaceIdempotent { expected } => {
+            assert_in_place_success(assertion, expected)
+        }
         SuccessOutput::OriginalTargetStdout => {
             assert_stdout(assertion.name, assertion.outcome, assertion.original_target)
         }
@@ -150,7 +153,11 @@ pub(crate) fn assert_expected_error(
         | (MapspliceError::DanglingDependency { .. }, ExpectedError::DanglingDependency)
         | (MapspliceError::AppendLevelMismatch { .. }, ExpectedError::AppendLevelMismatch)
         | (MapspliceError::LevelMismatch { .. }, ExpectedError::LevelMismatch)
-        | (MapspliceError::AnchorNotFound { .. }, ExpectedError::MissingAnchor) => Ok(()),
+        | (MapspliceError::AnchorNotFound { .. }, ExpectedError::MissingAnchor)
+        | (MapspliceError::UnsupportedAnchorLevel { .. }, ExpectedError::UnsupportedAnchorLevel)
+        | (MapspliceError::UnsafeCompletionEdit { .. }, ExpectedError::UnsafeCompletionEdit) => {
+            Ok(())
+        }
         (unexpected, expected_error) => Err(format!(
             "golden fixture `{name}` expected error {expected_error:?} but got `{unexpected}`"
         )
@@ -168,5 +175,36 @@ pub(crate) fn assert_failure_output(
         FailureOutput::TargetUnchanged | FailureOutput::InPlaceTargetUnchanged => {
             assert_target(name, workspace, original_target)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Verify completion diagnostics map to their expected golden classes.
+
+    use mapsplice::{MapspliceError, RoadmapItemLevel, parse_anchor};
+
+    use super::{ExpectedError, assert_expected_error};
+    use crate::golden::TestResult;
+
+    #[test]
+    fn completion_errors_map_to_their_expected_classes() -> TestResult {
+        let anchor = parse_anchor("1.1.1")?;
+        assert_expected_error(
+            "unsupported_anchor_level",
+            MapspliceError::UnsupportedAnchorLevel {
+                anchor,
+                level: RoadmapItemLevel::Phase,
+            },
+            ExpectedError::UnsupportedAnchorLevel,
+        )?;
+        assert_expected_error(
+            "unsafe_completion_edit",
+            MapspliceError::UnsafeCompletionEdit {
+                anchor,
+                reason: "test fixture".to_owned(),
+            },
+            ExpectedError::UnsafeCompletionEdit,
+        )
     }
 }

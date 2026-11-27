@@ -23,28 +23,37 @@ Commands:
   insert
   delete
   replace
+  complete
   export
-  help     Print this message or the help of the given subcommand(s)
+  help      Print this message or the help of the given subcommand(s)
 Global options:
   -i, --in-place  Rewrite the target file instead of printing to stdout
 ");
 }
+
+/// Help-line prefixes that stay stable when clap's wrapping or wording changes.
+const STABLE_HELP_PREFIXES: [&str; 11] = [
+    "Usage:",
+    "Commands:",
+    "Global options:",
+    "  append",
+    "  insert",
+    "  delete",
+    "  replace",
+    "  complete",
+    "  export",
+    "  help",
+    "  -i, --in-place",
+];
 
 fn stable_help_lines(stdout: &str) -> String {
     stdout
         .trim()
         .lines()
         .filter(|line| {
-            line.starts_with("Usage:")
-                || line.starts_with("Commands:")
-                || line.starts_with("Global options:")
-                || line.starts_with("  append")
-                || line.starts_with("  insert")
-                || line.starts_with("  delete")
-                || line.starts_with("  replace")
-                || line.starts_with("  export")
-                || line.starts_with("  help")
-                || line.starts_with("  -i, --in-place")
+            STABLE_HELP_PREFIXES
+                .iter()
+                .any(|prefix| line.starts_with(prefix))
         })
         .map(str::trim_end)
         .collect::<Vec<_>>()

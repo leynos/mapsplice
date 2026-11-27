@@ -13,6 +13,7 @@ use fs::{read_utf8, rewrite_utf8};
 use roadmap::{
     RoadmapOperation as RoadmapOperationInner,
     apply_command_with_report,
+    complete_item,
     parse_fragment as parse_fragment_inner,
     parse_roadmap as parse_roadmap_inner,
     render_roadmap_with_report,
@@ -159,6 +160,14 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     if let CommandKind::Export { format, check } = &request.command {
         return export_command::run_export(&request.target, *format, check.as_ref(), &read_utf8);
     }
+    if let CommandKind::Complete { anchor, suffix } = &request.command {
+        return run_complete(
+            &request.target,
+            *anchor,
+            suffix.as_deref(),
+            request.global.in_place,
+        );
+    }
     let edit = edit_command(&request.command).ok_or_else(|| MapspliceError::Configuration {
         message: "edit command conversion failed before mutation".to_owned(),
     })?;
@@ -193,6 +202,43 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     } else {
         Ok(RunOutcome::stdout(rendered))
     }
+}
+
+/// Complete one roadmap item by patching the target text directly.
+///
+/// The completion command keeps every byte outside the addressed checkbox and
+/// inserted suffix, so it cannot share the render-based edit pipeline. Preview
+/// mode always emits the resulting document, including the unchanged roadmap
+/// for an already checked item, so a preview redirected to another file is
+/// complete even when nothing changed. An in-place completion that changes
+/// nothing reports success without a file write, and an actual rewrite records
+/// the in-place rewrite metric.
+fn run_complete(
+    target: &Utf8PathBuf,
+    anchor: RoadmapAnchor,
+    suffix: Option<&str>,
+    in_place: bool,
+) -> Result<RunOutcome> {
+    let span = tracing::info_span!(
+        "run_complete",
+        operation = "complete",
+        anchor = %anchor,
+        target = %target,
+        in_place = in_place
+    );
+    let _span_guard = span.enter();
+    let target_text = read_utf8(target)?;
+    let roadmap = parse_roadmap_inner(&target_text)?;
+    let completed = complete_item(&roadmap, &target_text, anchor, suffix)?;
+    if !in_place {
+        return Ok(RunOutcome::stdout(completed));
+    }
+    if completed == target_text {
+        return Ok(RunOutcome::silent_success());
+    }
+    rewrite_utf8(target, &completed)?;
+    observability::record_in_place_rewrite();
+    Ok(RunOutcome::in_place(target.clone()))
 }
 
 /// Load a fragment only for commands that consume one.
@@ -241,7 +287,7 @@ const fn edit_command(command: &CommandKind) -> Option<EditCommand> {
         }),
         CommandKind::Delete { anchor } => Some(EditCommand::Delete { anchor: *anchor }),
         CommandKind::Replace { anchor, .. } => Some(EditCommand::Replace { anchor: *anchor }),
-        CommandKind::Export { .. } => None,
+        CommandKind::Complete { .. } | CommandKind::Export { .. } => None,
     }
 }
 
