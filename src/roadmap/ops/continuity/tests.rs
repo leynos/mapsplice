@@ -87,26 +87,79 @@ const NESTED_FRAGMENT_REPLACEMENT: &str = concat!(
     "  - [ ] 1.1.2.1. Revised sub-task.\n",
 );
 
-#[test]
-fn replace_task_continues_a_depended_on_identity() {
-    let document = replace(TASK_TARGET, "1.1.2", CHECKED_OFF_FRAGMENT)
-        .expect("the in-place replacement should succeed");
+/// One continuation case and the clauses it must preserve.
+#[derive(Clone, Copy, Debug)]
+struct ContinuationCase {
+    target: &'static str,
+    anchor: &'static str,
+    fragment: &'static str,
+    expected: &'static [&'static str],
+}
+
+#[rstest]
+#[case::task(ContinuationCase {
+    target: TASK_TARGET,
+    anchor: "1.1.2",
+    fragment: CHECKED_OFF_FRAGMENT,
+    expected: &[
+        "- [ ] 1.1.1. Consumer. Requires 1.1.2.\n",
+        "- [x] 1.1.2. Revised depended-on task.\n",
+    ],
+})]
+#[case::sub_task(ContinuationCase {
+    target: SUB_TASK_TARGET,
+    anchor: "1.1.1.2",
+    fragment: SUB_TASK_FRAGMENT,
+    expected: &[
+        "  - [ ] 1.1.1.1. Consumer sub-task. Requires 1.1.1.2.\n",
+        "  - [x] 1.1.1.2. Revised sub-task.\n",
+    ],
+})]
+#[case::step(ContinuationCase {
+    target: STEP_TARGET,
+    anchor: "1.1",
+    fragment: STEP_FRAGMENT,
+    expected: &[
+        "- [ ] 1.2.1. Task consumer. Requires 1.1.1.\n",
+        "- [ ] 1.2.2. Step consumer. Requires 1.1.\n",
+        "- [ ] 1.1.1. Revised depended-on task.\n",
+    ],
+})]
+#[case::phase(ContinuationCase {
+    target: PHASE_TARGET,
+    anchor: "1",
+    fragment: PHASE_FRAGMENT,
+    expected: &[
+        "- [ ] 2.1.1. Task consumer. Requires 1.1.1.\n",
+        "- [ ] 2.1.2. Step consumer. Requires 1.1.\n",
+        "- [ ] 2.1.3. Phase consumer. Requires 1.\n",
+    ],
+})]
+fn replace_continues_the_addressed_identity(#[case] case: ContinuationCase) {
+    let document = replace(ReplaceCase {
+        target: case.target,
+        anchor: case.anchor,
+        fragment: case.fragment,
+    })
+    .expect("the in-place replacement should succeed");
     let output = rendered(&document);
 
-    assert!(
-        output.contains("- [ ] 1.1.1. Consumer. Requires 1.1.2.\n"),
-        "the consumer clause should stay byte-identical, got:\n{output}"
-    );
-    assert!(
-        output.contains("- [x] 1.1.2. Revised depended-on task.\n"),
-        "the replacement should take the addressed number, got:\n{output}"
-    );
+    for clause in case.expected {
+        assert!(
+            output.contains(clause),
+            "the reference `{clause}` should stay byte-identical, got:\n{output}"
+        );
+    }
 }
 
 #[test]
 fn replace_task_with_identical_content_is_a_no_op() {
-    let document = replace(TASK_TARGET, "1.1.2", IDENTICAL_FRAGMENT)
-        .expect("the identical replacement should succeed");
+    let document = replace(ReplaceCase {
+        target: TASK_TARGET,
+        anchor: "1.1.2",
+        fragment: IDENTICAL_FRAGMENT,
+    })
+    .expect("the identical replacement should succeed");
 
     assert_eq!(
         rendered(&document),
@@ -119,92 +172,48 @@ fn replace_task_with_identical_content_is_a_no_op() {
 #[case::changed_number(CHANGED_NUMBER_FRAGMENT)]
 #[case::multiple_items(MULTI_ITEM_FRAGMENT)]
 fn replace_task_that_retires_the_identity_reports_a_dangling_dependency(#[case] fragment: &str) {
-    let expected = anchor("1.1.2");
-    let outcome = replace(TASK_TARGET, "1.1.2", fragment);
-
-    assert!(
-        matches!(
-            &outcome,
-            Err(MapspliceError::DanglingDependency { anchor: reported, .. })
-                if *reported == expected
-        ),
-        "the {fragment:?} replacement retires the identity, got {outcome:?}"
-    );
+    let outcome = replace(ReplaceCase {
+        target: TASK_TARGET,
+        anchor: "1.1.2",
+        fragment,
+    });
+    let message = format!("the {fragment:?} replacement retires the identity");
+    assert_dangling(&outcome, anchor("1.1.2"), message);
 }
 
 #[test]
 fn delete_task_grants_no_continuity() {
-    let expected = anchor("1.1.2");
-    let outcome = delete(TASK_TARGET, "1.1.2");
+    let outcome = delete(TargetCase {
+        target: TASK_TARGET,
+        anchor: "1.1.2",
+    });
+    assert_dangling(&outcome, anchor("1.1.2"), "deletion retires the identity");
+}
 
+/// Assert the outcome is a dangling dependency on `expected`.
+fn assert_dangling(
+    outcome: &Result<RoadmapDocument>,
+    expected: RoadmapAnchor,
+    message: impl std::fmt::Display,
+) {
     assert!(
         matches!(
-            &outcome,
+            outcome,
             Err(MapspliceError::DanglingDependency { anchor: reported, .. })
                 if *reported == expected
         ),
-        "deletion retires the identity, got {outcome:?}"
+        "{message}, got {outcome:?}"
     );
-}
-
-#[test]
-fn replace_sub_task_continues_a_depended_on_identity() {
-    let document = replace(SUB_TASK_TARGET, "1.1.1.2", SUB_TASK_FRAGMENT)
-        .expect("the in-place sub-task replacement should succeed");
-    let output = rendered(&document);
-
-    assert!(
-        output.contains("  - [ ] 1.1.1.1. Consumer sub-task. Requires 1.1.1.2.\n"),
-        "the consumer clause should stay byte-identical, got:\n{output}"
-    );
-    assert!(
-        output.contains("  - [x] 1.1.1.2. Revised sub-task.\n"),
-        "the replacement should take the addressed number, got:\n{output}"
-    );
-}
-
-#[test]
-fn replace_step_continues_its_depended_on_descendants() {
-    let document = replace(STEP_TARGET, "1.1", STEP_FRAGMENT)
-        .expect("the in-place step replacement should succeed");
-    let output = rendered(&document);
-
-    assert!(
-        output.contains("- [ ] 1.2.1. Task consumer. Requires 1.1.1.\n"),
-        "the task reference should stay byte-identical, got:\n{output}"
-    );
-    assert!(
-        output.contains("- [ ] 1.2.2. Step consumer. Requires 1.1.\n"),
-        "the step reference should stay byte-identical, got:\n{output}"
-    );
-    assert!(
-        output.contains("- [ ] 1.1.1. Revised depended-on task.\n"),
-        "the replacement task should take its original number, got:\n{output}"
-    );
-}
-
-#[test]
-fn replace_phase_continues_its_depended_on_descendants() {
-    let document = replace(PHASE_TARGET, "1", PHASE_FRAGMENT)
-        .expect("the in-place phase replacement should succeed");
-    let output = rendered(&document);
-
-    for clause in [
-        "- [ ] 2.1.1. Task consumer. Requires 1.1.1.\n",
-        "- [ ] 2.1.2. Step consumer. Requires 1.1.\n",
-        "- [ ] 2.1.3. Phase consumer. Requires 1.\n",
-    ] {
-        assert!(
-            output.contains(clause),
-            "the reference `{clause}` should stay byte-identical, got:\n{output}"
-        );
-    }
 }
 
 #[test]
 fn replace_task_continues_a_depended_on_sub_task() {
-    let document = replace(NESTED_FRAGMENT_TARGET, "1.1.2", NESTED_FRAGMENT_REPLACEMENT)
-        .expect("the nested in-place replacement should succeed");
+    let document = replace(ReplaceCase {
+        target: NESTED_FRAGMENT_TARGET,
+        anchor: "1.1.2",
+        fragment: NESTED_FRAGMENT_REPLACEMENT,
+    })
+    .expect("the nested in-place replacement should succeed");
     let output = rendered(&document);
 
     assert!(
@@ -243,17 +252,8 @@ fn replace_task_continues_a_depended_on_sub_task() {
 
 #[test]
 fn descendant_pairing_skips_a_duplicated_retired_anchor() {
-    let retired = RetiredSubtree {
-        addressed: identity(SourceId::Target, "1.1.1"),
-        descendants: vec![
-            identity(SourceId::Target, "1.1.1.1"),
-            identity(SourceId::Target, "1.1.1.1"),
-        ],
-    };
-    let replacement = vec![(
-        identity(SourceId::Fragment, "1.1.1.1"),
-        sub_task_position(0),
-    )];
+    let retired = retired_with(&[anchor("1.1.1.1"), anchor("1.1.1.1")]);
+    let replacement = replacement_with(&[(anchor("1.1.1.1"), 0)]);
 
     assert!(
         pair_descendants(&retired, &replacement).is_empty(),
@@ -263,20 +263,8 @@ fn descendant_pairing_skips_a_duplicated_retired_anchor() {
 
 #[test]
 fn descendant_pairing_skips_a_duplicated_replacement_anchor() {
-    let retired = RetiredSubtree {
-        addressed: identity(SourceId::Target, "1.1.1"),
-        descendants: vec![identity(SourceId::Target, "1.1.1.1")],
-    };
-    let replacement = vec![
-        (
-            identity(SourceId::Fragment, "1.1.1.1"),
-            sub_task_position(0),
-        ),
-        (
-            identity(SourceId::Fragment, "1.1.1.1"),
-            sub_task_position(1),
-        ),
-    ];
+    let retired = retired_with(&[anchor("1.1.1.1")]);
+    let replacement = replacement_with(&[(anchor("1.1.1.1"), 0), (anchor("1.1.1.1"), 1)]);
 
     assert!(
         pair_descendants(&retired, &replacement).is_empty(),
@@ -286,23 +274,8 @@ fn descendant_pairing_skips_a_duplicated_replacement_anchor() {
 
 #[test]
 fn descendant_pairing_keeps_only_unique_matches() {
-    let retired = RetiredSubtree {
-        addressed: identity(SourceId::Target, "1.1.1"),
-        descendants: vec![
-            identity(SourceId::Target, "1.1.1.1"),
-            identity(SourceId::Target, "1.1.1.2"),
-        ],
-    };
-    let replacement = vec![
-        (
-            identity(SourceId::Fragment, "1.1.1.2"),
-            sub_task_position(1),
-        ),
-        (
-            identity(SourceId::Fragment, "1.1.1.3"),
-            sub_task_position(2),
-        ),
-    ];
+    let retired = retired_with(&[anchor("1.1.1.1"), anchor("1.1.1.2")]);
+    let replacement = replacement_with(&[(anchor("1.1.1.2"), 1), (anchor("1.1.1.3"), 2)]);
 
     let pairs = pair_descendants(&retired, &replacement);
 
@@ -326,15 +299,51 @@ fn descendant_pairing_keeps_only_unique_matches() {
     );
 }
 
+/// One replacement case: a document, an addressed anchor, and a fragment.
+#[derive(Clone, Copy, Debug)]
+struct ReplaceCase<'a> {
+    target: &'a str,
+    anchor: &'a str,
+    fragment: &'a str,
+}
+
+/// A document and the anchor a mutation addresses.
+#[derive(Clone, Copy, Debug)]
+struct TargetCase<'a> {
+    target: &'a str,
+    anchor: &'a str,
+}
+
 /// Parse a test anchor, failing the test with its spelling on error.
 fn anchor(raw: &str) -> RoadmapAnchor { parse_anchor(raw).expect("test anchor should parse") }
 
-/// Build an identity for one source and anchor spelling.
-fn identity(source: SourceId, raw: &str) -> ItemIdentity {
-    ItemIdentity {
-        source,
-        anchor: anchor(raw),
+/// Build an identity for one source and anchor.
+fn identity(source: SourceId, anchor: RoadmapAnchor) -> ItemIdentity {
+    ItemIdentity { source, anchor }
+}
+
+/// Build a retired subtree whose addressed item is task `1.1.1`.
+fn retired_with(descendants: &[RoadmapAnchor]) -> RetiredSubtree {
+    RetiredSubtree {
+        addressed: identity(SourceId::Target, anchor("1.1.1")),
+        descendants: descendants
+            .iter()
+            .map(|value| identity(SourceId::Target, *value))
+            .collect(),
     }
+}
+
+/// Build replacement positions inside the first task's sub-task list.
+fn replacement_with(entries: &[(RoadmapAnchor, usize)]) -> Vec<(ItemIdentity, ItemPosition)> {
+    entries
+        .iter()
+        .map(|(value, index)| {
+            (
+                identity(SourceId::Fragment, *value),
+                sub_task_position(*index),
+            )
+        })
+        .collect()
 }
 
 /// Build a position inside the first task's sub-task list.
@@ -348,34 +357,32 @@ fn sub_task_position(sub_task: usize) -> ItemPosition {
 }
 
 /// Apply one replace operation and return the mutated document.
-fn replace(target: &str, target_anchor: &str, fragment: &str) -> Result<RoadmapDocument> {
-    let mut document = parse_roadmap(target).expect("test roadmap should parse");
-    let parsed_anchor = anchor(target_anchor);
-    let fragment_document = parse_fragment(fragment).expect("test fragment should parse");
+fn replace(case: ReplaceCase<'_>) -> Result<RoadmapDocument> {
+    let mut document = parse_roadmap(case.target).expect("test roadmap should parse");
+    let fragment_document = parse_fragment(case.fragment).expect("test fragment should parse");
 
     apply_command(
         &mut document,
         RoadmapOperation::Replace {
-            anchor: parsed_anchor,
+            anchor: anchor(case.anchor),
         },
         Some(fragment_document),
     )?;
     Ok(document)
 }
 
-/// Apply one delete operation and discard the mutated document.
-fn delete(target: &str, target_anchor: &str) -> Result<()> {
-    let mut document = parse_roadmap(target).expect("test roadmap should parse");
-    let parsed_anchor = anchor(target_anchor);
+/// Apply one delete operation and return the mutated document.
+fn delete(case: TargetCase<'_>) -> Result<RoadmapDocument> {
+    let mut document = parse_roadmap(case.target).expect("test roadmap should parse");
 
     apply_command(
         &mut document,
         RoadmapOperation::Delete {
-            anchor: parsed_anchor,
+            anchor: anchor(case.anchor),
         },
         None,
     )?;
-    Ok(())
+    Ok(document)
 }
 
 /// Render a document, failing the test on a rendering error.

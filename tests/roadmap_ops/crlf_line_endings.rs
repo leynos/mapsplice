@@ -232,57 +232,34 @@ fn crlf_child_replacement_reemits_parent_summary_clause(
     Ok(())
 }
 
-/// An identical replacement returns the target's own bytes in both modes.
+/// An identical replacement returns the target's own bytes.
 ///
 /// The fragment repeats the addressed task exactly, so rendering would change
-/// only the terminators. Preview must emit the CRLF target unchanged and
-/// in-place must leave the file untouched, including the final terminator.
+/// only the terminators. This covers CRLF sources and a source without a final
+/// terminator, in preview and in place.
 #[rstest]
-#[case::preview(false)]
-#[case::in_place(true)]
+#[case::crlf_preview(CRLF_NESTED_BULLET_CONSUMER, "- [ ] 1.1.1. Prerequisite.\n", false)]
+#[case::crlf_in_place(CRLF_NESTED_BULLET_CONSUMER, "- [ ] 1.1.1. Prerequisite.\n", true)]
+#[case::missing_final_preview(TARGET_WITHOUT_FINAL_NEWLINE, "- [ ] 1.1.1. Prerequisite.\n", false)]
+#[case::missing_final_in_place(TARGET_WITHOUT_FINAL_NEWLINE, "- [ ] 1.1.1. Prerequisite.\n", true)]
 #[serial_test::serial(observability_metrics)]
-fn crlf_identical_replace_is_byte_identical(
+fn identical_replace_is_byte_identical(
     workspace: TestResult<Workspace>,
+    #[case] target: &str,
+    #[case] fragment: &str,
     #[case] in_place: bool,
 ) -> TestResult {
     let output = replace_output(
         &workspace?,
         &Fixture {
-            target: CRLF_NESTED_BULLET_CONSUMER,
-            fragment: "- [ ] 1.1.1. Prerequisite.\n",
+            target,
+            fragment,
             anchor: "1.1.1",
         },
         in_place,
     )?;
 
-    assert_equal(&output, &CRLF_NESTED_BULLET_CONSUMER.to_owned());
-    Ok(())
-}
-
-/// An identical replacement keeps a missing final newline.
-///
-/// A source without a final terminator renders with one, so the no-op check
-/// treats the missing terminator as a line-ending difference. Preview must emit
-/// the source unchanged and in-place must leave the file untouched.
-#[rstest]
-#[case::preview(false)]
-#[case::in_place(true)]
-#[serial_test::serial(observability_metrics)]
-fn identical_replace_preserves_missing_final_newline(
-    workspace: TestResult<Workspace>,
-    #[case] in_place: bool,
-) -> TestResult {
-    let output = replace_output(
-        &workspace?,
-        &Fixture {
-            target: TARGET_WITHOUT_FINAL_NEWLINE,
-            fragment: "- [ ] 1.1.1. Prerequisite.\n",
-            anchor: "1.1.1",
-        },
-        in_place,
-    )?;
-
-    assert_equal(&output, &TARGET_WITHOUT_FINAL_NEWLINE.to_owned());
+    assert_equal(&output, &target.to_owned());
     Ok(())
 }
 

@@ -191,25 +191,10 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     let mut roadmap = parse_roadmap_inner(&target_text)?;
     let fragment = load_fragment(&request)?;
 
-    // A replacement whose render differs from the target only in line
-    // terminators, including a missing final terminator, is a no-op. Emitting
-    // the target's own bytes keeps an identical-item replacement byte-identical
-    // for CRLF input and for input without a final newline, where the render
-    // would normalize the terminators. Formatter-unstable content still renders
-    // because its rendered content differs, so the no-op path never skips a
-    // normalization the formatter boundary requires.
     let (dependency_rewrites, mut preservation_report) =
         apply_command_with_report(&mut roadmap, operation, fragment)?;
     let (rendered, render_report) = render_roadmap_with_report(&roadmap)?;
-    let normalized_source = line_terminators_normalized(&target_text);
-    let source_with_terminator = if normalized_source.ends_with('\n') {
-        normalized_source
-    } else {
-        format!("{normalized_source}\n")
-    };
-    let preserves_source = matches!(&operation, RoadmapOperationInner::Replace { .. })
-        && source_with_terminator == line_terminators_normalized(&rendered);
-    if preserves_source {
+    if replacement_is_noop(&operation, &target_text, &rendered) {
         observability::record_dependency_rewrites(dependency_rewrites);
         return Ok(if request.global.in_place {
             RunOutcome::in_place(request.target)
@@ -231,6 +216,29 @@ pub fn run_request(request: CliRequest) -> Result<RunOutcome> {
     } else {
         Ok(RunOutcome::stdout(rendered))
     }
+}
+
+/// Return whether a replacement changes only line terminators.
+///
+/// A missing final terminator counts as a terminator difference: the render
+/// adds one, but emitting the target's own bytes is still byte-identical.
+/// Content the renderer would normalize makes the comparison fail, so the
+/// no-op path never skips a required formatter normalization.
+fn replacement_is_noop(
+    operation: &RoadmapOperationInner,
+    target_text: &str,
+    rendered: &str,
+) -> bool {
+    if !matches!(operation, RoadmapOperationInner::Replace { .. }) {
+        return false;
+    }
+    let normalized_source = line_terminators_normalized(target_text);
+    let source_with_terminator = if normalized_source.ends_with('\n') {
+        normalized_source
+    } else {
+        format!("{normalized_source}\n")
+    };
+    source_with_terminator == line_terminators_normalized(rendered)
 }
 
 /// Normalize CRLF terminators so source can be compared with a rendered document.
