@@ -224,6 +224,98 @@ proof fn lemma_line_start_bounds(bytes: Seq<u8>, offset: int)
     }
 }
 
+/// A byte after a one-byte scalar is a character boundary.
+///
+/// Valid UTF-8 decodes a one-byte scalar in isolation, so the next position
+/// starts a fresh scalar (or is the end of the sequence). This is the fact the
+/// widened-start boundary check needs; it is proved by peeling the first scalar
+/// until the position is reached.
+proof fn lemma_after_ascii_is_boundary(bytes: Seq<u8>, offset: int)
+    requires
+        valid_utf8(bytes),
+        0 < offset <= bytes.len(),
+        is_leading_byte_width_1(bytes[offset - 1]),
+    ensures
+        is_char_boundary(bytes, offset),
+    decreases bytes.len(),
+{
+    assert(valid_first_scalar(bytes));
+    let first = length_of_first_scalar(bytes);
+    if offset <= first {
+        assert(offset == first) by {
+            assert(valid_leading_and_continuation_bytes_first_codepoint(bytes));
+            if is_leading_byte_width_1(bytes[0]) {
+                assert(first == 1);
+            } else if is_leading_byte_width_2(bytes[0]) {
+                assert(first == 2);
+                assert(is_continuation_byte(bytes[1]));
+            } else if is_leading_byte_width_3(bytes[0]) {
+                assert(first == 3);
+                assert(is_continuation_byte(bytes[1]));
+                assert(is_continuation_byte(bytes[2]));
+            } else {
+                assert(is_leading_byte_width_4(bytes[0]));
+                assert(first == 4);
+                assert(is_continuation_byte(bytes[1]));
+                assert(is_continuation_byte(bytes[2]));
+                assert(is_continuation_byte(bytes[3]));
+            }
+        };
+        reveal_with_fuel(is_char_boundary, 2);
+    } else {
+        let rest = pop_first_scalar(bytes);
+        assert(valid_utf8(rest));
+        assert(rest[offset - 1 - first] == bytes[offset - 1]);
+        lemma_after_ascii_is_boundary(rest, offset - first);
+        reveal_with_fuel(is_char_boundary, 2);
+    }
+}
+
+/// The line start of any valid source is a character boundary.
+proof fn lemma_line_start_is_boundary(bytes: Seq<u8>, offset: int)
+    requires
+        valid_utf8(bytes),
+        0 <= offset <= bytes.len(),
+    ensures
+        is_char_boundary(bytes, spec_line_start(bytes, offset)),
+    decreases offset,
+{
+    if offset <= 0 {
+        is_char_boundary_start_end_of_seq(bytes);
+    } else if is_line_terminator(bytes[offset - 1]) {
+        assert(is_leading_byte_width_1(bytes[offset - 1]));
+        lemma_after_ascii_is_boundary(bytes, offset);
+    } else {
+        lemma_line_start_is_boundary(bytes, offset - 1);
+    }
+}
+
+/// A valid in-range ordered boundary pair is accepted.
+///
+/// This is the completeness half of the span contract. `spec_span_error`'s
+/// final widened-boundary check is a defensive executable guard, and this
+/// theorem proves it can never reject a span that the earlier checks accepted
+/// in a valid `&str`. Without it the specification would describe only which
+/// error is reported, not that every legitimate span succeeds.
+proof fn lemma_span_error_complete(bytes: Seq<u8>, start: int, end: int)
+    requires
+        valid_utf8(bytes),
+        0 <= start <= end <= bytes.len(),
+        is_char_boundary(bytes, start),
+        is_char_boundary(bytes, end),
+    ensures
+        spec_span_error(bytes, start, end).is_none(),
+{
+    lemma_line_start_is_boundary(bytes, start);
+    lemma_line_start_bounds(bytes, start);
+    assert(!(start > bytes.len()));
+    assert(is_char_boundary(bytes, start));
+    assert(!(end > bytes.len()));
+    assert(is_char_boundary(bytes, end));
+    assert(!(start > end));
+    assert(is_char_boundary(bytes, spec_line_start(bytes, start)));
+}
+
 /// A character boundary inside a prefix is a boundary of that prefix.
 ///
 /// This is what lets the copy split at the span start on the prefix returned

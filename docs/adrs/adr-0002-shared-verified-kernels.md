@@ -159,9 +159,9 @@ pin reported `core::ops::range::RangeTo` as unsupported. The upgrade therefore
 widened the supported surface, but `str::get` remains the reason the product
 had to change to reach the proof.
 
-The full kernel then verified **21 verified, 0 errors** on `verus/lib.rs`: the
+The full kernel then verified **24 verified, 0 errors** on `verus/lib.rs`: the
 selector's four obligations plus the scan, validation, copy and task-item
-obligations and their supporting lemmas.
+obligations, their supporting lemmas, and the span completeness theorem.
 
 ### Negative control
 

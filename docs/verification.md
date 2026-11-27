@@ -34,11 +34,13 @@ run in which the verifier never started cannot pass as a successful one.
 claim names a function that no longer exists in `src/`.
 
 The proofs run under Verus `0.2026.09.06.8dea4a2`, the release pinned in
-`tools/verus/VERSION`, and `make verus` reports twenty-one verified items with
+`tools/verus/VERSION`, and `make verus` reports twenty-four verified items with
 no errors: the selector's existing obligations plus the source-span kernel's
-functions, specifications and supporting lemmas. The selector's four verified
-under the previous release, `0.2025.04.19.1b16620`, so that bump changed no
-result; the source-span rows are new.
+functions, specifications and supporting lemmas. The completeness lemma proves
+that the defensive widened-boundary guard can never reject a legitimate span,
+so the error specification describes both soundness and completeness. The
+selector's four verified under the previous release, `0.2025.04.19.1b16620`, so
+that bump changed no result; the source-span rows are new.
 
 Deleted-target rejection is a further obligation that has no row here, because
 it has no theorem that can fail; the policy at the end of this document records
@@ -298,7 +300,7 @@ product.
   | Iterator-only restatement, needing no invariant            | closure pattern unsupported                  | not re-measured                            |
   | Annotation tokens passed into a shared `while` header      | expected `{`, found `invariant`              | expected `{`, found `invariant`            |
   | Annotation supplied by a second macro around a shared body | expected `{`, found `invariant`              | expected `{`, found `invariant`            |
-  | Whole-function macro with mode tokens, loop invariant      | not tried                                    | 21 verified, 0 errors                      |
+  | Whole-function macro with mode tokens, loop invariant      | not tried                                    | 24 verified, 0 errors                      |
 
   _Table 4: Span-kernel formulations tested, by pinned release._
 
