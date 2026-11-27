@@ -63,6 +63,7 @@ fn empty_source_has_a_zero_line_start() {
 #[case::cr("a\rb", 3, Some(2), "a CR-only line starts after the CR")]
 #[case::lf("a\nb", 3, Some(2), "an LF-only line starts after the LF")]
 #[case::between_crlf("a\r\nb", 2, Some(2), "an offset between CR and LF starts a new line")]
+#[case::usize_max("abc", usize::MAX, None, "an offset at usize::MAX is out of bounds")]
 fn checked_line_start_recognizes_line_endings(
     #[case] source: &str,
     #[case] offset: usize,
@@ -199,6 +200,20 @@ fn every_error_variant_is_reachable() {
             end: 1,
             expected: SpanError::Reversed,
             message: "a reversed span is rejected last",
+        },
+        SpanCase {
+            source: "abc",
+            start: usize::MAX,
+            end: usize::MAX,
+            expected: SpanError::StartOutOfBounds,
+            message: "a start at usize::MAX is rejected before any arithmetic",
+        },
+        SpanCase {
+            source: "abc",
+            start: 0,
+            end: usize::MAX,
+            expected: SpanError::EndOutOfBounds,
+            message: "an end at usize::MAX is rejected before any arithmetic",
         },
     ];
     for case in CASES {
