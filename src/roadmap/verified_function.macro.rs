@@ -25,7 +25,7 @@
 //
 // One consequence is deliberate: Whitaker's `bumpy_road_function` lint sees an
 // opaque macro expansion, so nested conditionals inside these kernels are not
-// inspected by it. `docs/adrs/adr-0002-shared-verified-kernels.md` records the
+// inspected by it. `docs/adrs/adr-0003-shared-verified-kernels.md` records the
 // limitation and the compensating controls.
 /// Emit one function from one executable body.
 ///

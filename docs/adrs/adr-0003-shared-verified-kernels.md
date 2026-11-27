@@ -1,4 +1,6 @@
-# Architectural decision record (ADR) 002: Share verified kernels as whole functions
+# Architectural decision record (ADR) 003: Share verified kernels as whole functions
+
+> Renumbered from 0002 on 2026-11-27 (duplicate number).
 
 ## Status
 

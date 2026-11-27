@@ -152,7 +152,7 @@ loop that needs an `invariant` cannot share only its body: the ordinary parser
 rejects the annotation before Verus ever sees it. Emitting the whole function
 from one macro gives the tokens the expansion context the lint skips, and lets
 the `verified` arm add the contract and loop annotations to the same executable
-slots the `exec` arm emits. `docs/adrs/adr-0002-shared-verified-kernels.md`
+slots the `exec` arm emits. `docs/adrs/adr-0003-shared-verified-kernels.md`
 records the decision and its measurements.
 
 The trade is recorded in `src/roadmap/ops/select_resolution.macro.rs` and

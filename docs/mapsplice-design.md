@@ -118,7 +118,7 @@ reaches a precondition-bearing copy, and leaves the mdast `Position` mapping in
 `src/roadmap/source_preservation.rs`. That split is deliberate: the parser's
 byte offsets are an external contract, so the adapter owns the conversion and
 the kernel owns only the domain question of where a line starts and which bytes
-belong to a span. [ADR 0002](adrs/adr-0002-shared-verified-kernels.md) records
+belong to a span. [ADR 0003](adrs/adr-0003-shared-verified-kernels.md) records
 the splicing mechanism and its measured limits.
 
 The read-only export follows the same boundary. `src/lib.rs` dispatches a
