@@ -139,9 +139,11 @@ outside `docs/execplans/`.
 
 Stop and report rather than working around a breached tolerance.
 
-Measured at delivery against `6794109`: 60 non-ExecPlan files, 2,496 net code
-lines, 99 net documentation lines, and no configuration change. The file and
-code budgets are exceeded; D7 records the rebaseline. Measuring from the plan's
+Measured at delivery against `6794109`: 60 non-ExecPlan files, 2,493 net code
+lines, 99 net documentation lines, and no configuration change. The code total
+is 1,390 production source lines plus 1,103 test lines; 2,466 of those are
+`.rs` lines, which is the figure GitHub's comparison reports. The file and code
+budgets are exceeded; D7 records the rebaseline. Measuring from the plan's
 original branch point would also count the upstream commits the rebase
 absorbed, so that comparison does not isolate this change. The excess comes
 from fixture directories and coverage the task packet requires, not from
@@ -453,7 +455,7 @@ so its higher file counts are not the plan's measurement.
   render. Only `replace` takes this path; other operations keep their canonical
   rendering. Date/Author: 2026-11-26, agent.
 - D7. Rebaseline the size tolerances at delivery. The delivered branch
-  contributes 60 non-ExecPlan files and 2,496 net code lines measured from the
+  contributes 60 non-ExecPlan files and 2,493 net code lines measured from the
   rebase base `6794109`, against the original budgets of 40 files and 900 net
   code lines. Measuring from the plan's original branch point would also count
   the upstream commits the rebase absorbed, so that comparison does not isolate
