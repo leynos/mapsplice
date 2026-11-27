@@ -179,8 +179,11 @@ A loop-based scan cannot produce a postcondition failure from the first
 mutation: any invariant strong enough to prove the postcondition also describes
 the skipped region, so the defect is caught at the end of the loop body first.
 The second mutation is therefore the postcondition control, and both failures
-are attributed to the same function. The script also runs the CR-only unit and
-append regressions against the mutated copy and requires both to fail.
+are attributed to the same function. The runtime mapping follows the same
+split: the CR mutation is observed by the CR-only unit and append regressions,
+and the return mutation by the extraction regression. Each selected regression
+must pass on the unmutated copy first and fail with its own test name after its
+mutation.
 
 ## Consequences
 
@@ -246,3 +249,8 @@ builds with through `rustup`.
   refactor that changes the kernel line must update the script; the script
   exits 2 when the text no longer matches, and the harness has a zero-match
   case so a silent no-op cannot pass as a rejection.
+- The macro contract is held by `tests/ui/verified_function_exec.rs`, which
+  includes the real macro file and invokes the `exec` arm with every proof slot
+  present, and `tests/ui/verified_function_malformed.rs`, which omits a slot
+  and must fail. The fixtures compile the shipped macro text without exporting
+  it as public API.

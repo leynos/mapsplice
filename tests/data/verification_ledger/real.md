@@ -96,7 +96,7 @@ proof from a missing test.
   item's checked line start or fall back to `list_end` when the next position
   is absent or invalid. The adapter must supply `list.position.end.offset` as
   that fallback; it is not derived by the kernel.
-- **Whole-list cache.** `TaskEntry::task_list_source` is populated in
+- **Whole-list cache.** `StepSection::task_list_source` is populated in
   `src/roadmap/parse/step_accumulator.rs` through `original_position_source`,
   not through `task_item_sources`, and it has no target-only guard. Agreement
   with the per-item route is an adapter property, not a kernel theorem.
@@ -175,7 +175,8 @@ product.
 
 - No `assume`, admitted lemma, or `external_body` may assert the property under
   proof. Neither kernel needs one: the selector calls nothing, and the
-  source-span kernel reaches only vstd-specified `str` operations.
+  source-span kernel reaches only vstd-specified `str`, slice and `Vec`
+  operations.
 - Byte offsets and Unicode scalar indices are distinct concerns. `ByteSpan`
   measures UTF-8 byte offsets; markdown 1.0.0 reports byte columns, while
   `src/roadmap/source_location.rs` derives scalar columns for its own
@@ -236,10 +237,12 @@ product.
   cannot produce a postcondition failure from the first mutation: any invariant
   strong enough to prove the postcondition also describes the skipped region,
   so the defect is caught at the end of the loop body first. The second
-  mutation is therefore the postcondition control. The control also runs the
-  CR-only unit and append regressions against the mutated copy and requires
-  both to fail, so the shipped product is shown to be sensitive to the same
-  defect the proof rejects.
+  mutation is therefore the postcondition control. The runtime mapping follows
+  the same split: the CR mutation is observed by the CR-only unit and append
+  regressions, and the return mutation by the extraction regression. The
+  control requires each selected regression to pass on the unmutated copy and
+  to fail with its own test name after its mutation, so the shipped product is
+  shown to be sensitive to the same defect the proof rejects.
 
 - The obligations are not all the same shape, and the ledger should not imply
   they are. Three selector theorems state properties of
@@ -259,10 +262,12 @@ product.
   that conversion.
 
 - The applicable vstd contracts for the source-span rows are
-  `str::as_bytes`, `str::len`, `str::is_char_boundary`, `str::split_at` and
-  `str::to_owned`, each an `assume_specification` item in vstd. They are
-  trusted library contracts, not results proved here; the ledger names them so
-  the trust boundary is visible.
+  `str::as_bytes`, `str::len`, `str::is_char_boundary`, `str::split_at`,
+  `str::to_owned`, slice `len` and `get` (with its indexing axiom),
+  `Vec::with_capacity` and `Vec::push` (whose append-view contract carries the
+  task-item invariant across each iteration), each an `assume_specification`
+  item or axiom in vstd. They are trusted library contracts, not results proved
+  here; the ledger names them so the trust boundary is visible.
 
 - Two selector rows have been removed rather than listed, both for the same
   reason.

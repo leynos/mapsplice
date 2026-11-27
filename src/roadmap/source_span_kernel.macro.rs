@@ -283,11 +283,6 @@ macro_rules! source_span_kernel {
         verified_function! {
             $mode
             /// Resolve one item's validated span.
-            #[expect(
-                clippy::indexing_slicing,
-                reason = "the caller proves index < starts.len(), and the next-item read is \
-                          guarded by index + 1 < starts.len()"
-            )]
             fn task_item_span(
                 starts: &[Option<usize>],
                 list_end: Option<usize>,
@@ -305,8 +300,22 @@ macro_rules! source_span_kernel {
                 assert(starts.len() as int == starts@.len());
             }
             before {
-                let item_start = starts[index];
-                let next_start = if index + 1 < starts.len() { starts[index + 1] } else { None };
+                // `get` is the checked form of the slice read, so this function
+                // needs no lint suppression. The `None` arms are unreachable
+                // under the caller's index bound; they return the same absence
+                // the kernel reports for a missing item.
+                let item_start = match starts.get(index) {
+                    Some(value) => *value,
+                    None => return None,
+                };
+                let next_start = if index + 1 < starts.len() {
+                    match starts.get(index + 1) {
+                        Some(value) => *value,
+                        None => return None,
+                    }
+                } else {
+                    None
+                };
                 let next_end = match next_start {
                     Some(next) => checked_line_start(source, next),
                     None => None,

@@ -512,13 +512,21 @@ Practical rules:
 - Keep functions with `requires` private, and export only total entry points
   that validate their inputs first. A caller-established precondition that the
   product does not establish makes the proof a statement about dead code.
-- Use one targeted `#[expect(clippy::lint, reason = "...")]` where a lint
-  conflicts with a proved bound, and name the proof in the reason. Do not
-  silence the lint at module scope.
+- Prefer a checked accessor when vstd specifies one: the task-item slice reads
+  use `get`, whose contract states the in-range value under the caller's bound,
+  so they need no suppression. Use one targeted
+  `#[expect(clippy::lint, reason = "...")]` only where the checked form would
+  change the executable shape the proof is about, and name the proof in the
+  reason. Do not silence the lint at module scope.
 - Prefer a small kernel to a clever one. The whole body is opaque to
   Whitaker's `bumpy_road_function` because it arrives as a macro expansion, so
   a nested conditional there is unreviewed by that lint; small functions and
   review are the compensating controls.
+- The macro contract has a compile-time check.
+  `tests/ui/verified_function_exec.rs` includes the real macro file, invokes the
+  `exec` arm with every proof slot present, and must compile;
+  `tests/ui/verified_function_malformed.rs` omits a slot and must fail. Neither
+  fixture exports the macro as public API.
 - Specifications are written against `Seq<u8>` and vstd's `str` contracts.
   Check what vstd actually specifies before choosing a call: `str::split_at`,
   `str::to_owned`, `str::as_bytes`, `str::len` and `str::is_char_boundary` are
@@ -537,9 +545,10 @@ make verus-mutation
 removes the CR test from the shared scan, and requires the verifier to
 attribute a loop-invariant failure to `line_start_offset`; it then changes the
 returned index and requires a postcondition failure attributed to the same
-function; it then runs the CR-only regressions against the mutated copy and
-requires both to fail. A passing proof with a failing control means the proof
-stopped reaching the shared body.
+function. The runtime mapping follows the same split: the CR mutation is
+observed by the CR-only unit and append regressions, and the return mutation by
+the extraction regression, each after passing on the unmutated copy. A passing
+proof with a failing control means the proof stopped reaching the shared body.
 
 When editing `docs/verification.md`, keep the claim table's second column on a
 real symbol or the word `Pending`. `mdtablefix --wrap` re-wraps pipe tables,
