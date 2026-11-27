@@ -486,7 +486,7 @@ golden fixtures carry that part of the contract.
 A kernel body that needs a loop invariant cannot share only its body: the
 ordinary parser rejects `invariant` before Verus can see it. The unit of
 sharing is therefore the whole function.
-[ADR 0002](adrs/adr-0002-shared-verified-kernels.md) records the measurements
+[ADR 0003](adrs/adr-0003-shared-verified-kernels.md) records the measurements
 behind that choice.
 
 Write the body once, inside a `macro_rules!` invocation that calls
